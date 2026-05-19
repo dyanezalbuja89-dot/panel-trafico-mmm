@@ -1341,6 +1341,33 @@ HTML = r"""<!doctype html>
       <div class="card-big"><div class="lbl">% atribuible a modelo Ford</div><div class="val pos" id="xiy-k-attr">—</div><div class="hint" id="xiy-k-attr-hint">Lo demás es Awareness/Marca/Activación</div></div>
     </div>
 
+    <!-- FILTROS -->
+    <div class="ford-section" style="margin-top:18px;background:#f9fafb">
+      <h3>🔍 Filtros <span class="sub">Aplican a todas las tablas de abajo</span></h3>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+        <div>
+          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">Mes</label>
+          <select id="xiy-f-mes" style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:6px"></select>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">Modelo</label>
+          <select id="xiy-f-modelo" style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:6px"></select>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">Agencia</label>
+          <select id="xiy-f-agencia" style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:6px"></select>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">Campaña</label>
+          <select id="xiy-f-campaign" style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:6px"></select>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:14px">
+        <span id="xiy-f-summary">—</span>
+        <button id="xiy-f-clear" type="button" style="padding:5px 10px;border:1px solid #d1d5db;background:white;border-radius:6px;cursor:pointer;font-size:12px">Limpiar filtros</button>
+      </div>
+    </div>
+
     <!-- TABLA 1: matriz modelo × mes -->
     <div class="ford-section" style="margin-top:18px">
       <h3>📅 Inversión por modelo × mes <span class="sub">USD por modelo Ford y mes · Solo inversión atribuible</span></h3>
@@ -1384,14 +1411,12 @@ HTML = r"""<!doctype html>
 
     <!-- TABLA 2B: Performance vs Awareness -->
     <div class="ford-section" style="margin-top:18px">
-      <h3>⚖️ Etapa del Funnel <span class="sub">Distribución del presupuesto por etapa del embudo · clasificado por nombre de campaña</span></h3>
+      <h3>⚖️ Etapa del Funnel por modelo <span class="sub">Distribución del presupuesto por etapa del embudo · clasificado por nombre de campaña</span></h3>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;background:#f0f9ff;padding:10px;border-radius:6px">
         <strong>🎯 Performance</strong> = "LEADS AON ..." / Renting · busca lead directo (bottom funnel).<br>
-        <strong>🤔 Consideración</strong> = "POSICIONAMIENTO PRODUCTO ..." · educa sobre un modelo específico (mid funnel).<br>
-        <strong>📢 Awareness</strong> = AYF Regional / Branding / Lanzamientos / Incremento Seguidores · construye marca (top funnel).<br>
-        <strong>🎉 Activación</strong> = Utilidades / Blindados / Open House / Race Weekend / PowerDays · promo y eventos.
+        <strong>🤔 Consideración</strong> = Posicionamiento producto / Utilidades / Blindados / Open House / Race Weekend / PowerDays / Territory · Escape genéricos · mid funnel + activación.<br>
+        <strong>📢 Awareness</strong> = AYF Regional / Branding / Lanzamientos / Incremento Seguidores / Renovation · construye marca (top funnel).
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px" id="xiy-perfaware-cards"></div>
       <div style="overflow-x:auto">
         <table class="analysis" id="xiy-tbl-perfaware-modelo">
           <thead><tr>
@@ -1399,8 +1424,6 @@ HTML = r"""<!doctype html>
             <th class="num">Performance</th>
             <th class="num">Awareness</th>
             <th class="num">Consideración</th>
-            <th class="num">Activación</th>
-            <th class="num">Otros</th>
             <th class="num">Total</th>
             <th class="num">% Perf</th>
           </tr></thead>
@@ -6221,8 +6244,255 @@ HTML = r"""<!doctype html>
 
   // ─────────── TAB INVERSIÓN XIY ───────────
   let _xiyRendered = false;
+  const xiyFilters = {mes:'', modelo:'', agencia:'', campaign:''};
+
+  function xiyClassifyFunnel(campName){
+    const n = (campName || '').toUpperCase();
+    if (/LEADS|RENTING/.test(n)) return 'Performance';
+    if (/AYF |BRANDING|LANZAMIENTO|INCREMENTO SEGUIDORES|RENOVATION|INTERACCI(O|Ó)N/.test(n)) return 'Awareness';
+    return 'Consideración';
+  }
+
+  function xiyNormalizeModelo(modelo){
+    // Mapea modelos finos Xiy a las claves del panel
+    const m = (modelo || '').toUpperCase();
+    if (m.includes('RANGER')) return 'RANGER';
+    if (m.includes('F-150') || m.includes('F150')) return 'F-150';
+    if (m.includes('EVEREST')) return 'EVEREST';
+    if (m.includes('TERRITORY')) return 'TERRITORY';
+    if (m.includes('ESCAPE')) return 'ESCAPE';
+    if (m.includes('EXPLORER')) return 'EXPLORER';
+    if (m.includes('EXPEDITION')) return 'EXPEDITION';
+    if (m.includes('BRONCO')) return 'BRONCO';
+    return null; // No es modelo Ford atribuible
+  }
+
+  function xiyFilterLines(){
+    const flat = (DATA.xiy_meta && DATA.xiy_meta.source) ? (DATA._xiy_flat_cache || null) : null;
+    let lines = DATA.xiy_lines_flat || [];
+    if(!lines.length && DATA.xiy_meta && DATA.xiy_meta._lines_flat){
+      lines = DATA.xiy_meta._lines_flat;
+    }
+    // Fallback: leer de data_xiy.json via DATA.xiy_flat si existe
+    if(!lines.length){
+      // Iterar campaigns como fallback
+      lines = (DATA.xiy && DATA.xiy._lines_flat) || [];
+    }
+    return lines.filter(L => {
+      if(xiyFilters.mes      && L.month     !== xiyFilters.mes)      return false;
+      if(xiyFilters.agencia  && !xiyMatchAgencia(L, xiyFilters.agencia)) return false;
+      if(xiyFilters.campaign && L.campaign  !== xiyFilters.campaign) return false;
+      if(xiyFilters.modelo){
+        const norm = xiyNormalizeModelo(L.modelo) || 'No atribuido';
+        if(norm !== xiyFilters.modelo) return false;
+      }
+      return true;
+    });
+  }
+
+  function xiyMatchAgencia(line, ag){
+    // Replica la lógica del extractor: si audience tiene la agencia
+    const a = (line.audience || '').toUpperCase();
+    if(ag === 'Tumbaco')    return /TUMBACO/.test(a) || (/SIERRA/.test(a) && !/LA Y/.test(a));
+    if(ag === 'La Y')       return /LA Y/.test(a) || /SIERRA/.test(a);
+    if(ag === 'CJA')        return /CJA|CUENCA/.test(a);
+    if(ag === 'Orellana')   return /ORELLANA/.test(a);
+    if(ag === 'Manta')      return /MANTA/.test(a) || /MANABI|MANAB(Í|I)/.test(a) || /COSTA/.test(a);
+    if(ag === 'Machala')    return /MACHALA/.test(a) || /COSTA/.test(a);
+    if(ag === 'Portoviejo') return /PORTOVIEJO/.test(a) || /MANABI|MANAB(Í|I)/.test(a) || /COSTA/.test(a);
+    return true;
+  }
+
+  function xiyAggregate(lines){
+    // Re-construye totals_modelo, months, totals_agencia, totals_medio,
+    // objective_totals, modelo_objective desde una lista filtrada de líneas.
+    const out = {
+      total_general: 0,
+      total_atribuible_modelo: 0,
+      total_non_modelo: 0,
+      total_multi_nacional: 0,
+      months: {},
+      totals_mes: {},
+      totals_mes_non_modelo: {},
+      totals_modelo: {},
+      non_modelo: {},
+      totals_agencia: {},
+      totals_medio: {},
+      medio_objective: {},
+      objective_totals: {},
+      modelo_objective: {},
+      months_order: [],
+      panel_models: ['RANGER','F-150','EVEREST','TERRITORY','ESCAPE','EXPLORER','EXPEDITION','BRONCO'],
+      panel_agencias: ['Tumbaco','La Y','CJA','Orellana','Manta','Machala','Portoviejo'],
+    };
+    const monthsSeen = new Set();
+    lines.forEach(L => {
+      const mes = L.month;
+      const amt = +L.amount || 0;
+      const conv = +L.conversiones_esperadas || 0;
+      const camp = L.campaign || '';
+      const objCat = xiyClassifyFunnel(camp);
+      const modCanonical = xiyNormalizeModelo(L.modelo);
+      monthsSeen.add(mes);
+
+      out.total_general += amt;
+      out.totals_mes[mes] = (out.totals_mes[mes]||0) + amt;
+
+      // objective totals
+      out.objective_totals[objCat] = out.objective_totals[objCat] || {amount:0, n_lines:0};
+      out.objective_totals[objCat].amount += amt;
+      out.objective_totals[objCat].n_lines += 1;
+
+      if(modCanonical){
+        out.total_atribuible_modelo += amt;
+        out.months[mes] = out.months[mes] || {};
+        out.months[mes][modCanonical] = out.months[mes][modCanonical] || {amount:0, convers:0, n_lines:0};
+        out.months[mes][modCanonical].amount += amt;
+        out.months[mes][modCanonical].convers += conv;
+        out.months[mes][modCanonical].n_lines += 1;
+        out.totals_modelo[modCanonical] = out.totals_modelo[modCanonical] || {amount:0, convers:0, n_lines:0};
+        out.totals_modelo[modCanonical].amount += amt;
+        out.totals_modelo[modCanonical].convers += conv;
+        out.totals_modelo[modCanonical].n_lines += 1;
+        out.modelo_objective[modCanonical] = out.modelo_objective[modCanonical] || {};
+        out.modelo_objective[modCanonical][objCat] = (out.modelo_objective[modCanonical][objCat]||0) + amt;
+      } else {
+        out.total_non_modelo += amt;
+        const label = L.modelo || 'Sin modelo';
+        out.non_modelo[label] = out.non_modelo[label] || {amount:0, convers:0, n_lines:0};
+        out.non_modelo[label].amount += amt;
+        out.non_modelo[label].convers += conv;
+        out.non_modelo[label].n_lines += 1;
+        out.totals_mes_non_modelo[mes] = (out.totals_mes_non_modelo[mes]||0) + amt;
+      }
+
+      // Agencia (replicar map_audience_to_agencias)
+      const ags = xiyAudienceToAgencias(L.audience);
+      if(ags && ags.length){
+        const share = amt / ags.length;
+        ags.forEach(ag => {
+          out.totals_agencia[ag] = out.totals_agencia[ag] || {amount:0, n_lines:0};
+          out.totals_agencia[ag].amount += share;
+          out.totals_agencia[ag].n_lines += 1;
+        });
+      } else {
+        out.total_multi_nacional += amt;
+      }
+
+      // Medio
+      let medio = (L.media || 'Sin medio').trim();
+      const mu = medio.toUpperCase();
+      if(['TIK TOK','TIKTOK','TIK-TOK'].includes(mu)) medio = 'TikTok';
+      else if(mu === 'META') medio = 'Meta';
+      else if(mu === 'GOOGLE') medio = 'Google';
+      out.totals_medio[medio] = out.totals_medio[medio] || {amount:0, n_lines:0};
+      out.totals_medio[medio].amount += amt;
+      out.totals_medio[medio].n_lines += 1;
+      out.medio_objective[medio] = out.medio_objective[medio] || {};
+      out.medio_objective[medio][objCat] = (out.medio_objective[medio][objCat]||0) + amt;
+    });
+    const ORDER = ['Enero','Febrero','Marzo','Abril','Mayo'];
+    out.months_order = ORDER.filter(m => monthsSeen.has(m));
+    return out;
+  }
+
+  function xiyAudienceToAgencias(audience){
+    if(!audience) return null;
+    const a = audience.toUpperCase();
+    const direct = [];
+    if (/TUMBACO/.test(a))   direct.push('Tumbaco');
+    if (/LA Y/.test(a))      direct.push('La Y');
+    if (/CJA|CUENCA/.test(a))direct.push('CJA');
+    if (/ORELLANA/.test(a))  direct.push('Orellana');
+    if (/MANTA/.test(a))     direct.push('Manta');
+    if (/MACHALA/.test(a))   direct.push('Machala');
+    if (/PORTOVIEJO/.test(a))direct.push('Portoviejo');
+    if(direct.length) return direct;
+    if (/SIERRA/.test(a))    return ['Tumbaco','La Y'];
+    if (/MANABI|MANAB[ÍI]/.test(a)) return ['Manta','Portoviejo'];
+    if (/COSTA/.test(a))     return ['Machala','Manta','Portoviejo'];
+    return null;
+  }
+
+  function xiyInitFilters(){
+    // Necesito tener lines_flat disponible. Lo cargamos desde DATA.xiy._lines_flat
+    // (lo agrego en aggregate.py). Si no está, los filtros quedan inactivos.
+    if(!DATA.xiy || !DATA.xiy._lines_flat){
+      const fc = document.getElementById('xiy-f-clear');
+      if(fc) fc.parentElement.style.display = 'none';
+      return;
+    }
+    const lines = DATA.xiy._lines_flat;
+    DATA.xiy_lines_flat = lines;
+    // Opciones únicas
+    const meses = [...new Set(lines.map(l => l.month))];
+    const ORDER = ['Enero','Febrero','Marzo','Abril','Mayo'];
+    meses.sort((a,b)=> ORDER.indexOf(a) - ORDER.indexOf(b));
+    const modelos = [...new Set(lines.map(l => xiyNormalizeModelo(l.modelo)).filter(Boolean))].sort();
+    const agencias = ['Tumbaco','La Y','CJA','Orellana','Manta','Machala','Portoviejo'];
+    const campaigns = [...new Set(lines.map(l => l.campaign))].sort();
+
+    const fillSelect = (id, options, label) => {
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.innerHTML = `<option value="">Todos los ${label}</option>` +
+        options.map(o => `<option value="${o}">${o}</option>`).join('');
+      el.addEventListener('change', e => {
+        const key = id.replace('xiy-f-','');
+        xiyFilters[key] = e.target.value;
+        renderXiy();
+      });
+    };
+    fillSelect('xiy-f-mes', meses, 'meses');
+    fillSelect('xiy-f-modelo', modelos, 'modelos');
+    fillSelect('xiy-f-agencia', agencias, 'agencias');
+    fillSelect('xiy-f-campaign', campaigns, 'campañas');
+
+    const clear = document.getElementById('xiy-f-clear');
+    if(clear){
+      clear.addEventListener('click', () => {
+        Object.keys(xiyFilters).forEach(k => xiyFilters[k] = '');
+        ['xiy-f-mes','xiy-f-modelo','xiy-f-agencia','xiy-f-campaign'].forEach(id => {
+          const e = document.getElementById(id); if(e) e.value = '';
+        });
+        renderXiy();
+      });
+    }
+  }
+  let _xiyFiltersInit = false;
+
   function renderXiy(){
-    const XIY = DATA.xiy;
+    if(!_xiyFiltersInit){ xiyInitFilters(); _xiyFiltersInit = true; }
+    // Si tenemos lines_flat, agregamos dinámicamente con filtros aplicados;
+    // si no, usamos los agregados pre-calculados de DATA.xiy
+    let XIY;
+    if(DATA.xiy && DATA.xiy._lines_flat){
+      const filtered = (DATA.xiy._lines_flat).filter(L => {
+        if(xiyFilters.mes      && L.month     !== xiyFilters.mes)      return false;
+        if(xiyFilters.campaign && L.campaign  !== xiyFilters.campaign) return false;
+        if(xiyFilters.modelo){
+          const norm = xiyNormalizeModelo(L.modelo);
+          if(norm !== xiyFilters.modelo) return false;
+        }
+        if(xiyFilters.agencia){
+          const ags = xiyAudienceToAgencias(L.audience);
+          if(!ags || !ags.includes(xiyFilters.agencia)) return false;
+        }
+        return true;
+      });
+      XIY = xiyAggregate(filtered);
+      // Summary
+      const sumEl = document.getElementById('xiy-f-summary');
+      if(sumEl){
+        const active = Object.entries(xiyFilters).filter(([_,v])=>v).map(([k,v])=>`${k}=${v}`).join(' · ');
+        const fUSD = (n) => 'USD ' + (n||0).toLocaleString('es-EC',{maximumFractionDigits:0});
+        sumEl.textContent = active
+          ? `Filtros: ${active}  →  ${filtered.length} líneas · ${fUSD(XIY.total_general)}`
+          : `Sin filtros · ${filtered.length} líneas · ${fUSD(XIY.total_general)}`;
+      }
+    } else {
+      XIY = DATA.xiy || {};
+    }
     const tblMmTbody  = document.querySelector('#xiy-tbl-modelo-mes tbody');
     const tblMmHead   = document.getElementById('xiy-tbl-modelo-mes-head');
     const tblMmFoot   = document.querySelector('#xiy-tbl-modelo-mes tfoot');
@@ -6298,11 +6568,29 @@ HTML = r"""<!doctype html>
     });
     tblMmTbody.innerHTML = trsMm || '<tr><td colspan="99" style="text-align:center;color:var(--muted);padding:14px">Sin inversión atribuible a modelos.</td></tr>';
 
-    // Footer (totales por mes)
-    tblMmFoot.innerHTML = '<tr style="background:#f3f4f6;font-weight:700">' +
-      '<td>TOTAL atribuible</td>' +
-      monthsOrder.map(m => `<td class="num">${fUSD(totalPorMes[m])}</td>`).join('') +
-      `<td class="num">${fUSD(totalAtrib)}</td>` +
+    // Footer: total atribuible + distribución por funnel
+    const objTot = XIY.objective_totals || {};
+    const perfA = objTot['Performance']?.amount || 0;
+    const awareA = objTot['Awareness']?.amount || 0;
+    const consA  = (objTot['Consideración']?.amount || 0) + (objTot['Activación']?.amount || 0) + (objTot['Otros']?.amount || 0);
+    const totFun = perfA + awareA + consA;
+    const pPerf = totFun>0 ? (100*perfA/totFun) : 0;
+    const pAware = totFun>0 ? (100*awareA/totFun) : 0;
+    const pCons = totFun>0 ? (100*consA/totFun) : 0;
+    const ncols = monthsOrder.length + 2; // Modelo + meses + Total
+    tblMmFoot.innerHTML =
+      '<tr style="background:#f3f4f6;font-weight:700">' +
+        '<td>TOTAL atribuible</td>' +
+        monthsOrder.map(m => `<td class="num">${fUSD(totalPorMes[m])}</td>`).join('') +
+        `<td class="num">${fUSD(totalAtrib)}</td>` +
+      '</tr>' +
+      `<tr style="background:#fafbfc;font-size:12px;color:var(--muted)">` +
+        `<td colspan="${ncols}" style="padding:8px 10px">` +
+          `<strong>Distribución por etapa del funnel:</strong> ` +
+          `<span style="margin-left:14px;color:#0369a1">🎯 Performance ${pPerf.toFixed(1)}% (${fUSD(perfA)})</span> · ` +
+          `<span style="margin-left:8px;color:#a16207">📢 Awareness ${pAware.toFixed(1)}% (${fUSD(awareA)})</span> · ` +
+          `<span style="margin-left:8px;color:#6d28d9">🤔 Consideración ${pCons.toFixed(1)}% (${fUSD(consA)})</span>` +
+        '</td>' +
       '</tr>';
 
     // ─── TABLA 2: cruce ROAS con tráfico y ventas ───
@@ -6349,35 +6637,16 @@ HTML = r"""<!doctype html>
     // ─── TABLA 2B: Performance vs Awareness por modelo ───
     const objTotals = XIY.objective_totals || {};
     const modeloObj = XIY.modelo_objective || {};
-    const OBJ_ORDER = ['Performance','Awareness','Consideración','Activación','Otros'];
+    const OBJ_ORDER = ['Performance','Awareness','Consideración'];
 
-    // Cards arriba: 4 categorías del funnel
-    const cardsEl = document.getElementById('xiy-perfaware-cards');
-    if(cardsEl){
-      const CARD_CONFIG = [
-        {key:'Performance',   icon:'🎯', desc:'Bottom · busca lead',     bg:'linear-gradient(135deg,#e0f2fe 0%,#f0f9ff 100%)', border:'#bae6fd', color:'#0369a1'},
-        {key:'Awareness',     icon:'📢', desc:'Top · construye marca',    bg:'linear-gradient(135deg,#fef3c7 0%,#fffbeb 100%)', border:'#fde68a', color:'#a16207'},
-        {key:'Consideración', icon:'🤔', desc:'Mid · educa producto',     bg:'linear-gradient(135deg,#ddd6fe 0%,#f5f3ff 100%)', border:'#c4b5fd', color:'#6d28d9'},
-        {key:'Activación',    icon:'🎉', desc:'Promo y eventos',          bg:'linear-gradient(135deg,#fce7f3 0%,#fdf2f8 100%)', border:'#fbcfe8', color:'#be185d'},
-      ];
-      cardsEl.innerHTML = CARD_CONFIG.map(cfg => {
-        const amt = objTotals[cfg.key]?.amount || 0;
-        const nlines = objTotals[cfg.key]?.n_lines || 0;
-        const pct = total>0 ? (100*amt/total) : 0;
-        return `
-        <div class="card-big" style="background:${cfg.bg};border:1px solid ${cfg.border}">
-          <div class="lbl">${cfg.icon} ${cfg.key}</div>
-          <div class="val" style="color:${cfg.color}">${fUSD(amt)}</div>
-          <div class="hint">${pct.toFixed(1)}% · ${nlines} líneas · ${cfg.desc}</div>
-        </div>`;
-      }).join('');
-    }
+    // (Cards removidas; los % por funnel se muestran ahora en el footer de
+    // la tabla matriz modelo × mes.)
 
     // Tabla por modelo
     const tblPaTb = document.querySelector('#xiy-tbl-perfaware-modelo tbody');
     const tblPaFt = document.querySelector('#xiy-tbl-perfaware-modelo tfoot');
     let trsPa = '';
-    const totsPa = {Performance:0, Awareness:0, 'Consideración':0, 'Activación':0, 'Otros':0};
+    const totsPa = {Performance:0, Awareness:0, 'Consideración':0};
     // incluir modelos + Multi/no-modelo
     const todasFilas = [...modelosActivos];
     // agregar la fila "Sin atribuir a modelo" si existe

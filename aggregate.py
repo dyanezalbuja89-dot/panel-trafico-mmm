@@ -1093,6 +1093,20 @@ def main():
                 data_xiy = json.load(f)
             cfp = data_xiy.get("consolidated_for_panel")
             if cfp:
+                # Adjuntar lines_flat compactado para que el panel pueda
+                # filtrar dinámicamente por mes/modelo/agencia/campaña.
+                flat = data_xiy.get("lines_flat") or []
+                compact = [{
+                    "month":    L.get("month"),
+                    "campaign": L.get("campaign"),
+                    "modelo":   L.get("modelo"),
+                    "audience": L.get("audience"),
+                    "media":    L.get("media"),
+                    "amount":   L.get("amount"),
+                    "investment": L.get("investment"),
+                    "conversiones_esperadas": L.get("conversiones_esperadas"),
+                } for L in flat]
+                cfp["_lines_flat"] = compact
                 out["xiy"] = cfp
                 out["xiy_meta"] = {
                     "fetched_at": data_xiy.get("fetched_at"),

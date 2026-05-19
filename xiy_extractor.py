@@ -525,9 +525,10 @@ def consolidate_for_panel(flat_lines):
         elif medio.upper() == "GOOGLE":
             medio = "Google"
         objective = (L.get("objective") or "Sin objetivo").strip()
-        # Clasificar por NOMBRE DE CAMPAÑA (no por objective de Xiy, que es
-        # poco fino — marca casi todo como "Awareness").
-        # 4 categorías: Performance / Awareness / Consideración / Activación.
+        # Clasificar por NOMBRE DE CAMPAÑA en 3 etapas del funnel:
+        #   Performance / Awareness / Consideración
+        # Activación (promos, eventos) y campañas genéricas de modelo
+        # ahora caen en Consideración por consistencia con la lógica del usuario.
         camp_name = (L.get("campaign") or "").upper()
         if any(k in camp_name for k in ("LEADS", "RENTING")):
             objective_cat = "Performance"
@@ -536,15 +537,13 @@ def consolidate_for_panel(flat_lines):
             "RENOVATION", "INTERACCIÓN", "INTERACCION",
         )):
             objective_cat = "Awareness"
-        elif "POSICIONAMIENTO" in camp_name:
-            objective_cat = "Consideración"
-        elif any(k in camp_name for k in (
-            "UTILIDADES", "BLINDADOS", "OPEN HOUSE", "RACE WEEKEND",
-            "POWERDAYS", "POWER DAYS",
-        )):
-            objective_cat = "Activación"
         else:
-            objective_cat = "Otros"
+            # Consideración incluye:
+            # - POSICIONAMIENTO PRODUCTO (mid-funnel real)
+            # - UTILIDADES, BLINDADOS (promo producto = consideración)
+            # - OPEN HOUSE, RACE WEEKEND, POWERDAYS (activación = consideración)
+            # - TERRITORY/ESCAPE genéricos (educar modelo = consideración)
+            objective_cat = "Consideración"
 
         consolidated["totals_medio"].setdefault(medio,
             {"amount": 0.0, "n_lines": 0})
