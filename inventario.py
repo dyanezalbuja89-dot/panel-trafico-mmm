@@ -149,6 +149,62 @@ def normalize_familia(fam, marca):
 
     return None
 
+def normalize_version(fam, marca):
+    """Mapea una descripción de familia a su VERSIÓN consolidada (modelo + variante).
+    Elimina los detalles técnicos a partir del primer ' AC '.
+    Ejemplos:
+        'F150 RAPTOR AC 3.5 CD 4X4 TA'                          → 'F-150 RAPTOR'
+        'ESCAPE TITANIUM AC 1.5 5P 4X2 TA ENTRY'                → 'ESCAPE TITANIUM'
+        'TERRITORY TITANIUM PLUS FHEV AC 1.5 5P 4X2 TA HYBRID'  → 'TERRITORY TITANIUM PLUS FHEV'
+        'CX-30 CORE AC 2.0 5P 4X2 TA'                           → 'CX-30 CORE'
+        'HUGE T AC 1.5 5P 4X2 TA HYBRID'                        → 'HUGE T'
+        'RAM DT 1500 BIGHORN ETORQUE CREW CAB AC 3.6 CD 4X4 TA' → 'RAM 1500 BIGHORN ETORQUE CREW CAB'
+    """
+    if not isinstance(fam, str):
+        return None
+    # Normalizar NBSP y newlines/tabs
+    s = fam.replace('\xa0', ' ').replace('\n', ' ').replace('\t', ' ').upper().strip()
+    if not s:
+        return None
+    # Cortar en el primer ' AC '
+    idx = s.find(' AC ')
+    if idx > 0:
+        v = s[:idx].strip()
+    else:
+        v = s
+    # Si la cadena termina en ' AC' al final también cortamos
+    if v.endswith(' AC'):
+        v = v[:-3].strip()
+    # Reemplazos por marca
+    marca = (marca or '').upper().strip()
+    if marca == 'FORD':
+        # F150 → F-150 (puede venir con espacios extra)
+        v = v.replace('F150', 'F-150')
+        # NEW EXPEDITION → EXPEDITION (consolidar con el modelo)
+        if v.startswith('NEW EXPEDITION'):
+            v = 'EXPEDITION' + v[len('NEW EXPEDITION'):]
+    if marca == 'RAM':
+        # RAM DT 1500 → RAM 1500
+        v = v.replace('RAM DT 1500', 'RAM 1500')
+        # Si la cadena no empieza con RAM, anteponerlo
+        if not v.startswith('RAM '):
+            v = 'RAM ' + v
+    # Quitar sufijos sueltos que sobreviven al corte (lista corta y conservadora)
+    SUFFIX_STRIP = (' ENTRY',)
+    changed = True
+    while changed:
+        changed = False
+        for suf in SUFFIX_STRIP:
+            if v.endswith(suf):
+                v = v[: -len(suf)].rstrip()
+                changed = True
+    # Colapsar espacios dobles
+    while '  ' in v:
+        v = v.replace('  ', ' ')
+    v = v.strip()
+    return v or None
+
+
 def normalize_res_cola_modelo(modelo, marca):
     """RES-COLA usa nombres más cortos. e.g. 'TERRITORY 1.5L FHEV AT TITANIU' → TERRITORY"""
     if not isinstance(modelo, str): return None
@@ -210,6 +266,7 @@ def load_inventario(path=None, today=None, months_config=None):
     df = pd.read_excel(path, sheet_name='DATOS', header=0)
     df['marca_up'] = df['marca'].astype(str).str.strip().str.upper()
     df['MODELO'] = df.apply(lambda r: normalize_familia(r['familia'], r['marca_up']), axis=1)
+    df['VERSION'] = df.apply(lambda r: normalize_version(r['familia'], r['marca_up']), axis=1)
     df['AGENCIA'] = df['UBICACIÓN FÍSICA SISCAL'].apply(loc_to_agency)
     df['STATUS_H'] = df['STATUS HOMOLOGADO'].astype(str).str.strip().str.upper()
     # COMPATIBILIDAD entre formatos:
@@ -352,15 +409,17 @@ def load_inventario(path=None, today=None, months_config=None):
     try:
         usa = pd.read_excel(path, sheet_name='USA', header=0)
         usa['marca_up'] = usa['marca'].astype(str).str.strip().str.upper()
-        usa['MODELO'] = usa.apply(lambda r: normalize_familia(r['familia'], r['marca_up']), axis=1)
+        usa['MODELO']  = usa.apply(lambda r: normalize_familia(r['familia'], r['marca_up']), axis=1)
+        usa['VERSION'] = usa.apply(lambda r: normalize_version(r['familia'], r['marca_up']), axis=1)
     except Exception:
-        usa = pd.DataFrame(columns=['MODELO','marca_up'])
+        usa = pd.DataFrame(columns=['MODELO','VERSION','marca_up'])
     try:
         proc = pd.read_excel(path, sheet_name='PROC-NAC-MAY', header=0)
         proc['marca_up'] = proc['marca'].astype(str).str.strip().str.upper()
-        proc['MODELO'] = proc.apply(lambda r: normalize_familia(r['familia'], r['marca_up']), axis=1)
+        proc['MODELO']  = proc.apply(lambda r: normalize_familia(r['familia'], r['marca_up']), axis=1)
+        proc['VERSION'] = proc.apply(lambda r: normalize_version(r['familia'], r['marca_up']), axis=1)
     except Exception:
-        proc = pd.DataFrame(columns=['MODELO','marca_up'])
+        proc = pd.DataFrame(columns=['MODELO','VERSION','marca_up'])
 
     # === Construir estructura por MARCA → MODELO → agencia ===
     out = {}
@@ -427,6 +486,106 @@ def load_inventario(path=None, today=None, months_config=None):
             v3m = ventas_3m.get(marca_inv, {}).get(m, 0)
             vAct = ventas_actual.get(marca_inv, {}).get(m, 0)
 
+            # === DESGLOSE POR VERSIÓN ===
+            # Misma estructura compacta del modelo, pero indexada por la versión
+            # consolidada (normalize_version). Útil para alternar la tabla de
+            # cobertura entre vista por modelo (default) y vista por versión.
+            # IMPORTANTE: el tráfico marketing no se atribuye a versión (el panel
+            # solo registra MARCA + MODELO), por lo que ese campo se omite a este
+            # nivel.
+            versiones_data = {}
+            versiones_set = sorted(set(
+                list(mdf.dropna(subset=['VERSION'])['VERSION'].unique()) +
+                list(mus.dropna(subset=['VERSION'])['VERSION'].unique() if len(mus) else []) +
+                list(mpr.dropna(subset=['VERSION'])['VERSION'].unique() if len(mpr) else [])
+            ))
+            # Ventas históricas por versión (DATOS con STATUS_H FACTURADO)
+            mfact_all = mdf[mdf['STATUS_H']=='FACTURADO'].copy()
+            mfact_all['fecha_fact'] = pd.to_datetime(mfact_all['fecha de facturacion'], errors='coerce')
+            mfact_all = mfact_all.dropna(subset=['fecha_fact'])
+            v6m_df  = mfact_all[(mfact_all['fecha_fact'] >= window_start) & (mfact_all['fecha_fact'] < current_month_start)]
+            v3m_df  = mfact_all[(mfact_all['fecha_fact'] >= current_month_start - pd.DateOffset(months=3)) & (mfact_all['fecha_fact'] < current_month_start)]
+            vAct_df = mfact_all[mfact_all['fecha_fact'] >= current_month_start]
+            v6m_by_ver  = v6m_df.dropna(subset=['VERSION']).groupby('VERSION').size().to_dict()
+            v3m_by_ver  = v3m_df.dropna(subset=['VERSION']).groupby('VERSION').size().to_dict()
+            vAct_by_ver = vAct_df.dropna(subset=['VERSION']).groupby('VERSION').size().to_dict()
+            # Cola por versión, usando MODELO_RAW normalizado al mismo formato que VERSION.
+            # MODELO_RAW viene de la hoja RES-COLA que tiene nombres de versión cortos
+            # ("TERRITORY 1.5L FHEV AT TITANIU", "F150 RAPTOR", "ESCAPE TITANIUM").
+            # Estos NO siguen el formato '... AC ...' del catálogo, por lo que en vez
+            # de re-aplicar normalize_version usamos un fuzzy match: para cada cola
+            # raw buscamos la versión del catálogo más parecida (token overlap).
+            def _match_version_for_cola(raw, candidates):
+                """Hace fuzzy-match entre el nombre de versión de RES-COLA (más corto y a
+                veces con typos como PLATINIUM↔PLATINUM o F150↔F-150) y las versiones
+                del catálogo (DATOS). Estrategia: normalizar ambos, contar tokens en
+                común, fallback por prefijo significativo."""
+                if not raw or not candidates:
+                    return None
+                STOP = {'L','AT','TA','TM','5P','CD','4X4','4X2','HEV','PHEV','FHEV',
+                        'HYBRID','DIESEL','V6','AC','TURBO','T','ENTRY','FULL','ATK',
+                        'CREW','CAB','ETORQUE','MID','UPPER','EV','SPORT','CORE','3.5'}
+                def _norm(s):
+                    s = s.upper().replace('\xa0',' ').replace('-', '')
+                    # normalizar typos comunes
+                    s = s.replace('PLATINIUM','PLATINUM')
+                    s = s.replace('F150','F150')  # placeholder
+                    return s
+                ru = _norm(raw)
+                tokens_r = [t for t in ru.split() if t and not t.replace('.','').replace(',','').isdigit() and t not in STOP]
+                best = None; best_score = 0
+                for cand in candidates:
+                    cu = _norm(cand)
+                    score = 0
+                    for t in tokens_r:
+                        if t in cu:
+                            score += 1
+                    if score > best_score:
+                        best_score = score; best = cand
+                return best if best_score > 0 else None
+            cola_versions_normalized = {v: 0 for v in versiones_set}
+            for raw_ver, cnt in cola_versions.items():
+                matched = _match_version_for_cola(raw_ver, versiones_set)
+                if matched is not None:
+                    cola_versions_normalized[matched] += cnt
+            for v in versiones_set:
+                vdf = mdf[mdf['VERSION']==v]
+                vus = mus[mus['VERSION']==v] if len(mus) else pd.DataFrame()
+                vpr = mpr[mpr['VERSION']==v] if len(mpr) else pd.DataFrame()
+                v_disp = vdf[vdf['STATUS_H']=='DISPONIBLE']
+                v_disp_by_ag = v_disp.groupby('AGENCIA').size().to_dict()
+                v_disp_transito = int(v_disp_by_ag.get('Tránsito', 0))
+                v_disp_agencias = {a: int(c) for a, c in v_disp_by_ag.items() if a not in ('Tránsito','Otros','Entregado')}
+                v_disp_total = int(v_disp.shape[0])
+                v_res = vdf[vdf['STATUS_H']=='RESERVADO']
+                v_res_total = int(v_res.shape[0])
+                v_res_agencias = {a: int(c) for a, c in v_res.groupby('AGENCIA').size().to_dict().items() if a not in ('Tránsito','Otros','Entregado')}
+                vv6 = int(v6m_by_ver.get(v, 0))
+                vv3 = int(v3m_by_ver.get(v, 0))
+                vvAct = int(vAct_by_ver.get(v, 0))
+                v_cola_total = int(cola_versions_normalized.get(v, 0))
+                # Cola sin VIN por versión: no podemos atribuirlo con exactitud sin
+                # cruzar contra DATOS; lo aproximamos prorrateando por la fracción de
+                # cola que cae en esta versión. Si la cola del modelo es 0, queda 0.
+                v_cola_sinvin = int(round(cola_sinvin * (v_cola_total / cola_total))) if cola_total > 0 else 0
+                versiones_data[v] = {
+                    'disp_total': v_disp_total,
+                    'disp_agencias': v_disp_agencias,
+                    'disp_transito': v_disp_transito,
+                    'res_total': v_res_total,
+                    'res_agencias': v_res_agencias,
+                    'pipeline_nac': int(len(vpr)),
+                    'pipeline_usa': int(len(vus)),
+                    'cola_total': v_cola_total,
+                    'cola_sin_vin': v_cola_sinvin,
+                    'ventas_6m': vv6,
+                    'ventas_3m': vv3,
+                    'ventas_mes_actual': vvAct,
+                    'ventas_avg_mensual': round(vv3/3, 2) if vv3 else 0,
+                    'ventas_avg_6m': round(vv6/6, 2) if vv6 else 0,
+                    'venta_limitada_por_stock': v_cola_sinvin > 0,
+                }
+
             modelos_data[m] = {
                 # Oferta inmediata
                 'disp_total': disp_total,
@@ -458,6 +617,9 @@ def load_inventario(path=None, today=None, months_config=None):
                 'ventas_avg_6m': round(v6m/6, 2) if v6m else 0,       # comparativa 6m
                 # Flag: limitado por stock (hay cola sin VIN → demanda real es mayor que ventas observadas)
                 'venta_limitada_por_stock': cola_sinvin > 0,
+                # Desglose por versión (misma estructura compacta). Útil para alternar
+                # la tabla de cobertura en el panel entre vista por modelo y por versión.
+                'versiones': versiones_data,
             }
 
         out[marca_panel] = {'modelos': modelos_data}

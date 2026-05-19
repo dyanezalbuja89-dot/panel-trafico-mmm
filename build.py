@@ -1196,19 +1196,29 @@ HTML = r"""<!doctype html>
 
     <!-- COBERTURA por modelo -->
     <div class="ford-section" style="margin-top:18px">
-      <h3>📊 Cobertura por modelo <span class="sub">— ¿alcanza el inventario para el ritmo de ventas?</span></h3>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:10px" id="inv-cob-sub">MOS = disponible / ventas mensuales (últ 3 meses cerrados) · ⚠️ junto a Ventas/mes = ritmo limitado por falta de stock · 🟥 déficit (&lt;1 mes) · 🟡 ajustado (1-2) · 🟢 sano (2-4) · 🟥 sobre-stock (&gt;4 meses)</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+        <h3 style="margin:0">📊 Cobertura <span id="inv-cob-title-suffix">por modelo</span> <span class="sub">— ¿alcanza el inventario para el ritmo de ventas?</span></h3>
+        <!-- Segmented control: modelo / versión -->
+        <div class="inv-cob-toggle" role="tablist" aria-label="Vista de cobertura"
+             style="display:inline-flex;border:1px solid #d9dde6;border-radius:8px;overflow:hidden;background:#f5f7fb;font-size:12px;flex-shrink:0">
+          <button type="button" class="inv-cob-toggle-btn active" data-view="modelo" role="tab" aria-selected="true"
+                  style="padding:7px 14px;background:transparent;border:0;cursor:pointer;font-weight:600;color:var(--ford-2)">📦 Por modelo</button>
+          <button type="button" class="inv-cob-toggle-btn" data-view="version" role="tab" aria-selected="false"
+                  style="padding:7px 14px;background:transparent;border:0;cursor:pointer;font-weight:600;color:var(--muted);border-left:1px solid #d9dde6">🔧 Por versión</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin:10px 0" id="inv-cob-sub">MOS = disponible / ventas mensuales (últ 3 meses cerrados) · ⚠️ junto a Ventas/mes = ritmo limitado por falta de stock · 🟥 déficit (&lt;1 mes) · 🟡 ajustado (1-2) · 🟢 sano (2-4) · 🟥 sobre-stock (&gt;4 meses)</div>
       <div style="overflow-x:auto">
         <table class="analysis" id="inv-tbl-cob">
           <thead><tr>
-            <th>Modelo</th>
+            <th id="inv-cob-col-row">Modelo</th>
             <th class="num">Disp. en agencia</th>
             <th class="num" title="Tránsito interno (ya en inventario disponible) + Pipeline (USA + nacionalización, aún no disponible)">En camino</th>
             <th class="num">Disp. total</th>
             <th class="num">Reservado VIN</th>
             <th class="num">Cola</th>
             <th class="num">Ventas/mes</th>
-            <th class="num">Tráfico mes</th>
+            <th class="num" id="inv-cob-th-trafico">Tráfico mes</th>
             <th class="num">MOS</th>
             <th>Estado</th>
           </tr></thead>
@@ -1216,6 +1226,12 @@ HTML = r"""<!doctype html>
         </table>
       </div>
     </div>
+    <style>
+      .inv-cob-toggle-btn.active { background:#fff !important; color:var(--ford-2) !important; box-shadow:inset 0 -2px 0 var(--ford-2); }
+      .inv-cob-toggle-btn:hover:not(.active) { background:#eef1f7; color:var(--ford-2); }
+      #inv-tbl-cob tr.version-group-head td { background:#eef1f7; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--ford-2); font-weight:700; padding:6px 10px; }
+      #inv-tbl-cob tr.version-row td:first-child { padding-left:22px; }
+    </style>
 
     <!-- RESERVAS POR CONCESIONARIO × MODELO -->
     <div class="ford-section" style="margin-top:18px">
@@ -5750,7 +5766,7 @@ HTML = r"""<!doctype html>
   // =========================================================
   const INV = DATA.inventario || null;
   const INV_AGENCIES = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo'];
-  const invstate = { marca: 'FORD', mes: DATA.default_month_key || 'mayo_2026', versionFilter: '' };
+  const invstate = { marca: 'FORD', mes: DATA.default_month_key || 'mayo_2026', versionFilter: '', cobView: 'modelo' };
   let invInited = false;
 
   function initInventario(){
@@ -5759,6 +5775,22 @@ HTML = r"""<!doctype html>
     document.getElementById('inv-marca').addEventListener('change', e=>{
       invstate.marca = e.target.value;
       renderInventario();
+    });
+    // Toggle Modelo / Versión para tabla de cobertura
+    document.querySelectorAll('.inv-cob-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const view = btn.dataset.view;
+        if(view === invstate.cobView) return;
+        invstate.cobView = view;
+        document.querySelectorAll('.inv-cob-toggle-btn').forEach(b => {
+          const on = (b.dataset.view === view);
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        document.getElementById('inv-cob-title-suffix').textContent = view === 'version' ? 'por versión' : 'por modelo';
+        document.getElementById('inv-cob-col-row').textContent = view === 'version' ? 'Versión' : 'Modelo';
+        renderInvCobertura();
+      });
     });
   }
 
@@ -5822,74 +5854,119 @@ HTML = r"""<!doctype html>
     const bd = INV.brands?.[invstate.marca];
     if(!bd){ document.querySelector('#inv-tbl-cob tbody').innerHTML = '<tr><td colspan="10">Sin datos de inventario para esta marca.</td></tr>'; return; }
     const mesLbl = (MONTHS_CONFIG.find(c=>c.key===invstate.mes)?.label) || invstate.mes;
-    document.getElementById('inv-cob-sub').innerHTML = `MOS = disponible / ventas mensuales (promedio últ 3 meses cerrados) · ⚠️ junto a Ventas/mes = ritmo limitado por falta de stock (hay reservas sin VIN) · Tráfico = todos los canales de <strong>${mesLbl}</strong> · 🟥 déficit (&lt;1 mes) · 🟡 ajustado (1-2) · 🟢 sano (2-4) · 🟥 sobre-stock (&gt;4 meses)`;
-    const rows = Object.entries(bd.modelos).map(([m, d])=>{
-      const inAgency = Object.values(d.disp_agencias).reduce((s,v)=>s+v,0);
-      const trafficMes = invTrafficMes(m);
-      const ventasMes = d.ventas_avg_mensual || 0;
-      const mos = invMOSFromSales(d);
-      const status = invCoverageClass(mos);
-      const pipeUsa = d.pipeline_usa || 0;
-      const pipeNac = d.pipeline_nac || 0;
-      const transito = d.disp_transito || 0;
-      // "En camino" = todo lo que aún no está físicamente en agencia disponible:
-      // tránsito interno (ya inventario) + pipeline (USA + Nac, aún no inventario).
-      const enCamino = transito + pipeUsa + pipeNac;
-      return { m, d, inAgency, transito, dispTotal: d.disp_total,
-        resTotal: d.res_total, cola: d.cola_total, colaVersions: d.cola_versions||{},
-        pipeUsa, pipeNac, enCamino,
-        ventasMes, trafficMes, mos, status };
-    }).sort((a,b)=>{
-      // ordenar: déficit (rojo) primero, sano al final.
-      // Sobre-stock también es rojo pero por label diferenciamos.
-      const order = (s)=> s.cls==='red' && s.label==='déficit' ? 0
-                       : s.cls==='yellow' ? 1
-                       : s.cls==='green' ? 2
-                       : s.cls==='red' && s.label==='sobre-stock' ? 3
-                       : 4;
-      return order(a.status) - order(b.status) || b.cola - a.cola;
-    });
-    // Celda Cola: muestra solo el total (el desglose por versión está en su propia tarjeta).
-    function colaCell(r){
-      return `<td class="num">${fmt(r.cola)}</td>`;
-    }
-    // Fila TOTAL: suma de todas las columnas
-    const tot = rows.reduce((a,r)=>{
-      a.inAgency += r.inAgency; a.transito += r.transito; a.dispTotal += r.dispTotal;
-      a.resTotal += r.resTotal; a.cola += r.cola;
-      a.pipeUsa += r.pipeUsa; a.pipeNac += r.pipeNac; a.enCamino += r.enCamino;
-      a.trafficMes += r.trafficMes; a.ventasMes += r.ventasMes;
-      return a;
-    }, {inAgency:0,transito:0,dispTotal:0,resTotal:0,cola:0,pipeUsa:0,pipeNac:0,enCamino:0,trafficMes:0,ventasMes:0});
-    // MOS total = disp_total / ventas_mensuales_total
-    const totMos = tot.ventasMes>0 ? tot.dispTotal/tot.ventasMes : null;
-    const totStatus = invCoverageClass(totMos);
+    const isVersion = invstate.cobView === 'version';
+    document.getElementById('inv-cob-sub').innerHTML =
+      `MOS = disponible / ventas mensuales (promedio últ 3 meses cerrados) · ⚠️ junto a Ventas/mes = ritmo limitado por falta de stock (hay reservas sin VIN) · `
+      + (isVersion
+          ? `Tráfico no disponible por versión (el BD solo registra marca + modelo). · `
+          : `Tráfico = todos los canales de <strong>${mesLbl}</strong> · `)
+      + `🟥 déficit (&lt;1 mes) · 🟡 ajustado (1-2) · 🟢 sano (2-4) · 🟥 sobre-stock (&gt;4 meses)`;
 
+    // Helpers
     function fmtMos(m){
       if(m == null) return '—';
       if(m > 99) return '99+';
       return m.toFixed(1);
     }
     function camCell(transito, pipeUsa, pipeNac, total){
-      // Tooltip con el desglose entre tránsito (ya disponible) vs pipeline (en proceso)
       const tip = `${transito} en tránsito (ya inventario) · ${pipeUsa} pedidos USA · ${pipeNac} nacionalización`;
       return `<td class="num" style="color:var(--muted)" title="${tip}">${fmt(total)}</td>`;
     }
-
-    document.querySelector('#inv-tbl-cob tbody').innerHTML = rows.map(r=>`
-      <tr>
-        <td class="left"><strong>${r.m}</strong></td>
+    function buildRow(label, d, opts){
+      const inAgency = Object.values(d.disp_agencias||{}).reduce((s,v)=>s+v,0);
+      const ventasMes = d.ventas_avg_mensual || 0;
+      const mos = invMOSFromSales(d);
+      const status = invCoverageClass(mos);
+      const pipeUsa = d.pipeline_usa || 0;
+      const pipeNac = d.pipeline_nac || 0;
+      const transito = d.disp_transito || 0;
+      const enCamino = transito + pipeUsa + pipeNac;
+      const trafficMes = opts.showTraffic ? invTrafficMes(opts.modeloForTraffic || label) : null;
+      return { label, d, inAgency, transito, dispTotal: d.disp_total,
+        resTotal: d.res_total, cola: d.cola_total, pipeUsa, pipeNac, enCamino,
+        ventasMes, trafficMes, mos, status };
+    }
+    function rowHtml(r, opts){
+      const rowClass = opts.rowClass || '';
+      const labelHtml = opts.labelHtml || `<strong>${r.label}</strong>`;
+      const trafCell = opts.showTraffic
+        ? `<td class="num">${fmt(r.trafficMes)}</td>`
+        : `<td class="num" style="color:#c9ccd6" title="No hay atribución de tráfico por versión — el BD registra solo marca y modelo">—</td>`;
+      return `<tr class="${rowClass}">
+        <td class="left">${labelHtml}</td>
         <td class="num">${fmt(r.inAgency)}</td>
         ${camCell(r.transito, r.pipeUsa, r.pipeNac, r.enCamino)}
         <td class="num" style="font-weight:700">${fmt(r.dispTotal)}</td>
         <td class="num">${fmt(r.resTotal)}</td>
-        ${colaCell(r)}
+        <td class="num">${fmt(r.cola)}</td>
         <td class="num">${r.ventasMes>0?r.ventasMes.toFixed(1):'—'}${r.d.venta_limitada_por_stock?' <span title="Hay reservas sin VIN — el ritmo real de demanda es mayor que las ventas observadas porque hubo falta de stock" style="color:#ef6c00">⚠️</span>':''}</td>
-        <td class="num">${fmt(r.trafficMes)}</td>
+        ${trafCell}
         <td class="num" style="font-weight:700">${fmtMos(r.mos)}</td>
         <td class="num"><span class="status-pill ${r.status.cls}">${r.status.emoji} ${r.status.label}</span></td>
-      </tr>
-    `).join('') + `<tr class="total">
+      </tr>`;
+    }
+    function statusOrder(s){
+      return s.cls==='red' && s.label==='déficit' ? 0
+           : s.cls==='yellow' ? 1
+           : s.cls==='green' ? 2
+           : s.cls==='red' && s.label==='sobre-stock' ? 3
+           : 4;
+    }
+
+    let bodyHtml = '';
+    let tot = {inAgency:0,transito:0,dispTotal:0,resTotal:0,cola:0,pipeUsa:0,pipeNac:0,enCamino:0,trafficMes:0,ventasMes:0};
+
+    if(!isVersion){
+      // ============ VISTA POR MODELO (default) ============
+      const rows = Object.entries(bd.modelos)
+        .map(([m, d]) => buildRow(m, d, {showTraffic:true, modeloForTraffic:m}))
+        .sort((a,b) => statusOrder(a.status) - statusOrder(b.status) || b.cola - a.cola);
+      rows.forEach(r => {
+        tot.inAgency += r.inAgency; tot.transito += r.transito; tot.dispTotal += r.dispTotal;
+        tot.resTotal += r.resTotal; tot.cola += r.cola;
+        tot.pipeUsa += r.pipeUsa; tot.pipeNac += r.pipeNac; tot.enCamino += r.enCamino;
+        tot.trafficMes += r.trafficMes; tot.ventasMes += r.ventasMes;
+      });
+      bodyHtml = rows.map(r => rowHtml(r, {showTraffic:true})).join('');
+    } else {
+      // ============ VISTA POR VERSIÓN ============
+      // Agrupar versiones por modelo; ordenar modelos por mayor demanda total
+      // (cola + ventas), y dentro de cada grupo ordenar versiones por estado/cola.
+      const modelos = Object.entries(bd.modelos).map(([m, d]) => {
+        const versiones = Object.entries(d.versiones || {})
+          .map(([ver, vd]) => buildRow(ver, vd, {showTraffic:false}))
+          .sort((a,b) => statusOrder(a.status) - statusOrder(b.status)
+                       || b.cola - a.cola || b.dispTotal - a.dispTotal);
+        return {m, d, versiones, demand: (d.cola_total||0) + (d.ventas_3m||0)};
+      }).sort((a,b) => b.demand - a.demand);
+
+      modelos.forEach(({m, d, versiones}) => {
+        if(versiones.length === 0) return;
+        // Subtotal por modelo (a partir del nivel modelo, NO la suma de versiones —
+        // así el lector ve la realidad oficial del modelo aunque la suma debería
+        // coincidir).
+        const modeloRow = buildRow(m, d, {showTraffic:true, modeloForTraffic:m});
+        tot.inAgency += modeloRow.inAgency; tot.transito += modeloRow.transito;
+        tot.dispTotal += modeloRow.dispTotal; tot.resTotal += modeloRow.resTotal;
+        tot.cola += modeloRow.cola;
+        tot.pipeUsa += modeloRow.pipeUsa; tot.pipeNac += modeloRow.pipeNac;
+        tot.enCamino += modeloRow.enCamino; tot.trafficMes += modeloRow.trafficMes;
+        tot.ventasMes += modeloRow.ventasMes;
+        // Cabecera del grupo: nombre modelo + totales pequeños
+        bodyHtml += `<tr class="version-group-head"><td colspan="10">📦 ${m} — ${versiones.length} versión${versiones.length===1?'':'es'} · disp ${fmt(modeloRow.dispTotal)} · cola ${fmt(modeloRow.cola)} · vtas/mes ${modeloRow.ventasMes>0?modeloRow.ventasMes.toFixed(1):'—'}</td></tr>`;
+        versiones.forEach(vr => {
+          bodyHtml += rowHtml(vr, {showTraffic:false, rowClass:'version-row'});
+        });
+      });
+    }
+
+    // Fila TOTAL
+    const totMos = tot.ventasMes>0 ? tot.dispTotal/tot.ventasMes : null;
+    const totStatus = invCoverageClass(totMos);
+    const totTrafCell = isVersion
+      ? `<td class="num" style="color:#c9ccd6">—</td>`
+      : `<td class="num">${fmt(tot.trafficMes)}</td>`;
+    bodyHtml += `<tr class="total">
         <td class="left"><strong>TOTAL</strong></td>
         <td class="num">${fmt(tot.inAgency)}</td>
         ${camCell(tot.transito, tot.pipeUsa, tot.pipeNac, tot.enCamino)}
@@ -5897,10 +5974,12 @@ HTML = r"""<!doctype html>
         <td class="num">${fmt(tot.resTotal)}</td>
         <td class="num">${fmt(tot.cola)}</td>
         <td class="num">${tot.ventasMes.toFixed(1)}</td>
-        <td class="num">${fmt(tot.trafficMes)}</td>
+        ${totTrafCell}
         <td class="num">${fmtMos(totMos)}</td>
         <td class="num"><span class="status-pill ${totStatus.cls}">${totStatus.emoji} ${totStatus.label}</span></td>
       </tr>`;
+
+    document.querySelector('#inv-tbl-cob tbody').innerHTML = bodyHtml;
   }
 
   // Cards de versiones: una card por cada modelo con reservas en cola (independiente de
