@@ -638,6 +638,38 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
     # Quedarnos con asesores que tienen al menos 5 leads (filtrar ruido)
     asesor_breakdown = {k: v for k, v in asesor_breakdown.items() if v['traffic'] >= 5}
 
+    # =========================================================
+    #  BREAKDOWN FILTRADO POR CANALES DE MARKETING
+    #  Para el cruce con Inversión Digital, solo cuentan clientes
+    #  cuyo first_canal es atribuible a marketing pagado / activación digital.
+    #  Showroom va incluido porque la única forma de generar walk-in
+    #  es vía publicidad digital (no hay otros canales pagados).
+    # =========================================================
+    MKT_CHANNELS = {
+        'Showroom', 'Hubspot', 'Ferias y Eventos', 'Feria/Eventos',
+        'Ferias', 'Llamada In', 'Mailing',
+    }
+    modelo_mkt = {}
+    agencia_mkt = {}
+    canal_mkt = {}
+    matched_cks_set = set(matched_sales['matched_ck'].dropna().tolist()) \
+        if 'matched_ck' in matched_sales.columns else set()
+    for ck, ft in first_touch.items():
+        canal = ft.get('first_canal') or 'Sin canal'
+        if canal not in MKT_CHANNELS:
+            continue
+        modelo = ft.get('first_modelo') or 'Sin modelo'
+        ag = ft.get('first_agencia') or 'Sin agencia'
+        cerro = ck in matched_cks_set
+        for bd, key in [(modelo_mkt, modelo), (agencia_mkt, ag), (canal_mkt, canal)]:
+            bd.setdefault(key, {'traffic': 0, 'matched': 0})
+            bd[key]['traffic'] += 1
+            if cerro:
+                bd[key]['matched'] += 1
+    for bd in (modelo_mkt, agencia_mkt, canal_mkt):
+        for k, v in bd.items():
+            v['conv_pct'] = round(100 * v['matched'] / v['traffic'], 1) if v['traffic'] else 0
+
     # ========== TABLA PLANA DE CLIENTES ==========
     # Para que JS pueda filtrar/agregar dinámicamente sin recalcular en backend.
     matched_ck_set = set(matched_sales['matched_ck'].dropna().unique())
@@ -712,4 +744,10 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
         'por_modelo':  modelo_breakdown,
         'por_agencia': agencia_breakdown,
         'por_asesor':  asesor_breakdown,
+        # Breakdown filtrado SOLO por canales atribuibles a marketing
+        # (Showroom + Hubspot + Ferias + Llamada In + Mailing)
+        'por_modelo_mkt':   modelo_mkt,
+        'por_agencia_mkt':  agencia_mkt,
+        'por_canal_mkt':    canal_mkt,
+        'mkt_channels':     sorted(MKT_CHANNELS),
     }

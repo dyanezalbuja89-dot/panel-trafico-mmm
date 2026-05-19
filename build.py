@@ -1359,10 +1359,11 @@ HTML = r"""<!doctype html>
 
     <!-- TABLA 2: ROAS / CPL / CAC por modelo -->
     <div class="ford-section" style="margin-top:18px">
-      <h3>🎯 Cruce con tráfico y ventas <span class="sub">Inversión Digital vs tráfico y ventas atribuidas del panel (YTD 2026)</span></h3>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
-        <strong>CPL real</strong> = inversión digital / visitas a la BD de tráfico (no es CPL de Meta).
-        <strong>CAC real</strong> = inversión digital / clientes que cerraron (vehículos facturados con primer toque atribuido al modelo).
+      <h3>🎯 Cruce con tráfico y ventas <span class="sub">Inversión Digital vs tráfico ATRIBUIBLE a marketing (YTD 2026)</span></h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;background:#fff8e1;padding:10px;border-radius:6px">
+        <strong>Tráfico Ford</strong> ya está filtrado a canales atribuibles a marketing: <em>Showroom · Hubspot · Ferias · Llamada In · Mailing</em>. Quedan FUERA: Referidos, Recompra, Gestión Externa, Talleres, Redes Sociales Propias, Empleado, Prospección.<br>
+        <strong>CPL real</strong> = inversión digital / visitas marketing ·
+        <strong>CAC real</strong> = inversión digital / ventas atribuidas (1 cliente = 1 venta).
       </div>
       <div style="overflow-x:auto">
         <table class="analysis" id="xiy-tbl-roas">
@@ -1374,6 +1375,32 @@ HTML = r"""<!doctype html>
             <th class="num">% conversión</th>
             <th class="num" title="Inversión / Tráfico">CPL real</th>
             <th class="num" title="Inversión / Ventas atribuidas">CAC real</th>
+          </tr></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- TABLA 2B: Performance vs Awareness -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>⚖️ Performance vs Awareness <span class="sub">Distribución del presupuesto por objetivo · por modelo y por agencia</span></h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;background:#f0f9ff;padding:10px;border-radius:6px">
+        <strong>Performance</strong> = Leads/Conversiones (busca venta directa).
+        <strong>Awareness</strong> = Reach/Branding/Posicionamiento (construye marca).
+        <strong>Interacción/Tráfico</strong> = engagement social, no conversión directa.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="xiy-perfaware-cards"></div>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="xiy-tbl-perfaware-modelo">
+          <thead><tr>
+            <th>Modelo</th>
+            <th class="num">Performance</th>
+            <th class="num">Awareness</th>
+            <th class="num">Interacción</th>
+            <th class="num">Tráfico</th>
+            <th class="num">Total</th>
+            <th class="num">% Perf</th>
           </tr></thead>
           <tbody></tbody>
           <tfoot></tfoot>
@@ -6277,7 +6304,10 @@ HTML = r"""<!doctype html>
       '</tr>';
 
     // ─── TABLA 2: cruce ROAS con tráfico y ventas ───
-    const porModeloPanel = (DATA.conversion_data && DATA.conversion_data.FORD && DATA.conversion_data.FORD.por_modelo) || {};
+    // Usar tráfico filtrado a canales de marketing (Showroom+Hubspot+Ferias+...)
+    const porModeloPanel = (DATA.conversion_data && DATA.conversion_data.FORD &&
+                            DATA.conversion_data.FORD.por_modelo_mkt) ||
+                           (DATA.conversion_data && DATA.conversion_data.FORD && DATA.conversion_data.FORD.por_modelo) || {};
     let trsRoas = '';
     let sumInv=0, sumTraf=0, sumVent=0;
     modelosActivos.forEach(mod => {
@@ -6314,11 +6344,80 @@ HTML = r"""<!doctype html>
       <td class="num">${cacTot!=null ? fUSD2(cacTot) : '—'}</td>
     </tr>`;
 
+    // ─── TABLA 2B: Performance vs Awareness por modelo ───
+    const objTotals = XIY.objective_totals || {};
+    const modeloObj = XIY.modelo_objective || {};
+    const OBJ_ORDER = ['Performance','Awareness','Interacción','Tráfico'];
+
+    // Cards arriba con totales por objetivo (Top 2)
+    const cardsEl = document.getElementById('xiy-perfaware-cards');
+    if(cardsEl){
+      const perfAmt = objTotals['Performance']?.amount || 0;
+      const awareAmt = objTotals['Awareness']?.amount || 0;
+      const pctPerf = total>0 ? (100*perfAmt/total) : 0;
+      const pctAware = total>0 ? (100*awareAmt/total) : 0;
+      cardsEl.innerHTML = `
+        <div class="card-big" style="background:linear-gradient(135deg,#e0f2fe 0%,#f0f9ff 100%);border:1px solid #bae6fd">
+          <div class="lbl">🎯 Performance (Leads/Conversiones)</div>
+          <div class="val" style="color:#0369a1">${fUSD(perfAmt)}</div>
+          <div class="hint">${pctPerf.toFixed(1)}% del total · ${objTotals['Performance']?.n_lines||0} líneas</div>
+        </div>
+        <div class="card-big" style="background:linear-gradient(135deg,#fef3c7 0%,#fffbeb 100%);border:1px solid #fde68a">
+          <div class="lbl">📢 Awareness (Reach/Branding)</div>
+          <div class="val" style="color:#a16207">${fUSD(awareAmt)}</div>
+          <div class="hint">${pctAware.toFixed(1)}% del total · ${objTotals['Awareness']?.n_lines||0} líneas</div>
+        </div>
+      `;
+    }
+
+    // Tabla por modelo
+    const tblPaTb = document.querySelector('#xiy-tbl-perfaware-modelo tbody');
+    const tblPaFt = document.querySelector('#xiy-tbl-perfaware-modelo tfoot');
+    let trsPa = '';
+    const totsPa = {Performance:0, Awareness:0, 'Interacción':0, 'Tráfico':0};
+    // incluir modelos + Multi/no-modelo
+    const todasFilas = [...modelosActivos];
+    // agregar la fila "Sin atribuir a modelo" si existe
+    const moNonModelo = {};
+    OBJ_ORDER.forEach(o => moNonModelo[o] = 0);
+    Object.entries(XIY.non_modelo || {}).forEach(([label, d]) => {
+      // non_modelo no tiene objective_breakdown, así que agrupamos en awareness por default
+      // mejor mostrar todo Awareness/Marca de campañas no-modelo
+      moNonModelo['Awareness'] = (moNonModelo['Awareness']||0) + (d.amount||0);
+    });
+
+    todasFilas.forEach(mod => {
+      const breakdown = modeloObj[mod] || {};
+      const row = OBJ_ORDER.map(o => breakdown[o] || 0);
+      const tot = row.reduce((a,b)=>a+b, 0);
+      OBJ_ORDER.forEach((o,i) => totsPa[o] += row[i]);
+      const pctPerf = tot>0 ? (100*row[0]/tot) : 0;
+      trsPa += `<tr>
+        <td><strong>${mod}</strong></td>
+        ${row.map(v => `<td class="num">${v>0 ? fUSD(v) : '<span style="color:#bbb">—</span>'}</td>`).join('')}
+        <td class="num"><strong>${fUSD(tot)}</strong></td>
+        <td class="num">${pctPerf.toFixed(0)}%</td>
+      </tr>`;
+    });
+
+    tblPaTb.innerHTML = trsPa || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px">Sin datos.</td></tr>';
+    const totPa = OBJ_ORDER.reduce((s,o)=>s+totsPa[o], 0);
+    const pctPerfTot = totPa>0 ? (100*totsPa['Performance']/totPa) : 0;
+    tblPaFt.innerHTML = `<tr style="background:#f3f4f6;font-weight:700">
+      <td>TOTAL atribuible a modelo</td>
+      ${OBJ_ORDER.map(o => `<td class="num">${fUSD(totsPa[o])}</td>`).join('')}
+      <td class="num">${fUSD(totPa)}</td>
+      <td class="num">${pctPerfTot.toFixed(0)}%</td>
+    </tr>`;
+
     // ─── TABLA 3: por Agencia (con cruce de tráfico/ventas) ───
     const tblAgTb = document.querySelector('#xiy-tbl-agencia tbody');
     const tblAgFt = document.querySelector('#xiy-tbl-agencia tfoot');
     const totalsAgencia = XIY.totals_agencia || {};
-    const porAgenciaPanel = (DATA.conversion_data && DATA.conversion_data.FORD && DATA.conversion_data.FORD.por_agencia) || {};
+    // Tráfico filtrado a canales marketing también para el cruce por agencia
+    const porAgenciaPanel = (DATA.conversion_data && DATA.conversion_data.FORD &&
+                             DATA.conversion_data.FORD.por_agencia_mkt) ||
+                            (DATA.conversion_data && DATA.conversion_data.FORD && DATA.conversion_data.FORD.por_agencia) || {};
     const PANEL_AGS = XIY.panel_agencias || ['Tumbaco','La Y','CJA','Orellana','Manta','Machala','Portoviejo'];
     const agentriesOrdered = PANEL_AGS
       .map(ag => [ag, totalsAgencia[ag] || {amount:0, n_lines:0}])

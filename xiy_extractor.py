@@ -421,9 +421,13 @@ def consolidate_for_panel(flat_lines):
         if direct:
             return direct
         # Mención regional sin agencia específica
+        # ORGU Sierra = Quito (Tumbaco + La Y)
+        # ORGU Costa = Guayas + El Oro + Manabí. Como ORGU no tiene agencia en
+        #   Guayas, se reparte entre Machala (El Oro) + Manta + Portoviejo (Manabí)
+        # ORGU Manabí = Manta + Portoviejo
         if "SIERRA" in a:        return ["Tumbaco", "La Y"]
         if "MANABI" in a or "MANABÍ" in a: return ["Manta", "Portoviejo"]
-        if "COSTA" in a:         return ["Machala"]  # ORGU costa = Machala
+        if "COSTA" in a:         return ["Machala", "Manta", "Portoviejo"]
         # B2B / nacional / sin clasificar
         return None
 
@@ -447,6 +451,10 @@ def consolidate_for_panel(flat_lines):
         # NUEVO: agregación por medio (Meta/Google/TikTok)
         "totals_medio": {},     # {medio: {amount, n_lines}}
         "medio_objective": {},  # {medio: {objective: amount}}
+        # NUEVO: Performance vs Awareness por modelo
+        "objective_totals": {},          # {objective: {amount, n_lines}}
+        "modelo_objective": {},          # {MODELO: {objective: amount}}
+        "agencia_objective": {},         # {agencia: {objective: amount}}
     }
 
     for L in flat_lines:
@@ -517,13 +525,45 @@ def consolidate_for_panel(flat_lines):
         elif medio.upper() == "GOOGLE":
             medio = "Google"
         objective = (L.get("objective") or "Sin objetivo").strip()
+        # Normalizar objetivos: agrupar variantes
+        obj_upper = objective.upper()
+        if obj_upper in ("LEADS", "PERFORMANCE", "CONVERSIONS", "VENTA"):
+            objective_cat = "Performance"
+        elif obj_upper in ("AWARENESS", "REACH", "ALCANCE", "BRANDING",
+                           "POSICIONAMIENTO"):
+            objective_cat = "Awareness"
+        elif obj_upper in ("INTERACCIÓN", "INTERACCION", "ENGAGEMENT"):
+            objective_cat = "Interacción"
+        elif obj_upper in ("TRÁFICO", "TRAFICO", "TRAFFIC"):
+            objective_cat = "Tráfico"
+        else:
+            objective_cat = objective or "Otro"
+
         consolidated["totals_medio"].setdefault(medio,
             {"amount": 0.0, "n_lines": 0})
         consolidated["totals_medio"][medio]["amount"] += amount
         consolidated["totals_medio"][medio]["n_lines"] += 1
         consolidated["medio_objective"].setdefault(medio, {})
-        consolidated["medio_objective"][medio].setdefault(objective, 0.0)
-        consolidated["medio_objective"][medio][objective] += amount
+        consolidated["medio_objective"][medio].setdefault(objective_cat, 0.0)
+        consolidated["medio_objective"][medio][objective_cat] += amount
+
+        # --- Performance vs Awareness ---
+        consolidated["objective_totals"].setdefault(objective_cat,
+            {"amount": 0.0, "n_lines": 0})
+        consolidated["objective_totals"][objective_cat]["amount"] += amount
+        consolidated["objective_totals"][objective_cat]["n_lines"] += 1
+        # por modelo
+        if is_modelo:
+            consolidated["modelo_objective"].setdefault(canonical, {})
+            consolidated["modelo_objective"][canonical].setdefault(objective_cat, 0.0)
+            consolidated["modelo_objective"][canonical][objective_cat] += amount
+        # por agencia (repartida)
+        if ags:
+            share = amount / len(ags)
+            for ag in ags:
+                consolidated["agencia_objective"].setdefault(ag, {})
+                consolidated["agencia_objective"][ag].setdefault(objective_cat, 0.0)
+                consolidated["agencia_objective"][ag][objective_cat] += share
 
     # Redondear amounts a 2 decimales para limpieza en JSON
     def _round_dict(d, key="amount", nd=2):
@@ -559,6 +599,13 @@ def consolidate_for_panel(flat_lines):
         for k in list(meses):
             meses[k] = round(meses[k], 2)
     for med, objs in consolidated["medio_objective"].items():
+        for k in list(objs):
+            objs[k] = round(objs[k], 2)
+    _round_dict(consolidated["objective_totals"])
+    for mod, objs in consolidated["modelo_objective"].items():
+        for k in list(objs):
+            objs[k] = round(objs[k], 2)
+    for ag, objs in consolidated["agencia_objective"].items():
         for k in list(objs):
             objs[k] = round(objs[k], 2)
     consolidated["total_multi_nacional"] = round(
