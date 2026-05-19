@@ -648,7 +648,7 @@ HTML = r"""<!doctype html>
   <button class="tab-btn" data-tab="otros">Análisis General de Tráfico</button>
   <button class="tab-btn" data-tab="conv">Conversión</button>
   <button class="tab-btn" data-tab="inv">📦 Inventario Orgu</button>
-  <button class="tab-btn" data-tab="xiy">💰 Inversión Xiy</button>
+  <button class="tab-btn" data-tab="xiy">💰 Inversión Digital</button>
   <button class="tab-btn" data-tab="comp-imp">🔒 Inventario Competencia</button>
   <button class="tab-btn" data-tab="dash">Dashboard</button>
 </nav>
@@ -1322,7 +1322,7 @@ HTML = r"""<!doctype html>
   <section id="tab-xiy" class="tab-panel">
     <div class="otros-header" style="background:linear-gradient(135deg,#b58105 0%,#003478 100%)">
       <div>
-        <h2>💰 Inversión Publicitaria Xiy 2026</h2>
+        <h2>💰 Inversión Digital 2026</h2>
         <div class="sub" id="xiy-source">Pauta digital Ford · cruzada con tráfico y ventas del panel</div>
       </div>
     </div>
@@ -1359,16 +1359,16 @@ HTML = r"""<!doctype html>
 
     <!-- TABLA 2: ROAS / CPL / CAC por modelo -->
     <div class="ford-section" style="margin-top:18px">
-      <h3>🎯 Cruce con tráfico y ventas <span class="sub">Inversión Xiy vs tráfico y ventas atribuidas del panel (YTD 2026)</span></h3>
+      <h3>🎯 Cruce con tráfico y ventas <span class="sub">Inversión Digital vs tráfico y ventas atribuidas del panel (YTD 2026)</span></h3>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
-        <strong>CPL real</strong> = inversión Xiy / visitas a la BD de tráfico (no es CPL de Meta).
-        <strong>CAC real</strong> = inversión Xiy / clientes que cerraron (vehículos facturados con primer toque atribuido al modelo).
+        <strong>CPL real</strong> = inversión digital / visitas a la BD de tráfico (no es CPL de Meta).
+        <strong>CAC real</strong> = inversión digital / clientes que cerraron (vehículos facturados con primer toque atribuido al modelo).
       </div>
       <div style="overflow-x:auto">
         <table class="analysis" id="xiy-tbl-roas">
           <thead><tr>
             <th>Modelo</th>
-            <th class="num">Inversión Xiy</th>
+            <th class="num">Inversión Digital</th>
             <th class="num">Tráfico Ford</th>
             <th class="num">Ventas atribuidas</th>
             <th class="num">% conversión</th>
@@ -1381,14 +1381,55 @@ HTML = r"""<!doctype html>
       </div>
     </div>
 
-    <!-- TABLA 3: NO atribuible -->
+    <!-- TABLA 3: por Agencia -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>🏢 Inversión por Agencia <span class="sub">Atribución según audience geográfica · regional repartida entre agencias de la zona</span></h3>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="xiy-tbl-agencia">
+          <thead><tr>
+            <th>Agencia</th>
+            <th class="num">Inversión Digital</th>
+            <th class="num">% del total</th>
+            <th class="num" title="Tráfico Ford acumulado 2026 desde el panel">Tráfico Ford</th>
+            <th class="num" title="Ventas atribuidas a tráfico (panel)">Ventas atrib.</th>
+            <th class="num" title="Inversión / Tráfico">CPL real</th>
+            <th class="num" title="Inversión / Ventas atribuidas">CAC real</th>
+          </tr></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
+      <div class="footer-note" style="margin-top:8px">
+        <strong>Cómo se atribuye:</strong> audiencias con mención directa (TUMBACO, LA Y, CJA, MANTA, MACHALA, ORELLANA, PORTOVIEJO) van 100% a esa agencia. Las regionales ("Concesionarios Sierra/Costa/Manabí") se reparten en partes iguales entre las agencias ORGU de la región. Las nacionales o sin clasificar quedan fuera (USD <span id="xiy-multi-nacional">—</span> en bucket Multi/Nacional).
+      </div>
+    </div>
+
+    <!-- TABLA 4: por Medio -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>📱 Inversión por Medio <span class="sub">Plataforma publicitaria · Meta / Google / TikTok / etc.</span></h3>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="xiy-tbl-medio">
+          <thead><tr>
+            <th>Medio</th>
+            <th class="num">Inversión Digital</th>
+            <th class="num">% del total</th>
+            <th class="num">N° líneas</th>
+            <th>Distribución por objetivo</th>
+          </tr></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- TABLA 5: NO atribuible a modelo -->
     <div class="ford-section" style="margin-top:18px">
       <h3>🏷️ Inversión NO atribuida a modelo <span class="sub">Awareness regional, marca, activación · no se puede asociar a un solo modelo Ford</span></h3>
       <div style="overflow-x:auto">
         <table class="analysis" id="xiy-tbl-nonmodelo">
           <thead><tr>
             <th>Iniciativa</th>
-            <th class="num">Inversión Xiy</th>
+            <th class="num">Inversión Digital</th>
             <th class="num">N° líneas</th>
             <th class="num">% del total</th>
           </tr></thead>
@@ -1858,12 +1899,12 @@ HTML = r"""<!doctype html>
     }
     if(tab === 'xiy'){
       const x = DATA.xiy;
-      if(!x) return 'Inversión publicitaria Xiy · datos no disponibles';
+      if(!x) return 'Inversión Digital · datos no disponibles';
       const meses = (x.months_order && x.months_order.length)
         ? `${x.months_order[0]}-${x.months_order[x.months_order.length-1]}`
         : 'Ene-Abr';
       const tot = x.total_general || 0;
-      return `Inversión publicitaria Xiy · ${meses} 2026 · USD ${tot.toLocaleString('es-EC',{maximumFractionDigits:0})} total`;
+      return `Inversión Digital · ${meses} 2026 · USD ${tot.toLocaleString('es-EC',{maximumFractionDigits:0})} total`;
     }
     if(tab === 'otros'){
       return 'Análisis privados · acceso restringido';
@@ -6273,7 +6314,90 @@ HTML = r"""<!doctype html>
       <td class="num">${cacTot!=null ? fUSD2(cacTot) : '—'}</td>
     </tr>`;
 
-    // ─── TABLA 3: NO atribuible ───
+    // ─── TABLA 3: por Agencia (con cruce de tráfico/ventas) ───
+    const tblAgTb = document.querySelector('#xiy-tbl-agencia tbody');
+    const tblAgFt = document.querySelector('#xiy-tbl-agencia tfoot');
+    const totalsAgencia = XIY.totals_agencia || {};
+    const porAgenciaPanel = (DATA.conversion_data && DATA.conversion_data.FORD && DATA.conversion_data.FORD.por_agencia) || {};
+    const PANEL_AGS = XIY.panel_agencias || ['Tumbaco','La Y','CJA','Orellana','Manta','Machala','Portoviejo'];
+    const agentriesOrdered = PANEL_AGS
+      .map(ag => [ag, totalsAgencia[ag] || {amount:0, n_lines:0}])
+      .filter(([ag, d]) => d.amount > 0)
+      .sort((a,b) => b[1].amount - a[1].amount);
+    let trsAg = '';
+    let sumInvAg=0, sumTrafAg=0, sumVentAg=0;
+    agentriesOrdered.forEach(([ag, d]) => {
+      const inv = d.amount;
+      const pa = porAgenciaPanel[ag] || {};
+      const traf = pa.traffic || 0;
+      const vent = pa.matched || 0;
+      const cpl = traf>0 ? (inv/traf) : null;
+      const cac = vent>0 ? (inv/vent) : null;
+      const pct = total>0 ? (100*inv/total) : 0;
+      sumInvAg += inv; sumTrafAg += traf; sumVentAg += vent;
+      trsAg += `<tr>
+        <td><strong>${ag}</strong></td>
+        <td class="num">${fUSD(inv)}</td>
+        <td class="num">${pct.toFixed(1)}%</td>
+        <td class="num">${fInt(traf)}</td>
+        <td class="num">${fInt(vent)}</td>
+        <td class="num">${cpl!=null ? fUSD2(cpl) : '<span style="color:#bbb">—</span>'}</td>
+        <td class="num">${cac!=null ? fUSD2(cac) : '<span style="color:#bbb">—</span>'}</td>
+      </tr>`;
+    });
+    tblAgTb.innerHTML = trsAg || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px">Sin atribución por agencia.</td></tr>';
+    const cplTotAg = sumTrafAg>0 ? (sumInvAg/sumTrafAg) : null;
+    const cacTotAg = sumVentAg>0 ? (sumInvAg/sumVentAg) : null;
+    tblAgFt.innerHTML = `<tr style="background:#f3f4f6;font-weight:700">
+      <td>TOTAL atribuido a agencia</td>
+      <td class="num">${fUSD(sumInvAg)}</td>
+      <td class="num">${total>0?(100*sumInvAg/total).toFixed(1)+'%':'—'}</td>
+      <td class="num">${fInt(sumTrafAg)}</td>
+      <td class="num">${fInt(sumVentAg)}</td>
+      <td class="num">${cplTotAg!=null ? fUSD2(cplTotAg) : '—'}</td>
+      <td class="num">${cacTotAg!=null ? fUSD2(cacTotAg) : '—'}</td>
+    </tr>`;
+    // Multi/Nacional disclaimer
+    const multiNac = XIY.total_multi_nacional || 0;
+    const elMN = document.getElementById('xiy-multi-nacional');
+    if(elMN) elMN.textContent = fUSD(multiNac);
+
+    // ─── TABLA 4: por Medio ───
+    const tblMedTb = document.querySelector('#xiy-tbl-medio tbody');
+    const tblMedFt = document.querySelector('#xiy-tbl-medio tfoot');
+    const totalsMedio = XIY.totals_medio || {};
+    const medioObj = XIY.medio_objective || {};
+    const medioEntries = Object.entries(totalsMedio).sort((a,b)=> b[1].amount - a[1].amount);
+    let trsMed = '';
+    let totMed = 0;
+    medioEntries.forEach(([med, d]) => {
+      const inv = d.amount;
+      const pct = total>0 ? (100*inv/total) : 0;
+      totMed += inv;
+      // distribución por objetivo
+      const objs = medioObj[med] || {};
+      const objsStr = Object.entries(objs)
+        .sort((a,b)=> b[1] - a[1])
+        .map(([o,v]) => `<span style="white-space:nowrap;margin-right:8px"><strong>${o}</strong>: ${fUSD(v)}</span>`)
+        .join('');
+      trsMed += `<tr>
+        <td><strong>${med}</strong></td>
+        <td class="num">${fUSD(inv)}</td>
+        <td class="num">${pct.toFixed(1)}%</td>
+        <td class="num">${d.n_lines||0}</td>
+        <td style="font-size:13px">${objsStr || '—'}</td>
+      </tr>`;
+    });
+    tblMedTb.innerHTML = trsMed || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px">Sin datos de medio.</td></tr>';
+    tblMedFt.innerHTML = `<tr style="background:#f3f4f6;font-weight:700">
+      <td>TOTAL</td>
+      <td class="num">${fUSD(totMed)}</td>
+      <td class="num">${total>0?'100.0%':'—'}</td>
+      <td class="num">—</td>
+      <td></td>
+    </tr>`;
+
+    // ─── TABLA 5: NO atribuible ───
     const nonModelo = XIY.non_modelo || {};
     const nonEntries = Object.entries(nonModelo).sort((a,b)=> b[1].amount - a[1].amount);
     const totNon = XIY.total_non_modelo || 0;

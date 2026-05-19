@@ -391,6 +391,42 @@ def consolidate_for_panel(flat_lines):
         # NO atribuible a modelo Ford: AYF Regional, Marca, Activación, etc.
         return (modelo_xiy, False)
 
+    # Agencias ORGU (matchea con DATA.conversion_data.FORD.por_agencia)
+    PANEL_AGENCIAS = ["Tumbaco", "La Y", "CJA", "Orellana", "Manta",
+                      "Machala", "Portoviejo"]
+
+    def map_audience_to_agencias(audience):
+        """Mapea el texto de audience a una o más agencias ORGU.
+        - Mención directa (TUMBACO, LA Y, CJA, MANTA, MACHALA, ORELLANA) → atribución 100%
+          a esa agencia.
+        - Mención regional ('Concesionarios Sierra/Costa') → atribución repartida
+          entre las agencias de la región.
+        - Sin clasificar / Nacional → None (queda en bucket 'Multi/Nacional').
+        Devuelve: lista de agencias o None.
+        """
+        if not audience:
+            return None
+        a = audience.upper()
+        # Mención directa a una agencia específica → 100% a ella
+        # (puede haber audiencias multi-ciudad como CJA/ORELLANA/MANTA — devolvemos
+        #  todas las que aparezcan para repartir)
+        direct = []
+        if "TUMBACO" in a:                direct.append("Tumbaco")
+        if "LA Y" in a or " LAY " in a:   direct.append("La Y")
+        if "CJA" in a or "CUENCA" in a:   direct.append("CJA")
+        if "ORELLANA" in a:               direct.append("Orellana")
+        if "MANTA" in a:                  direct.append("Manta")
+        if "MACHALA" in a:                direct.append("Machala")
+        if "PORTOVIEJO" in a:             direct.append("Portoviejo")
+        if direct:
+            return direct
+        # Mención regional sin agencia específica
+        if "SIERRA" in a:        return ["Tumbaco", "La Y"]
+        if "MANABI" in a or "MANABÍ" in a: return ["Manta", "Portoviejo"]
+        if "COSTA" in a:         return ["Machala"]  # ORGU costa = Machala
+        # B2B / nacional / sin clasificar
+        return None
+
     months_order = ["Enero", "Febrero", "Marzo", "Abril", "Mayo"]
     consolidated = {
         "months": {},           # {mes: {MODELO: {amount, convers, n_lines}}}
@@ -402,6 +438,15 @@ def consolidate_for_panel(flat_lines):
         "total_atribuible_modelo": 0.0,
         "total_non_modelo": 0.0,
         "panel_models": PANEL_MODELS,
+        # NUEVO: agregación por agencia (mapeada desde audience)
+        "totals_agencia": {},   # {agencia: {amount, n_lines}}
+        "agencia_modelo": {},   # {agencia: {MODELO: amount}}  cruce agencia×modelo
+        "agencia_mes": {},      # {agencia: {mes: amount}}
+        "total_multi_nacional": 0.0,  # inversión sin agencia atribuible
+        "panel_agencias": PANEL_AGENCIAS,
+        # NUEVO: agregación por medio (Meta/Google/TikTok)
+        "totals_medio": {},     # {medio: {amount, n_lines}}
+        "medio_objective": {},  # {medio: {objective: amount}}
     }
 
     for L in flat_lines:
@@ -441,6 +486,45 @@ def consolidate_for_panel(flat_lines):
             consolidated["totals_mes_non_modelo"].setdefault(mes, 0.0)
             consolidated["totals_mes_non_modelo"][mes] += amount
 
+        # --- Atribución por AGENCIA (basada en audience) ---
+        ags = map_audience_to_agencias(L.get("audience"))
+        if ags:
+            share = amount / len(ags)  # repartir equitativo si menciona varias
+            for ag in ags:
+                consolidated["totals_agencia"].setdefault(ag,
+                    {"amount": 0.0, "n_lines": 0})
+                consolidated["totals_agencia"][ag]["amount"] += share
+                consolidated["totals_agencia"][ag]["n_lines"] += 1
+                # cruce agencia × modelo (sólo para modelos Ford)
+                if is_modelo:
+                    consolidated["agencia_modelo"].setdefault(ag, {})
+                    consolidated["agencia_modelo"][ag].setdefault(canonical, 0.0)
+                    consolidated["agencia_modelo"][ag][canonical] += share
+                # cruce agencia × mes
+                consolidated["agencia_mes"].setdefault(ag, {})
+                consolidated["agencia_mes"][ag].setdefault(mes, 0.0)
+                consolidated["agencia_mes"][ag][mes] += share
+        else:
+            consolidated["total_multi_nacional"] += amount
+
+        # --- Atribución por MEDIO (Meta / Google / TikTok) ---
+        medio = (L.get("media") or "Sin medio").strip()
+        # Normalizar variantes
+        if medio.upper() in ("TIK TOK", "TIKTOK", "TIK-TOK"):
+            medio = "TikTok"
+        elif medio.upper() == "META":
+            medio = "Meta"
+        elif medio.upper() == "GOOGLE":
+            medio = "Google"
+        objective = (L.get("objective") or "Sin objetivo").strip()
+        consolidated["totals_medio"].setdefault(medio,
+            {"amount": 0.0, "n_lines": 0})
+        consolidated["totals_medio"][medio]["amount"] += amount
+        consolidated["totals_medio"][medio]["n_lines"] += 1
+        consolidated["medio_objective"].setdefault(medio, {})
+        consolidated["medio_objective"][medio].setdefault(objective, 0.0)
+        consolidated["medio_objective"][medio][objective] += amount
+
     # Redondear amounts a 2 decimales para limpieza en JSON
     def _round_dict(d, key="amount", nd=2):
         for v in d.values():
@@ -464,6 +548,21 @@ def consolidate_for_panel(flat_lines):
     consolidated["total_non_modelo"] = round(consolidated["total_non_modelo"], 2)
     consolidated["months_order"] = [m for m in months_order
                                     if m in consolidated["totals_mes"]]
+
+    # Redondear agencia / medio
+    _round_dict(consolidated["totals_agencia"])
+    _round_dict(consolidated["totals_medio"])
+    for ag, mods in consolidated["agencia_modelo"].items():
+        for k in list(mods):
+            mods[k] = round(mods[k], 2)
+    for ag, meses in consolidated["agencia_mes"].items():
+        for k in list(meses):
+            meses[k] = round(meses[k], 2)
+    for med, objs in consolidated["medio_objective"].items():
+        for k in list(objs):
+            objs[k] = round(objs[k], 2)
+    consolidated["total_multi_nacional"] = round(
+        consolidated["total_multi_nacional"], 2)
     return consolidated
 
 
