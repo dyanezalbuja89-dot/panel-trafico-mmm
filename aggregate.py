@@ -232,7 +232,8 @@ def summarize(df, label):
 # ---------------- FORD PROCESSING ----------------
 def process_bd_ford(df, channels=None):
     """Apply Ford filters: MARCA==FORD, SUCURSAL en agencias Ford (AUTOSHARECORP),
-    dedupe CEDULA, normalize model, filtra a canales especificados.
+    dedupe (CEDULA, MODELO) — una persona con 2 modelos distintos = 2 negocios,
+    normalize model, filtra a canales especificados.
     channels=None → usa VALID_TRAFFIC_CHANNELS (marketing only) por compatibilidad.
     channels=ALL_TRAFFIC_CHANNELS → incluye marketing + asesor comercial."""
     if channels is None:
@@ -240,8 +241,11 @@ def process_bd_ford(df, channels=None):
     df = df[df["MARCA"] == "FORD"].copy()
     df = df[df["SUCURSAL"].str.contains("AUTOSHARECORP", case=False, na=False)]
     df = df.sort_values("FECHA")
-    df = df.drop_duplicates(subset=["CEDULA"], keep="last")
     df["MODELO_F"] = df["MODELO"].apply(normalize_modelo_ford)
+    # Dedupe POR (CEDULA, MODELO_F): la misma persona interesada en 2 modelos
+    # distintos cuenta como 2 negocios. Antes deduplicaba solo por CEDULA y
+    # sub-contaba los multi-modelo.
+    df = df.drop_duplicates(subset=["CEDULA", "MODELO_F"], keep="last")
     df = df[df["CANAL"].isin(channels)]
     return df
 
@@ -709,9 +713,12 @@ def process_bd_brand(df, brand, channels=None):
     if kw:
         df = df[df['SUCURSAL'].str.contains(kw, case=False, na=False)]
     df = df.sort_values('FECHA')
-    df = df.drop_duplicates(subset=['CEDULA'], keep='last')
     df['MODELO_F'] = df['MODELO'].astype(str).str.strip().str.upper()
     df.loc[df['MODELO_F']=='F150','MODELO_F'] = 'F-150'
+    # Dedupe POR (CEDULA, MODELO) en vez de solo CEDULA:
+    # una misma persona con 2 modelos distintos = 2 negocios reales.
+    # Si solo dedupeáramos por CEDULA, perderíamos negocios multi-modelo.
+    df = df.drop_duplicates(subset=['CEDULA', 'MODELO_F'], keep='last')
     df = df[df['CANAL'].isin(channels)]
     return df
 
