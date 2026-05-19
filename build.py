@@ -1418,6 +1418,7 @@ HTML = r"""<!doctype html>
         <strong>CAC</strong> = Inversión digital del mes / ventas atribuidas del mes.
         <strong>Conversión</strong> = Ventas atribuidas / visitas marketing × 100.
         <br>El tráfico/ventas usa <strong>first_ym</strong> (mes del primer toque del cliente).
+        <br><em>Si un mes tiene 0 ventas, el CAC queda indefinido y se omite el punto (la línea se dibuja saltándose ese mes).</em>
       </div>
       <!-- Chips de modelo -->
       <div id="xiy-evo-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
@@ -6637,18 +6638,21 @@ HTML = r"""<!doctype html>
     if(showCpv) datasets.push({
       label:'CPV (USD)', data:data.cpv, borderColor:'#0369a1', backgroundColor:'#0369a133',
       tension:0.3, yAxisID:'yUSD', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#0369a1',
+      spanGaps:true, // conecta saltándose meses sin datos
       datalabels:{ align:'top', anchor:'end', color:'#0369a1', font:{weight:'600',size:10},
         formatter:(v)=> v==null?'':'$'+v.toFixed(0) }
     });
     if(showCac) datasets.push({
       label:'CAC (USD)', data:data.cac, borderColor:'#be185d', backgroundColor:'#be185d33',
       tension:0.3, yAxisID:'yUSD', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#be185d', borderDash:[6,3],
+      spanGaps:true, // conecta saltándose meses sin ventas (CAC indefinido)
       datalabels:{ align:'bottom', anchor:'start', color:'#be185d', font:{weight:'600',size:10},
         formatter:(v)=> v==null?'':'$'+v.toFixed(0) }
     });
     if(showConv) datasets.push({
       label:'Conversión (%)', data:data.conv, borderColor:'#16a34a', backgroundColor:'#16a34a33',
       tension:0.3, yAxisID:'yPct', borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#16a34a',
+      spanGaps:true,
       datalabels:{ align:'top', anchor:'end', color:'#16a34a', font:{weight:'700',size:11},
         formatter:(v)=> v==null?'':v.toFixed(1)+'%' }
     });
