@@ -234,10 +234,11 @@ def process_bd_ford(df, channels=None):
     """Filtra registros Ford. Fuente de verdad: MARCA == FORD.
 
     NO se filtra por SUCURSAL=AUTOSHARECORP (cambio 2026-05-19) para
-    evitar perder negocios reales mal categorizados. La asignación a
-    agencia se hace en get_dealer_df / DEALER_CONFIG por SUCURSAL contains.
+    evitar perder negocios reales mal categorizados.
 
-    Dedupe (CEDULA, MODELO_F): una persona con 2 modelos = 2 negocios.
+    Dedupe por SOLO CEDULA: 1 persona = 1 negocio (independiente de
+    cuántos modelos haya explorado). El último registro cronológico
+    determina el modelo asignado.
 
     channels=None → VALID_TRAFFIC_CHANNELS (marketing only)
     channels=ALL_TRAFFIC_CHANNELS → marketing + asesor comercial
@@ -247,7 +248,7 @@ def process_bd_ford(df, channels=None):
     df = df[df["MARCA"] == "FORD"].copy()
     df = df.sort_values("FECHA")
     df["MODELO_F"] = df["MODELO"].apply(normalize_modelo_ford)
-    df = df.drop_duplicates(subset=["CEDULA", "MODELO_F"], keep="last")
+    df = df.drop_duplicates(subset=["CEDULA"], keep="last")
     df = df[df["CANAL"].isin(channels)]
     return df
 
@@ -709,14 +710,12 @@ def process_bd_brand(df, brand, channels=None):
     """Filtra registros de una marca específica para conteo de negocios.
 
     Fuente de verdad: columna MARCA. NO se filtra por SUCURSAL keyword
-    (cambio 2026-05-19: el filtro defensivo anterior estaba descartando
-    negocios reales mal categorizados — ej: ventas DongFeng registradas
-    en SUCURSAL=AUTOSHARECORP LA Y por error de digitación, pero con
-    MARCA=DONGFENG_ORGU, modelos Dong Feng y asesor Dong Feng).
+    (cambio 2026-05-19: el filtro defensivo anterior descartaba negocios
+    reales mal categorizados — ej: DongFeng en SUCURSAL=AUTOSHARECORP).
 
-    La asignación a agencia se hace por SUCURSAL contains "LA Y"/"MACHALA"
-    en get_dealer_df_brand, lo cual sigue funcionando para los registros
-    mal categorizados (porque la palabra LA Y/MACHALA sí está presente).
+    Dedupe por SOLO CEDULA: 1 persona = 1 negocio. Aunque haya cotizado
+    múltiples modelos, al final es la misma persona explorando opciones.
+    El último registro cronológico determina el modelo asignado.
     """
     if channels is None:
         channels = VALID_TRAFFIC_CHANNELS
@@ -724,9 +723,7 @@ def process_bd_brand(df, brand, channels=None):
     df = df.sort_values('FECHA')
     df['MODELO_F'] = df['MODELO'].astype(str).str.strip().str.upper()
     df.loc[df['MODELO_F']=='F150','MODELO_F'] = 'F-150'
-    # Dedupe POR (CEDULA, MODELO): una misma persona con 2 modelos
-    # distintos = 2 negocios reales.
-    df = df.drop_duplicates(subset=['CEDULA', 'MODELO_F'], keep='last')
+    df = df.drop_duplicates(subset=['CEDULA'], keep='last')
     df = df[df['CANAL'].isin(channels)]
     return df
 
