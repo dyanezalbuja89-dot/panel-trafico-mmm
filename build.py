@@ -648,6 +648,7 @@ HTML = r"""<!doctype html>
   <button class="tab-btn" data-tab="otros">Análisis General de Tráfico</button>
   <button class="tab-btn" data-tab="conv">Conversión</button>
   <button class="tab-btn" data-tab="inv">📦 Inventario Orgu</button>
+  <button class="tab-btn" data-tab="xiy">💰 Inversión Xiy</button>
   <button class="tab-btn" data-tab="comp-imp">🔒 Inventario Competencia</button>
   <button class="tab-btn" data-tab="dash">Dashboard</button>
 </nav>
@@ -1317,6 +1318,89 @@ HTML = r"""<!doctype html>
     </div>
   </section>
 
+  <!-- ======================= TAB INVERSIÓN XIY ======================= -->
+  <section id="tab-xiy" class="tab-panel">
+    <div class="otros-header" style="background:linear-gradient(135deg,#b58105 0%,#003478 100%)">
+      <div>
+        <h2>💰 Inversión Publicitaria Xiy 2026</h2>
+        <div class="sub" id="xiy-source">Pauta digital Ford · cruzada con tráfico y ventas del panel</div>
+      </div>
+    </div>
+
+    <div style="font-size:12px;color:var(--muted);margin:12px 0;line-height:1.5">
+      Inversión <strong>amount</strong> (con IVA) extraída de Xiy.today. Cada línea Xiy
+      se atribuye al modelo Ford normalizado (RANGER agrupa XLT/XL/Exonerados; ESCAPE
+      agrupa todas sus variantes). El tráfico y ventas con que se cruza viene de
+      <em>conversion_data.FORD.por_modelo</em> (acumulado 2026 YTD).
+    </div>
+
+    <!-- HERO KPIs -->
+    <div class="stat-hero" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+      <div class="card-big"><div class="lbl" id="xiy-k-total-lbl">Inversión total</div><div class="val" id="xiy-k-total">—</div><div class="hint" id="xiy-k-total-hint">USD con IVA · todos los meses</div></div>
+      <div class="card-big"><div class="lbl">Modelo con mayor inversión</div><div class="val" id="xiy-k-top">—</div><div class="hint" id="xiy-k-top-hint"></div></div>
+      <div class="card-big"><div class="lbl">% atribuible a modelo Ford</div><div class="val pos" id="xiy-k-attr">—</div><div class="hint" id="xiy-k-attr-hint">Lo demás es Awareness/Marca/Activación</div></div>
+    </div>
+
+    <!-- TABLA 1: matriz modelo × mes -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>📅 Inversión por modelo × mes <span class="sub">USD por modelo Ford y mes · Solo inversión atribuible</span></h3>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="xiy-tbl-modelo-mes">
+          <thead><tr id="xiy-tbl-modelo-mes-head">
+            <th>Modelo</th>
+            <!-- columnas de meses se inyectan dinámicamente -->
+            <th class="num">Total</th>
+          </tr></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- TABLA 2: ROAS / CPL / CAC por modelo -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>🎯 Cruce con tráfico y ventas <span class="sub">Inversión Xiy vs tráfico y ventas atribuidas del panel (YTD 2026)</span></h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
+        <strong>CPL real</strong> = inversión Xiy / visitas a la BD de tráfico (no es CPL de Meta).
+        <strong>CAC real</strong> = inversión Xiy / clientes que cerraron (vehículos facturados con primer toque atribuido al modelo).
+      </div>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="xiy-tbl-roas">
+          <thead><tr>
+            <th>Modelo</th>
+            <th class="num">Inversión Xiy</th>
+            <th class="num">Tráfico Ford</th>
+            <th class="num">Ventas atribuidas</th>
+            <th class="num">% conversión</th>
+            <th class="num" title="Inversión / Tráfico">CPL real</th>
+            <th class="num" title="Inversión / Ventas atribuidas">CAC real</th>
+          </tr></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- TABLA 3: NO atribuible -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>🏷️ Inversión NO atribuida a modelo <span class="sub">Awareness regional, marca, activación · no se puede asociar a un solo modelo Ford</span></h3>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="xiy-tbl-nonmodelo">
+          <thead><tr>
+            <th>Iniciativa</th>
+            <th class="num">Inversión Xiy</th>
+            <th class="num">N° líneas</th>
+            <th class="num">% del total</th>
+          </tr></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer-note" id="xiy-footer">Fuente: Xiy.today (extraído vía xiy_extractor.py). Tráfico y ventas de la BD interna ORGU cruzada con DATOS de inventario (status FACTURADO).</div>
+  </section>
+
   <!-- ======================= TAB CONVERSIÓN (con password gate compartido) ======================= -->
   <section id="tab-conv" class="tab-panel">
     <div id="conv-gate" class="pw-gate" style="display:none">
@@ -1771,6 +1855,15 @@ HTML = r"""<!doctype html>
     if(tab === 'comp-imp'){
       const c = DATA.competencia_data;
       return c ? `Importaciones Ford · ORGU ${c.totales.orgu_share_2025}% → ${c.totales.orgu_share_2026}% (${c.totales.delta_share_total>=0?'+':''}${c.totales.delta_share_total} pts)` : 'Competencia';
+    }
+    if(tab === 'xiy'){
+      const x = DATA.xiy;
+      if(!x) return 'Inversión publicitaria Xiy · datos no disponibles';
+      const meses = (x.months_order && x.months_order.length)
+        ? `${x.months_order[0]}-${x.months_order[x.months_order.length-1]}`
+        : 'Ene-Abr';
+      const tot = x.total_general || 0;
+      return `Inversión publicitaria Xiy · ${meses} 2026 · USD ${tot.toLocaleString('es-EC',{maximumFractionDigits:0})} total`;
     }
     if(tab === 'otros'){
       return 'Análisis privados · acceso restringido';
@@ -6054,6 +6147,170 @@ HTML = r"""<!doctype html>
   document.querySelector('.tab-btn[data-tab="inv"]').addEventListener('click', ()=>{
     initInventario();
     renderInventario();
+  });
+
+  // ─────────── TAB INVERSIÓN XIY ───────────
+  let _xiyRendered = false;
+  function renderXiy(){
+    const XIY = DATA.xiy;
+    const tblMmTbody  = document.querySelector('#xiy-tbl-modelo-mes tbody');
+    const tblMmHead   = document.getElementById('xiy-tbl-modelo-mes-head');
+    const tblMmFoot   = document.querySelector('#xiy-tbl-modelo-mes tfoot');
+    const tblRoasTb   = document.querySelector('#xiy-tbl-roas tbody');
+    const tblRoasFt   = document.querySelector('#xiy-tbl-roas tfoot');
+    const tblNonTb    = document.querySelector('#xiy-tbl-nonmodelo tbody');
+    const tblNonFt    = document.querySelector('#xiy-tbl-nonmodelo tfoot');
+
+    if(!XIY){
+      document.getElementById('xiy-k-total').textContent = '—';
+      document.getElementById('xiy-k-top').textContent = '—';
+      document.getElementById('xiy-k-attr').textContent = '—';
+      tblMmTbody.innerHTML = '<tr><td colspan="99" style="text-align:center;color:var(--muted);padding:20px">No hay datos de Xiy en data.json. Corre <code>python3 xiy_extractor.py && python3 aggregate.py</code>.</td></tr>';
+      return;
+    }
+
+    const fUSD = (n) => 'USD ' + (n||0).toLocaleString('es-EC',{minimumFractionDigits:0,maximumFractionDigits:0});
+    const fUSD2 = (n) => 'USD ' + (n||0).toLocaleString('es-EC',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const fInt = (n) => (n||0).toLocaleString('es-EC');
+    const fPct = (n) => (n==null||!isFinite(n)) ? '—' : (n.toFixed(1)+'%');
+
+    // HERO 1: Inversión total
+    const total = XIY.total_general || 0;
+    document.getElementById('xiy-k-total').textContent = fUSD(total);
+    const monthsOrder = XIY.months_order || [];
+    const periodoLbl = monthsOrder.length ? `${monthsOrder[0]}-${monthsOrder[monthsOrder.length-1]} 2026` : '2026';
+    document.getElementById('xiy-k-total-hint').textContent = `USD con IVA · ${periodoLbl}`;
+    document.getElementById('xiy-k-total-lbl').textContent = `Inversión total (${periodoLbl})`;
+
+    // HERO 2: Modelo top
+    const totalsModelo = XIY.totals_modelo || {};
+    const modeloEntries = Object.entries(totalsModelo).sort((a,b)=> b[1].amount - a[1].amount);
+    if(modeloEntries.length){
+      const [topMod, topD] = modeloEntries[0];
+      const pctTop = total>0 ? (100*topD.amount/total) : 0;
+      document.getElementById('xiy-k-top').textContent = topMod;
+      document.getElementById('xiy-k-top-hint').textContent = `${fUSD(topD.amount)} · ${pctTop.toFixed(1)}% del total`;
+    } else {
+      document.getElementById('xiy-k-top').textContent = '—';
+    }
+
+    // HERO 3: % atribuible
+    const pctAttr = total>0 ? (100*(XIY.total_atribuible_modelo||0)/total) : 0;
+    document.getElementById('xiy-k-attr').textContent = pctAttr.toFixed(1) + '%';
+    document.getElementById('xiy-k-attr-hint').textContent =
+      `${fUSD(XIY.total_atribuible_modelo)} atribuibles · ${fUSD(XIY.total_non_modelo)} no atribuibles`;
+
+    // ─── TABLA 1: matriz modelo × mes ───
+    // Construir cabecera dinámicamente
+    const PANEL_MODELS = ['RANGER','F-150','EVEREST','TERRITORY','ESCAPE','EXPLORER','EXPEDITION','BRONCO'];
+    // Solo mostrar filas que tienen al menos algo de inversión
+    const modelosActivos = PANEL_MODELS.filter(m => (totalsModelo[m]?.amount || 0) > 0);
+
+    // Reset cabecera y construirla
+    tblMmHead.innerHTML = '<th>Modelo</th>' +
+      monthsOrder.map(m => `<th class="num">${m}</th>`).join('') +
+      '<th class="num">Total</th>';
+
+    // Filas
+    let trsMm = '';
+    const totalPorMes = {};
+    monthsOrder.forEach(m => totalPorMes[m] = 0);
+    let totalAtrib = 0;
+    modelosActivos.forEach(mod => {
+      let totalRow = 0;
+      const cells = monthsOrder.map(mes => {
+        const v = (XIY.months[mes] && XIY.months[mes][mod]) ? XIY.months[mes][mod].amount : 0;
+        totalRow += v; totalPorMes[mes] += v;
+        return `<td class="num">${v>0 ? fUSD(v) : '<span style="color:#bbb">—</span>'}</td>`;
+      }).join('');
+      totalAtrib += totalRow;
+      trsMm += `<tr><td><strong>${mod}</strong></td>${cells}<td class="num"><strong>${fUSD(totalRow)}</strong></td></tr>`;
+    });
+    tblMmTbody.innerHTML = trsMm || '<tr><td colspan="99" style="text-align:center;color:var(--muted);padding:14px">Sin inversión atribuible a modelos.</td></tr>';
+
+    // Footer (totales por mes)
+    tblMmFoot.innerHTML = '<tr style="background:#f3f4f6;font-weight:700">' +
+      '<td>TOTAL atribuible</td>' +
+      monthsOrder.map(m => `<td class="num">${fUSD(totalPorMes[m])}</td>`).join('') +
+      `<td class="num">${fUSD(totalAtrib)}</td>` +
+      '</tr>';
+
+    // ─── TABLA 2: cruce ROAS con tráfico y ventas ───
+    const porModeloPanel = (DATA.conversion_data && DATA.conversion_data.FORD && DATA.conversion_data.FORD.por_modelo) || {};
+    let trsRoas = '';
+    let sumInv=0, sumTraf=0, sumVent=0;
+    modelosActivos.forEach(mod => {
+      const inv = totalsModelo[mod]?.amount || 0;
+      const pm = porModeloPanel[mod] || {};
+      const traf = pm.traffic || 0;
+      const vent = pm.matched || 0;
+      const convPct = pm.conv_pct;
+      const cpl = traf>0 ? (inv/traf) : null;
+      const cac = vent>0 ? (inv/vent) : null;
+      sumInv += inv; sumTraf += traf; sumVent += vent;
+      trsRoas += `<tr>
+        <td><strong>${mod}</strong></td>
+        <td class="num">${fUSD(inv)}</td>
+        <td class="num">${fInt(traf)}</td>
+        <td class="num">${fInt(vent)}</td>
+        <td class="num">${convPct!=null ? convPct.toFixed(1)+'%' : '—'}</td>
+        <td class="num">${cpl!=null ? fUSD2(cpl) : '<span style="color:#bbb">sin tráfico</span>'}</td>
+        <td class="num">${cac!=null ? fUSD2(cac) : '<span style="color:#bbb">sin ventas</span>'}</td>
+      </tr>`;
+    });
+    tblRoasTb.innerHTML = trsRoas || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px">Sin datos para cruzar.</td></tr>';
+
+    const cplTot = sumTraf>0 ? (sumInv/sumTraf) : null;
+    const cacTot = sumVent>0 ? (sumInv/sumVent) : null;
+    const convTot = sumTraf>0 ? (100*sumVent/sumTraf) : null;
+    tblRoasFt.innerHTML = `<tr style="background:#f3f4f6;font-weight:700">
+      <td>TOTAL</td>
+      <td class="num">${fUSD(sumInv)}</td>
+      <td class="num">${fInt(sumTraf)}</td>
+      <td class="num">${fInt(sumVent)}</td>
+      <td class="num">${convTot!=null ? convTot.toFixed(1)+'%' : '—'}</td>
+      <td class="num">${cplTot!=null ? fUSD2(cplTot) : '—'}</td>
+      <td class="num">${cacTot!=null ? fUSD2(cacTot) : '—'}</td>
+    </tr>`;
+
+    // ─── TABLA 3: NO atribuible ───
+    const nonModelo = XIY.non_modelo || {};
+    const nonEntries = Object.entries(nonModelo).sort((a,b)=> b[1].amount - a[1].amount);
+    const totNon = XIY.total_non_modelo || 0;
+    let trsNon = '';
+    nonEntries.forEach(([label, d]) => {
+      const pct = total>0 ? (100*d.amount/total) : 0;
+      trsNon += `<tr>
+        <td>${label}</td>
+        <td class="num">${fUSD(d.amount)}</td>
+        <td class="num">${d.n_lines||0}</td>
+        <td class="num">${pct.toFixed(1)}%</td>
+      </tr>`;
+    });
+    tblNonTb.innerHTML = trsNon || '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:14px">Toda la inversión es atribuible a un modelo Ford.</td></tr>';
+
+    const totNonPct = total>0 ? (100*totNon/total) : 0;
+    tblNonFt.innerHTML = `<tr style="background:#f3f4f6;font-weight:700">
+      <td>TOTAL NO atribuible</td>
+      <td class="num">${fUSD(totNon)}</td>
+      <td class="num">—</td>
+      <td class="num">${totNonPct.toFixed(1)}%</td>
+    </tr>`;
+
+    // Footer con timestamp si disponible
+    const meta = DATA.xiy_meta;
+    if(meta && meta.fetched_at){
+      document.getElementById('xiy-footer').innerHTML =
+        `Fuente: <a href="${meta.source||'#'}" target="_blank">Xiy.today (sheet consolidado)</a> · ` +
+        `${meta.n_campaigns||0} campañas · ${meta.n_lines||0} líneas · ` +
+        `extraído ${meta.fetched_at}. Tráfico y ventas: BD interna ORGU cruzada con DATOS (FACTURADO).`;
+    }
+
+    _xiyRendered = true;
+  }
+
+  document.querySelector('.tab-btn[data-tab="xiy"]').addEventListener('click', ()=>{
+    renderXiy();
   });
 
   // (vestige) ESCAPE-only function — kept for backward compat, not called

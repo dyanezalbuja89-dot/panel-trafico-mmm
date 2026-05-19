@@ -1071,6 +1071,33 @@ def main():
             "base_in_matrix_meta": "marketing",    # qué representa matrix_meta
         },
     }
+    # Merge de inversión publicitaria Xiy (si existe data_xiy.json con el bloque
+    # consolidated_for_panel listo). Lo metemos como out["xiy"] para que el panel
+    # lo lea desde DATA.xiy en el tab Inversión.
+    xiy_path = ABRIL_BASE / "panel-trafico/data_xiy.json"
+    if xiy_path.exists():
+        try:
+            with open(xiy_path, "r", encoding="utf-8") as f:
+                data_xiy = json.load(f)
+            cfp = data_xiy.get("consolidated_for_panel")
+            if cfp:
+                out["xiy"] = cfp
+                out["xiy_meta"] = {
+                    "fetched_at": data_xiy.get("fetched_at"),
+                    "source": data_xiy.get("source"),
+                    "n_campaigns": data_xiy.get("n_campaigns"),
+                    "n_lines": data_xiy.get("n_lines"),
+                }
+                print(f"Merged Xiy investment: USD {cfp.get('total_general',0):,.2f} "
+                      f"({data_xiy.get('n_campaigns')} campaigns, "
+                      f"{data_xiy.get('n_lines')} lines)")
+            else:
+                print(f"WARN: {xiy_path} exists but has no consolidated_for_panel; skipping")
+        except Exception as e:
+            print(f"WARN: failed to merge {xiy_path}: {e}")
+    else:
+        print(f"INFO: no data_xiy.json at {xiy_path}; tab Inversión quedará vacío")
+
     outpath = ABRIL_BASE / "panel-trafico/data.json"
     with open(outpath,"w",encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=None, separators=(",", ":"))

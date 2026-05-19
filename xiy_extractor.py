@@ -349,6 +349,124 @@ def process_one(item):
         return {**item, "ok": False, "error": str(e)}
 
 
+def consolidate_for_panel(flat_lines):
+    """Mapea los modelos finos de Xiy a los nombres normalizados del panel
+    (DATA.conversion_data.FORD.por_modelo usa keys: RANGER, F-150, EVEREST,
+    TERRITORY, ESCAPE, EXPLORER, EXPEDITION, BRONCO).
+
+    Cualquier variante de RANGER/ESCAPE colapsa al modelo padre.
+    Lo que no es modelo Ford atribuible (Awareness Regional AYF, Marca,
+    Activación/Eventos, Servicios, Sin atribuir, Lanzamiento multi-modelo, etc.)
+    se queda fuera del cruce modelo-a-modelo y se devuelve en `non_modelo`.
+    """
+    # Modelos canónicos que el panel reconoce (uppercase, matchea por_modelo)
+    PANEL_MODELS = ["RANGER", "F-150", "EVEREST", "TERRITORY", "ESCAPE",
+                    "EXPLORER", "EXPEDITION", "BRONCO"]
+
+    def normalize_modelo(modelo_xiy):
+        """Devuelve (canonical_name, is_modelo_ford). Si no es modelo Ford
+        atribuible, devuelve (modelo_xiy, False)."""
+        if not modelo_xiy:
+            return ("Sin atribuir", False)
+        m = str(modelo_xiy).upper().strip()
+        # RANGER (todas las variantes): RANGER, RANGER XLT, RANGER XL,
+        # RANGER XL EXONERADOS
+        if "RANGER" in m:
+            return ("RANGER", True)
+        if "F-150" in m or "F150" in m or "F 150" in m:
+            return ("F-150", True)
+        if "EVEREST" in m:
+            return ("EVEREST", True)
+        if "TERRITORY" in m:
+            return ("TERRITORY", True)
+        # ESCAPE (todas las variantes): ESCAPE, ESCAPE 1.5, ESCAPE ST LINE
+        if "ESCAPE" in m:
+            return ("ESCAPE", True)
+        if "EXPLORER" in m:
+            return ("EXPLORER", True)
+        if "EXPEDITION" in m:
+            return ("EXPEDITION", True)
+        if "BRONCO" in m:
+            return ("BRONCO", True)
+        # NO atribuible a modelo Ford: AYF Regional, Marca, Activación, etc.
+        return (modelo_xiy, False)
+
+    months_order = ["Enero", "Febrero", "Marzo", "Abril", "Mayo"]
+    consolidated = {
+        "months": {},           # {mes: {MODELO: {amount, convers, n_lines}}}
+        "totals_modelo": {},    # {MODELO: {amount, convers, n_lines}}
+        "totals_mes": {},       # {mes: total_amount}
+        "non_modelo": {},       # {label_no_atribuible: {amount, convers, n_lines}}
+        "totals_mes_non_modelo": {},  # {mes: total no atribuible} útil para info
+        "total_general": 0.0,
+        "total_atribuible_modelo": 0.0,
+        "total_non_modelo": 0.0,
+        "panel_models": PANEL_MODELS,
+    }
+
+    for L in flat_lines:
+        mes = L.get("month")
+        if not mes:
+            continue
+        canonical, is_modelo = normalize_modelo(L.get("modelo"))
+        amount = float(L.get("amount") or 0)
+        convers = float(L.get("conversiones_esperadas") or 0)
+
+        consolidated["total_general"] += amount
+        consolidated["totals_mes"].setdefault(mes, 0.0)
+        consolidated["totals_mes"][mes] += amount
+
+        if is_modelo:
+            consolidated["total_atribuible_modelo"] += amount
+            # months × modelo
+            consolidated["months"].setdefault(mes, {})
+            consolidated["months"][mes].setdefault(canonical,
+                {"amount": 0.0, "convers": 0.0, "n_lines": 0})
+            consolidated["months"][mes][canonical]["amount"] += amount
+            consolidated["months"][mes][canonical]["convers"] += convers
+            consolidated["months"][mes][canonical]["n_lines"] += 1
+            # totals modelo
+            consolidated["totals_modelo"].setdefault(canonical,
+                {"amount": 0.0, "convers": 0.0, "n_lines": 0})
+            consolidated["totals_modelo"][canonical]["amount"] += amount
+            consolidated["totals_modelo"][canonical]["convers"] += convers
+            consolidated["totals_modelo"][canonical]["n_lines"] += 1
+        else:
+            consolidated["total_non_modelo"] += amount
+            consolidated["non_modelo"].setdefault(canonical,
+                {"amount": 0.0, "convers": 0.0, "n_lines": 0})
+            consolidated["non_modelo"][canonical]["amount"] += amount
+            consolidated["non_modelo"][canonical]["convers"] += convers
+            consolidated["non_modelo"][canonical]["n_lines"] += 1
+            consolidated["totals_mes_non_modelo"].setdefault(mes, 0.0)
+            consolidated["totals_mes_non_modelo"][mes] += amount
+
+    # Redondear amounts a 2 decimales para limpieza en JSON
+    def _round_dict(d, key="amount", nd=2):
+        for v in d.values():
+            if isinstance(v, dict) and key in v:
+                v[key] = round(v[key], nd)
+                if "convers" in v:
+                    v["convers"] = round(v["convers"], 2)
+
+    for mes_d in consolidated["months"].values():
+        _round_dict(mes_d)
+    _round_dict(consolidated["totals_modelo"])
+    _round_dict(consolidated["non_modelo"])
+    for k in list(consolidated["totals_mes"]):
+        consolidated["totals_mes"][k] = round(consolidated["totals_mes"][k], 2)
+    for k in list(consolidated["totals_mes_non_modelo"]):
+        consolidated["totals_mes_non_modelo"][k] = round(
+            consolidated["totals_mes_non_modelo"][k], 2)
+    consolidated["total_general"] = round(consolidated["total_general"], 2)
+    consolidated["total_atribuible_modelo"] = round(
+        consolidated["total_atribuible_modelo"], 2)
+    consolidated["total_non_modelo"] = round(consolidated["total_non_modelo"], 2)
+    consolidated["months_order"] = [m for m in months_order
+                                    if m in consolidated["totals_mes"]]
+    return consolidated
+
+
 def main():
     if not TMP_XLSX.exists():
         download_sheet()
@@ -444,6 +562,17 @@ def main():
         cells = [f"{mod:<15}"] + [f"{row[m]:>10,.0f}" for m in headers[1:]]
         print("  " + " | ".join(cells))
 
+    # Consolidación lista para el panel (modelos colapsados a nombres del panel)
+    consolidated_for_panel = consolidate_for_panel(flat_lines)
+
+    print("\n=== CONSOLIDATED FOR PANEL (modelos canónicos) ===")
+    print(f"  Total general: USD {consolidated_for_panel['total_general']:>11,.2f}")
+    print(f"  Atribuible a modelo Ford: USD {consolidated_for_panel['total_atribuible_modelo']:>11,.2f}")
+    print(f"  NO atribuible a modelo: USD {consolidated_for_panel['total_non_modelo']:>11,.2f}")
+    for mod, d in sorted(consolidated_for_panel["totals_modelo"].items(),
+                         key=lambda x: -x[1]["amount"]):
+        print(f"    {mod:<12}: USD {d['amount']:>10,.2f} · {int(d['convers']):>5} convers")
+
     # Guardar JSON
     output = {
         "fetched_at": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -457,6 +586,7 @@ def main():
         "summary_by_modelo": by_modelo,
         "summary_by_categoria": by_cat,
         "cross_modelo_mes": cross,
+        "consolidated_for_panel": consolidated_for_panel,
     }
     OUTPUT.write_text(json.dumps(output, indent=2, ensure_ascii=False, default=str))
     print(f"\n💾 Guardado en {OUTPUT}")
