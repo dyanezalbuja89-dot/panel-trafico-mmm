@@ -57,5 +57,16 @@ log "Deployando a Vercel..."
 DEPLOY_OUTPUT=$(npx --yes vercel@latest --prod --yes 2>&1)
 echo "$DEPLOY_OUTPUT" | tail -5 | tee -a "$LOG_FILE"
 
+# 6. Push a GitHub (para que el analista del Claude Project tenga data fresca)
+log "Sincronizando con GitHub..."
+if git diff --quiet && git diff --staged --quiet ; then
+    log "No hay cambios para pushear."
+else
+    git add -A >> "$LOG_FILE" 2>&1
+    TODAY=$(date '+%Y-%m-%d %H:%M')
+    git commit -m "Auto-update: data refrescada $TODAY" >> "$LOG_FILE" 2>&1
+    git push origin main >> "$LOG_FILE" 2>&1 && log "✓ Push a GitHub OK" || log "⚠ git push falló (ver log)"
+fi
+
 log "✓ Update completado"
 log ""
