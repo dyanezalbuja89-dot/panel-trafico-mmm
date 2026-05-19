@@ -1413,8 +1413,8 @@ HTML = r"""<!doctype html>
     <div class="ford-section" style="margin-top:18px">
       <h3>⚖️ Etapa del Funnel por modelo <span class="sub">Distribución del presupuesto por etapa del embudo · clasificado por nombre de campaña</span></h3>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;background:#f0f9ff;padding:10px;border-radius:6px">
-        <strong>🎯 Performance</strong> = "LEADS AON ..." / Renting · busca lead directo (bottom funnel).<br>
-        <strong>🤔 Consideración</strong> = Posicionamiento producto / Utilidades / Blindados / Open House / Race Weekend / PowerDays / Territory · Escape genéricos · mid funnel + activación.<br>
+        <strong>🎯 Performance</strong> = "LEADS AON ..." / Renting / campañas genéricas de modelo (Territory, Escape) · busca lead directo (bottom funnel).<br>
+        <strong>🤔 Consideración</strong> = Posicionamiento producto / Utilidades / Blindados / Open House / Race Weekend / PowerDays · mid funnel + activación.<br>
         <strong>📢 Awareness</strong> = AYF Regional / Branding / Lanzamientos / Incremento Seguidores / Renovation · construye marca (top funnel).
       </div>
       <div style="overflow-x:auto">
@@ -6248,9 +6248,9 @@ HTML = r"""<!doctype html>
 
   function xiyClassifyFunnel(campName){
     const n = (campName || '').toUpperCase();
-    if (/LEADS|RENTING/.test(n)) return 'Performance';
     if (/AYF |BRANDING|LANZAMIENTO|INCREMENTO SEGUIDORES|RENOVATION|INTERACCI(O|Ó)N/.test(n)) return 'Awareness';
-    return 'Consideración';
+    if (/POSICIONAMIENTO|UTILIDADES|BLINDADOS|OPEN HOUSE|RACE WEEKEND|POWERDAYS|POWER DAYS/.test(n)) return 'Consideración';
+    return 'Performance'; // default: LEADS, RENTING y genéricos
   }
 
   function xiyNormalizeModelo(modelo){

@@ -527,23 +527,24 @@ def consolidate_for_panel(flat_lines):
         objective = (L.get("objective") or "Sin objetivo").strip()
         # Clasificar por NOMBRE DE CAMPAÑA en 3 etapas del funnel:
         #   Performance / Awareness / Consideración
-        # Activación (promos, eventos) y campañas genéricas de modelo
-        # ahora caen en Consideración por consistencia con la lógica del usuario.
+        # Default = Performance (lo genérico sin prefijo "AYF/POSICIONAMIENTO/..."
+        # se asume bottom-funnel orientado a venta).
         camp_name = (L.get("campaign") or "").upper()
-        if any(k in camp_name for k in ("LEADS", "RENTING")):
-            objective_cat = "Performance"
-        elif any(k in camp_name for k in (
+        if any(k in camp_name for k in (
             "AYF ", "BRANDING", "LANZAMIENTO", "INCREMENTO SEGUIDORES",
             "RENOVATION", "INTERACCIÓN", "INTERACCION",
         )):
             objective_cat = "Awareness"
-        else:
-            # Consideración incluye:
-            # - POSICIONAMIENTO PRODUCTO (mid-funnel real)
-            # - UTILIDADES, BLINDADOS (promo producto = consideración)
-            # - OPEN HOUSE, RACE WEEKEND, POWERDAYS (activación = consideración)
-            # - TERRITORY/ESCAPE genéricos (educar modelo = consideración)
+        elif any(k in camp_name for k in (
+            "POSICIONAMIENTO", "UTILIDADES", "BLINDADOS",
+            "OPEN HOUSE", "RACE WEEKEND", "POWERDAYS", "POWER DAYS",
+        )):
+            # Consideración: posicionamiento producto + activación + promo
             objective_cat = "Consideración"
+        else:
+            # Performance = "LEADS AON ...", "RENTING", y todas las
+            # campañas genéricas de modelo (TERRITORY, ESCAPE, etc.)
+            objective_cat = "Performance"
 
         consolidated["totals_medio"].setdefault(medio,
             {"amount": 0.0, "n_lines": 0})
