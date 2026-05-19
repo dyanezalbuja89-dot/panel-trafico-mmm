@@ -6396,6 +6396,53 @@ HTML = r"""<!doctype html>
     return out;
   }
 
+  // Recalcula tráfico/ventas marketing por modelo/agencia desde clientes_flat
+  // aplicando los filtros activos. Si no hay filtros, devuelve los breakdowns
+  // pre-calculados (por_modelo_mkt / por_agencia_mkt).
+  const XIY_MKT_CHANNELS = new Set(['Showroom','Hubspot','Ferias y Eventos',
+    'Feria/Eventos','Ferias','Llamada In','Mailing']);
+
+  function xiyTrafficBreakdowns(){
+    const FORD = (DATA.conversion_data && DATA.conversion_data.FORD) || {};
+    const noFilters = !xiyFilters.modelo && !xiyFilters.agencia;
+    if(noFilters){
+      return {
+        por_modelo:  FORD.por_modelo_mkt  || FORD.por_modelo  || {},
+        por_agencia: FORD.por_agencia_mkt || FORD.por_agencia || {},
+      };
+    }
+    // Recalcular desde clientes_flat aplicando filtros
+    const flat = FORD.clientes_flat || [];
+    const por_modelo = {};
+    const por_agencia = {};
+    flat.forEach(c => {
+      if(!XIY_MKT_CHANNELS.has(c.canal)) return;
+      // Aplicar filtros de modelo / agencia
+      if(xiyFilters.modelo && (c.modelo||'').toUpperCase() !== xiyFilters.modelo) return;
+      if(xiyFilters.agencia && c.agencia !== xiyFilters.agencia) return;
+      const mod = (c.modelo||'Sin modelo').toUpperCase();
+      const ag  = c.agencia || 'Sin agencia';
+      por_modelo[mod]  = por_modelo[mod]  || {traffic:0, matched:0};
+      por_agencia[ag]  = por_agencia[ag]  || {traffic:0, matched:0};
+      por_modelo[mod].traffic++;
+      por_agencia[ag].traffic++;
+      if(c.cerro){
+        por_modelo[mod].matched++;
+        por_agencia[ag].matched++;
+      }
+    });
+    // calcular conv_pct
+    for(const k in por_modelo){
+      const d = por_modelo[k];
+      d.conv_pct = d.traffic>0 ? +(100*d.matched/d.traffic).toFixed(1) : 0;
+    }
+    for(const k in por_agencia){
+      const d = por_agencia[k];
+      d.conv_pct = d.traffic>0 ? +(100*d.matched/d.traffic).toFixed(1) : 0;
+    }
+    return { por_modelo, por_agencia };
+  }
+
   function xiyAudienceToAgencias(audience){
     if(!audience) return null;
     const a = audience.toUpperCase();
@@ -6594,10 +6641,9 @@ HTML = r"""<!doctype html>
       '</tr>';
 
     // ─── TABLA 2: cruce ROAS con tráfico y ventas ───
-    // Usar tráfico filtrado a canales de marketing (Showroom+Hubspot+Ferias+...)
-    const porModeloPanel = (DATA.conversion_data && DATA.conversion_data.FORD &&
-                            DATA.conversion_data.FORD.por_modelo_mkt) ||
-                           (DATA.conversion_data && DATA.conversion_data.FORD && DATA.conversion_data.FORD.por_modelo) || {};
+    // Tráfico filtrado a canales marketing + filtros del tab aplicados
+    const _trafBreak = xiyTrafficBreakdowns();
+    const porModeloPanel = _trafBreak.por_modelo;
     let trsRoas = '';
     let sumInv=0, sumTraf=0, sumVent=0;
     modelosActivos.forEach(mod => {
@@ -6686,10 +6732,8 @@ HTML = r"""<!doctype html>
     const tblAgTb = document.querySelector('#xiy-tbl-agencia tbody');
     const tblAgFt = document.querySelector('#xiy-tbl-agencia tfoot');
     const totalsAgencia = XIY.totals_agencia || {};
-    // Tráfico filtrado a canales marketing también para el cruce por agencia
-    const porAgenciaPanel = (DATA.conversion_data && DATA.conversion_data.FORD &&
-                             DATA.conversion_data.FORD.por_agencia_mkt) ||
-                            (DATA.conversion_data && DATA.conversion_data.FORD && DATA.conversion_data.FORD.por_agencia) || {};
+    // Tráfico filtrado a canales marketing + filtros del tab aplicados
+    const porAgenciaPanel = _trafBreak.por_agencia;
     const PANEL_AGS = XIY.panel_agencias || ['Tumbaco','La Y','CJA','Orellana','Manta','Machala','Portoviejo'];
     const agentriesOrdered = PANEL_AGS
       .map(ag => [ag, totalsAgencia[ag] || {amount:0, n_lines:0}])
