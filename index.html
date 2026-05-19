@@ -1403,25 +1403,29 @@
       </div>
     </div>
 
-    <!-- GRÁFICO: Evolución mensual de CPV / CAC / Conversión -->
+    <!-- GRÁFICO: Evolución mensual de Tráfico / Ventas / CAC / Conversión -->
     <div class="ford-section" style="margin-top:18px">
-      <h3>📈 Evolución mensual: CPV · CAC · Conversión <span class="sub">Tendencia mes a mes 2026 · usa chips para alternar modelos</span></h3>
+      <h3>📈 Evolución mensual: Tráfico · Ventas · CAC · Conversión <span class="sub">Tendencia mes a mes 2026 · usa chips para alternar modelos</span></h3>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;background:#fafbfc;padding:10px;border-radius:6px">
-        <strong>CPV</strong> = Inversión digital del mes / visitas marketing del mes.
-        <strong>CAC</strong> = Inversión digital del mes / ventas atribuidas del mes.
-        <strong>Conversión</strong> = Ventas atribuidas / visitas marketing × 100.
-        <br>El tráfico/ventas usa <strong>first_ym</strong> (mes del primer toque del cliente).
-        <br><em>Si un mes tiene 0 ventas, el CAC queda indefinido y se omite el punto (la línea se dibuja saltándose ese mes).</em>
+        <strong>Tráfico</strong> = Visitas marketing del mes (Showroom + Hubspot + Ferias + Llamada In + Mailing).
+        <strong>Ventas</strong> = Clientes únicos que cerraron compra atribuidos a tráfico.
+        <strong>CAC</strong> = Inversión digital / ventas atribuidas.
+        <strong>Conversión</strong> = Ventas / Tráfico × 100.
+        <br>Tráfico/ventas usan <strong>first_ym</strong> (mes del primer toque del cliente).
+        <br><em>Si un mes tiene 0 ventas, el CAC queda indefinido y la línea se dibuja saltándose ese mes.</em>
       </div>
       <!-- Chips de modelo -->
       <div id="xiy-evo-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
       <!-- Toggles de métrica -->
       <div style="display:flex;gap:14px;margin-bottom:10px;font-size:13px;flex-wrap:wrap">
         <label style="cursor:pointer;display:flex;align-items:center;gap:5px">
-          <input type="checkbox" id="xiy-evo-show-cpv" checked> <span style="color:#0369a1;font-weight:600">CPV</span>
+          <input type="checkbox" id="xiy-evo-show-traf" checked> <span style="color:#0369a1;font-weight:600">Tráfico</span>
         </label>
         <label style="cursor:pointer;display:flex;align-items:center;gap:5px">
-          <input type="checkbox" id="xiy-evo-show-cac" checked> <span style="color:#be185d;font-weight:600">CAC</span>
+          <input type="checkbox" id="xiy-evo-show-vent" checked> <span style="color:#f59e0b;font-weight:600">Ventas</span>
+        </label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:5px">
+          <input type="checkbox" id="xiy-evo-show-cac"> <span style="color:#be185d;font-weight:600">CAC</span>
         </label>
         <label style="cursor:pointer;display:flex;align-items:center;gap:5px">
           <input type="checkbox" id="xiy-evo-show-conv" checked> <span style="color:#16a34a;font-weight:600">Conversión</span>
@@ -6620,25 +6624,33 @@
     // Asegurar chips renderizados
     renderXiyEvolutionChips();
     // Toggles
-    const showCpv  = document.getElementById('xiy-evo-show-cpv')?.checked !== false;
-    const showCac  = document.getElementById('xiy-evo-show-cac')?.checked !== false;
+    const showTraf = document.getElementById('xiy-evo-show-traf')?.checked !== false;
+    const showVent = document.getElementById('xiy-evo-show-vent')?.checked !== false;
+    const showCac  = document.getElementById('xiy-evo-show-cac')?.checked === true;
     const showConv = document.getElementById('xiy-evo-show-conv')?.checked !== false;
 
     const data = xiyComputeMonthlyMetrics(xiyEvoState.selectedModels);
     const fUSD2_local = (n) => 'USD ' + (n||0).toLocaleString('es-EC',{minimumFractionDigits:2,maximumFractionDigits:2});
 
     const datasets = [];
-    if(showCpv) datasets.push({
-      label:'CPV (USD)', data:data.cpv, borderColor:'#0369a1', backgroundColor:'#0369a133',
-      tension:0.3, yAxisID:'yUSD', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#0369a1',
-      spanGaps:true, // conecta saltándose meses sin datos
-      datalabels:{ align:'top', anchor:'end', color:'#0369a1', font:{weight:'600',size:10},
-        formatter:(v)=> v==null?'':'$'+v.toFixed(0) }
+    if(showTraf) datasets.push({
+      label:'Tráfico (visitas mkt)', data:data.traf, borderColor:'#0369a1', backgroundColor:'#0369a133',
+      tension:0.3, yAxisID:'yCount', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#0369a1',
+      spanGaps:true,
+      datalabels:{ align:'top', anchor:'end', color:'#0369a1', font:{weight:'700',size:11},
+        formatter:(v)=> v==null?'':v.toLocaleString('es-EC') }
+    });
+    if(showVent) datasets.push({
+      label:'Ventas atribuidas', data:data.vent, borderColor:'#f59e0b', backgroundColor:'#f59e0b33',
+      tension:0.3, yAxisID:'yCount', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#f59e0b',
+      spanGaps:true,
+      datalabels:{ align:'bottom', anchor:'start', color:'#f59e0b', font:{weight:'700',size:11},
+        formatter:(v)=> v==null?'':v.toLocaleString('es-EC') }
     });
     if(showCac) datasets.push({
       label:'CAC (USD)', data:data.cac, borderColor:'#be185d', backgroundColor:'#be185d33',
       tension:0.3, yAxisID:'yUSD', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#be185d', borderDash:[6,3],
-      spanGaps:true, // conecta saltándose meses sin ventas (CAC indefinido)
+      spanGaps:true,
       datalabels:{ align:'bottom', anchor:'start', color:'#be185d', font:{weight:'600',size:10},
         formatter:(v)=> v==null?'':'$'+v.toFixed(0) }
     });
@@ -6675,10 +6687,14 @@
           datalabels:{ display:true },
         },
         scales:{
-          yUSD:{ position:'left',  title:{ display:true, text:'USD (CPV/CAC)' }, beginAtZero:true,
-                 ticks:{ callback:(v)=> '$'+v.toLocaleString('es-EC') } },
+          yCount:{ position:'left', title:{ display:true, text:'Cantidad (visitas / ventas)' },
+                   beginAtZero:true, ticks:{ precision:0, callback:(v)=> v.toLocaleString('es-EC') } },
+          yUSD:{ position:'right', title:{ display:showCac, text:'CAC (USD)' },
+                 beginAtZero:true, display:showCac,
+                 grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=> '$'+v.toLocaleString('es-EC') } },
           yPct:{ position:'right', title:{ display:true, text:'Conversión (%)' }, beginAtZero:true,
-                 grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=> v+'%' } },
+                 grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=> v+'%' },
+                 offset:showCac }, // si CAC visible, ofrecer offset para no encimar ejes
           x:{ title:{ display:false } }
         }
       }
@@ -6697,7 +6713,7 @@
 
   function xiyInitFilters(){
     // Listeners para los toggles de métricas del gráfico de evolución
-    ['xiy-evo-show-cpv','xiy-evo-show-cac','xiy-evo-show-conv'].forEach(id => {
+    ['xiy-evo-show-traf','xiy-evo-show-vent','xiy-evo-show-cac','xiy-evo-show-conv'].forEach(id => {
       const el = document.getElementById(id);
       if(el && !el.dataset.bound){
         el.addEventListener('change', renderXiyEvolution);
