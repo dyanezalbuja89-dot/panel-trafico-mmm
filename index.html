@@ -1328,10 +1328,11 @@
     </div>
 
     <!-- HERO KPIs -->
-    <div class="stat-hero" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+    <div class="stat-hero" style="grid-template-columns:repeat(4,1fr);margin-top:14px">
       <div class="card-big"><div class="lbl" id="xiy-k-total-lbl">Inversión total</div><div class="val" id="xiy-k-total">—</div><div class="hint" id="xiy-k-total-hint">USD con IVA · todos los meses</div></div>
       <div class="card-big"><div class="lbl">Modelo con mayor inversión</div><div class="val" id="xiy-k-top">—</div><div class="hint" id="xiy-k-top-hint"></div></div>
-      <div class="card-big"><div class="lbl">% atribuible a modelo Ford</div><div class="val pos" id="xiy-k-attr">—</div><div class="hint" id="xiy-k-attr-hint">Lo demás es Awareness/Marca/Activación</div></div>
+      <div class="card-big"><div class="lbl" title="Costo Por Visita: inversión digital ÷ visitas marketing">CPV (Costo por visita)</div><div class="val" id="xiy-k-cpv">—</div><div class="hint" id="xiy-k-cpv-hint">Inversión ÷ tráfico marketing</div></div>
+      <div class="card-big"><div class="lbl" title="Costo de Adquisición de Cliente: inversión digital ÷ ventas atribuidas">CAC (Costo por venta)</div><div class="val" id="xiy-k-cac">—</div><div class="hint" id="xiy-k-cac-hint">Inversión ÷ ventas atribuidas</div></div>
     </div>
 
     <!-- FILTROS -->
@@ -1377,12 +1378,12 @@
       </div>
     </div>
 
-    <!-- TABLA 2: ROAS / CPL / CAC por modelo -->
+    <!-- TABLA 2: ROAS / CPV / CAC por modelo -->
     <div class="ford-section" style="margin-top:18px">
       <h3>🎯 Cruce con tráfico y ventas <span class="sub">Inversión Digital vs tráfico ATRIBUIBLE a marketing (YTD 2026)</span></h3>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;background:#fff8e1;padding:10px;border-radius:6px">
         <strong>Tráfico Ford</strong> ya está filtrado a canales atribuibles a marketing: <em>Showroom · Hubspot · Ferias · Llamada In · Mailing</em>. Quedan FUERA: Referidos, Recompra, Gestión Externa, Talleres, Redes Sociales Propias, Empleado, Prospección.<br>
-        <strong>CPL real</strong> = inversión digital / visitas marketing ·
+        <strong>CPV real</strong> = inversión digital / visitas marketing ·
         <strong>CAC real</strong> = inversión digital / ventas atribuidas (1 cliente = 1 venta).
       </div>
       <div style="overflow-x:auto">
@@ -1393,7 +1394,7 @@
             <th class="num">Tráfico Ford</th>
             <th class="num">Ventas atribuidas</th>
             <th class="num">% conversión</th>
-            <th class="num" title="Inversión / Tráfico">CPL real</th>
+            <th class="num" title="Inversión / Tráfico">CPV real</th>
             <th class="num" title="Inversión / Ventas atribuidas">CAC real</th>
           </tr></thead>
           <tbody></tbody>
@@ -1437,7 +1438,7 @@
             <th class="num">% del total</th>
             <th class="num" title="Tráfico Ford acumulado 2026 desde el panel">Tráfico Ford</th>
             <th class="num" title="Ventas atribuidas a tráfico (panel)">Ventas atrib.</th>
-            <th class="num" title="Inversión / Tráfico">CPL real</th>
+            <th class="num" title="Inversión / Tráfico">CPV real</th>
             <th class="num" title="Inversión / Ventas atribuidas">CAC real</th>
           </tr></thead>
           <tbody></tbody>
@@ -1458,7 +1459,7 @@
             <th>Medio</th>
             <th class="num">Inversión Digital</th>
             <th class="num">% del total</th>
-            <th class="num">N° líneas</th>
+            <th class="num" title="Una 'línea' es una fila de inversión dentro de una campaña Xiy. Una campaña típicamente tiene varias líneas (una por audiencia geográfica o demográfica).">N° líneas <span style="cursor:help;opacity:.5">ⓘ</span></th>
             <th>Distribución por objetivo</th>
           </tr></thead>
           <tbody></tbody>
@@ -1475,7 +1476,7 @@
           <thead><tr>
             <th>Iniciativa</th>
             <th class="num">Inversión Digital</th>
-            <th class="num">N° líneas</th>
+            <th class="num" title="Una 'línea' es una fila de inversión dentro de una campaña Xiy. Una campaña típicamente tiene varias líneas (una por audiencia geográfica o demográfica).">N° líneas <span style="cursor:help;opacity:.5">ⓘ</span></th>
             <th class="num">% del total</th>
           </tr></thead>
           <tbody></tbody>
@@ -6544,7 +6545,8 @@
     if(!XIY){
       document.getElementById('xiy-k-total').textContent = '—';
       document.getElementById('xiy-k-top').textContent = '—';
-      document.getElementById('xiy-k-attr').textContent = '—';
+      document.getElementById('xiy-k-cpv').textContent = '—';
+      document.getElementById('xiy-k-cac').textContent = '—';
       tblMmTbody.innerHTML = '<tr><td colspan="99" style="text-align:center;color:var(--muted);padding:20px">No hay datos de Xiy en data.json. Corre <code>python3 xiy_extractor.py && python3 aggregate.py</code>.</td></tr>';
       return;
     }
@@ -6574,11 +6576,21 @@
       document.getElementById('xiy-k-top').textContent = '—';
     }
 
-    // HERO 3: % atribuible
-    const pctAttr = total>0 ? (100*(XIY.total_atribuible_modelo||0)/total) : 0;
-    document.getElementById('xiy-k-attr').textContent = pctAttr.toFixed(1) + '%';
-    document.getElementById('xiy-k-attr-hint').textContent =
-      `${fUSD(XIY.total_atribuible_modelo)} atribuibles · ${fUSD(XIY.total_non_modelo)} no atribuibles`;
+    // HERO 3 y 4: CPV y CAC (calculados desde tráfico/ventas filtrado a marketing)
+    const _heroTraf = xiyTrafficBreakdowns();
+    let heroTraffic = 0, heroMatched = 0;
+    for(const k in _heroTraf.por_modelo){
+      heroTraffic += _heroTraf.por_modelo[k].traffic || 0;
+      heroMatched += _heroTraf.por_modelo[k].matched || 0;
+    }
+    const cpvGlobal = heroTraffic>0 ? (total/heroTraffic) : null;
+    const cacGlobal = heroMatched>0 ? (total/heroMatched) : null;
+    document.getElementById('xiy-k-cpv').textContent = cpvGlobal!=null ? fUSD2(cpvGlobal) : '—';
+    document.getElementById('xiy-k-cpv-hint').textContent =
+      `${fUSD(total)} ÷ ${heroTraffic.toLocaleString('es-EC')} visitas mkt`;
+    document.getElementById('xiy-k-cac').textContent = cacGlobal!=null ? fUSD2(cacGlobal) : '—';
+    document.getElementById('xiy-k-cac-hint').textContent =
+      `${fUSD(total)} ÷ ${heroMatched.toLocaleString('es-EC')} ventas atribuidas`;
 
     // ─── TABLA 1: matriz modelo × mes ───
     // Construir cabecera dinámicamente
