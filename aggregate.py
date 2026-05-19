@@ -231,20 +231,22 @@ def summarize(df, label):
 
 # ---------------- FORD PROCESSING ----------------
 def process_bd_ford(df, channels=None):
-    """Apply Ford filters: MARCA==FORD, SUCURSAL en agencias Ford (AUTOSHARECORP),
-    dedupe (CEDULA, MODELO) — una persona con 2 modelos distintos = 2 negocios,
-    normalize model, filtra a canales especificados.
-    channels=None → usa VALID_TRAFFIC_CHANNELS (marketing only) por compatibilidad.
-    channels=ALL_TRAFFIC_CHANNELS → incluye marketing + asesor comercial."""
+    """Filtra registros Ford. Fuente de verdad: MARCA == FORD.
+
+    NO se filtra por SUCURSAL=AUTOSHARECORP (cambio 2026-05-19) para
+    evitar perder negocios reales mal categorizados. La asignación a
+    agencia se hace en get_dealer_df / DEALER_CONFIG por SUCURSAL contains.
+
+    Dedupe (CEDULA, MODELO_F): una persona con 2 modelos = 2 negocios.
+
+    channels=None → VALID_TRAFFIC_CHANNELS (marketing only)
+    channels=ALL_TRAFFIC_CHANNELS → marketing + asesor comercial
+    """
     if channels is None:
         channels = VALID_TRAFFIC_CHANNELS
     df = df[df["MARCA"] == "FORD"].copy()
-    df = df[df["SUCURSAL"].str.contains("AUTOSHARECORP", case=False, na=False)]
     df = df.sort_values("FECHA")
     df["MODELO_F"] = df["MODELO"].apply(normalize_modelo_ford)
-    # Dedupe POR (CEDULA, MODELO_F): la misma persona interesada en 2 modelos
-    # distintos cuenta como 2 negocios. Antes deduplicaba solo por CEDULA y
-    # sub-contaba los multi-modelo.
     df = df.drop_duplicates(subset=["CEDULA", "MODELO_F"], keep="last")
     df = df[df["CANAL"].isin(channels)]
     return df
@@ -704,20 +706,26 @@ def load_brand_metas(path):
     return metas
 
 def process_bd_brand(df, brand, channels=None):
+    """Filtra registros de una marca específica para conteo de negocios.
+
+    Fuente de verdad: columna MARCA. NO se filtra por SUCURSAL keyword
+    (cambio 2026-05-19: el filtro defensivo anterior estaba descartando
+    negocios reales mal categorizados — ej: ventas DongFeng registradas
+    en SUCURSAL=AUTOSHARECORP LA Y por error de digitación, pero con
+    MARCA=DONGFENG_ORGU, modelos Dong Feng y asesor Dong Feng).
+
+    La asignación a agencia se hace por SUCURSAL contains "LA Y"/"MACHALA"
+    en get_dealer_df_brand, lo cual sigue funcionando para los registros
+    mal categorizados (porque la palabra LA Y/MACHALA sí está presente).
+    """
     if channels is None:
         channels = VALID_TRAFFIC_CHANNELS
     df = df[df['MARCA'] == brand].copy()
-    # Filtro estricto: SUCURSAL debe contener el keyword de la marca (excluye records con
-    # MARCA correcta pero SUCURSAL de otra marca, e.g. DongFeng en AUTOSHARECORP LA Y).
-    kw = BRAND_SUCURSAL_KEYWORDS.get(brand)
-    if kw:
-        df = df[df['SUCURSAL'].str.contains(kw, case=False, na=False)]
     df = df.sort_values('FECHA')
     df['MODELO_F'] = df['MODELO'].astype(str).str.strip().str.upper()
     df.loc[df['MODELO_F']=='F150','MODELO_F'] = 'F-150'
-    # Dedupe POR (CEDULA, MODELO) en vez de solo CEDULA:
-    # una misma persona con 2 modelos distintos = 2 negocios reales.
-    # Si solo dedupeáramos por CEDULA, perderíamos negocios multi-modelo.
+    # Dedupe POR (CEDULA, MODELO): una misma persona con 2 modelos
+    # distintos = 2 negocios reales.
     df = df.drop_duplicates(subset=['CEDULA', 'MODELO_F'], keep='last')
     df = df[df['CANAL'].isin(channels)]
     return df
