@@ -1384,21 +1384,23 @@ HTML = r"""<!doctype html>
 
     <!-- TABLA 2B: Performance vs Awareness -->
     <div class="ford-section" style="margin-top:18px">
-      <h3>⚖️ Performance vs Awareness <span class="sub">Distribución del presupuesto por objetivo · por modelo y por agencia</span></h3>
+      <h3>⚖️ Etapa del Funnel <span class="sub">Distribución del presupuesto por etapa del embudo · clasificado por nombre de campaña</span></h3>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;background:#f0f9ff;padding:10px;border-radius:6px">
-        <strong>Performance</strong> = Leads/Conversiones (busca venta directa).
-        <strong>Awareness</strong> = Reach/Branding/Posicionamiento (construye marca).
-        <strong>Interacción/Tráfico</strong> = engagement social, no conversión directa.
+        <strong>🎯 Performance</strong> = "LEADS AON ..." / Renting · busca lead directo (bottom funnel).<br>
+        <strong>🤔 Consideración</strong> = "POSICIONAMIENTO PRODUCTO ..." · educa sobre un modelo específico (mid funnel).<br>
+        <strong>📢 Awareness</strong> = AYF Regional / Branding / Lanzamientos / Incremento Seguidores · construye marca (top funnel).<br>
+        <strong>🎉 Activación</strong> = Utilidades / Blindados / Open House / Race Weekend / PowerDays · promo y eventos.
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px" id="xiy-perfaware-cards"></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px" id="xiy-perfaware-cards"></div>
       <div style="overflow-x:auto">
         <table class="analysis" id="xiy-tbl-perfaware-modelo">
           <thead><tr>
             <th>Modelo</th>
             <th class="num">Performance</th>
             <th class="num">Awareness</th>
-            <th class="num">Interacción</th>
-            <th class="num">Tráfico</th>
+            <th class="num">Consideración</th>
+            <th class="num">Activación</th>
+            <th class="num">Otros</th>
             <th class="num">Total</th>
             <th class="num">% Perf</th>
           </tr></thead>
@@ -6347,34 +6349,35 @@ HTML = r"""<!doctype html>
     // ─── TABLA 2B: Performance vs Awareness por modelo ───
     const objTotals = XIY.objective_totals || {};
     const modeloObj = XIY.modelo_objective || {};
-    const OBJ_ORDER = ['Performance','Awareness','Interacción','Tráfico'];
+    const OBJ_ORDER = ['Performance','Awareness','Consideración','Activación','Otros'];
 
-    // Cards arriba con totales por objetivo (Top 2)
+    // Cards arriba: 4 categorías del funnel
     const cardsEl = document.getElementById('xiy-perfaware-cards');
     if(cardsEl){
-      const perfAmt = objTotals['Performance']?.amount || 0;
-      const awareAmt = objTotals['Awareness']?.amount || 0;
-      const pctPerf = total>0 ? (100*perfAmt/total) : 0;
-      const pctAware = total>0 ? (100*awareAmt/total) : 0;
-      cardsEl.innerHTML = `
-        <div class="card-big" style="background:linear-gradient(135deg,#e0f2fe 0%,#f0f9ff 100%);border:1px solid #bae6fd">
-          <div class="lbl">🎯 Performance (Leads/Conversiones)</div>
-          <div class="val" style="color:#0369a1">${fUSD(perfAmt)}</div>
-          <div class="hint">${pctPerf.toFixed(1)}% del total · ${objTotals['Performance']?.n_lines||0} líneas</div>
-        </div>
-        <div class="card-big" style="background:linear-gradient(135deg,#fef3c7 0%,#fffbeb 100%);border:1px solid #fde68a">
-          <div class="lbl">📢 Awareness (Reach/Branding)</div>
-          <div class="val" style="color:#a16207">${fUSD(awareAmt)}</div>
-          <div class="hint">${pctAware.toFixed(1)}% del total · ${objTotals['Awareness']?.n_lines||0} líneas</div>
-        </div>
-      `;
+      const CARD_CONFIG = [
+        {key:'Performance',   icon:'🎯', desc:'Bottom · busca lead',     bg:'linear-gradient(135deg,#e0f2fe 0%,#f0f9ff 100%)', border:'#bae6fd', color:'#0369a1'},
+        {key:'Awareness',     icon:'📢', desc:'Top · construye marca',    bg:'linear-gradient(135deg,#fef3c7 0%,#fffbeb 100%)', border:'#fde68a', color:'#a16207'},
+        {key:'Consideración', icon:'🤔', desc:'Mid · educa producto',     bg:'linear-gradient(135deg,#ddd6fe 0%,#f5f3ff 100%)', border:'#c4b5fd', color:'#6d28d9'},
+        {key:'Activación',    icon:'🎉', desc:'Promo y eventos',          bg:'linear-gradient(135deg,#fce7f3 0%,#fdf2f8 100%)', border:'#fbcfe8', color:'#be185d'},
+      ];
+      cardsEl.innerHTML = CARD_CONFIG.map(cfg => {
+        const amt = objTotals[cfg.key]?.amount || 0;
+        const nlines = objTotals[cfg.key]?.n_lines || 0;
+        const pct = total>0 ? (100*amt/total) : 0;
+        return `
+        <div class="card-big" style="background:${cfg.bg};border:1px solid ${cfg.border}">
+          <div class="lbl">${cfg.icon} ${cfg.key}</div>
+          <div class="val" style="color:${cfg.color}">${fUSD(amt)}</div>
+          <div class="hint">${pct.toFixed(1)}% · ${nlines} líneas · ${cfg.desc}</div>
+        </div>`;
+      }).join('');
     }
 
     // Tabla por modelo
     const tblPaTb = document.querySelector('#xiy-tbl-perfaware-modelo tbody');
     const tblPaFt = document.querySelector('#xiy-tbl-perfaware-modelo tfoot');
     let trsPa = '';
-    const totsPa = {Performance:0, Awareness:0, 'Interacción':0, 'Tráfico':0};
+    const totsPa = {Performance:0, Awareness:0, 'Consideración':0, 'Activación':0, 'Otros':0};
     // incluir modelos + Multi/no-modelo
     const todasFilas = [...modelosActivos];
     // agregar la fila "Sin atribuir a modelo" si existe

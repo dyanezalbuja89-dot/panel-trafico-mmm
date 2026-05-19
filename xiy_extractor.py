@@ -525,19 +525,26 @@ def consolidate_for_panel(flat_lines):
         elif medio.upper() == "GOOGLE":
             medio = "Google"
         objective = (L.get("objective") or "Sin objetivo").strip()
-        # Normalizar objetivos: agrupar variantes
-        obj_upper = objective.upper()
-        if obj_upper in ("LEADS", "PERFORMANCE", "CONVERSIONS", "VENTA"):
+        # Clasificar por NOMBRE DE CAMPAÑA (no por objective de Xiy, que es
+        # poco fino — marca casi todo como "Awareness").
+        # 4 categorías: Performance / Awareness / Consideración / Activación.
+        camp_name = (L.get("campaign") or "").upper()
+        if any(k in camp_name for k in ("LEADS", "RENTING")):
             objective_cat = "Performance"
-        elif obj_upper in ("AWARENESS", "REACH", "ALCANCE", "BRANDING",
-                           "POSICIONAMIENTO"):
+        elif any(k in camp_name for k in (
+            "AYF ", "BRANDING", "LANZAMIENTO", "INCREMENTO SEGUIDORES",
+            "RENOVATION", "INTERACCIÓN", "INTERACCION",
+        )):
             objective_cat = "Awareness"
-        elif obj_upper in ("INTERACCIÓN", "INTERACCION", "ENGAGEMENT"):
-            objective_cat = "Interacción"
-        elif obj_upper in ("TRÁFICO", "TRAFICO", "TRAFFIC"):
-            objective_cat = "Tráfico"
+        elif "POSICIONAMIENTO" in camp_name:
+            objective_cat = "Consideración"
+        elif any(k in camp_name for k in (
+            "UTILIDADES", "BLINDADOS", "OPEN HOUSE", "RACE WEEKEND",
+            "POWERDAYS", "POWER DAYS",
+        )):
+            objective_cat = "Activación"
         else:
-            objective_cat = objective or "Otro"
+            objective_cat = "Otros"
 
         consolidated["totals_medio"].setdefault(medio,
             {"amount": 0.0, "n_lines": 0})
