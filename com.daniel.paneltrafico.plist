@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTD/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.daniel.paneltrafico</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Abril/panel-trafico/auto_update.sh</string>
+    </array>
+
+    <!-- Corre todos los días a las 10:00 AM -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>10</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- Si la Mac estaba apagada/dormida a las 10 AM, lo ejecuta al despertar -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/paneltrafico.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/paneltrafico.err.log</string>
+</dict>
+</plist>

@@ -1,0 +1,62 @@
+# =========================================================
+# Vercel
+# =========================================================
+.vercel/
+
+# =========================================================
+# BDs y archivos fuente pesados (NO entran al repo)
+# Sí entra data.json (output procesado) — el analista lo usa
+# =========================================================
+BDs/
+Inventrario/
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+
+# Backups y artefactos temporales del pipeline
+data.json.before_*
+*.bak
+*.tmp
+*.log
+
+# =========================================================
+# Python
+# =========================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.Python
+*.egg-info/
+.pytest_cache/
+
+# =========================================================
+# Secretos / credenciales
+# =========================================================
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+token.json
+
+# =========================================================
+# macOS / IDEs
+# =========================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# =========================================================
+# OneDrive artefactos
+# =========================================================
+.~lock.*
+~$*
