@@ -1410,6 +1410,35 @@ HTML = r"""<!doctype html>
       </div>
     </div>
 
+    <!-- GRÁFICO: Evolución mensual de CPV / CAC / Conversión -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>📈 Evolución mensual: CPV · CAC · Conversión <span class="sub">Tendencia mes a mes 2026 · usa chips para alternar modelos</span></h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;background:#fafbfc;padding:10px;border-radius:6px">
+        <strong>CPV</strong> = Inversión digital del mes / visitas marketing del mes.
+        <strong>CAC</strong> = Inversión digital del mes / ventas atribuidas del mes.
+        <strong>Conversión</strong> = Ventas atribuidas / visitas marketing × 100.
+        <br>El tráfico/ventas usa <strong>first_ym</strong> (mes del primer toque del cliente).
+      </div>
+      <!-- Chips de modelo -->
+      <div id="xiy-evo-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+      <!-- Toggles de métrica -->
+      <div style="display:flex;gap:14px;margin-bottom:10px;font-size:13px;flex-wrap:wrap">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:5px">
+          <input type="checkbox" id="xiy-evo-show-cpv" checked> <span style="color:#0369a1;font-weight:600">CPV</span>
+        </label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:5px">
+          <input type="checkbox" id="xiy-evo-show-cac" checked> <span style="color:#be185d;font-weight:600">CAC</span>
+        </label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:5px">
+          <input type="checkbox" id="xiy-evo-show-conv" checked> <span style="color:#16a34a;font-weight:600">Conversión</span>
+        </label>
+      </div>
+      <div style="position:relative;height:380px">
+        <canvas id="xiy-evo-chart"></canvas>
+      </div>
+      <div id="xiy-evo-summary" style="margin-top:10px;font-size:12px;color:var(--muted);text-align:center"></div>
+    </div>
+
     <!-- TABLA 2B: Performance vs Awareness -->
     <div class="ford-section" style="margin-top:18px">
       <h3>⚖️ Etapa del Funnel por modelo <span class="sub">Distribución del presupuesto por etapa del embudo · clasificado por nombre de campaña</span></h3>
@@ -6462,7 +6491,223 @@ HTML = r"""<!doctype html>
     return null;
   }
 
+  // ─────────── GRÁFICO EVOLUCIÓN MENSUAL CPV/CAC/CONV ───────────
+  let _xiyEvoChart = null;
+  // Estado: modelos seleccionados (vacío array = "Todos" agregado)
+  const xiyEvoState = { selectedModels: ['__ALL__'] };
+
+  function xiyComputeMonthlyMetrics(modelosSelected){
+    // Devuelve {meses, cpv, cac, conv, inv, traf, vent} con respeto a filtros
+    // generales del tab (mes/agencia/campaña) y los modelos seleccionados aquí.
+    const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo'];
+    const YM_MAP = {'Enero':'2026-01','Febrero':'2026-02','Marzo':'2026-03','Abril':'2026-04','Mayo':'2026-05'};
+    const YM_REV = Object.fromEntries(Object.entries(YM_MAP).map(([k,v])=>[v,k]));
+    const wantAll = modelosSelected.includes('__ALL__') || modelosSelected.length === 0;
+
+    // 1) Inversión por mes - desde lines_flat filtrado
+    const flatLines = (DATA.xiy && DATA.xiy._lines_flat) || [];
+    const invByMonth = Object.fromEntries(MONTHS.map(m => [m, 0]));
+    flatLines.forEach(L => {
+      // Aplicar filtros generales del tab
+      if(xiyFilters.mes      && L.month     !== xiyFilters.mes)      return;
+      if(xiyFilters.campaign && L.campaign  !== xiyFilters.campaign) return;
+      if(xiyFilters.agencia){
+        const ags = xiyAudienceToAgencias(L.audience);
+        if(!ags || !ags.includes(xiyFilters.agencia)) return;
+      }
+      // Filtro de modelo (chips locales + filtro general)
+      const norm = xiyNormalizeModelo(L.modelo);
+      // Si filtro general activo y este modelo no coincide → fuera
+      if(xiyFilters.modelo && norm !== xiyFilters.modelo) return;
+      // Si selección de chips local NO incluye este modelo → fuera
+      if(!wantAll && !modelosSelected.includes(norm || '__NONE__')) return;
+      // Si modelo es null y no se quiere "Sin atribuir", también va
+      // (lo dejamos pasar si wantAll para no perder inversión multi-modelo)
+      if(!norm && !wantAll) return;
+      invByMonth[L.month] = (invByMonth[L.month] || 0) + (+L.amount || 0);
+    });
+
+    // 2) Tráfico y ventas por mes desde clientes_flat
+    const flat = (DATA.conversion_data && DATA.conversion_data.FORD && DATA.conversion_data.FORD.clientes_flat) || [];
+    const trafByMonth = Object.fromEntries(MONTHS.map(m => [m, 0]));
+    const ventByMonth = Object.fromEntries(MONTHS.map(m => [m, 0]));
+    flat.forEach(c => {
+      if(!XIY_MKT_CHANNELS.has(c.canal)) return;
+      // Filtro modelo
+      const modUpper = (c.modelo||'').toUpperCase();
+      if(xiyFilters.modelo && modUpper !== xiyFilters.modelo) return;
+      if(!wantAll && !modelosSelected.includes(modUpper || '__NONE__')) return;
+      // Filtro agencia
+      if(xiyFilters.agencia && c.agencia !== xiyFilters.agencia) return;
+      // Filtro mes (filtra el mes del first toque)
+      const mesName = YM_REV[c.first_ym];
+      if(!mesName) return;
+      if(xiyFilters.mes && mesName !== xiyFilters.mes) return;
+      trafByMonth[mesName]++;
+      if(c.cerro) ventByMonth[mesName]++;
+    });
+
+    // 3) Calcular CPV, CAC, Conv por mes; solo meses con datos
+    const result = { meses: [], cpv: [], cac: [], conv: [], inv: [], traf: [], vent: [] };
+    MONTHS.forEach(m => {
+      const inv = invByMonth[m] || 0;
+      const traf = trafByMonth[m] || 0;
+      const vent = ventByMonth[m] || 0;
+      if(inv === 0 && traf === 0 && vent === 0) return;
+      result.meses.push(m);
+      result.cpv.push(traf>0 ? +(inv/traf).toFixed(2) : null);
+      result.cac.push(vent>0 ? +(inv/vent).toFixed(2) : null);
+      result.conv.push(traf>0 ? +(100*vent/traf).toFixed(1) : null);
+      result.inv.push(inv);
+      result.traf.push(traf);
+      result.vent.push(vent);
+    });
+    return result;
+  }
+
+  function renderXiyEvolutionChips(){
+    const PANEL_MODELS = ['RANGER','F-150','EVEREST','TERRITORY','ESCAPE','EXPLORER'];
+    const chipsEl = document.getElementById('xiy-evo-chips');
+    if(!chipsEl) return;
+    const isAll = xiyEvoState.selectedModels.includes('__ALL__') || xiyEvoState.selectedModels.length === 0;
+    const items = [
+      {key:'__ALL__', label:'Todos (agregado)', color:'#003478'},
+      ...PANEL_MODELS.map(m => ({key:m, label:m, color:MODEL_COLOR(m)})),
+    ];
+    chipsEl.innerHTML = items.map(it => {
+      const active = it.key === '__ALL__' ? isAll : xiyEvoState.selectedModels.includes(it.key);
+      const bg = active ? it.color : '#fff';
+      const fg = active ? '#fff' : it.color;
+      const border = it.color;
+      return `<button type="button" class="xiy-evo-chip" data-key="${it.key}"
+        style="padding:6px 14px;border-radius:18px;border:1.5px solid ${border};background:${bg};color:${fg};font-weight:600;cursor:pointer;font-size:12.5px;transition:all .15s">
+        ${it.label}
+      </button>`;
+    }).join('');
+    chipsEl.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const k = btn.dataset.key;
+        if(k === '__ALL__'){
+          xiyEvoState.selectedModels = ['__ALL__'];
+        } else {
+          // Quitar __ALL__ y togglear el modelo
+          xiyEvoState.selectedModels = xiyEvoState.selectedModels.filter(x => x !== '__ALL__');
+          if(xiyEvoState.selectedModels.includes(k)){
+            xiyEvoState.selectedModels = xiyEvoState.selectedModels.filter(x => x !== k);
+          } else {
+            xiyEvoState.selectedModels.push(k);
+          }
+          if(xiyEvoState.selectedModels.length === 0) xiyEvoState.selectedModels = ['__ALL__'];
+        }
+        renderXiyEvolutionChips();
+        renderXiyEvolution();
+      });
+    });
+  }
+
+  // Paleta de colores por modelo (consistente con otros tabs)
+  function MODEL_COLOR(modelo){
+    const COLORS = {
+      'RANGER':'#e11d48',     // rojo
+      'F-150':'#0369a1',      // azul
+      'EVEREST':'#16a34a',    // verde
+      'TERRITORY':'#a16207',  // dorado
+      'ESCAPE':'#7c3aed',     // morado
+      'EXPLORER':'#0891b2',   // turquesa
+      'EXPEDITION':'#be185d', // magenta
+      'BRONCO':'#475569',     // gris
+    };
+    return COLORS[modelo] || '#64748b';
+  }
+
+  function renderXiyEvolution(){
+    const canvas = document.getElementById('xiy-evo-chart');
+    if(!canvas || !window.Chart) return;
+    // Asegurar chips renderizados
+    renderXiyEvolutionChips();
+    // Toggles
+    const showCpv  = document.getElementById('xiy-evo-show-cpv')?.checked !== false;
+    const showCac  = document.getElementById('xiy-evo-show-cac')?.checked !== false;
+    const showConv = document.getElementById('xiy-evo-show-conv')?.checked !== false;
+
+    const data = xiyComputeMonthlyMetrics(xiyEvoState.selectedModels);
+    const fUSD2_local = (n) => 'USD ' + (n||0).toLocaleString('es-EC',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+    const datasets = [];
+    if(showCpv) datasets.push({
+      label:'CPV (USD)', data:data.cpv, borderColor:'#0369a1', backgroundColor:'#0369a133',
+      tension:0.3, yAxisID:'yUSD', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#0369a1',
+      datalabels:{ align:'top', anchor:'end', color:'#0369a1', font:{weight:'600',size:10},
+        formatter:(v)=> v==null?'':'$'+v.toFixed(0) }
+    });
+    if(showCac) datasets.push({
+      label:'CAC (USD)', data:data.cac, borderColor:'#be185d', backgroundColor:'#be185d33',
+      tension:0.3, yAxisID:'yUSD', borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#be185d', borderDash:[6,3],
+      datalabels:{ align:'bottom', anchor:'start', color:'#be185d', font:{weight:'600',size:10},
+        formatter:(v)=> v==null?'':'$'+v.toFixed(0) }
+    });
+    if(showConv) datasets.push({
+      label:'Conversión (%)', data:data.conv, borderColor:'#16a34a', backgroundColor:'#16a34a33',
+      tension:0.3, yAxisID:'yPct', borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#16a34a',
+      datalabels:{ align:'top', anchor:'end', color:'#16a34a', font:{weight:'700',size:11},
+        formatter:(v)=> v==null?'':v.toFixed(1)+'%' }
+    });
+
+    if(_xiyEvoChart){ _xiyEvoChart.destroy(); _xiyEvoChart = null; }
+    _xiyEvoChart = new Chart(canvas, {
+      type:'line',
+      data:{ labels:data.meses, datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          legend:{ position:'top', labels:{ usePointStyle:true, padding:14 } },
+          tooltip:{
+            callbacks:{
+              afterBody:(ctxs)=>{
+                const i = ctxs[0]?.dataIndex;
+                if(i==null) return [];
+                return [
+                  `Inversión: ${fUSD2_local(data.inv[i])}`,
+                  `Tráfico mkt: ${data.traf[i]}`,
+                  `Ventas atrib.: ${data.vent[i]}`,
+                ];
+              }
+            }
+          },
+          datalabels:{ display:true },
+        },
+        scales:{
+          yUSD:{ position:'left',  title:{ display:true, text:'USD (CPV/CAC)' }, beginAtZero:true,
+                 ticks:{ callback:(v)=> '$'+v.toLocaleString('es-EC') } },
+          yPct:{ position:'right', title:{ display:true, text:'Conversión (%)' }, beginAtZero:true,
+                 grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=> v+'%' } },
+          x:{ title:{ display:false } }
+        }
+      }
+    });
+
+    // Summary text
+    const sumEl = document.getElementById('xiy-evo-summary');
+    if(sumEl && data.meses.length){
+      const lastIdx = data.meses.length - 1;
+      const labels = xiyEvoState.selectedModels.includes('__ALL__')
+        ? 'Todos los modelos'
+        : xiyEvoState.selectedModels.join(' + ');
+      sumEl.textContent = `${labels} · ${data.meses[0]}–${data.meses[lastIdx]} · ${data.traf.reduce((a,b)=>a+b,0)} visitas mkt · ${data.vent.reduce((a,b)=>a+b,0)} ventas atrib. · ${fUSD2_local(data.inv.reduce((a,b)=>a+b,0))} invertidos`;
+    }
+  }
+
   function xiyInitFilters(){
+    // Listeners para los toggles de métricas del gráfico de evolución
+    ['xiy-evo-show-cpv','xiy-evo-show-cac','xiy-evo-show-conv'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el && !el.dataset.bound){
+        el.addEventListener('change', renderXiyEvolution);
+        el.dataset.bound = '1';
+      }
+    });
+
     // Necesito tener lines_flat disponible. Lo cargamos desde DATA.xiy._lines_flat
     // (lo agrego en aggregate.py). Si no está, los filtros quedan inactivos.
     if(!DATA.xiy || !DATA.xiy._lines_flat){
@@ -6691,6 +6936,9 @@ HTML = r"""<!doctype html>
       <td class="num">${cplTot!=null ? fUSD2(cplTot) : '—'}</td>
       <td class="num">${cacTot!=null ? fUSD2(cacTot) : '—'}</td>
     </tr>`;
+
+    // ─── GRÁFICO: Evolución mensual CPV / CAC / Conversión ───
+    renderXiyEvolution();
 
     // ─── TABLA 2B: Performance vs Awareness por modelo ───
     const objTotals = XIY.objective_totals || {};
