@@ -1345,7 +1345,7 @@ HTML = r"""<!doctype html>
     <!-- FILTROS -->
     <div class="ford-section" style="margin-top:18px;background:#f9fafb">
       <h3>🔍 Filtros <span class="sub">Aplican a todas las tablas de abajo</span></h3>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
         <div>
           <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">Mes</label>
           <select id="xiy-f-mes" style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:6px"></select>
@@ -1357,10 +1357,6 @@ HTML = r"""<!doctype html>
         <div>
           <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">Agencia</label>
           <select id="xiy-f-agencia" style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:6px"></select>
-        </div>
-        <div>
-          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:3px">Campaña</label>
-          <select id="xiy-f-campaign" style="width:100%;padding:7px;border:1px solid #d1d5db;border-radius:6px"></select>
         </div>
       </div>
       <div style="margin-top:10px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:14px">
@@ -6759,13 +6755,12 @@ HTML = r"""<!doctype html>
     fillSelect('xiy-f-mes', meses, 'meses');
     fillSelect('xiy-f-modelo', modelos, 'modelos');
     fillSelect('xiy-f-agencia', agencias, 'agencias');
-    fillSelect('xiy-f-campaign', campaigns, 'campañas');
 
     const clear = document.getElementById('xiy-f-clear');
     if(clear){
       clear.addEventListener('click', () => {
         Object.keys(xiyFilters).forEach(k => xiyFilters[k] = '');
-        ['xiy-f-mes','xiy-f-modelo','xiy-f-agencia','xiy-f-campaign'].forEach(id => {
+        ['xiy-f-mes','xiy-f-modelo','xiy-f-agencia'].forEach(id => {
           const e = document.getElementById(id); if(e) e.value = '';
         });
         renderXiy();
