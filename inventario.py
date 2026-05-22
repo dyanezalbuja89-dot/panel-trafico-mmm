@@ -399,7 +399,21 @@ def load_inventario(path=None, today=None, months_config=None):
     rc['AGENCIA'] = rc['AGENCIA DE RESERVA'].apply(res_agency_norm)
     rc['FECHA'] = pd.to_datetime(rc['FECHA DE RESERVA'], errors='coerce')
     rc['aging'] = (today - rc['FECHA']).dt.days
-    rc['SIN_VIN'] = rc['SIN VIN'].astype(str).str.upper().str.contains('SIN VIN', na=False)
+    # Detección 'sin VIN': formato viejo tenía columna 'SIN VIN' con flag textual.
+    # Formato nuevo (22/05/2026+) eliminó esa columna; se infiere desde
+    # 'CHASIS ASIGANDO' (con typo del archivo): si está vacío → sin VIN.
+    if 'SIN VIN' in rc.columns:
+        rc['SIN_VIN'] = rc['SIN VIN'].astype(str).str.upper().str.contains('SIN VIN', na=False)
+    else:
+        chasis_col = None
+        for c in ('CHASIS ASIGANDO', 'CHASIS ASIGNADO', 'CHASIS', 'VIN'):
+            if c in rc.columns:
+                chasis_col = c; break
+        if chasis_col:
+            ch = rc[chasis_col].astype(str).str.strip()
+            rc['SIN_VIN'] = ch.isin(['', 'nan', 'NaN', 'None']) | ch.isna()
+        else:
+            rc['SIN_VIN'] = False  # fallback conservador
     # Filtro: solo reservas con todos los campos clave llenos (cliente real).
     # Las reservas sin agencia o sin modelo normalizado se descartan — corresponden a
     # registros incompletos del Excel que el negocio no considera clientes confirmados.
