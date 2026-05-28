@@ -927,17 +927,29 @@ MONTHS_CONFIG = [
      "extra_non_working_days": [(5, 2)]},
 ]
 
-def _build_first_ym_index(months_config):
-    """Construye un mapeo {client_key_robusto: first_ym} usando identidad robusta:
-    cédula base (sin sufijo 001 de RUC titular) ∪ email ∪ celular.
+def _marca_group(marca):
+    """Agrupa la MARCA a un código de marca para la clave de identidad.
+    Ford y todas las marcas ORGU se tratan como marcas independientes —
+    un cliente que tocó Ford y luego DongFeng cuenta como NUEVO para DongFeng."""
+    m = (str(marca) or '').upper().strip()
+    if m.startswith('FORD'): return 'FORD'
+    if 'DONGFENG' in m: return 'DONGFENG'
+    if 'MAZDA' in m: return 'MAZDA'
+    if 'CHERY' in m: return 'CHERY'
+    if 'RAM' in m: return 'RAM'
+    return m or 'NA'
 
-    Cualquier registro cuyo cliente apareció en un MES ANTERIOR queda excluido del
-    conteo de tráfico del mes actual. Esto implementa la Definición B (personas únicas):
-    1 cliente = 1 toque sin importar cuántos meses regrese.
+
+def _build_first_ym_index(months_config):
+    """Construye un mapeo {client_key_robusto: first_ym} usando identidad robusta
+    POR MARCA: (cédula base ∪ email ∪ celular) × marca.
+
+    Definición B POR MARCA: cada (cliente, marca) cuenta solo en su primer mes
+    de toque PARA ESA MARCA. Si el cliente cotizó Ford antes y ahora cotiza
+    DongFeng, cuenta como NUEVO para DongFeng (oportunidad nueva para la marca).
+    Dentro de la misma marca, regresar en otro mes no suma (sigue siendo 1 toque).
     """
-    from collections import defaultdict
     first_ym_by_id = {}
-    # Acumulamos: por cada cliente, qué ym fue el primero donde apareció
     for cfg in months_config:
         path = BASE / cfg['curr_file']
         try:
@@ -950,9 +962,10 @@ def _build_first_ym_index(months_config):
             base = _conv_cedula_base(ced) if ced else None
             email = _conv_norm_email(r.get('CORREO'))
             cel = _conv_norm_cel(r.get('CELULAR'))
-            ids = [x for x in [f'ced:{base}' if base else None,
-                               f'email:{email}' if email else None,
-                               f'cel:{cel}' if cel else None] if x]
+            mg = _marca_group(r.get('MARCA'))
+            ids = [x for x in [f'ced:{base}|{mg}' if base else None,
+                               f'email:{email}|{mg}' if email else None,
+                               f'cel:{cel}|{mg}' if cel else None] if x]
             for x in ids:
                 if x not in first_ym_by_id or first_ym_by_id[x] > ym:
                     first_ym_by_id[x] = ym
@@ -960,8 +973,9 @@ def _build_first_ym_index(months_config):
 
 
 def _filter_to_new_clients(df, this_ym, first_ym_by_id):
-    """Filtra el df a SOLO clientes cuyo first_ym es este mes.
-    Un cliente "viejo" (ya apareció en mes anterior) se excluye."""
+    """Filtra el df a SOLO clientes cuyo first_ym (para SU marca) es este mes.
+    Un cliente "viejo" PARA ESA MARCA (ya cotizó la misma marca en mes anterior)
+    se excluye. Pero si tocó OTRA marca antes, cuenta como nuevo para ésta."""
     if df is None or len(df) == 0:
         return df
     keep_mask = []
@@ -970,10 +984,11 @@ def _filter_to_new_clients(df, this_ym, first_ym_by_id):
         base = _conv_cedula_base(ced) if ced else None
         email = _conv_norm_email(r.get('CORREO'))
         cel = _conv_norm_cel(r.get('CELULAR'))
-        ids = [x for x in [f'ced:{base}' if base else None,
-                           f'email:{email}' if email else None,
-                           f'cel:{cel}' if cel else None] if x]
-        # Si ALGUNO de los ids del cliente ya apareció en mes anterior → descartar
+        mg = _marca_group(r.get('MARCA'))
+        ids = [x for x in [f'ced:{base}|{mg}' if base else None,
+                           f'email:{email}|{mg}' if email else None,
+                           f'cel:{cel}|{mg}' if cel else None] if x]
+        # Si ALGUNO de los ids (de esta marca) ya apareció en mes anterior → descartar
         is_new = True
         for x in ids:
             fym = first_ym_by_id.get(x)
