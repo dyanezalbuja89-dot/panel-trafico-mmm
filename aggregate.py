@@ -271,6 +271,10 @@ def process_bd_ford(df, channels=None):
     df = df[df["MARCA"] == "FORD"].copy()
     df = df.sort_values("FECHA")
     df["MODELO_F"] = df["MODELO"].apply(normalize_modelo_ford)
+    # Registros con MODELO vacío/NaN → '(Sin modelo)' para que entren en la
+    # matriz modelo×agencia y no se pierdan del conteo del tab (suma matrix_cnt).
+    df["MODELO_F"] = df["MODELO_F"].astype(str).str.strip().str.upper()
+    df.loc[df["MODELO_F"].isin(['NAN','NONE','']) | df["MODELO_F"].isna(), "MODELO_F"] = '(Sin modelo)'
     df = df.drop_duplicates(subset=["CEDULA"], keep="last")
     df = df[df["CANAL"].isin(channels)]
     return df
@@ -401,10 +405,21 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
     velocity = total_curr / days_trans if days_trans else 0
     projection_total = round(velocity * days_lab)
 
+    # Lista de modelos: MODEL_ORDER + extras presentes en la data (ej. '(Sin modelo)'
+    # para registros con MODELO vacío). Así la matriz suma == total_curr y el tab
+    # Ford no pierde registros. Las metas de los extras son 0.
+    _extra_models = [m for m in set(list(curr["MODELO_F"].unique()) + list(prev["MODELO_F"].unique()))
+                     if m and m not in MODEL_ORDER and m not in ('NAN','nan','','NONE','None')]
+    model_order_f = list(MODEL_ORDER) + sorted(_extra_models)
+    # Asegurar metas (ceros) para los modelos extra, para no romper indexaciones
+    for _m in _extra_models:
+        if _m not in metas:
+            metas[_m] = [0]*len(DEALERS)
+
     # Per dealer
     dealer_data = {}
-    dealer_model_matrix = {m: {} for m in MODEL_ORDER}  # matrix[model][dealer] = pct cumpl
-    dealer_model_counts = {m: {} for m in MODEL_ORDER}  # matrix[model][dealer] = traffic count
+    dealer_model_matrix = {m: {} for m in model_order_f}  # matrix[model][dealer] = pct cumpl
+    dealer_model_counts = {m: {} for m in model_order_f}  # matrix[model][dealer] = traffic count
     for i, dealer in enumerate(DEALERS):
         d_curr = get_dealer_df(curr, dealer)
         d_prev = get_dealer_df(prev, dealer)
@@ -412,17 +427,17 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
         p_cnt = int(len(d_prev))
         d_velocity = c_cnt / days_trans if days_trans else 0
         d_proj = round(d_velocity * days_lab)
-        meta = sum(metas[m][i] for m in MODEL_ORDER)
+        meta = sum(metas[m][i] for m in model_order_f)
         cumpl_proj = round(100 * d_proj / meta) if meta > 0 else 0
         dealer_data[dealer] = {
             "prev": p_cnt, "curr": c_cnt, "meta": meta,
             "projection": d_proj, "velocity": round(d_velocity,2),
             "cumpl_proj": cumpl_proj,
-            "byModel": {m: int(len(d_curr[d_curr["MODELO_F"]==m])) for m in MODEL_ORDER},
+            "byModel": {m: int(len(d_curr[d_curr["MODELO_F"]==m])) for m in model_order_f},
             "byChannel": dict(d_curr["CANAL"].value_counts().to_dict()),
         }
         # matrix values: cumpl actual = curr / meta * 100
-        for m in MODEL_ORDER:
+        for m in model_order_f:
             mc = int(len(d_curr[d_curr["MODELO_F"]==m]))
             meta_mc = metas[m][i]
             dealer_model_counts[m][dealer] = mc
@@ -454,13 +469,13 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
         "prev": otros_prev_cnt, "curr": otros_curr_cnt, "meta": 0,
         "projection": otros_proj, "velocity": round(otros_curr_cnt/days_trans if days_trans else 0, 2),
         "cumpl_proj": 0,
-        "byModel": {m: int(len(otros_curr[otros_curr["MODELO_F"]==m])) for m in MODEL_ORDER},
+        "byModel": {m: int(len(otros_curr[otros_curr["MODELO_F"]==m])) for m in model_order_f},
         "byChannel": dict(otros_curr["CANAL"].value_counts().to_dict()),
     }
 
     # Per model (aggregate from dealer_model_counts + otros)
     model_data = {}
-    for m in MODEL_ORDER:
+    for m in model_order_f:
         c = sum(dealer_model_counts[m].values()) + int(len(otros_curr[otros_curr["MODELO_F"]==m]))
         p = int(len(prev[prev["MODELO_F"]==m]))
         meta = sum(metas[m])
@@ -490,12 +505,12 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
     channel_pct = round(100*ch_counts.get(dominant_channel,0)/total_curr) if total_curr else 0
 
     # At-risk
-    at_risk_models = [m for m in MODEL_ORDER if model_data[m]["meta"]>0 and model_data[m]["cumpl_proj"]<100]
+    at_risk_models = [m for m in model_order_f if model_data[m]["meta"]>0 and model_data[m]["cumpl_proj"]<100]
     at_risk_agencies = [d for d in DEALERS if dealer_data[d]["meta"]>0 and dealer_data[d]["cumpl_proj"]<100]
 
     # Movements (sorted by abs delta desc)
     movements = []
-    for m in MODEL_ORDER:
+    for m in model_order_f:
         md = model_data[m]
         if md["delta"] != 0:
             mv_prev = md["prev"]; curr_c = md["curr"]; d = md["delta"]
@@ -504,9 +519,9 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
     movements.sort(key=lambda x: abs(x["delta"]), reverse=True)
 
     # Model × agency matrix (pct & counts)
-    matrix_pct = {m: {d: dealer_model_matrix[m][d] for d in DEALERS} for m in MODEL_ORDER}
-    matrix_cnt = {m: {d: dealer_model_counts[m][d] for d in DEALERS} for m in MODEL_ORDER}
-    matrix_meta = {m: {d: metas[m][i] for i,d in enumerate(DEALERS)} for m in MODEL_ORDER}
+    matrix_pct = {m: {d: dealer_model_matrix[m][d] for d in DEALERS} for m in model_order_f}
+    matrix_cnt = {m: {d: dealer_model_counts[m][d] for d in DEALERS} for m in model_order_f}
+    matrix_meta = {m: {d: metas[m][i] for i,d in enumerate(DEALERS)} for m in model_order_f}
     total_meta = sum(sum(v) for v in metas.values())
 
     # Daily breakdown: {dealer: {model: {day: count}}} — para chart "Avance día a día" filtrable
@@ -514,7 +529,7 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
     # matrix_cnt_prev: {model: {dealer: count}} en el corte anterior — para deltas exactos por filtro
     daily_breakdown = {}
     dealer_model_channel = {}
-    matrix_cnt_prev = {m: {d: 0 for d in DEALERS} for m in MODEL_ORDER}
+    matrix_cnt_prev = {m: {d: 0 for d in DEALERS} for m in model_order_f}
     # All-channel filter para Otros (marketing + asesor) — captura los ~20% que vienen
     # de asesor comercial y se pierden en el filtro marketing-only.
     all_channels_set = set(ALL_TRAFFIC_CHANNELS)
@@ -530,7 +545,7 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
         d_curr_all = curr_all[mask_c_all]
         daily_breakdown[dealer] = {}
         dealer_model_channel[dealer] = {}
-        for m in MODEL_ORDER:
+        for m in model_order_f:
             sub_c = d_curr[d_curr['MODELO_F']==m]
             # daily (marketing only — usado en chart "Avance día a día" de Ford tab)
             sub_dt = sub_c.dropna(subset=['FECHA'])
@@ -558,7 +573,7 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
         mm = curr_all["SUCURSAL"].str.contains(pattern, case=False, na=False)
         attributed_all = mm if attributed_all is False else (attributed_all | mm)
     otros_curr_all = curr_all[~attributed_all]
-    for m in MODEL_ORDER:
+    for m in model_order_f:
         sub_c = otros_curr[otros_curr['MODELO_F']==m]
         sub_dt = sub_c.dropna(subset=['FECHA'])
         if len(sub_dt):
@@ -597,7 +612,7 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
         "otros_prev_by_model": otros_prev_by_model,
         "pace": expected_pace_calendar(month, year, total_meta, days_lab, extra_non_working=extra_non_working),
         "month": month, "year": year, "cut_day": up_to_day,
-        "model_order": MODEL_ORDER,
+        "model_order": model_order_f,
         "dealer_order": DEALERS,
         "zone_order": list(ZONES.keys()),
     }
@@ -746,6 +761,10 @@ def process_bd_brand(df, brand, channels=None):
     df = df.sort_values('FECHA')
     df['MODELO_F'] = df['MODELO'].astype(str).str.strip().str.upper()
     df.loc[df['MODELO_F']=='F150','MODELO_F'] = 'F-150'
+    # Registros con MODELO vacío/NaN (error de carga) se agrupan en '(Sin modelo)'
+    # para que entren en la matriz modelo×agencia y NO se pierdan del conteo
+    # del tab Marcas (que suma matrix_cnt). Sin esto, total_curr (78) ≠ matriz (67).
+    df.loc[df['MODELO_F'].isin(['NAN','NONE','']) | df['MODELO_F'].isna(), 'MODELO_F'] = '(Sin modelo)'
     df = df.drop_duplicates(subset=['CEDULA'], keep='last')
     df = df[df['CANAL'].isin(channels)]
     return df
