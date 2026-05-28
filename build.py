@@ -4091,14 +4091,15 @@ HTML = r"""<!doctype html>
           fill:true, tension:.25, pointRadius:5, pointBackgroundColor:'#003478', borderWidth:2.5,
         }]},
         options:{
+          layout:{padding:{top:28}},  // espacio para que el datalabel del punto más alto no se corte
           plugins:{
             legend:{display:false},
             tooltip:{callbacks:{label:c=>' '+(c.parsed.y==null?'—':fmt(c.parsed.y))+(norm?' / día':' reg.')}},
-            datalabels:{display:true, anchor:'end',align:'top',offset:6,
+            datalabels:{display:true, anchor:'end',align:'top',offset:6, clip:false,
               font:{size:12,weight:'700'}, color:'#003478', formatter:v=>fmt(v)}
           },
           scales:{
-            y:{beginAtZero:true,ticks:{precision:norm?1:0},
+            y:{beginAtZero:true, grace:'10%', ticks:{precision:norm?1:0},
                title:{display:true,text:norm?'Tráfico / día laborable':'Tráfico total',color:'#6b7280',font:{size:11}}},
             x:{ticks:{font:{size:12}}}
           },
