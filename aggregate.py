@@ -166,12 +166,35 @@ def normalize_modelo_ford(m):
     m = m.upper().strip()
     return 'F-150' if m == 'F150' else m
 
+def _infer_marca_from_sucursal(sucursal):
+    """Cuando la columna MARCA viene vacía (error de carga del CRM), inferir
+    la marca desde el nombre de la SUCURSAL. El patrón es inequívoco:
+      'ORGU LA Y DONGFENG' → DONGFENG_ORGU
+      'AUTOSHARECORP ...'  → FORD
+      '... MAZDA'          → MAZDA_ORGU, etc.
+    Devuelve None si no se puede inferir."""
+    if not isinstance(sucursal, str):
+        return None
+    s = sucursal.upper()
+    if 'DONGFENG' in s:      return 'DONGFENG_ORGU'
+    if 'MAZDA' in s:         return 'MAZDA_ORGU'
+    if 'CHERY' in s:         return 'CHERY_ORGU'
+    if 'RAM' in s:           return 'RAM_ORGU'
+    if 'AUTOSHARECORP' in s: return 'FORD'  # AUTOSHARECORP = concesionario Ford
+    return None
+
 def load_raw(path):
     df = pd.read_excel(path, sheet_name="Negocios")
     df["AGENCIA"] = df["SUCURSAL"].apply(short_agency)
     df["CANAL"] = df["CANAL"].apply(norm_channel)
     df["MODELO"] = df["MODELO"].astype(str).str.strip().str.upper()
     df["MARCA"] = df["MARCA"].astype(str).str.strip()
+    # Inferir MARCA desde SUCURSAL cuando está vacía/NaN (error de carga del CRM).
+    # Sin esto el panel descarta registros reales con MARCA en blanco (ej. 14
+    # DongFeng La Y en mayo cuya celda MARCA quedó vacía).
+    _marca_vacia = df["MARCA"].isin(['', 'nan', 'NaN', 'None', 'NONE'])
+    df.loc[_marca_vacia, "MARCA"] = df.loc[_marca_vacia, "SUCURSAL"].apply(
+        lambda s: _infer_marca_from_sucursal(s) or '')
     # Normalize legacy brand names (BDs 2025 used CHERY/DONGFENG/MAZDA/RAM sin sufijo _ORGU)
     df["MARCA"] = df["MARCA"].replace({
         'CHERY': 'CHERY_ORGU', 'DONGFENG': 'DONGFENG_ORGU',
