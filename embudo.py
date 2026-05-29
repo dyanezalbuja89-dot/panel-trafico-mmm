@@ -22,7 +22,10 @@ EMBUDO_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Mares
 
 # Agencia embudo → keyword en AGENCIA_FACTURACION del inventario
 AGENCY_INV_KEYWORD = {
-    'CJA': 'CARLOS JULIO',
+    'CJA':       'CARLOS JULIO',
+    'Manta':     'MANTA',       # captura 1002 Manta y 1013 Manta II
+    'Orellana':  'ORELLANA',
+    'Portoviejo':'PORTOVIEJO',  # aún sin agencia propia → cierres = 0
 }
 MES_NUM = {'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,
            'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12}
@@ -100,9 +103,12 @@ STAGES = [
     ('Cierre',       'Cierre'),
 ]
 
-# Agencias a procesar (por ahora solo CJA). Mapea carpeta → nombre corto del panel.
+# Agencias a procesar. Mapea carpeta del filesystem → nombre corto del panel.
 AGENCIES = {
-    'CJA': 'CJA',
+    'CJA':        'CJA',
+    'MANTA':      'Manta',
+    'ORELLANA':   'Orellana',
+    'PORTOVIEJO': 'Portoviejo',
 }
 
 
@@ -155,6 +161,8 @@ def _load_stage(path):
         canal = _norm_canal(r.get('Canal'))
         for mod in _split_modelos(r['Modelo']):
             rows.append({'id': r['id'], 'MODELO_N': mod, 'ASESOR': ase, 'CANAL': canal})
+    if not rows:
+        return pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL'])
     return pd.DataFrame(rows)
 
 
@@ -164,17 +172,29 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     if not folder.exists():
         return None
     def _find_stage_file(fname):
-        """Busca el archivo de etapa tolerando tildes/mayúsculas
-        (ej. 'Tráfico.xlsx' vs 'Trafico.xlsx')."""
+        """Busca el archivo de etapa tolerando tildes/mayúsculas y singular/plural
+        (ej. 'Cotización.xlsx' vs 'Cotizaciones.xlsx' vs 'Cotizacion.xlsx')."""
         import unicodedata
         def _strip(s):
             return ''.join(c for c in unicodedata.normalize('NFD', s)
                            if unicodedata.category(c) != 'Mn').lower()
-        target = _strip(fname)
+        def _stem(s):
+            # quita el sufijo plural ('es' o 's') para que 'cotizaciones'/'cotizacion' colapsen
+            s = _strip(s)
+            if s.endswith('es') and len(s) > 5:
+                return s[:-2]
+            if s.endswith('s') and len(s) > 4:
+                return s[:-1]
+            return s
+        target_full = _strip(fname)
+        target_stem = _stem(fname)
         for p in folder.glob('*.xlsx'):
             if p.name.startswith('~$'):
                 continue
-            if _strip(p.stem) == target:
+            cand_full = _strip(p.stem)
+            if cand_full == target_full:
+                return p
+            if _stem(p.stem) == target_stem:
                 return p
         return None
 
@@ -184,7 +204,7 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         if p and p.exists():
             stage_dfs[label] = _load_stage(p)
         else:
-            stage_dfs[label] = pd.DataFrame(columns=['id', 'MODELO_N'])
+            stage_dfs[label] = pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL'])
 
     labels = [lbl for _, lbl in STAGES]
 
