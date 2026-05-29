@@ -71,8 +71,8 @@ def _ventas_inventario(agencia_short, mes, anio=2026):
     return por_modelo, por_version, int(len(sub))
 
 # Orden del embudo: (nombre_archivo, etiqueta_panel)
+# La base del embudo es Cotización (Tráfico se excluye a pedido del negocio).
 STAGES = [
-    ('Tráfico',      'Tráfico'),
     ('Cotizaciones', 'Cotización'),
     ('Presentacion', 'Presentación'),
     ('Solicitudes',  'Solicitud'),
@@ -185,8 +185,8 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
                 por_version[mod] = dict(sorted(cierre_version[mod].items(),
                                                key=lambda x: -x[1]))
 
-    # Conversión de CADA etapa vs Tráfico (no vs etapa anterior)
-    base = totales['Tráfico']
+    # Conversión de CADA etapa vs la base del embudo (Cotización = labels[0])
+    base = totales[labels[0]]
     conv = {}
     for lbl in labels:
         conv[lbl] = round(100 * totales[lbl] / base, 1) if base else None

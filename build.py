@@ -5145,7 +5145,7 @@ HTML = r"""<!doctype html>
     // Embudo visual (barras decrecientes con ancho proporcional)
     const funnelEl = document.getElementById('embudo-funnel');
     document.getElementById('embudo-sub-general').textContent =
-      `${modelo||'Todos'} · conversión Tráfico→Cierre ${vals[0]? (100*vals[vals.length-1]/vals[0]).toFixed(1):0}%`;
+      `${modelo||'Todos'} · conversión Cotización→Cierre ${vals[0]? (100*vals[vals.length-1]/vals[0]).toFixed(1):0}%`;
     funnelEl.innerHTML = etapas.map((e,i)=>{
       const v = vals[i];
       const w = Math.max(8, 100*v/top);
@@ -5155,7 +5155,7 @@ HTML = r"""<!doctype html>
         <div style="flex:1;background:#f1f5f9;border-radius:6px;overflow:hidden">
           <div style="width:${w}%;background:${EMBUDO_COLORS[i]};color:#fff;padding:8px 12px;border-radius:6px;font-weight:700;font-size:13px;white-space:nowrap">${v}</div>
         </div>
-        <div style="width:80px;font-size:11px;color:var(--muted)" title="% vs Tráfico">${convTraf!=null?convTraf+'% del tráf.':''}</div>
+        <div style="width:80px;font-size:11px;color:var(--muted)" title="% vs Cotización">${convTraf!=null?convTraf+'% cotiz.':''}</div>
       </div>`;
     }).join('');
 
