@@ -297,10 +297,14 @@
   .meta-bar .marker{position:absolute;top:-2px;bottom:-2px;width:2px;background:#1c2434;z-index:2}
 
   .insight-card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 18px;margin-bottom:12px;border-left:4px solid var(--ford-2)}
-  .insight-card.warn{border-left-color:var(--yellow)}
-  .insight-card.bad{border-left-color:var(--neg)}
+  .insight-card.warn{border-left:6px solid #d97706;background:linear-gradient(90deg,#fff7ed 0%,#ffffff 50%);border:1px solid #fed7aa;border-left-width:6px;box-shadow:0 1px 3px rgba(217,119,6,0.15)}
+  .insight-card.warn h4{color:#92400e;font-weight:700;font-size:14px}
+  .insight-card.warn h4::before{content:"⚠️ ALERTA · ";color:#dc2626;font-weight:800;letter-spacing:.5px}
+  .insight-card.bad{border-left:6px solid #dc2626;background:linear-gradient(90deg,#fef2f2 0%,#ffffff 50%);border:1px solid #fecaca;border-left-width:6px;box-shadow:0 1px 3px rgba(220,38,38,0.18)}
+  .insight-card.bad h4{color:#991b1b;font-weight:700;font-size:14px}
+  .insight-card.bad h4::before{content:"🚨 CRÍTICO · ";color:#dc2626;font-weight:800;letter-spacing:.5px}
   .insight-card.good{border-left-color:var(--pos)}
-  .insight-card.critical{border-left-color:#c62828;background:#fff5f5}
+  .insight-card.critical{border-left:6px solid #c62828;background:#fff5f5}
   .insight-card.info{border-left-color:#1976d2;background:#f3f9ff}
 
   /* Status pills usado en tabla de inventario */
@@ -5066,38 +5070,74 @@
     const E = DATA.embudo_data; if(!E) return null;
     return document.getElementById('embudo-agencia').value || E.default_agencia;
   }
-  // Agrega (suma) los meses seleccionados en un solo embudo
+  function embudoAgenciasActivas(){
+    // Si el filtro es 'TODOS' o no hay valor, devuelve todas las agencias disponibles
+    const E = DATA.embudo_data; if(!E) return [];
+    const sel = (document.getElementById('embudo-agencia')||{}).value;
+    if(sel === 'TODOS' || !sel) {
+      // si no hay selección explícita y hay más de una agencia, usar todas
+      const all = Object.keys(E.agencias);
+      if(sel === 'TODOS') return all;
+      return [sel || E.default_agencia];
+    }
+    return [sel];
+  }
+  // Agrega (suma) los meses seleccionados, posiblemente a través de varias agencias
   function embudoAggregate(){
     const E = DATA.embudo_data; if(!E) return null;
-    const ag = embudoAgencia();
-    const agData = E.agencias[ag] || {};
-    const meses = embudoState.meses.filter(m=> agData[m]);
-    if(meses.length===0) return null;
-    // etapas: de cualquier mes
-    const etapas = agData[meses[0]].etapas;
+    const agencias = embudoAgenciasActivas();
+    if(agencias.length===0) return null;
+    // etapas: usar las del primer mes/agencia disponible
+    let etapas = null;
+    for(const ag of agencias){
+      for(const m of (embudoState.meses||[])){
+        if(E.agencias[ag] && E.agencias[ag][m]){
+          etapas = E.agencias[ag][m].etapas; break;
+        }
+      }
+      if(etapas) break;
+    }
+    if(!etapas) return null;
     const totales = {}; const por_modelo = {}; const por_asesor = {};
+    const por_agencia = {}; // agregado por agencia para insights comparativos
     etapas.forEach(e=> totales[e]=0);
-    meses.forEach(mes=>{
-      const c = agData[mes];
-      etapas.forEach(e=> totales[e]+=(c.totales[e]||0));
-      Object.entries(c.por_modelo).forEach(([mod,fila])=>{
-        por_modelo[mod] = por_modelo[mod] || {};
-        etapas.forEach(e=> por_modelo[mod][e]=(por_modelo[mod][e]||0)+(fila[e]||0));
-      });
-      Object.entries(c.por_asesor||{}).forEach(([ase,fila])=>{
-        por_asesor[ase] = por_asesor[ase] || {};
-        etapas.forEach(e=> por_asesor[ase][e]=(por_asesor[ase][e]||0)+(fila[e]||0));
+    let mesesUsados = new Set();
+    agencias.forEach(ag=>{
+      const agData = E.agencias[ag] || {};
+      por_agencia[ag] = por_agencia[ag] || {totales:{}};
+      etapas.forEach(e=> por_agencia[ag].totales[e]=0);
+      const meses = (embudoState.meses||[]).filter(m=> agData[m]);
+      meses.forEach(mes=>{
+        mesesUsados.add(mes);
+        const c = agData[mes];
+        etapas.forEach(e=>{ totales[e]+=(c.totales[e]||0); por_agencia[ag].totales[e]+=(c.totales[e]||0); });
+        Object.entries(c.por_modelo).forEach(([mod,fila])=>{
+          por_modelo[mod] = por_modelo[mod] || {};
+          etapas.forEach(e=> por_modelo[mod][e]=(por_modelo[mod][e]||0)+(fila[e]||0));
+        });
+        Object.entries(c.por_asesor||{}).forEach(([ase,fila])=>{
+          por_asesor[ase] = por_asesor[ase] || {};
+          etapas.forEach(e=> por_asesor[ase][e]=(por_asesor[ase][e]||0)+(fila[e]||0));
+        });
       });
     });
-    return { etapas, totales, por_modelo, por_asesor, meses };
+    return { etapas, totales, por_modelo, por_asesor, por_agencia,
+             meses: Array.from(mesesUsados).sort((a,b)=>
+               ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(a)-
+               ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(b)),
+             agencias };
   }
   function embudoInitFilters(){
     const E = DATA.embudo_data; if(!E) return;
     const selA = document.getElementById('embudo-agencia');
     const selMod = document.getElementById('embudo-modelo');
     if(selA.options.length===0){
+      const todasOpt = document.createElement('option');
+      todasOpt.value='TODOS'; todasOpt.textContent='🌐 Todos los concesionarios (ORGU)';
+      selA.appendChild(todasOpt);
       Object.keys(E.agencias).forEach(a=>{ const o=document.createElement('option'); o.value=a;o.textContent=a;selA.appendChild(o);});
-      selA.value = E.default_agencia;
+      // por defecto: si hay más de 1 agencia, "Todos"; si solo hay 1, esa
+      selA.value = Object.keys(E.agencias).length>1 ? 'TODOS' : E.default_agencia;
       selA.addEventListener('change', ()=>{ embudoResetMeses(); embudoRenderChips(); embudoFillModelos(); renderEmbudo(); });
     }
     embudoResetMeses();
@@ -5106,8 +5146,13 @@
     selMod.addEventListener('change', renderEmbudo);
   }
   function embudoMesesDisponibles(){
-    const E = DATA.embudo_data; const ag = embudoAgencia();
-    return (E.meses[ag]||[]).filter(m=> E.agencias[ag] && E.agencias[ag][m]);
+    const E = DATA.embudo_data;
+    const agencias = embudoAgenciasActivas();
+    // Unión de meses disponibles en todas las agencias seleccionadas
+    const ORDER = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const setM = new Set();
+    agencias.forEach(ag=>{ (E.meses[ag]||[]).forEach(m=>{ if(E.agencias[ag] && E.agencias[ag][m]) setM.add(m); }); });
+    return Array.from(setM).sort((a,b)=> ORDER.indexOf(a)-ORDER.indexOf(b));
   }
   function embudoResetMeses(){
     // por defecto: todos los meses seleccionados
@@ -5148,8 +5193,9 @@
     const ag = embudoAgencia();
     const modelo = document.getElementById('embudo-modelo').value;
     const mesesLbl = c.meses.length === embudoMesesDisponibles().length ? 'todos los meses' : c.meses.join(' + ');
+    const agLbl = (ag === 'TODOS') ? `🌐 ORGU (${c.agencias.length} concesionario${c.agencias.length>1?'s':''})` : ag;
     document.getElementById('embudo-source').textContent =
-      `${ag} · ${mesesLbl} · ${modelo||'todos los modelos'}`;
+      `${agLbl} · ${mesesLbl} · ${modelo||'todos los modelos'}`;
 
     // Datos según filtro de modelo
     const etapas = c.etapas;
@@ -5250,7 +5296,7 @@
       const mejor = [...conPres].sort((a,b)=> b.ciePct - a.ciePct)[0];
       if(peor.cotiz >= mejor.cotiz*0.8 && (mejor.ciePct - peor.ciePct) > 5){
         const gap = Math.round(peor.cotiz * (mejor.ciePct - peor.ciePct) / 100);
-        insights.push({tipo:'warn', titulo:'⚠️ Volumen alto, conversión baja: ' + peor.n,
+        insights.push({tipo:'warn', titulo:'Volumen alto, conversión baja: ' + peor.n,
           html:`<strong>${peor.n}</strong> recibe ${peor.cotiz} cotizaciones (similar a ${mejor.n} con ${mejor.cotiz}) pero cierra solo <strong>${fPct(peor.ciePct)}</strong> vs <strong>${fPct(mejor.ciePct)}</strong> del top. Si igualara al promedio del equipo cerraría ~<strong>${gap} ventas más</strong>. Auditar calidad de seguimiento.`});
       }
     }
@@ -5265,7 +5311,7 @@
         insights.push({tipo:'good', titulo:'💎 Modelo más rentable de convertir: ' + top.n,
           html:`<strong>${top.n}</strong> tiene la mejor tasa de cierre: <strong>${fPct(top.pct)}</strong> (${top.cierre} de ${top.cotiz}). Si pudieras inyectar más prospectos a este modelo, cada uno tiene la mayor probabilidad de cerrar venta.`});
         const lost = Math.round(peor.cotiz * (top.pct - peor.pct) / 100);
-        insights.push({tipo:'warn', titulo:'🚨 Modelo que sangra prospectos: ' + peor.n,
+        insights.push({tipo:'bad', titulo:'Modelo que sangra prospectos: ' + peor.n,
           html:`<strong>${peor.n}</strong> tiene la peor conversión: <strong>${fPct(peor.pct)}</strong> (${peor.cierre} de ${peor.cotiz}). Hay <strong>${peor.cotiz} cotizaciones que solo produjeron ${peor.cierre} ventas</strong>. Revisar: ¿calidad de prospecto, precio, inventario o mensaje?`});
       }
     }
@@ -5279,7 +5325,7 @@
     caidas.sort((x,y)=> y.perdidas - x.perdidas);
     if(caidas[0] && caidas[0].pctPerdido > 30){
       const cb = caidas[0];
-      insights.push({tipo:'warn', titulo:`🔻 Cuello de botella: ${cb.de} → ${cb.a}`,
+      insights.push({tipo:'warn', titulo:`Cuello de botella: ${cb.de} → ${cb.a}`,
         html:`En esa transición se pierde el <strong>${fPct(cb.pctPerdido)}</strong> de los prospectos (${cb.perdidas} negocios desaparecen). Es la etapa con mayor fuga del embudo y donde una mejora pequeña en %, daría el mayor impacto en ventas.`});
     }
 
@@ -5294,17 +5340,43 @@
       const first = mesData[0], last = mesData[mesData.length-1];
       const deltaConv = last.pct - first.pct;
       if(Math.abs(deltaConv) > 5){
-        const tipo = deltaConv<0 ? 'warn' : 'good';
+        const tipo = deltaConv<=-10 ? 'bad' : (deltaConv<0 ? 'warn' : 'good');
         const arrow = deltaConv<0 ? '⬇️ cae' : '⬆️ sube';
-        insights.push({tipo, titulo:`📊 Tendencia: la conversión ${arrow} mes a mes`,
+        insights.push({tipo, titulo:`Tendencia: la conversión ${arrow} mes a mes`,
           html:`De <strong>${first.mes}</strong> a <strong>${last.mes}</strong> la conversión Cotización→Cierre pasó de <strong>${fPct(first.pct)}</strong> a <strong>${fPct(last.pct)}</strong> (${deltaConv>=0?'+':''}${deltaConv.toFixed(0)} pts). ` +
             mesData.map(m=>`${m.mes} ${fPct(m.pct)}`).join(' · ')});
       }
-      // Si solicitudes de crédito caen fuerte
+      // Si solicitudes de crédito caen fuerte → CRÍTICO
       const solFirst = mesData[0].sol, solLast = mesData[mesData.length-1].sol;
       if(solFirst >= 10 && solLast <= solFirst*0.4){
-        insights.push({tipo:'warn', titulo:'💳 Las solicitudes de crédito se desplomaron',
+        insights.push({tipo:'bad', titulo:'Las solicitudes de crédito se desplomaron',
           html:`Pasaron de <strong>${solFirst}</strong> (${mesData[0].mes}) a <strong>${solLast}</strong> (${mesData[mesData.length-1].mes}). El canal de financiamiento se está rompiendo y eso arrastra al cierre. Investigar: política bancaria, tasas, equipo de F&I.`});
+      }
+    }
+
+    // ── 4.5 Comparativo entre concesionarios (cuando hay varios) ──
+    if(c.agencias && c.agencias.length>1 && c.por_agencia){
+      const perfAg = c.agencias.map(ag=>{
+        const t = c.por_agencia[ag].totales;
+        const cot = t[E0]||0, cie = t[EC]||0;
+        return {ag, cot, cie, pct: cot? 100*cie/cot : 0};
+      }).filter(x=> x.cot >= 10);
+      if(perfAg.length>=2){
+        const ord = [...perfAg].sort((a,b)=> b.pct - a.pct);
+        const tot = perfAg.reduce((s,x)=>({cot:s.cot+x.cot,cie:s.cie+x.cie}),{cot:0,cie:0});
+        const avg = tot.cot? 100*tot.cie/tot.cot : 0;
+        const top = ord[0], bot = ord[ord.length-1];
+        insights.push({tipo:'info', titulo:'🌐 Conclusión ORGU · ' + c.agencias.length + ' concesionarios',
+          html: `<strong>${tot.cot}</strong> cotizaciones agregadas, <strong>${tot.cie}</strong> ventas cerradas · conversión promedio ORGU <strong>${fPct(avg)}</strong>. ` +
+          `<br>Mejor concesionario: <strong>${top.ag}</strong> (${fPct(top.pct)}, ${top.cie}/${top.cot}). ` +
+          `Peor: <strong>${bot.ag}</strong> (${fPct(bot.pct)}, ${bot.cie}/${bot.cot}). ` +
+          `Brecha entre el mejor y el peor: <strong>${(top.pct-bot.pct).toFixed(0)} pts</strong>.`});
+        if(top.pct - bot.pct > 10){
+          const lost = Math.round(bot.cot * (top.pct - bot.pct) / 100);
+          const tipoB = (top.pct - bot.pct > 15) ? 'bad' : 'warn';
+          insights.push({tipo:tipoB, titulo:`Brecha de eficiencia entre concesionarios`,
+            html:`Si <strong>${bot.ag}</strong> tuviera la efectividad de <strong>${top.ag}</strong>, cerraría <strong>~${lost} ventas más</strong> en este periodo. Considerar transferencia de buenas prácticas.`});
+        }
       }
     }
 
