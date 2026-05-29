@@ -650,6 +650,7 @@ HTML = r"""<!doctype html>
   <button class="tab-btn" data-tab="inv">📦 Inventario Orgu</button>
   <button class="tab-btn" data-tab="xiy">💰 Inversión Digital</button>
   <button class="tab-btn" data-tab="comp-imp">🔒 Inventario Competencia</button>
+  <button class="tab-btn" data-tab="embudo">🫙 Embudo</button>
   <button class="tab-btn" data-tab="dash">Dashboard</button>
 </nav>
 
@@ -1867,6 +1868,47 @@ HTML = r"""<!doctype html>
     </div>
   </section>
 
+  <!-- ======================= TAB EMBUDO ======================= -->
+  <section id="tab-embudo" class="tab-panel">
+    <div class="otros-header" style="background:linear-gradient(135deg,#0f766e 0%,#003478 100%)">
+      <div>
+        <h2>🫙 Embudo de ventas por modelo</h2>
+        <div class="sub" id="embudo-source">Prospectos por etapa del embudo · por modelo y concesionario</div>
+      </div>
+    </div>
+
+    <div style="margin:14px 0;display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+      <label style="font-size:12px;color:var(--muted)">Concesionario:
+        <select id="embudo-agencia" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;margin-left:8px"></select>
+      </label>
+      <label style="font-size:12px;color:var(--muted)">Mes:
+        <select id="embudo-mes" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;margin-left:8px"></select>
+      </label>
+      <label style="font-size:12px;color:var(--muted)">Modelo:
+        <select id="embudo-modelo" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;margin-left:8px;min-width:160px"><option value="">Todos los modelos</option></select>
+      </label>
+    </div>
+
+    <!-- EMBUDO VISUAL -->
+    <div class="ford-section">
+      <h3>📉 Embudo general <span class="sub" id="embudo-sub-general"></span></h3>
+      <div id="embudo-funnel" style="max-width:760px;margin:0 auto"></div>
+    </div>
+
+    <!-- TABLA POR MODELO -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>📋 Prospectos por modelo y etapa <span class="sub">negocios únicos en cada etapa del embudo</span></h3>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="embudo-tbl">
+          <thead><tr id="embudo-tbl-head"><th>Modelo</th></tr></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
+      <div class="footer-note" style="margin-top:8px">Cada celda = negocios únicos (por cédula/id) interesados en ese modelo en esa etapa. Un negocio que cotiza varios modelos cuenta en cada uno. Etapas Solicitud/Aprobación aplican solo a ventas con crédito; las de contado saltan directo a Cierre.</div>
+    </div>
+  </section>
+
   <!-- ======================= TAB OTROS (con password gate) ======================= -->
   <section id="tab-otros" class="tab-panel">
     <!-- Gate de password (desactivado - acceso libre) -->
@@ -2085,6 +2127,11 @@ HTML = r"""<!doctype html>
     }
     if(tab === 'otros'){
       return 'Análisis privados · acceso restringido';
+    }
+    if(tab === 'embudo'){
+      const e = DATA.embudo_data;
+      if(!e) return 'Embudo de ventas · datos no disponibles';
+      return 'Embudo de ventas por modelo y concesionario';
     }
     return '';
   }
@@ -4995,6 +5042,104 @@ HTML = r"""<!doctype html>
   });
   document.querySelector('.tab-btn[data-tab="comp-imp"]').addEventListener('click', ()=>{
     if(otrosUnlocked()) compImpShowContent(); else compImpShowGate();
+  });
+
+  // ─────────── TAB EMBUDO ───────────
+  let _embudoInit = false;
+  const EMBUDO_COLORS = ['#003478','#1565c0','#0f766e','#f57f17','#e65100','#2e7d32'];
+  function embudoCurrent(){
+    const E = DATA.embudo_data; if(!E) return null;
+    const ag = document.getElementById('embudo-agencia').value || E.default_agencia;
+    const mes = document.getElementById('embudo-mes').value;
+    return (E.agencias[ag] && E.agencias[ag][mes]) ? E.agencias[ag][mes] : null;
+  }
+  function embudoInitFilters(){
+    const E = DATA.embudo_data; if(!E) return;
+    const selA = document.getElementById('embudo-agencia');
+    const selM = document.getElementById('embudo-mes');
+    const selMod = document.getElementById('embudo-modelo');
+    if(selA.options.length===0){
+      Object.keys(E.agencias).forEach(a=>{ const o=document.createElement('option'); o.value=a;o.textContent=a;selA.appendChild(o);});
+      selA.value = E.default_agencia;
+      selA.addEventListener('change', ()=>{ embudoFillMeses(); renderEmbudo(); });
+    }
+    embudoFillMeses();
+    selM.addEventListener('change', ()=>{ embudoFillModelos(); renderEmbudo(); });
+    selMod.addEventListener('change', renderEmbudo);
+  }
+  function embudoFillMeses(){
+    const E = DATA.embudo_data;
+    const ag = document.getElementById('embudo-agencia').value || E.default_agencia;
+    const selM = document.getElementById('embudo-mes');
+    const meses = (E.meses[ag]||[]).filter(m=> E.agencias[ag] && E.agencias[ag][m]);
+    selM.innerHTML = meses.map(m=>`<option value="${m}">${m}</option>`).join('');
+    embudoFillModelos();
+  }
+  function embudoFillModelos(){
+    const c = embudoCurrent();
+    const selMod = document.getElementById('embudo-modelo');
+    const cur = selMod.value;
+    const mods = c ? Object.keys(c.por_modelo) : [];
+    selMod.innerHTML = '<option value="">Todos los modelos</option>' + mods.map(m=>`<option value="${m}">${m}</option>`).join('');
+    if(mods.includes(cur)) selMod.value = cur;
+  }
+  function renderEmbudo(){
+    const E = DATA.embudo_data;
+    if(!E){ document.getElementById('embudo-source').textContent='Datos de embudo no disponibles'; return; }
+    const c = embudoCurrent();
+    if(!c) return;
+    const ag = document.getElementById('embudo-agencia').value || E.default_agencia;
+    const modelo = document.getElementById('embudo-modelo').value;
+    document.getElementById('embudo-source').textContent =
+      `${ag} · ${c.mes} · ${modelo||'todos los modelos'}`;
+
+    // Datos según filtro de modelo
+    const etapas = c.etapas;
+    let vals;
+    if(modelo && c.por_modelo[modelo]) vals = etapas.map(e=> c.por_modelo[modelo][e]||0);
+    else vals = etapas.map(e=> c.totales[e]||0);
+    const top = vals[0] || 1;
+
+    // Embudo visual (barras decrecientes con ancho proporcional)
+    const funnelEl = document.getElementById('embudo-funnel');
+    document.getElementById('embudo-sub-general').textContent =
+      `${modelo||'Todos'} · conversión Tráfico→Cierre ${vals[0]? (100*vals[vals.length-1]/vals[0]).toFixed(1):0}%`;
+    funnelEl.innerHTML = etapas.map((e,i)=>{
+      const v = vals[i];
+      const w = Math.max(8, 100*v/top);
+      const convPrev = i>0 && vals[i-1] ? (100*v/vals[i-1]).toFixed(0) : null;
+      return `<div style="margin:6px 0;display:flex;align-items:center;gap:10px">
+        <div style="width:96px;text-align:right;font-size:12px;font-weight:600;color:#374151">${e}</div>
+        <div style="flex:1;background:#f1f5f9;border-radius:6px;overflow:hidden">
+          <div style="width:${w}%;background:${EMBUDO_COLORS[i]};color:#fff;padding:8px 12px;border-radius:6px;font-weight:700;font-size:13px;white-space:nowrap">${v}</div>
+        </div>
+        <div style="width:70px;font-size:11px;color:var(--muted)">${convPrev!=null?convPrev+'%':''}</div>
+      </div>`;
+    }).join('');
+
+    // Tabla por modelo × etapa
+    const head = document.getElementById('embudo-tbl-head');
+    head.innerHTML = '<th>Modelo</th>' + etapas.map(e=>`<th class="num">${e}</th>`).join('') + '<th class="num">% cierre</th>';
+    const tbody = document.querySelector('#embudo-tbl tbody');
+    const mods = Object.entries(c.por_modelo).sort((a,b)=> (b[1][etapas[0]]||0)-(a[1][etapas[0]]||0));
+    tbody.innerHTML = mods.map(([mod,fila])=>{
+      const t = fila[etapas[0]]||0, ci = fila[etapas[etapas.length-1]]||0;
+      const cierrePct = t? (100*ci/t).toFixed(0):0;
+      const hl = (modelo && mod===modelo) ? 'background:#ecfeff' : '';
+      return `<tr style="${hl}"><td class="left"><strong>${mod}</strong></td>`+
+        etapas.map(e=>`<td class="num">${fila[e]||''}</td>`).join('')+
+        `<td class="num" style="font-weight:600">${cierrePct}%</td></tr>`;
+    }).join('');
+    const tot = c.totales;
+    const tf = document.querySelector('#embudo-tbl tfoot');
+    const tCierre = tot[etapas[0]]? (100*tot[etapas[etapas.length-1]]/tot[etapas[0]]).toFixed(0):0;
+    tf.innerHTML = `<tr class="total"><td><strong>TOTAL</strong></td>`+
+      etapas.map(e=>`<td class="num" style="font-weight:700">${tot[e]||0}</td>`).join('')+
+      `<td class="num" style="font-weight:700">${tCierre}%</td></tr>`;
+  }
+  document.querySelector('.tab-btn[data-tab="embudo"]').addEventListener('click', ()=>{
+    if(!_embudoInit){ embudoInitFilters(); _embudoInit=true; }
+    renderEmbudo();
   });
 
   let compImpChart = null;

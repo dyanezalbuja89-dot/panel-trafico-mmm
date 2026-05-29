@@ -8,6 +8,14 @@ from pathlib import Path
 from inventario import load_inventario, DEFAULT_INVENTORY_PATH
 from conversion import compute_conversion_metrics, norm_ced as _conv_norm_ced, cedula_base as _conv_cedula_base, norm_email as _conv_norm_email, norm_cel as _conv_norm_cel
 from competencia import compute_competencia_data
+from embudo import compute_embudo_data
+
+def _compute_embudo_safe():
+    try:
+        return compute_embudo_data()
+    except Exception as e:
+        print(f"WARN: embudo no disponible: {e}")
+        return None
 
 BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Mayo")
 ABRIL_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Abril")
@@ -1121,6 +1129,8 @@ def main():
         ]) if DEFAULT_INVENTORY_PATH.exists() else None),
         # Análisis competitivo de importaciones Ford: ORGU vs QM
         "competencia_data": compute_competencia_data(),
+        # Embudo (funnel) de ventas por modelo y concesionario (CJA por ahora)
+        "embudo_data": _compute_embudo_safe(),
         # Análisis de conversión tráfico → venta (módulo aislado, no afecta el resto).
         # Cruza BDs históricos de tráfico contra DATOS (facturas) usando "client_key"
         # robusto (mismo cliente con cédula natural / RUC / persona-empresa).
