@@ -316,7 +316,7 @@ def compute_competencia_data(path=None):
             'qm_share_total':   round(100*qm_total/total, 1)   if total else 0,
             'orgu_share_2025': round(100*orgu_25/tot_25, 1) if tot_25 else None,
             'orgu_share_2026': round(100*orgu_26/tot_26, 1) if tot_26 else None,
-            'delta_share': (round(100*orgu_26/tot_26, 1) - round(100*orgu_25/tot_25, 1)
+            'delta_share': (round(round(100*orgu_26/tot_26, 1) - round(100*orgu_25/tot_25, 1), 1)
                             if (tot_25 and tot_26) else None),
             'cif_orgu_2026': round(_cif(sub,'ORGU',2026)),
             'cif_qm_2026': round(_cif(sub,'QM',2026)),

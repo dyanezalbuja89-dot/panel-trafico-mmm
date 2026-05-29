@@ -5127,7 +5127,7 @@ HTML = r"""<!doctype html>
           <td class="left"><strong>${s.modelo}</strong></td>
           <td class="num">${s.share_2025}%</td>
           <td class="num">${s.share_2026}%</td>
-          <td class="num" style="font-weight:700;color:${dCol}">${arrow} ${s.delta>=0?'+':''}${s.delta} pts</td>
+          <td class="num" style="font-weight:700;color:${dCol}">${arrow} ${s.delta>=0?'+':''}${s.delta.toFixed(1)} pts</td>
           <td class="num" style="color:var(--muted)">${s.orgu_2025}/${s.qm_2025}</td>
           <td class="num" style="color:var(--muted)">${s.orgu_2026}/${s.qm_2026}</td>
         </tr>`;
@@ -5144,7 +5144,7 @@ HTML = r"""<!doctype html>
                      : 'red';
       const deltaShare = m.delta_share;
       const deltaCell = deltaShare == null ? '<td class="num" style="color:var(--muted)">—</td>'
-                      : `<td class="num" style="color:${deltaShare>=0?'var(--pos)':'var(--neg)'};font-weight:600">${deltaShare>=0?'+':''}${deltaShare} pts</td>`;
+                      : `<td class="num" style="color:${deltaShare>=0?'var(--pos)':'var(--neg)'};font-weight:600">${deltaShare>=0?'+':''}${deltaShare.toFixed(1)} pts</td>`;
       return `<tr>
         <td class="left"><strong>${m.modelo}</strong></td>
         <td class="num">${m.orgu_2025||''}</td>
