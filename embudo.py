@@ -132,19 +132,29 @@ def _norm_asesor(s):
     return s or None
 
 
+def _norm_canal(s):
+    if not isinstance(s, str):
+        return None
+    s = s.strip()
+    if not s or s.lower() == 'nan':
+        return None
+    return s
+
+
 def _load_stage(path):
-    """Lee un archivo de etapa, devuelve DataFrame con id + MODELO_N + ASESOR,
+    """Lee un archivo de etapa, devuelve DataFrame con id + MODELO_N + ASESOR + CANAL,
     explotando los registros multi-modelo (una fila por (id, modelo))."""
     df = pd.read_excel(path, sheet_name=0)
     if 'Modelo' not in df.columns or 'id' not in df.columns:
-        return pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR'])
+        return pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL'])
     rows = []
     for _, r in df.iterrows():
         if pd.isna(r['id']):
             continue
         ase = _norm_asesor(r.get('Asesor'))
+        canal = _norm_canal(r.get('Canal'))
         for mod in _split_modelos(r['Modelo']):
-            rows.append({'id': r['id'], 'MODELO_N': mod, 'ASESOR': ase})
+            rows.append({'id': r['id'], 'MODELO_N': mod, 'ASESOR': ase, 'CANAL': canal})
     return pd.DataFrame(rows)
 
 
@@ -234,6 +244,26 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         if sum(fila.values()) > 0:
             por_asesor[ase] = fila
 
+    # ── MATRIZ asesor × canal con cotizaciones y cierres ──
+    # Para que la "tasa de cierre por asesor × canal" sea consistente, se usa
+    # el archivo Cierre.xlsx (que tiene Canal y Asesor) como numerador, y
+    # Cotizaciones.xlsx como denominador.
+    cotiz_ase_ch = {}  # {asesor: {canal: n_negocios_únicos}}
+    cierre_ase_ch = {}
+    df_cot = stage_dfs.get('Cotización', pd.DataFrame())
+    df_cie = stage_dfs.get('Cierre', pd.DataFrame())
+    # Cotización: negocios únicos (id) por (asesor, canal)
+    if not df_cot.empty:
+        dedup = df_cot.dropna(subset=['ASESOR','CANAL']).drop_duplicates(subset=['id','ASESOR','CANAL'])
+        for _, r in dedup.iterrows():
+            cotiz_ase_ch.setdefault(r['ASESOR'], {})
+            cotiz_ase_ch[r['ASESOR']][r['CANAL']] = cotiz_ase_ch[r['ASESOR']].get(r['CANAL'],0)+1
+    if not df_cie.empty:
+        dedup = df_cie.dropna(subset=['ASESOR','CANAL']).drop_duplicates(subset=['id','ASESOR','CANAL'])
+        for _, r in dedup.iterrows():
+            cierre_ase_ch.setdefault(r['ASESOR'], {})
+            cierre_ase_ch[r['ASESOR']][r['CANAL']] = cierre_ase_ch[r['ASESOR']].get(r['CANAL'],0)+1
+
     # Conversión de CADA etapa vs la base del embudo (Cotización = labels[0])
     base = totales[labels[0]]
     conv = {}
@@ -248,6 +278,8 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         'por_modelo': por_modelo,
         'por_version': por_version,
         'por_asesor': por_asesor,
+        'cotiz_asesor_canal': cotiz_ase_ch,
+        'cierre_asesor_canal': cierre_ase_ch,
         'conversion_etapa': conv,
         'conversion_total': conv_total,
         'cierre_fuente': 'inventario (ventas facturadas)',

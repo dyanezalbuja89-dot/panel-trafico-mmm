@@ -1926,6 +1926,19 @@ HTML = r"""<!doctype html>
       <div class="footer-note" style="margin-top:8px">El asesor del Cierre se toma del ASESOR_FACTURACION del inventario (matcheado por nombre con el asesor del embudo). El % de cierre mide la efectividad de cada asesor para convertir cotizaciones en ventas.</div>
     </div>
 
+    <!-- TABLERO: TASA DE CIERRE POR ASESOR × CANAL -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>📊 Tasa de cierre por asesor × canal <span class="sub">cierres ÷ cotizaciones por cada combinación asesor + canal de origen</span></h3>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="embudo-asecanal-tbl">
+          <thead><tr id="embudo-asecanal-head"><th>Asesor</th></tr></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
+      <div class="footer-note" style="margin-top:8px">Cada celda: <strong>cierres / cotizaciones (%)</strong>. El canal indica de dónde vino originalmente el prospecto (Showroom, Digital, Hubspot, etc.). Verde ≥30%, amarillo 15-30%, rojo &lt;15%. Para detectar qué canal funciona mejor con cada asesor.</div>
+    </div>
+
     <!-- INSIGHTS AUTOMÁTICOS -->
     <div class="ford-section" style="margin-top:18px">
       <h3>💡 Hallazgos automáticos <span class="sub">se recalculan según los filtros de meses y modelo</span></h3>
@@ -5106,6 +5119,7 @@ HTML = r"""<!doctype html>
     }
     if(!etapas) return null;
     const totales = {}; const por_modelo = {}; const por_asesor = {};
+    const cotiz_asesor_canal = {}; const cierre_asesor_canal = {};
     const por_agencia = {}; // agregado por agencia para insights comparativos
     etapas.forEach(e=> totales[e]=0);
     let mesesUsados = new Set();
@@ -5126,9 +5140,19 @@ HTML = r"""<!doctype html>
           por_asesor[ase] = por_asesor[ase] || {};
           etapas.forEach(e=> por_asesor[ase][e]=(por_asesor[ase][e]||0)+(fila[e]||0));
         });
+        // matrices asesor × canal (cotiz + cierre)
+        Object.entries(c.cotiz_asesor_canal||{}).forEach(([ase,chs])=>{
+          cotiz_asesor_canal[ase] = cotiz_asesor_canal[ase] || {};
+          Object.entries(chs).forEach(([ch,n])=> cotiz_asesor_canal[ase][ch]=(cotiz_asesor_canal[ase][ch]||0)+n);
+        });
+        Object.entries(c.cierre_asesor_canal||{}).forEach(([ase,chs])=>{
+          cierre_asesor_canal[ase] = cierre_asesor_canal[ase] || {};
+          Object.entries(chs).forEach(([ch,n])=> cierre_asesor_canal[ase][ch]=(cierre_asesor_canal[ase][ch]||0)+n);
+        });
       });
     });
     return { etapas, totales, por_modelo, por_asesor, por_agencia,
+             cotiz_asesor_canal, cierre_asesor_canal,
              meses: Array.from(mesesUsados).sort((a,b)=>
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(a)-
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(b)),
@@ -5275,8 +5299,63 @@ HTML = r"""<!doctype html>
       etapas.map(e=>`<td class="num" style="font-weight:700">${aTot[e]||0}</td>`).join('')+
       `<td class="num" style="font-weight:700">${aCierre}%</td></tr>`;
 
+    // ─── TABLERO: TASA DE CIERRE POR ASESOR × CANAL ───
+    renderEmbudoAsesorCanal(c);
+
     // ─── INSIGHTS AUTOMÁTICOS ───
     renderEmbudoInsights(c, modelo);
+  }
+
+  function renderEmbudoAsesorCanal(c){
+    const cot = c.cotiz_asesor_canal || {};
+    const cie = c.cierre_asesor_canal || {};
+    // Canales únicos
+    const setCh = new Set();
+    Object.values(cot).forEach(o=> Object.keys(o).forEach(k=> setCh.add(k)));
+    Object.values(cie).forEach(o=> Object.keys(o).forEach(k=> setCh.add(k)));
+    const canales = Array.from(setCh).sort();
+    // Asesores: unión de cot y cie, ordenado por total cierres
+    const setAse = new Set([...Object.keys(cot), ...Object.keys(cie)]);
+    const ases = Array.from(setAse).map(ase => {
+      const totC = canales.reduce((s,ch)=> s + ((cot[ase]||{})[ch]||0), 0);
+      const totK = canales.reduce((s,ch)=> s + ((cie[ase]||{})[ch]||0), 0);
+      return { ase, totC, totK };
+    }).filter(x=> x.totC>0 || x.totK>0).sort((a,b)=> b.totK - a.totK);
+    const head = document.getElementById('embudo-asecanal-head');
+    head.innerHTML = '<th>Asesor</th>' + canales.map(ch=>`<th class="num">${ch}</th>`).join('') + '<th class="num">TOTAL</th>';
+    const tb = document.querySelector('#embudo-asecanal-tbl tbody');
+    function cellColor(rate){
+      if(rate==null) return '#9ca3af';
+      if(rate>=30) return '#16a34a';
+      if(rate>=15) return '#d97706';
+      return '#dc2626';
+    }
+    function cellHTML(co, ci){
+      if(!co && !ci) return '<td class="num" style="color:#cbd5e1">—</td>';
+      const rate = co? 100*ci/co : null;
+      const col = cellColor(rate);
+      const label = rate==null ? '—' : rate.toFixed(0)+'%';
+      return `<td class="num" style="line-height:1.2"><div style="font-weight:700;color:${col}">${label}</div>
+        <div style="font-size:10px;color:var(--muted)">${ci||0}/${co||0}</div></td>`;
+    }
+    tb.innerHTML = ases.length ? ases.map(({ase,totC,totK})=>{
+      const totRate = totC? 100*totK/totC : null;
+      return `<tr><td class="left"><strong>${ase}</strong></td>`+
+        canales.map(ch => cellHTML((cot[ase]||{})[ch]||0, (cie[ase]||{})[ch]||0)).join('')+
+        cellHTML(totC, totK)+
+        `</tr>`;
+    }).join('') : `<tr><td colspan="${canales.length+2}" style="text-align:center;color:var(--muted);padding:14px">Sin datos para esta selección</td></tr>`;
+    // Footer: totales por canal
+    const totCh = canales.map(ch=>{
+      const co = ases.reduce((s,{ase})=> s+((cot[ase]||{})[ch]||0), 0);
+      const ci = ases.reduce((s,{ase})=> s+((cie[ase]||{})[ch]||0), 0);
+      return {co, ci};
+    });
+    const tC = totCh.reduce((s,x)=>s+x.co,0), tK = totCh.reduce((s,x)=>s+x.ci,0);
+    document.querySelector('#embudo-asecanal-tbl tfoot').innerHTML =
+      `<tr class="total"><td><strong>TOTAL canal</strong></td>` +
+      totCh.map(x=> cellHTML(x.co, x.ci)).join('') +
+      cellHTML(tC, tK) + `</tr>`;
   }
 
   function renderEmbudoInsights(c, modeloFiltro){
@@ -5397,9 +5476,30 @@ HTML = r"""<!doctype html>
       });
     }
 
-    el.innerHTML = insights.length===0 ?
-      '<p style="color:var(--muted);text-align:center;padding:14px">Sin hallazgos relevantes para esta selección de filtros.</p>' :
-      insights.map(ins => `<div class="insight-card ${ins.tipo}"><h4>${ins.titulo}</h4><p>${ins.html}</p></div>`).join('');
+    if(insights.length===0){
+      el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:14px">Sin hallazgos relevantes para esta selección de filtros.</p>';
+      return;
+    }
+    // Agrupar por severidad y renderizar en secciones
+    const GROUPS = [
+      {key:'bad',  label:'🚨 Críticos',          color:'#dc2626', bg:'#fef2f2'},
+      {key:'warn', label:'⚠️ Alertas',           color:'#d97706', bg:'#fff7ed'},
+      {key:'info', label:'💡 Oportunidades',     color:'#1976d2', bg:'#eff6ff'},
+      {key:'good', label:'🏆 Fortalezas',        color:'#16a34a', bg:'#f0fdf4'},
+    ];
+    const byGroup = {bad:[], warn:[], info:[], good:[]};
+    insights.forEach(ins => (byGroup[ins.tipo] || byGroup.info).push(ins));
+    el.innerHTML = GROUPS.filter(g=> byGroup[g.key].length>0).map(g => `
+      <div style="margin-bottom:18px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:6px 10px;background:${g.bg};border-radius:8px;border-left:4px solid ${g.color}">
+          <span style="font-weight:700;font-size:14px;color:${g.color}">${g.label}</span>
+          <span style="font-size:11px;color:var(--muted)">${byGroup[g.key].length} hallazgo${byGroup[g.key].length>1?'s':''}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px">
+          ${byGroup[g.key].map(ins => `<div class="insight-card ${ins.tipo}"><h4>${ins.titulo}</h4><p>${ins.html}</p></div>`).join('')}
+        </div>
+      </div>
+    `).join('');
   }
   document.querySelector('.tab-btn[data-tab="embudo"]').addEventListener('click', ()=>{
     if(!_embudoInit){ embudoInitFilters(); _embudoInit=true; }
