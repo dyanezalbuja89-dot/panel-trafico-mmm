@@ -34,9 +34,9 @@ AGENCY_INV_KEYWORD = {
 # Agencia → región/provincia (para filtro regional)
 AGENCY_REGION = {
     'CJA':       'Guayas',
+    'Orellana':  'Guayas',     # Av. Orellana (Guayaquil)
     'Manta':     'Manabí',
     'Portoviejo':'Manabí',
-    'Orellana':  'Pichincha',  # Av. Orellana (Quito)
     'La Y':      'Pichincha',
     'Tumbaco':   'Pichincha',
     'Machala':   'El Oro',
