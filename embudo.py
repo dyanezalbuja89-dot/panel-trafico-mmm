@@ -211,7 +211,8 @@ def compute_embudo_data():
         agencia_dir = EMBUDO_BASE / folder_name
         if not agencia_dir.exists():
             continue
-        meses = sorted([p.name for p in agencia_dir.iterdir() if p.is_dir()])
+        meses = sorted([p.name for p in agencia_dir.iterdir() if p.is_dir()],
+                       key=lambda m: MES_NUM.get(m, 99))  # orden cronológico, no alfabético
         out['meses'][short] = meses
         out['agencias'][short] = {}
         for mes in meses:
