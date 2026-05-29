@@ -1733,7 +1733,7 @@ HTML = r"""<!doctype html>
       </div>
 
       <div style="font-size:12px;color:var(--muted);margin:12px 0;line-height:1.5">
-        Datos consolidados de importaciones Ford a Ecuador (los 2 distribuidores autorizados). 15 modelos comerciales agrupando todas las variantes de SKU. Periodo Ene 2025 - May 2026.
+        Datos de importaciones Ford a Ecuador (2 distribuidores autorizados: ORGU/AUTOSHARECORP y QM/Quito Motors). Cada registro aduanero = 1 vehículo. Histórico 2024 · 2025 · 2026 (parcial, ene–may).
       </div>
 
       <!-- HERO KPIs -->
@@ -1742,6 +1742,13 @@ HTML = r"""<!doctype html>
         <div class="card-big"><div class="lbl">Total 2026 (parcial)</div><div class="val" id="comp-k-2026">—</div><div class="hint" id="comp-k-2026-hint"></div></div>
         <div class="card-big"><div class="lbl">Share ORGU 2025</div><div class="val" id="comp-k-share25">—</div><div class="hint">vs QM</div></div>
         <div class="card-big"><div class="lbl">Share ORGU 2026</div><div class="val pos" id="comp-k-share26">—</div><div class="hint" id="comp-k-delta"></div></div>
+      </div>
+
+      <!-- TENDENCIA 3 AÑOS + CIF -->
+      <div class="ford-section" style="margin-top:18px">
+        <h3>📊 Evolución del share ORGU (3 años) <span class="sub">unidades importadas · ORGU vs QM</span></h3>
+        <div id="comp-3yr" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:12px"></div>
+        <div id="comp-cif" style="font-size:13px;color:var(--muted);background:#faf5ff;padding:12px;border-radius:8px"></div>
       </div>
 
       <!-- INSIGHTS -->
@@ -4941,6 +4948,34 @@ HTML = r"""<!doctype html>
     deltaEl.style.color = delta>=0 ? 'var(--pos)' : 'var(--neg)';
     const shareEl = document.getElementById('comp-k-share26');
     shareEl.className = 'val ' + (delta>=0?'pos':'neg');
+
+    // TENDENCIA 3 AÑOS
+    const yr3 = document.getElementById('comp-3yr');
+    if(yr3){
+      const years = [
+        {y:'2024', o:t.orgu_2024, q:t.qm_2024, tot:t.tot_2024, sh:t.orgu_share_2024, note:'12 meses'},
+        {y:'2025', o:t.orgu_2025, q:t.qm_2025, tot:t.tot_2025, sh:t.orgu_share_2025, note:'12 meses'},
+        {y:'2026', o:t.orgu_2026, q:t.qm_2026, tot:t.tot_2026, sh:t.orgu_share_2026, note:'ene–may (parcial)'},
+      ];
+      yr3.innerHTML = years.map(yr=>{
+        const lead = yr.sh>=50;
+        const col = lead ? '#16a34a' : '#dc2626';
+        return `<div class="card-big" style="border:1px solid ${lead?'#bbf7d0':'#fecaca'}">
+          <div class="lbl">${yr.y} · ${yr.note}</div>
+          <div class="val" style="color:${col}">${yr.sh}% <span style="font-size:13px;font-weight:600;color:var(--muted)">ORGU</span></div>
+          <div class="hint">ORGU ${fmt(yr.o)} · QM ${fmt(yr.q)} · total ${fmt(yr.tot)} ${lead?'· ORGU lidera':'· QM lidera'}</div>
+        </div>`;
+      }).join('');
+    }
+    // CIF 2026
+    const cifEl = document.getElementById('comp-cif');
+    if(cifEl && (t.cif_orgu_2026 || t.cif_qm_2026)){
+      const fUSD = n => 'USD ' + (n||0).toLocaleString('es-EC',{maximumFractionDigits:0});
+      const totCif = (t.cif_orgu_2026||0)+(t.cif_qm_2026||0);
+      const pctO = totCif? Math.round(100*t.cif_orgu_2026/totCif):0;
+      cifEl.innerHTML = `<strong>💵 Inversión CIF en importación 2026:</strong> ORGU ${fUSD(t.cif_orgu_2026)} (${pctO}%) · QM ${fUSD(t.cif_qm_2026)} (${100-pctO}%). `+
+        `<span style="color:#9333ea">El CIF es el valor aduanero (costo+seguro+flete) de los vehículos importados. Nota: se excluyeron 32 registros de mayo con cantidad/CIF mal capturados (=100.000).</span>`;
+    }
 
     // INSIGHTS
     const insWrap = document.getElementById('comp-imp-insights');

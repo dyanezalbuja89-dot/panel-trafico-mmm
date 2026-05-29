@@ -56,6 +56,8 @@ def consolidate_model(raw_name):
     # Reglas con prioridad (más específicas primero)
     if 'TERRITORY TITANIUM' in n:
         return 'TERRITORY TITANIUM'
+    if 'TERRITORY TREND' in n:
+        return 'TERRITORY TREND'
     if 'EVEREST ACTIVE' in n:
         return 'EVEREST ACTIVE'
     if 'EVEREST TITANIUM' in n:
@@ -89,126 +91,170 @@ def consolidate_model(raw_name):
         return 'BRONCO 2.7'
     if 'F150 RAPTOR' in n or 'F-150 RAPTOR' in n:
         return 'F150 RAPTOR'
+    if ('F150' in n or 'F-150' in n) and 'XLT' in n:
+        return 'F150 XLT'
+    if ('F150' in n or 'F-150' in n) and 'LARIAT' in n:
+        return 'F150 LARIAT'
+    if ('F150' in n or 'F-150' in n) and 'PLATINUM' in n:
+        return 'F150 PLATINUM'
+    if 'MAVERICK' in n:
+        return 'MAVERICK'
+    if 'BRONCO' in n:
+        return 'BRONCO'
+    if 'EDGE' in n:
+        return 'EDGE'
 
     # No matched → devolver el original (para revisar manualmente luego)
     return raw_name.strip()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Parseo del archivo
+# Parseo de archivos aduaneros crudos (formato 2026: BD AUTOSHARECORP / BD QM)
+#   - Una fila por importación (cada fila = 1 vehículo)
+#   - 3 hojas: 2024, 2025, 2026
+#   - Columnas: DIA, MES, AÑO, MARCA, MODELO MERCADERIA, CANTIDAD, US$ CIF, ...
 # ─────────────────────────────────────────────────────────────────────────────
-def is_distributor_row(label):
-    if not isinstance(label, str):
-        return None
-    up = label.upper()
-    if 'AUTOSHARECORP' in up:
-        return 'ORGU'
-    if 'QUITO MOTORS' in up:
-        return 'QM'
-    return None
+# Archivos aduaneros: (nombre_que_contiene, distribuidor)
+_ADUANA_FILES = [
+    ('BD AUTOSHARECORP', 'ORGU'),
+    ('BD QM', 'QM'),
+]
+_ADUANA_DIRS = [
+    Path("/Users/danielyanezalbuja/Downloads"),
+    Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Inventrario"),
+]
 
 
-def parse_imports_file(path):
-    """Parsea el archivo y devuelve filas planas:
-    [{modelo, distribuidor, ym, cantidad}, ...]"""
-    df = pd.read_excel(path, sheet_name=0, header=None)
-    # Headers de fecha en fila 5
-    header_row = 5
-    headers = df.iloc[header_row].tolist()
-    # Identificar columnas mes (formato 'M/D/YYYY' como string, o datetime)
-    month_cols = []
-    for col_idx, h in enumerate(headers):
-        if pd.isna(h):
-            continue
-        ym = None
-        if hasattr(h, 'year'):
-            ym = h.strftime('%Y-%m')
-        elif isinstance(h, str):
-            # Formato "M/D/YYYY" típico de pivot table
-            try:
-                d = pd.to_datetime(h, format='%m/%d/%Y', errors='coerce')
-                if pd.isna(d):
-                    d = pd.to_datetime(h, errors='coerce')
-                if pd.notna(d):
-                    ym = d.strftime('%Y-%m')
-            except Exception:
-                pass
-        if ym:
-            month_cols.append({'col': col_idx, 'ym': ym})
+def find_aduana_files():
+    """Devuelve {distribuidor: path} para los archivos aduaneros ORGU/QM."""
+    found = {}
+    for needle, dist in _ADUANA_FILES:
+        for d in _ADUANA_DIRS:
+            if not d.exists():
+                continue
+            cands = [p for p in d.glob('*.xlsx')
+                     if needle.upper() in p.name.upper() and not p.name.startswith('~$')]
+            if cands:
+                cands.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+                found[dist] = cands[0]
+                break
+    return found
 
-    # Iterar filas de modelo / distribuidor
+
+def parse_aduana_file(path, distribuidor):
+    """Lee las 3 hojas (2024/2025/2026) de un archivo aduanero y devuelve filas
+    planas. Cada fila = 1 vehículo (se cuenta por registro, robusto ante el
+    error de captura donde CANTIDAD=100000 en algunos lotes)."""
     rows = []
-    current_model = None
-    for r in range(header_row + 1, len(df)):
-        label = df.iloc[r, 0]
-        if pd.isna(label):
+    xl = pd.ExcelFile(path)
+    for sheet in xl.sheet_names:
+        try:
+            anio_sheet = int(str(sheet).strip())
+        except (ValueError, TypeError):
             continue
-        label_str = str(label).strip()
-        if not label_str or label_str.upper() == 'TOTAL GENERAL':
+        df = pd.read_excel(path, sheet_name=sheet)
+        cols = {str(c).strip().upper(): c for c in df.columns}
+        col_marca  = cols.get('MARCA')
+        col_modelo = cols.get('MODELO MERCADERIA') or cols.get('MODELO')
+        col_mes    = cols.get('MES')
+        col_anio   = cols.get('AÑO') or cols.get('ANO') or cols.get('AÑO ')
+        col_cant   = cols.get('CANTIDAD')
+        col_cif    = cols.get('US$ CIF') or cols.get('US$CIF')
+        if col_modelo is None:
             continue
-        dist = is_distributor_row(label_str)
-        if dist is None:
-            # Es una fila de modelo
-            current_model = label_str
-            continue
-        if current_model is None:
-            continue
-        # Es una subfila de distribuidor
-        consolidated = consolidate_model(current_model)
-        for mc in month_cols:
-            v = df.iloc[r, mc['col']]
-            if pd.notna(v):
+        for _, r in df.iterrows():
+            marca = str(r.get(col_marca, '')).upper()
+            if 'FORD' not in marca:
+                continue
+            modelo_raw = r.get(col_modelo)
+            if pd.isna(modelo_raw):
+                continue
+            mes = r.get(col_mes)
+            anio = r.get(col_anio)
+            try:
+                anio = int(anio) if pd.notna(anio) else anio_sheet
+            except (ValueError, TypeError):
+                anio = anio_sheet
+            try:
+                mes = int(mes) if pd.notna(mes) else 0
+            except (ValueError, TypeError):
+                mes = 0
+            ym = f"{anio:04d}-{mes:02d}" if mes else f"{anio:04d}-00"
+            # cantidad: cada fila = 1 vehículo (el campo CANTIDAD tiene errores
+            # de captura tipo 100000; contamos por registro)
+            cant = 1
+            cif = 0.0
+            if col_cif is not None:
                 try:
-                    qty = int(v)
-                    if qty > 0:
-                        rows.append({
-                            'modelo_raw': current_model,
-                            'modelo': consolidated,
-                            'distribuidor': dist,
-                            'ym': mc['ym'],
-                            'cantidad': qty,
-                        })
+                    cif_raw = float(r.get(col_cif) or 0)
+                    # Si la cantidad capturada era anómala, el CIF también puede
+                    # estar inflado; lo descartamos para no contaminar el total.
+                    cant_raw = r.get(col_cant)
+                    cant_raw = float(cant_raw) if pd.notna(cant_raw) else 1
+                    cif = cif_raw if cant_raw < 1000 else 0.0
                 except (ValueError, TypeError):
-                    pass
-    return pd.DataFrame(rows), [mc['ym'] for mc in month_cols]
+                    cif = 0.0
+            rows.append({
+                'modelo_raw': str(modelo_raw).strip(),
+                'modelo': consolidate_model(str(modelo_raw)),
+                'distribuidor': distribuidor,
+                'anio': anio,
+                'ym': ym,
+                'cantidad': cant,
+                'cif': cif,
+            })
+    return rows
+
+
+def parse_imports_aduana(files_map):
+    """Une los archivos ORGU + QM en un solo DataFrame plano."""
+    all_rows = []
+    for dist, path in files_map.items():
+        all_rows.extend(parse_aduana_file(path, dist))
+    df = pd.DataFrame(all_rows)
+    if df.empty:
+        return df, []
+    all_months = sorted([ym for ym in df['ym'].unique() if not ym.endswith('-00')])
+    return df, all_months
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Agregación para el panel
 # ─────────────────────────────────────────────────────────────────────────────
 def compute_competencia_data(path=None):
-    if path is None:
-        path = find_latest_imports()
-    if path is None or not Path(path).exists():
+    files_map = find_aduana_files()
+    if not files_map:
         return None
-    df, all_months = parse_imports_file(path)
+    df, all_months = parse_imports_aduana(files_map)
     if df.empty:
         return None
 
-    # Año desde ym
-    df['anio'] = df['ym'].str[:4].astype(int)
+    def _u(sub, dist, anio):
+        return int(len(sub[(sub['distribuidor']==dist) & (sub['anio']==anio)]))
+    def _cif(sub, dist, anio):
+        return float(sub[(sub['distribuidor']==dist) & (sub['anio']==anio)]['cif'].sum())
 
     # Agregar por modelo
     modelos_data = []
     for modelo in df['modelo'].unique():
         sub = df[df['modelo'] == modelo]
-        orgu_25 = int(sub[(sub['distribuidor']=='ORGU') & (sub['anio']==2025)]['cantidad'].sum())
-        qm_25   = int(sub[(sub['distribuidor']=='QM')   & (sub['anio']==2025)]['cantidad'].sum())
-        orgu_26 = int(sub[(sub['distribuidor']=='ORGU') & (sub['anio']==2026)]['cantidad'].sum())
-        qm_26   = int(sub[(sub['distribuidor']=='QM')   & (sub['anio']==2026)]['cantidad'].sum())
+        orgu_24 = _u(sub,'ORGU',2024); qm_24 = _u(sub,'QM',2024)
+        orgu_25 = _u(sub,'ORGU',2025); qm_25 = _u(sub,'QM',2025)
+        orgu_26 = _u(sub,'ORGU',2026); qm_26 = _u(sub,'QM',2026)
+        tot_24 = orgu_24 + qm_24
         tot_25 = orgu_25 + qm_25
         tot_26 = orgu_26 + qm_26
-        total  = tot_25 + tot_26
-        orgu_total = orgu_25 + orgu_26
-        qm_total   = qm_25 + qm_26
-        # Series mensuales para gráfica (separadas por distribuidor)
+        total  = tot_24 + tot_25 + tot_26
+        orgu_total = orgu_24 + orgu_25 + orgu_26
+        qm_total   = qm_24 + qm_25 + qm_26
         mensual = {}
         for ym in all_months:
-            o = int(sub[(sub['distribuidor']=='ORGU') & (sub['ym']==ym)]['cantidad'].sum())
-            q = int(sub[(sub['distribuidor']=='QM')   & (sub['ym']==ym)]['cantidad'].sum())
+            o = int(len(sub[(sub['distribuidor']=='ORGU') & (sub['ym']==ym)]))
+            q = int(len(sub[(sub['distribuidor']=='QM')   & (sub['ym']==ym)]))
             mensual[ym] = {'orgu': o, 'qm': q}
         modelos_data.append({
             'modelo': modelo,
+            'orgu_2024': orgu_24, 'qm_2024': qm_24, 'tot_2024': tot_24,
             'orgu_2025': orgu_25, 'qm_2025': qm_25, 'tot_2025': tot_25,
             'orgu_2026': orgu_26, 'qm_2026': qm_26, 'tot_2026': tot_26,
             'total': total,
@@ -219,25 +265,33 @@ def compute_competencia_data(path=None):
             'orgu_share_2026': round(100*orgu_26/tot_26, 1) if tot_26 else None,
             'delta_share': (round(100*orgu_26/tot_26, 1) - round(100*orgu_25/tot_25, 1)
                             if (tot_25 and tot_26) else None),
+            'cif_orgu_2026': round(_cif(sub,'ORGU',2026)),
+            'cif_qm_2026': round(_cif(sub,'QM',2026)),
             'mensual': mensual,
         })
     modelos_data.sort(key=lambda m: -m['total'])
 
     # Totales globales
     tot = {
+        'orgu_2024': sum(m['orgu_2024'] for m in modelos_data),
+        'qm_2024':   sum(m['qm_2024']   for m in modelos_data),
         'orgu_2025': sum(m['orgu_2025'] for m in modelos_data),
         'qm_2025':   sum(m['qm_2025']   for m in modelos_data),
         'orgu_2026': sum(m['orgu_2026'] for m in modelos_data),
         'qm_2026':   sum(m['qm_2026']   for m in modelos_data),
     }
+    tot['tot_2024'] = tot['orgu_2024'] + tot['qm_2024']
     tot['tot_2025'] = tot['orgu_2025'] + tot['qm_2025']
     tot['tot_2026'] = tot['orgu_2026'] + tot['qm_2026']
-    tot['total']    = tot['tot_2025'] + tot['tot_2026']
-    tot['orgu_total'] = tot['orgu_2025'] + tot['orgu_2026']
-    tot['qm_total']   = tot['qm_2025'] + tot['qm_2026']
+    tot['total']    = tot['tot_2024'] + tot['tot_2025'] + tot['tot_2026']
+    tot['orgu_total'] = tot['orgu_2024'] + tot['orgu_2025'] + tot['orgu_2026']
+    tot['qm_total']   = tot['qm_2024'] + tot['qm_2025'] + tot['qm_2026']
+    tot['orgu_share_2024'] = round(100*tot['orgu_2024']/tot['tot_2024'], 1) if tot['tot_2024'] else 0
     tot['orgu_share_2025'] = round(100*tot['orgu_2025']/tot['tot_2025'], 1) if tot['tot_2025'] else 0
     tot['orgu_share_2026'] = round(100*tot['orgu_2026']/tot['tot_2026'], 1) if tot['tot_2026'] else 0
     tot['delta_share_total'] = round(tot['orgu_share_2026'] - tot['orgu_share_2025'], 1)
+    tot['cif_orgu_2026'] = round(float(df[(df['distribuidor']=='ORGU') & (df['anio']==2026)]['cif'].sum()))
+    tot['cif_qm_2026']   = round(float(df[(df['distribuidor']=='QM')   & (df['anio']==2026)]['cif'].sum()))
 
     # Insights automáticos
     insights = []
@@ -311,7 +365,7 @@ def compute_competencia_data(path=None):
         })
 
     return {
-        'source_file': Path(path).name,
+        'source_file': ' + '.join(p.name for p in files_map.values()),
         'modelos': modelos_data,
         'totales': tot,
         'meses': all_months,
