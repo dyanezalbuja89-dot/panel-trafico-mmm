@@ -12,10 +12,63 @@ Construye:
   - Tasas de conversión entre etapas
 """
 from pathlib import Path
+import warnings
 import pandas as pd
+
+from inventario import DEFAULT_INVENTORY_PATH, normalize_familia, normalize_version
 
 EMBUDO_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/"
                    "Marketing/2026/Análisis de embudo")
+
+# Agencia embudo → keyword en AGENCIA_FACTURACION del inventario
+AGENCY_INV_KEYWORD = {
+    'CJA': 'CARLOS JULIO',
+}
+MES_NUM = {'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,
+           'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12}
+_INV_CACHE = {}
+
+
+def _load_inventory_sales():
+    """Carga las ventas facturadas del inventario (cache). DataFrame con
+    agencia_fact, fecha, MODELO (consolidado), VERSION."""
+    key = str(DEFAULT_INVENTORY_PATH)
+    if key in _INV_CACHE:
+        return _INV_CACHE[key]
+    if not DEFAULT_INVENTORY_PATH.exists():
+        _INV_CACHE[key] = None
+        return None
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        df = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS', header=0)
+    df.columns = [str(c).strip() for c in df.columns]
+    df['fac_dt'] = pd.to_datetime(df.get('fecha de facturacion'), errors='coerce')
+    df['marca_up'] = df.get('marca', 'FORD')
+    df['MODELO'] = df.apply(lambda r: normalize_familia(r.get('familia'), 'FORD'), axis=1)
+    df['VERSION'] = df.apply(lambda r: normalize_version(r.get('familia'), 'FORD'), axis=1)
+    out = df[['AGENCIA_FACTURACION', 'fac_dt', 'MODELO', 'VERSION']].dropna(subset=['fac_dt'])
+    _INV_CACHE[key] = out
+    return out
+
+
+def _ventas_inventario(agencia_short, mes, anio=2026):
+    """Cuenta ventas facturadas del inventario para una agencia/mes.
+    Devuelve (por_modelo {mod:n}, por_version {mod:{ver:n}}, total)."""
+    inv = _load_inventory_sales()
+    kw = AGENCY_INV_KEYWORD.get(agencia_short)
+    mnum = MES_NUM.get(mes)
+    if inv is None or not kw or not mnum:
+        return {}, {}, 0
+    sub = inv[inv['AGENCIA_FACTURACION'].astype(str).str.contains(kw, case=False, na=False)]
+    sub = sub[(sub['fac_dt'].dt.year == anio) & (sub['fac_dt'].dt.month == mnum)]
+    por_modelo, por_version = {}, {}
+    for _, r in sub.iterrows():
+        mod = r['MODELO'] or '(Sin modelo)'
+        ver = r['VERSION'] or mod
+        por_modelo[mod] = por_modelo.get(mod, 0) + 1
+        por_version.setdefault(mod, {})
+        por_version[mod][ver] = por_version[mod].get(ver, 0) + 1
+    return por_modelo, por_version, int(len(sub))
 
 # Orden del embudo: (nombre_archivo, etiqueta_panel)
 STAGES = [
@@ -67,7 +120,7 @@ def _load_stage(path):
     return pd.DataFrame(rows)
 
 
-def compute_embudo_agencia(agencia_dir, mes):
+def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     """Procesa el embudo de una agencia/mes. Devuelve dict con etapas, por_modelo, etc."""
     folder = agencia_dir / mes
     if not folder.exists():
@@ -82,44 +135,57 @@ def compute_embudo_agencia(agencia_dir, mes):
 
     labels = [lbl for _, lbl in STAGES]
 
-    # Totales por etapa = negocios únicos (id)
+    # ── CIERRE desde el INVENTARIO (ventas facturadas reales), no del archivo Cierre.xlsx ──
+    cierre_modelo, cierre_version, cierre_total = _ventas_inventario(short_agencia, mes)
+
+    # Totales por etapa = negocios únicos (id). Cierre = ventas facturadas inventario.
     totales = {}
     for lbl in labels:
-        totales[lbl] = int(stage_dfs[lbl]['id'].nunique())
+        if lbl == 'Cierre':
+            totales[lbl] = cierre_total
+        else:
+            totales[lbl] = int(stage_dfs[lbl]['id'].nunique())
 
-    # Por modelo × etapa = negocios únicos (id) que tienen ese modelo en esa etapa
+    # Modelos presentes (embudo + cierre inventario)
     modelos = set()
     for lbl in labels:
         modelos.update(stage_dfs[lbl]['MODELO_N'].dropna().unique().tolist())
+    modelos.update(cierre_modelo.keys())
     modelos.discard('(Sin modelo)')
     modelos = sorted(modelos)
 
     por_modelo = {}
+    por_version = {}  # {modelo: {version: cierre_count}} — solo cierre tiene versión
     for mod in modelos + ['(Sin modelo)']:
         fila = {}
         for lbl in labels:
-            d = stage_dfs[lbl]
-            fila[lbl] = int(d[d['MODELO_N'] == mod]['id'].nunique())
+            if lbl == 'Cierre':
+                fila[lbl] = int(cierre_modelo.get(mod, 0))
+            else:
+                d = stage_dfs[lbl]
+                fila[lbl] = int(d[d['MODELO_N'] == mod]['id'].nunique())
         if sum(fila.values()) > 0:
             por_modelo[mod] = fila
+            if mod in cierre_version:
+                por_version[mod] = dict(sorted(cierre_version[mod].items(),
+                                               key=lambda x: -x[1]))
 
-    # Tasas de conversión entre etapas consecutivas (global)
+    # Conversión de CADA etapa vs Tráfico (no vs etapa anterior)
+    base = totales['Tráfico']
     conv = {}
-    for i in range(1, len(labels)):
-        prev_lbl, cur_lbl = labels[i-1], labels[i]
-        p, c = totales[prev_lbl], totales[cur_lbl]
-        conv[cur_lbl] = round(100 * c / p, 1) if p else None
-
-    # Conversión total Tráfico → Cierre
-    conv_total = round(100 * totales['Cierre'] / totales['Tráfico'], 1) if totales['Tráfico'] else None
+    for lbl in labels:
+        conv[lbl] = round(100 * totales[lbl] / base, 1) if base else None
+    conv_total = conv['Cierre']
 
     return {
         'mes': mes,
         'etapas': labels,
         'totales': totales,
         'por_modelo': por_modelo,
-        'conversion_etapa': conv,
+        'por_version': por_version,
+        'conversion_etapa': conv,         # ahora todas vs Tráfico
         'conversion_total': conv_total,
+        'cierre_fuente': 'inventario (ventas facturadas)',
     }
 
 
@@ -134,7 +200,7 @@ def compute_embudo_data():
         out['meses'][short] = meses
         out['agencias'][short] = {}
         for mes in meses:
-            r = compute_embudo_agencia(agencia_dir, mes)
+            r = compute_embudo_agencia(agencia_dir, mes, short)
             if r:
                 out['agencias'][short][mes] = r
     if not out['agencias']:

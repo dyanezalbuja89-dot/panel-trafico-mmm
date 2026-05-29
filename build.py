@@ -1905,7 +1905,19 @@ HTML = r"""<!doctype html>
           <tfoot></tfoot>
         </table>
       </div>
-      <div class="footer-note" style="margin-top:8px">Cada celda = negocios únicos (por cédula/id) interesados en ese modelo en esa etapa. Un negocio que cotiza varios modelos cuenta en cada uno. Etapas Solicitud/Aprobación aplican solo a ventas con crédito; las de contado saltan directo a Cierre.</div>
+      <div class="footer-note" style="margin-top:8px">Cada celda = negocios únicos (por cédula/id) interesados en ese modelo en esa etapa. Un negocio que cotiza varios modelos cuenta en cada uno. <strong>Cierre = ventas facturadas reales del inventario</strong> (no el archivo de pre-facturación). Etapas Solicitud/Aprobación aplican solo a ventas con crédito; las de contado saltan directo a Cierre.</div>
+    </div>
+
+    <!-- CIERRE POR VERSIÓN -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>🔧 Cierre por versión <span class="sub">versiones vendidas (facturadas) según inventario · usa el filtro de Modelo de arriba</span></h3>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="embudo-version-tbl">
+          <thead><tr><th>Modelo</th><th>Versión</th><th class="num">Unidades cerradas</th></tr></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -5107,13 +5119,13 @@ HTML = r"""<!doctype html>
     funnelEl.innerHTML = etapas.map((e,i)=>{
       const v = vals[i];
       const w = Math.max(8, 100*v/top);
-      const convPrev = i>0 && vals[i-1] ? (100*v/vals[i-1]).toFixed(0) : null;
+      const convTraf = vals[0] ? (100*v/vals[0]).toFixed(0) : null;  // % vs Tráfico
       return `<div style="margin:6px 0;display:flex;align-items:center;gap:10px">
         <div style="width:96px;text-align:right;font-size:12px;font-weight:600;color:#374151">${e}</div>
         <div style="flex:1;background:#f1f5f9;border-radius:6px;overflow:hidden">
           <div style="width:${w}%;background:${EMBUDO_COLORS[i]};color:#fff;padding:8px 12px;border-radius:6px;font-weight:700;font-size:13px;white-space:nowrap">${v}</div>
         </div>
-        <div style="width:70px;font-size:11px;color:var(--muted)">${convPrev!=null?convPrev+'%':''}</div>
+        <div style="width:80px;font-size:11px;color:var(--muted)" title="% vs Tráfico">${convTraf!=null?convTraf+'% del tráf.':''}</div>
       </div>`;
     }).join('');
 
@@ -5136,6 +5148,22 @@ HTML = r"""<!doctype html>
     tf.innerHTML = `<tr class="total"><td><strong>TOTAL</strong></td>`+
       etapas.map(e=>`<td class="num" style="font-weight:700">${tot[e]||0}</td>`).join('')+
       `<td class="num" style="font-weight:700">${tCierre}%</td></tr>`;
+
+    // CIERRE POR VERSIÓN (respeta filtro de modelo)
+    const verTb = document.querySelector('#embudo-version-tbl tbody');
+    const verTf = document.querySelector('#embudo-version-tbl tfoot');
+    const pv = c.por_version || {};
+    const modsVer = modelo ? (pv[modelo]?[modelo]:[]) : Object.keys(pv);
+    let rows = [], totVer = 0;
+    modsVer.forEach(mod=>{
+      const vers = pv[mod] || {};
+      Object.entries(vers).forEach(([ver,n])=>{ rows.push([mod,ver,n]); totVer+=n; });
+    });
+    rows.sort((a,b)=> b[2]-a[2]);
+    verTb.innerHTML = rows.length ? rows.map(([mod,ver,n])=>
+      `<tr><td><strong>${mod}</strong></td><td>${ver}</td><td class="num" style="font-weight:600">${n}</td></tr>`).join('')
+      : '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:14px">Sin cierres para esta selección</td></tr>';
+    verTf.innerHTML = `<tr class="total"><td colspan="2"><strong>TOTAL cerrado</strong></td><td class="num" style="font-weight:700">${totVer}</td></tr>`;
   }
   document.querySelector('.tab-btn[data-tab="embudo"]').addEventListener('click', ()=>{
     if(!_embudoInit){ embudoInitFilters(); _embudoInit=true; }
