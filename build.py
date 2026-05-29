@@ -1908,6 +1908,19 @@ HTML = r"""<!doctype html>
       </div>
       <div class="footer-note" style="margin-top:8px">Cada celda = negocios únicos (por cédula/id) interesados en ese modelo en esa etapa. Un negocio que cotiza varios modelos cuenta en cada uno. <strong>Cierre = ventas facturadas reales del inventario</strong> (no el archivo de pre-facturación). Etapas Solicitud/Aprobación aplican solo a ventas con crédito; las de contado saltan directo a Cierre.</div>
     </div>
+
+    <!-- TABLA POR ASESOR -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>👤 Prospectos por asesor comercial y etapa <span class="sub">negocios únicos gestionados por cada asesor · respeta meses seleccionados</span></h3>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="embudo-asesor-tbl">
+          <thead><tr id="embudo-asesor-head"><th>Asesor</th></tr></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
+      <div class="footer-note" style="margin-top:8px">El asesor del Cierre se toma del ASESOR_FACTURACION del inventario (matcheado por nombre con el asesor del embudo). El % de cierre mide la efectividad de cada asesor para convertir cotizaciones en ventas.</div>
+    </div>
   </section>
 
   <!-- ======================= TAB OTROS (con password gate) ======================= -->
@@ -5063,7 +5076,7 @@ HTML = r"""<!doctype html>
     if(meses.length===0) return null;
     // etapas: de cualquier mes
     const etapas = agData[meses[0]].etapas;
-    const totales = {}; const por_modelo = {};
+    const totales = {}; const por_modelo = {}; const por_asesor = {};
     etapas.forEach(e=> totales[e]=0);
     meses.forEach(mes=>{
       const c = agData[mes];
@@ -5072,8 +5085,12 @@ HTML = r"""<!doctype html>
         por_modelo[mod] = por_modelo[mod] || {};
         etapas.forEach(e=> por_modelo[mod][e]=(por_modelo[mod][e]||0)+(fila[e]||0));
       });
+      Object.entries(c.por_asesor||{}).forEach(([ase,fila])=>{
+        por_asesor[ase] = por_asesor[ase] || {};
+        etapas.forEach(e=> por_asesor[ase][e]=(por_asesor[ase][e]||0)+(fila[e]||0));
+      });
     });
-    return { etapas, totales, por_modelo, meses };
+    return { etapas, totales, por_modelo, por_asesor, meses };
   }
   function embudoInitFilters(){
     const E = DATA.embudo_data; if(!E) return;
@@ -5185,6 +5202,26 @@ HTML = r"""<!doctype html>
     tf.innerHTML = `<tr class="total"><td><strong>TOTAL${modelo?' ('+modelo+')':''}</strong></td>`+
       etapas.map(e=>`<td class="num" style="font-weight:700">${totRow[e]||0}</td>`).join('')+
       `<td class="num" style="font-weight:700">${tCierre}%</td></tr>`;
+
+    // Tabla por ASESOR × etapa (suma meses seleccionados)
+    const aHead = document.getElementById('embudo-asesor-head');
+    aHead.innerHTML = '<th>Asesor</th>' + etapas.map(e=>`<th class="num">${e}</th>`).join('') + '<th class="num">% cierre</th>';
+    const aBody = document.querySelector('#embudo-asesor-tbl tbody');
+    const ases = Object.entries(c.por_asesor||{}).sort((a,b)=> (b[1][etapas[etapas.length-1]]||0)-(a[1][etapas[etapas.length-1]]||0));
+    aBody.innerHTML = ases.length ? ases.map(([ase,fila])=>{
+      const t = fila[etapas[0]]||0, ci = fila[etapas[etapas.length-1]]||0;
+      const cierrePct = t? (100*ci/t).toFixed(0):0;
+      return `<tr><td class="left"><strong>${ase}</strong></td>`+
+        etapas.map(e=>`<td class="num">${fila[e]||''}</td>`).join('')+
+        `<td class="num" style="font-weight:600">${cierrePct}%</td></tr>`;
+    }).join('') : `<tr><td colspan="${etapas.length+2}" style="text-align:center;color:var(--muted);padding:14px">Sin datos</td></tr>`;
+    const aTot = {}; etapas.forEach(e=> aTot[e]=0);
+    ases.forEach(([_,fila])=> etapas.forEach(e=> aTot[e]+=(fila[e]||0)));
+    const aCierre = aTot[etapas[0]]? (100*aTot[etapas[etapas.length-1]]/aTot[etapas[0]]).toFixed(0):0;
+    document.querySelector('#embudo-asesor-tbl tfoot').innerHTML =
+      `<tr class="total"><td><strong>TOTAL</strong></td>`+
+      etapas.map(e=>`<td class="num" style="font-weight:700">${aTot[e]||0}</td>`).join('')+
+      `<td class="num" style="font-weight:700">${aCierre}%</td></tr>`;
   }
   document.querySelector('.tab-btn[data-tab="embudo"]').addEventListener('click', ()=>{
     if(!_embudoInit){ embudoInitFilters(); _embudoInit=true; }
