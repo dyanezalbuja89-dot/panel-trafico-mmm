@@ -31,6 +31,24 @@ AGENCY_INV_KEYWORD = {
     'Machala':   'MACHALA',
 }
 
+# Asesores que tienen una sucursal "home" real distinta a donde aparecen
+# (por manejo de bodegas / asignación de unidades). Cuando aparecen FUERA de su
+# sucursal home, sus registros se reagrupan bajo el asesor virtual "Otros" para
+# no inflar el desempeño de la sucursal foránea.
+ASESOR_HOME = {
+    'KAREN FERNANDEZ BRAVO': 'Machala',
+    'VIVIANA VELEZ': 'Manta',
+    'LUIS ANDRES VILLAVICENCIO PERERO': 'Portoviejo',
+}
+
+# Asesores que no representan venta real (registros administrativos / bodegas).
+# Siempre se reagrupan bajo "Otros" en la sucursal donde aparezcan.
+ASESOR_AGRUPAR_OTROS = {
+    'DANIELA VILLOTA GUC',
+    'LINDA FREIRE PENAFIEL',
+    'NIZA TORRES CORDERO',
+}
+
 # Agencia → región/provincia (para filtro regional)
 AGENCY_REGION = {
     'CJA':       'Guayas',
@@ -252,6 +270,38 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         else:
             stage_dfs[label] = pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL'])
 
+    # ► Reasignación de asesores (home / Otros). Las filas se quedan en esta
+    # agencia pero el nombre del asesor pasa a "Otros" si:
+    #   - el asesor está en ASESOR_AGRUPAR_OTROS, o
+    #   - el asesor tiene un home distinto a esta agencia.
+    # El match es por tokens compartidos (≥2) para tolerar nombres cortos
+    # del CRM vs nombres largos del inventario.
+    def _matches_set(ase, dic_o_set):
+        if not ase:
+            return None
+        toks = set(ase.split())
+        for k in (dic_o_set if isinstance(dic_o_set, (set,dict)) else []):
+            if len(toks & set(k.split())) >= 2:
+                return k
+        return None
+    def _reasignar(ase):
+        if ase is None:
+            return ase
+        if ase in ASESOR_AGRUPAR_OTROS or _matches_set(ase, ASESOR_AGRUPAR_OTROS):
+            return 'Otros'
+        k = ASESOR_HOME.get(ase) and ase or _matches_set(ase, ASESOR_HOME)
+        if k:
+            home = ASESOR_HOME[k]
+            if home != short_agencia:
+                return 'Otros'
+        return ase
+    for lbl, df in list(stage_dfs.items()):
+        if df.empty or 'ASESOR' not in df.columns:
+            continue
+        df = df.copy()
+        df['ASESOR'] = df['ASESOR'].apply(_reasignar)
+        stage_dfs[lbl] = df
+
     labels = [lbl for _, lbl in STAGES]
 
     # Asesores canónicos (del embudo) para matchear con el inventario
@@ -263,6 +313,13 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     # ── CIERRE desde el INVENTARIO (ventas facturadas reales), no del archivo Cierre.xlsx ──
     cierre_modelo, cierre_version, cierre_asesor, cierre_total = _ventas_inventario(
         short_agencia, mes, asesores_canonicos=asesores_canon)
+    # Aplica la misma reasignación al asesor del inventario para que coincida con el embudo
+    if cierre_asesor:
+        nuevo = {}
+        for ase, n in cierre_asesor.items():
+            ase2 = _reasignar(ase)
+            nuevo[ase2] = nuevo.get(ase2, 0) + n
+        cierre_asesor = nuevo
 
     # Totales por etapa = negocios únicos (id). Cierre = ventas facturadas inventario.
     totales = {}
