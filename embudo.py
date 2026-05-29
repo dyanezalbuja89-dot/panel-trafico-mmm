@@ -125,10 +125,25 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     folder = agencia_dir / mes
     if not folder.exists():
         return None
+    def _find_stage_file(fname):
+        """Busca el archivo de etapa tolerando tildes/mayúsculas
+        (ej. 'Tráfico.xlsx' vs 'Trafico.xlsx')."""
+        import unicodedata
+        def _strip(s):
+            return ''.join(c for c in unicodedata.normalize('NFD', s)
+                           if unicodedata.category(c) != 'Mn').lower()
+        target = _strip(fname)
+        for p in folder.glob('*.xlsx'):
+            if p.name.startswith('~$'):
+                continue
+            if _strip(p.stem) == target:
+                return p
+        return None
+
     stage_dfs = {}
     for fname, label in STAGES:
-        p = folder / f"{fname}.xlsx"
-        if p.exists():
+        p = _find_stage_file(fname)
+        if p and p.exists():
             stage_dfs[label] = _load_stage(p)
         else:
             stage_dfs[label] = pd.DataFrame(columns=['id', 'MODELO_N'])
