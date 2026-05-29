@@ -1914,6 +1914,12 @@
       </div>
       <div class="footer-note" style="margin-top:8px">El asesor del Cierre se toma del ASESOR_FACTURACION del inventario (matcheado por nombre con el asesor del embudo). El % de cierre mide la efectividad de cada asesor para convertir cotizaciones en ventas.</div>
     </div>
+
+    <!-- INSIGHTS AUTOMÁTICOS -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>💡 Hallazgos automáticos <span class="sub">se recalculan según los filtros de meses y modelo</span></h3>
+      <div id="embudo-insights"></div>
+    </div>
   </section>
 
   <!-- ======================= TAB OTROS (con password gate) ======================= -->
@@ -5215,6 +5221,106 @@
       `<tr class="total"><td><strong>TOTAL</strong></td>`+
       etapas.map(e=>`<td class="num" style="font-weight:700">${aTot[e]||0}</td>`).join('')+
       `<td class="num" style="font-weight:700">${aCierre}%</td></tr>`;
+
+    // ─── INSIGHTS AUTOMÁTICOS ───
+    renderEmbudoInsights(c, modelo);
+  }
+
+  function renderEmbudoInsights(c, modeloFiltro){
+    const el = document.getElementById('embudo-insights'); if(!el) return;
+    const insights = [];
+    const etapas = c.etapas;
+    const E0 = etapas[0], EC = etapas[etapas.length-1], EP = etapas[1]; // Cotiz, Cierre, Presentación
+    const fPct = v => (v||0).toFixed(0)+'%';
+
+    // ── 1. Mejor asesor (eficiencia: cotiz→presentación + cierre) ──
+    const ases = Object.entries(c.por_asesor||{}).filter(([_,f])=> f[E0]>=10);
+    if(ases.length>=2){
+      const conPres = ases.map(([n,f])=>({n, cotiz:f[E0], pres:f[EP], cierre:f[EC],
+        presPct: f[E0]? 100*f[EP]/f[E0]:0, ciePct: f[E0]? 100*f[EC]/f[E0]:0}));
+      const topPres = [...conPres].sort((a,b)=> b.presPct - a.presPct)[0];
+      const topCie  = [...conPres].sort((a,b)=> b.ciePct - a.ciePct)[0];
+      const avgPres = conPres.reduce((s,x)=>s+x.presPct,0)/conPres.length;
+      if(topPres.presPct - avgPres > 10){
+        insights.push({tipo:'good', titulo:'🏆 Asesor estrella: ' + topPres.n,
+          html:`<strong>${topPres.n}</strong> lleva <strong>${fPct(topPres.presPct)}</strong> de sus cotizaciones a presentación (promedio del equipo: ${fPct(avgPres)}). Cierra <strong>${fPct(topPres.ciePct)}</strong> (${topPres.cierre} de ${topPres.cotiz}). <em>Candidato natural para entrenar al resto del equipo en el paso cotización→presentación.</em>`});
+      }
+      // Asesor con mucho volumen y poca conversión
+      const peor = [...conPres].sort((a,b)=> a.ciePct - b.ciePct)[0];
+      const mejor = [...conPres].sort((a,b)=> b.ciePct - a.ciePct)[0];
+      if(peor.cotiz >= mejor.cotiz*0.8 && (mejor.ciePct - peor.ciePct) > 5){
+        const gap = Math.round(peor.cotiz * (mejor.ciePct - peor.ciePct) / 100);
+        insights.push({tipo:'warn', titulo:'⚠️ Volumen alto, conversión baja: ' + peor.n,
+          html:`<strong>${peor.n}</strong> recibe ${peor.cotiz} cotizaciones (similar a ${mejor.n} con ${mejor.cotiz}) pero cierra solo <strong>${fPct(peor.ciePct)}</strong> vs <strong>${fPct(mejor.ciePct)}</strong> del top. Si igualara al promedio del equipo cerraría ~<strong>${gap} ventas más</strong>. Auditar calidad de seguimiento.`});
+      }
+    }
+
+    // ── 2. Modelo con mejor / peor conversión ──
+    const mods = Object.entries(c.por_modelo||{}).filter(([_,f])=> f[E0]>=10);
+    if(mods.length>=2 && !modeloFiltro){
+      const mejor = mods.map(([n,f])=>({n,cotiz:f[E0],cierre:f[EC],pct:f[E0]?100*f[EC]/f[E0]:0}))
+                       .sort((a,b)=>b.pct-a.pct);
+      const top = mejor[0], peor = mejor[mejor.length-1];
+      if(top.pct - peor.pct > 8){
+        insights.push({tipo:'good', titulo:'💎 Modelo más rentable de convertir: ' + top.n,
+          html:`<strong>${top.n}</strong> tiene la mejor tasa de cierre: <strong>${fPct(top.pct)}</strong> (${top.cierre} de ${top.cotiz}). Si pudieras inyectar más prospectos a este modelo, cada uno tiene la mayor probabilidad de cerrar venta.`});
+        const lost = Math.round(peor.cotiz * (top.pct - peor.pct) / 100);
+        insights.push({tipo:'warn', titulo:'🚨 Modelo que sangra prospectos: ' + peor.n,
+          html:`<strong>${peor.n}</strong> tiene la peor conversión: <strong>${fPct(peor.pct)}</strong> (${peor.cierre} de ${peor.cotiz}). Hay <strong>${peor.cotiz} cotizaciones que solo produjeron ${peor.cierre} ventas</strong>. Revisar: ¿calidad de prospecto, precio, inventario o mensaje?`});
+      }
+    }
+
+    // ── 3. Cuello de botella global ──
+    const caidas = [];
+    for(let i=1;i<etapas.length;i++){
+      const a = c.totales[etapas[i-1]]||0, b = c.totales[etapas[i]]||0;
+      if(a>0) caidas.push({de:etapas[i-1], a:etapas[i], perdidas: a-b, pctPerdido: 100*(a-b)/a});
+    }
+    caidas.sort((x,y)=> y.perdidas - x.perdidas);
+    if(caidas[0] && caidas[0].pctPerdido > 30){
+      const cb = caidas[0];
+      insights.push({tipo:'warn', titulo:`🔻 Cuello de botella: ${cb.de} → ${cb.a}`,
+        html:`En esa transición se pierde el <strong>${fPct(cb.pctPerdido)}</strong> de los prospectos (${cb.perdidas} negocios desaparecen). Es la etapa con mayor fuga del embudo y donde una mejora pequeña en %, daría el mayor impacto en ventas.`});
+    }
+
+    // ── 4. Evolución mensual (solo si hay varios meses seleccionados) ──
+    if(c.meses && c.meses.length>=2){
+      const ag = embudoAgencia(); const E = DATA.embudo_data;
+      const mesData = c.meses.map(m=>{
+        const cm = E.agencias[ag][m]; const t = cm.totales[E0]||0;
+        return {mes:m, cotiz:t, cierre:cm.totales[EC]||0, sol:cm.totales[etapas[2]||EC]||0,
+                pct: t? 100*(cm.totales[EC]||0)/t : 0};
+      });
+      const first = mesData[0], last = mesData[mesData.length-1];
+      const deltaConv = last.pct - first.pct;
+      if(Math.abs(deltaConv) > 5){
+        const tipo = deltaConv<0 ? 'warn' : 'good';
+        const arrow = deltaConv<0 ? '⬇️ cae' : '⬆️ sube';
+        insights.push({tipo, titulo:`📊 Tendencia: la conversión ${arrow} mes a mes`,
+          html:`De <strong>${first.mes}</strong> a <strong>${last.mes}</strong> la conversión Cotización→Cierre pasó de <strong>${fPct(first.pct)}</strong> a <strong>${fPct(last.pct)}</strong> (${deltaConv>=0?'+':''}${deltaConv.toFixed(0)} pts). ` +
+            mesData.map(m=>`${m.mes} ${fPct(m.pct)}`).join(' · ')});
+      }
+      // Si solicitudes de crédito caen fuerte
+      const solFirst = mesData[0].sol, solLast = mesData[mesData.length-1].sol;
+      if(solFirst >= 10 && solLast <= solFirst*0.4){
+        insights.push({tipo:'warn', titulo:'💳 Las solicitudes de crédito se desplomaron',
+          html:`Pasaron de <strong>${solFirst}</strong> (${mesData[0].mes}) a <strong>${solLast}</strong> (${mesData[mesData.length-1].mes}). El canal de financiamiento se está rompiendo y eso arrastra al cierre. Investigar: política bancaria, tasas, equipo de F&I.`});
+      }
+    }
+
+    // ── 5. Oportunidad de margen (modelo top conversion + bajo volumen) ──
+    if(!modeloFiltro){
+      const mods2 = Object.entries(c.por_modelo||{}).map(([n,f])=>({n,cotiz:f[E0],cierre:f[EC],pct:f[E0]?100*f[EC]/f[E0]:0}));
+      const subdesarrollados = mods2.filter(m=> m.pct >= 30 && m.cotiz < 40);
+      subdesarrollados.forEach(m=>{
+        insights.push({tipo:'info', titulo:`✨ Oportunidad: inyectar tráfico a ${m.n}`,
+          html:`<strong>${m.n}</strong> cierra <strong>${fPct(m.pct)}</strong> (${m.cierre} de ${m.cotiz}) — alta conversión pero solo ${m.cotiz} prospectos. Si triplicas el flujo (vía pauta digital o seguimiento), podrías cerrar <strong>~${Math.round(m.cotiz*2*m.pct/100)} ventas adicionales</strong> en este periodo manteniendo la efectividad.`});
+      });
+    }
+
+    el.innerHTML = insights.length===0 ?
+      '<p style="color:var(--muted);text-align:center;padding:14px">Sin hallazgos relevantes para esta selección de filtros.</p>' :
+      insights.map(ins => `<div class="insight-card ${ins.tipo}"><h4>${ins.titulo}</h4><p>${ins.html}</p></div>`).join('');
   }
   document.querySelector('.tab-btn[data-tab="embudo"]').addEventListener('click', ()=>{
     if(!_embudoInit){ embudoInitFilters(); _embudoInit=true; }
