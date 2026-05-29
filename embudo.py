@@ -47,8 +47,10 @@ _INV_CACHE = {}
 
 
 def _load_inventory_sales():
-    """Carga las ventas facturadas del inventario (cache). DataFrame con
-    agencia_fact, fecha, MODELO (consolidado), VERSION."""
+    """Carga las ventas facturadas del inventario (cache), filtradas a Ford.
+    DataFrame con agencia_fact, fecha, MODELO (consolidado), VERSION, ASESOR_F.
+    Filtra fuera DongFeng/Chery/Mazda/RAM para no mezclar asesores que no
+    venden Ford (relevante en La Y, Machala, etc., que son multi-marca)."""
     key = str(DEFAULT_INVENTORY_PATH)
     if key in _INV_CACHE:
         return _INV_CACHE[key]
@@ -60,7 +62,9 @@ def _load_inventory_sales():
         df = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS', header=0)
     df.columns = [str(c).strip() for c in df.columns]
     df['fac_dt'] = pd.to_datetime(df.get('fecha de facturacion'), errors='coerce')
-    df['marca_up'] = df.get('marca', 'FORD')
+    df['marca_up'] = df.get('marca', '').astype(str).str.strip().str.upper()
+    # ► Sólo Ford. Las otras marcas tienen sus propios asesores y modelos.
+    df = df[df['marca_up'] == 'FORD']
     df['MODELO'] = df.apply(lambda r: normalize_familia(r.get('familia'), 'FORD'), axis=1)
     df['VERSION'] = df.apply(lambda r: normalize_version(r.get('familia'), 'FORD'), axis=1)
     df['ASESOR_F'] = df.get('ASESOR_FACTURACION').apply(_norm_asesor) if 'ASESOR_FACTURACION' in df.columns else None
@@ -152,7 +156,17 @@ def _norm_asesor(s):
     if not isinstance(s, str):
         return None
     s = ' '.join(s.strip().upper().split())
-    return s or None
+    if not s:
+        return None
+    # ► Algunas filas vienen con apellidos duplicados al final
+    # (ej. "RODRIGO SANTIAGO MIER VILLALBA MIER VILLALBA"). Detecta y elimina
+    # el sufijo si es exactamente una repetición de tokens anteriores.
+    toks = s.split()
+    for k in range(min(len(toks)//2, 4), 0, -1):
+        if toks[-k:] == toks[-2*k:-k]:
+            toks = toks[:-k]
+            break
+    return ' '.join(toks)
 
 
 def _norm_canal(s):
