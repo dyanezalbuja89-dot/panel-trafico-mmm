@@ -163,6 +163,33 @@ def normalize_origen(s):
 # Orígenes considerados de "alto margen" (vehículos premium importados de USA)
 HIGH_MARGIN_ORIGINS = {'USA'}
 
+# ── Margen y precio neto por modelo consolidado ──
+# Fuente: "PBD Ford Portafolio - ASC - 2026 - FCST 4+8 v.1" hoja 'BP 2026'.
+# (net_price_usd, gross_margin_tier1_usd) por unidad. Permite estimar ventas
+# y margen capturado por cada distribuidor a partir de las unidades importadas.
+BP_MARGINS = {
+    'TERRITORY TREND':             (31490, 4989),
+    'TERRITORY TITANIUM':          (35490, 6430),
+    'ESCAPE TITANIUM 1.5 4X2':     (34490, 5128),
+    'ESCAPE ST':                   (43990, 4034),
+    'ESCAPE TITANIUM 2.5 HEV/FHEV': (43990, 4034),
+    'ESCAPE PLATINUM HEV':         (43990, 4034),
+    'EVEREST ACTIVE':              (67990, 8445),
+    'EVEREST TITANIUM':            (86990, 11172),
+    'EXPLORER ACTIVE':             (85990, 11516),
+    'EXPLORER PLATINUM':           (95990, 12932),
+    'BRONCO 2.7':                  (125990, 17461),
+    'EXPEDITION PLATINUM':         (135990, 21706),
+    'RANGER XL Diésel':            (51990, 5226),
+    'RANGER XLT Diésel':           (66990, 10955),
+    'RANGER RAPTOR':               (98990, 12055),
+    'F150 XLT':                    (78490, 14542),
+    'F150 LARIAT':                 (88490, 16920),
+    'F150 PLATINUM':               (98490, 21543),
+    'F150 RAPTOR':                 (194990, 25191),
+    'MAVERICK':                    (54990, 9394),
+}
+
 
 def parse_aduana_file(path, distribuidor):
     """Lee las 3 hojas (2024/2025/2026) de un archivo aduanero y devuelve filas
@@ -423,6 +450,38 @@ def compute_competencia_data(path=None):
             })
     swing.sort(key=lambda x: -x['delta'])
 
+    # ── Ventas y margen estimado 2026 (cruce unidades × BP_MARGINS) ──
+    margen = {'ORGU': {'u':0,'rev':0.0,'mg':0.0,'u_sinbp':0},
+              'QM':   {'u':0,'rev':0.0,'mg':0.0,'u_sinbp':0}}
+    margen_por_modelo = []
+    for m in modelos_data:
+        bp = BP_MARGINS.get(m['modelo'])
+        fila = {'modelo': m['modelo'], 'orgu_2026': m['orgu_2026'], 'qm_2026': m['qm_2026'],
+                'net': bp[0] if bp else None, 'margen_unit': bp[1] if bp else None,
+                'margen_orgu': (m['orgu_2026']*bp[1]) if bp else 0,
+                'margen_qm': (m['qm_2026']*bp[1]) if bp else 0}
+        margen_por_modelo.append(fila)
+        for dist, key in [('ORGU','orgu_2026'), ('QM','qm_2026')]:
+            u = m[key]
+            if u <= 0:
+                continue
+            if bp:
+                net, mg = bp
+                margen[dist]['u'] += u
+                margen[dist]['rev'] += u*net
+                margen[dist]['mg'] += u*mg
+            else:
+                margen[dist]['u_sinbp'] += u
+    for dist in ('ORGU','QM'):
+        d_ = margen[dist]
+        d_['rev'] = round(d_['rev'])
+        d_['mg'] = round(d_['mg'])
+        d_['margen_pct'] = round(100*d_['mg']/d_['rev'], 1) if d_['rev'] else 0
+        d_['ticket_prom'] = round(d_['rev']/d_['u']) if d_['u'] else 0
+        d_['margen_prom_u'] = round(d_['mg']/d_['u']) if d_['u'] else 0
+    margen['ventaja_orgu_mg'] = margen['ORGU']['mg'] - margen['QM']['mg']
+    margen_por_modelo.sort(key=lambda x: -(x['margen_orgu']+x['margen_qm']))
+
     return {
         'source_file': ' + '.join(p.name for p in files_map.values()),
         'modelos': modelos_data,
@@ -432,4 +491,6 @@ def compute_competencia_data(path=None):
         'origen_por_anio': origen_por_anio,
         'usa_share': usa_share,
         'swing': swing,
+        'margen': margen,
+        'margen_por_modelo': margen_por_modelo,
     }

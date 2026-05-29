@@ -1751,6 +1751,27 @@ HTML = r"""<!doctype html>
         <div id="comp-cif" style="font-size:13px;color:var(--muted);background:#faf5ff;padding:12px;border-radius:8px"></div>
       </div>
 
+      <!-- VENTAS Y MARGEN ESTIMADO -->
+      <div class="ford-section" style="margin-top:18px">
+        <h3>💰 Ventas y margen estimado 2026 <span class="sub">unidades importadas × precio neto y margen del PBD Ford 2026</span></h3>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Estimación: cada unidad importada valorizada con el precio neto y el <em>Gross Margin (Tier 1)</em> del PBD Ford Portafolio 2026 (BP 2026). Asume que lo importado se vende a precio de lista.</div>
+        <div id="comp-margen-cards" style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:14px"></div>
+        <div style="overflow-x:auto">
+          <table class="analysis" id="comp-margen-tbl">
+            <thead><tr>
+              <th>Modelo</th>
+              <th class="num">Margen/u</th>
+              <th class="num">ORGU u</th>
+              <th class="num">Margen ORGU</th>
+              <th class="num">QM u</th>
+              <th class="num">Margen QM</th>
+            </tr></thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+      </div>
+
       <!-- ORIGEN USA (alto margen) -->
       <div class="ford-section" style="margin-top:18px">
         <h3>🇺🇸 Origen de importación: USA = alto margen <span class="sub">% de unidades importadas desde Estados Unidos (Explorer, Expedition, Bronco, F-150)</span></h3>
@@ -5014,6 +5035,45 @@ HTML = r"""<!doctype html>
       const pctO = totCif? Math.round(100*t.cif_orgu_2026/totCif):0;
       cifEl.innerHTML = `<strong>💵 Inversión CIF en importación 2026:</strong> ORGU ${fUSD(t.cif_orgu_2026)} (${pctO}%) · QM ${fUSD(t.cif_qm_2026)} (${100-pctO}%). `+
         `<span style="color:#9333ea">El CIF es el valor aduanero (costo+seguro+flete) de los vehículos importados. Nota: se excluyeron 32 registros de mayo con cantidad/CIF mal capturados (=100.000).</span>`;
+    }
+
+    // VENTAS Y MARGEN ESTIMADO
+    const fUSD0 = n => 'USD ' + Math.round(n||0).toLocaleString('es-EC');
+    if(C.margen){
+      const mg = C.margen;
+      const cardsEl = document.getElementById('comp-margen-cards');
+      if(cardsEl){
+        const mk = (dist, color, bg, border) => {
+          const d = mg[dist]; if(!d) return '';
+          return `<div class="card-big" style="background:${bg};border:1px solid ${border}">
+            <div class="lbl">${dist==='ORGU'?'🔵 ORGU (AUTOSHARECORP)':'🔴 QM (Quito Motors)'}</div>
+            <div class="val" style="color:${color}">${fUSD0(d.mg)}</div>
+            <div class="hint">margen · ventas ${fUSD0(d.rev)} (${d.margen_pct}%) · ${d.u} u · ticket prom ${fUSD0(d.ticket_prom)}</div>
+          </div>`;
+        };
+        cardsEl.innerHTML = mk('ORGU','#0369a1','linear-gradient(135deg,#e0f2fe,#f0f9ff)','#bae6fd')
+                          + mk('QM','#be185d','linear-gradient(135deg,#fce7f3,#fdf2f8)','#fbcfe8');
+      }
+      const mTb = document.querySelector('#comp-margen-tbl tbody');
+      const mFt = document.querySelector('#comp-margen-tbl tfoot');
+      if(mTb && C.margen_por_modelo){
+        mTb.innerHTML = C.margen_por_modelo.filter(x=>x.orgu_2026>0||x.qm_2026>0).map(x=>{
+          const win = x.margen_orgu>=x.margen_qm;
+          return `<tr>
+            <td class="left"><strong>${x.modelo}</strong></td>
+            <td class="num">${x.margen_unit!=null?fUSD0(x.margen_unit):'<span style="color:#bbb">s/PBD</span>'}</td>
+            <td class="num">${x.orgu_2026||''}</td>
+            <td class="num" style="font-weight:600;color:${win?'var(--pos)':'inherit'}">${x.margen_orgu?fUSD0(x.margen_orgu):''}</td>
+            <td class="num">${x.qm_2026||''}</td>
+            <td class="num" style="font-weight:600;color:${!win?'var(--neg)':'inherit'}">${x.margen_qm?fUSD0(x.margen_qm):''}</td>
+          </tr>`;
+        }).join('');
+        mFt.innerHTML = `<tr class="total">
+          <td><strong>TOTAL</strong></td><td class="num">—</td>
+          <td class="num">${mg.ORGU.u}</td><td class="num" style="font-weight:700">${fUSD0(mg.ORGU.mg)}</td>
+          <td class="num">${mg.QM.u}</td><td class="num" style="font-weight:700">${fUSD0(mg.QM.mg)}</td>
+        </tr>`;
+      }
     }
 
     // ORIGEN USA
