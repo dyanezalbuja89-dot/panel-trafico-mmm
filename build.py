@@ -1753,18 +1753,29 @@ HTML = r"""<!doctype html>
 
       <!-- VENTAS Y MARGEN ESTIMADO -->
       <div class="ford-section" style="margin-top:18px">
-        <h3>💰 Ventas y margen estimado 2026 <span class="sub">unidades importadas × precio neto y margen del PBD Ford 2026</span></h3>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Estimación: cada unidad importada valorizada con el precio neto y el <em>Gross Margin (Tier 1)</em> del PBD Ford Portafolio 2026 (BP 2026). Asume que lo importado se vende a precio de lista.</div>
+        <h3>💰 Ventas y margen estimado <span class="sub">unidades importadas × precio neto y margen del PBD Ford 2026</span></h3>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Estimación: cada unidad importada valorizada con el precio neto y el <em>Gross Margin (Tier 1)</em> del PBD Ford Portafolio 2026 (BP 2026). 2024/2025 se valorizan a precios constantes 2026. Asume que lo importado se vende a precio de lista.</div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:12px;color:var(--muted)">Año:
+            <select id="comp-margen-anio" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;margin-left:8px">
+              <option value="2026" selected>2026 (ene–may)</option>
+              <option value="2025">2025</option>
+              <option value="2024">2024</option>
+            </select>
+          </label>
+        </div>
         <div id="comp-margen-cards" style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:14px"></div>
         <div style="overflow-x:auto">
           <table class="analysis" id="comp-margen-tbl">
             <thead><tr>
-              <th>Modelo</th>
-              <th class="num">Margen/u</th>
-              <th class="num">ORGU u</th>
-              <th class="num">Margen ORGU</th>
-              <th class="num">QM u</th>
-              <th class="num">Margen QM</th>
+              <th rowspan="2">Modelo</th>
+              <th rowspan="2" class="num">Margen/u</th>
+              <th colspan="3" style="text-align:center">ORGU</th>
+              <th colspan="3" style="text-align:center">QM</th>
+              <th rowspan="2" class="num">Ventas total</th>
+            </tr><tr>
+              <th class="num">u</th><th class="num">Ventas</th><th class="num">Margen</th>
+              <th class="num">u</th><th class="num">Ventas</th><th class="num">Margen</th>
             </tr></thead>
             <tbody></tbody>
             <tfoot></tfoot>
@@ -5037,16 +5048,22 @@ HTML = r"""<!doctype html>
         `<span style="color:#9333ea">El CIF es el valor aduanero (costo+seguro+flete) de los vehículos importados. Nota: se excluyeron 32 registros de mayo con cantidad/CIF mal capturados (=100.000).</span>`;
     }
 
-    // VENTAS Y MARGEN ESTIMADO
+    // VENTAS Y MARGEN ESTIMADO (con selector de año)
     const fUSD0 = n => 'USD ' + Math.round(n||0).toLocaleString('es-EC');
-    if(C.margen){
-      const mg = C.margen;
+    function renderCompMargen(){
+      const anios = C.margen_anios || {'2026': C.margen};
+      const pmAnios = C.margen_modelo_anios || {'2026': C.margen_por_modelo};
+      const selA = document.getElementById('comp-margen-anio');
+      const yr = (selA && selA.value) || '2026';
+      const mg = anios[yr]; const pm = pmAnios[yr] || [];
+      if(!mg) return;
+      const yrLabel = yr==='2026' ? '2026 (ene–may)' : yr;
       const cardsEl = document.getElementById('comp-margen-cards');
       if(cardsEl){
         const mk = (dist, color, bg, border) => {
           const d = mg[dist]; if(!d) return '';
           return `<div class="card-big" style="background:${bg};border:1px solid ${border}">
-            <div class="lbl">${dist==='ORGU'?'🔵 ORGU (AUTOSHARECORP)':'🔴 QM (Quito Motors)'}</div>
+            <div class="lbl">${dist==='ORGU'?'🔵 ORGU (AUTOSHARECORP)':'🔴 QM (Quito Motors)'} · ${yrLabel}</div>
             <div class="val" style="color:${color}">${fUSD0(d.mg)}</div>
             <div class="hint">margen · ventas ${fUSD0(d.rev)} (${d.margen_pct}%) · ${d.u} u · ticket prom ${fUSD0(d.ticket_prom)}</div>
           </div>`;
@@ -5056,25 +5073,31 @@ HTML = r"""<!doctype html>
       }
       const mTb = document.querySelector('#comp-margen-tbl tbody');
       const mFt = document.querySelector('#comp-margen-tbl tfoot');
-      if(mTb && C.margen_por_modelo){
-        mTb.innerHTML = C.margen_por_modelo.filter(x=>x.orgu_2026>0||x.qm_2026>0).map(x=>{
-          const win = x.margen_orgu>=x.margen_qm;
+      if(mTb){
+        mTb.innerHTML = pm.map(x=>{
           return `<tr>
             <td class="left"><strong>${x.modelo}</strong></td>
             <td class="num">${x.margen_unit!=null?fUSD0(x.margen_unit):'<span style="color:#bbb">s/PBD</span>'}</td>
-            <td class="num">${x.orgu_2026||''}</td>
-            <td class="num" style="font-weight:600;color:${win?'var(--pos)':'inherit'}">${x.margen_orgu?fUSD0(x.margen_orgu):''}</td>
-            <td class="num">${x.qm_2026||''}</td>
-            <td class="num" style="font-weight:600;color:${!win?'var(--neg)':'inherit'}">${x.margen_qm?fUSD0(x.margen_qm):''}</td>
+            <td class="num">${x.orgu_u||''}</td>
+            <td class="num">${x.ventas_orgu?fUSD0(x.ventas_orgu):''}</td>
+            <td class="num" style="color:var(--pos)">${x.margen_orgu?fUSD0(x.margen_orgu):''}</td>
+            <td class="num">${x.qm_u||''}</td>
+            <td class="num">${x.ventas_qm?fUSD0(x.ventas_qm):''}</td>
+            <td class="num" style="color:var(--neg)">${x.margen_qm?fUSD0(x.margen_qm):''}</td>
+            <td class="num" style="font-weight:700">${x.ventas_total?fUSD0(x.ventas_total):''}</td>
           </tr>`;
         }).join('');
         mFt.innerHTML = `<tr class="total">
-          <td><strong>TOTAL</strong></td><td class="num">—</td>
-          <td class="num">${mg.ORGU.u}</td><td class="num" style="font-weight:700">${fUSD0(mg.ORGU.mg)}</td>
-          <td class="num">${mg.QM.u}</td><td class="num" style="font-weight:700">${fUSD0(mg.QM.mg)}</td>
+          <td><strong>TOTAL ${yrLabel}</strong></td><td class="num">—</td>
+          <td class="num">${mg.ORGU.u}</td><td class="num" style="font-weight:700">${fUSD0(mg.ORGU.rev)}</td><td class="num" style="font-weight:700">${fUSD0(mg.ORGU.mg)}</td>
+          <td class="num">${mg.QM.u}</td><td class="num" style="font-weight:700">${fUSD0(mg.QM.rev)}</td><td class="num" style="font-weight:700">${fUSD0(mg.QM.mg)}</td>
+          <td class="num" style="font-weight:700">${fUSD0(mg.ORGU.rev + mg.QM.rev)}</td>
         </tr>`;
       }
     }
+    const selMA = document.getElementById('comp-margen-anio');
+    if(selMA && !selMA.dataset.bound){ selMA.addEventListener('change', renderCompMargen); selMA.dataset.bound='1'; }
+    renderCompMargen();
 
     // ORIGEN USA
     const usaTb = document.querySelector('#comp-usa-tbl tbody');

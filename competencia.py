@@ -450,37 +450,56 @@ def compute_competencia_data(path=None):
             })
     swing.sort(key=lambda x: -x['delta'])
 
-    # ── Ventas y margen estimado 2026 (cruce unidades × BP_MARGINS) ──
-    margen = {'ORGU': {'u':0,'rev':0.0,'mg':0.0,'u_sinbp':0},
-              'QM':   {'u':0,'rev':0.0,'mg':0.0,'u_sinbp':0}}
-    margen_por_modelo = []
-    for m in modelos_data:
-        bp = BP_MARGINS.get(m['modelo'])
-        fila = {'modelo': m['modelo'], 'orgu_2026': m['orgu_2026'], 'qm_2026': m['qm_2026'],
-                'net': bp[0] if bp else None, 'margen_unit': bp[1] if bp else None,
-                'margen_orgu': (m['orgu_2026']*bp[1]) if bp else 0,
-                'margen_qm': (m['qm_2026']*bp[1]) if bp else 0}
-        margen_por_modelo.append(fila)
-        for dist, key in [('ORGU','orgu_2026'), ('QM','qm_2026')]:
-            u = m[key]
-            if u <= 0:
+    # ── Ventas y margen estimado por AÑO (cruce unidades × BP_MARGINS) ──
+    # BP_MARGINS son precios/margen del PBD 2026. Para 2024/2025 se valoriza a
+    # precios constantes 2026 (permite comparar el mix valorizado entre años).
+    def _margen_anio(anio):
+        oc, qc = f'orgu_{anio}', f'qm_{anio}'
+        agg = {'ORGU': {'u':0,'rev':0.0,'mg':0.0,'u_sinbp':0},
+               'QM':   {'u':0,'rev':0.0,'mg':0.0,'u_sinbp':0}}
+        por_modelo = []
+        for m in modelos_data:
+            if oc not in m:
                 continue
-            if bp:
-                net, mg = bp
-                margen[dist]['u'] += u
-                margen[dist]['rev'] += u*net
-                margen[dist]['mg'] += u*mg
-            else:
-                margen[dist]['u_sinbp'] += u
-    for dist in ('ORGU','QM'):
-        d_ = margen[dist]
-        d_['rev'] = round(d_['rev'])
-        d_['mg'] = round(d_['mg'])
-        d_['margen_pct'] = round(100*d_['mg']/d_['rev'], 1) if d_['rev'] else 0
-        d_['ticket_prom'] = round(d_['rev']/d_['u']) if d_['u'] else 0
-        d_['margen_prom_u'] = round(d_['mg']/d_['u']) if d_['u'] else 0
-    margen['ventaja_orgu_mg'] = margen['ORGU']['mg'] - margen['QM']['mg']
-    margen_por_modelo.sort(key=lambda x: -(x['margen_orgu']+x['margen_qm']))
+            bp = BP_MARGINS.get(m['modelo'])
+            ou, qu = m.get(oc, 0), m.get(qc, 0)
+            net = bp[0] if bp else None
+            mgu = bp[1] if bp else None
+            if ou or qu:
+                por_modelo.append({
+                    'modelo': m['modelo'], 'orgu_u': ou, 'qm_u': qu,
+                    'net': net, 'margen_unit': mgu,
+                    'ventas_orgu': (ou*net) if bp else 0,
+                    'ventas_qm':   (qu*net) if bp else 0,
+                    'ventas_total':((ou+qu)*net) if bp else 0,
+                    'margen_orgu': (ou*mgu) if bp else 0,
+                    'margen_qm':   (qu*mgu) if bp else 0,
+                })
+            for dist, u in [('ORGU', ou), ('QM', qu)]:
+                if u <= 0: continue
+                if bp:
+                    agg[dist]['u'] += u; agg[dist]['rev'] += u*net; agg[dist]['mg'] += u*mgu
+                else:
+                    agg[dist]['u_sinbp'] += u
+        for dist in ('ORGU','QM'):
+            d_ = agg[dist]
+            d_['rev'] = round(d_['rev']); d_['mg'] = round(d_['mg'])
+            d_['margen_pct'] = round(100*d_['mg']/d_['rev'], 1) if d_['rev'] else 0
+            d_['ticket_prom'] = round(d_['rev']/d_['u']) if d_['u'] else 0
+            d_['margen_prom_u'] = round(d_['mg']/d_['u']) if d_['u'] else 0
+        agg['ventaja_orgu_mg'] = agg['ORGU']['mg'] - agg['QM']['mg']
+        por_modelo.sort(key=lambda x: -x['ventas_total'])
+        return agg, por_modelo
+
+    margen_anios = {}
+    margen_modelo_anios = {}
+    for anio in (2024, 2025, 2026):
+        agg, pm = _margen_anio(anio)
+        margen_anios[str(anio)] = agg
+        margen_modelo_anios[str(anio)] = pm
+    # 'margen' / 'margen_por_modelo' por compatibilidad = 2026 (default)
+    margen = margen_anios['2026']
+    margen_por_modelo = margen_modelo_anios['2026']
 
     return {
         'source_file': ' + '.join(p.name for p in files_map.values()),
@@ -493,4 +512,6 @@ def compute_competencia_data(path=None):
         'swing': swing,
         'margen': margen,
         'margen_por_modelo': margen_por_modelo,
+        'margen_anios': margen_anios,
+        'margen_modelo_anios': margen_modelo_anios,
     }
