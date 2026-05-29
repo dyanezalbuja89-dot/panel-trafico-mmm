@@ -26,6 +26,20 @@ AGENCY_INV_KEYWORD = {
     'Manta':     'MANTA',       # captura 1002 Manta y 1013 Manta II
     'Orellana':  'ORELLANA',
     'Portoviejo':'PORTOVIEJO',  # aún sin agencia propia → cierres = 0
+    'La Y':      'LA Y',
+    'Tumbaco':   'TUMBACO',
+    'Machala':   'MACHALA',
+}
+
+# Agencia → región/provincia (para filtro regional)
+AGENCY_REGION = {
+    'CJA':       'Guayas',
+    'Manta':     'Manabí',
+    'Portoviejo':'Manabí',
+    'Orellana':  'Pichincha',  # Av. Orellana (Quito)
+    'La Y':      'Pichincha',
+    'Tumbaco':   'Pichincha',
+    'Machala':   'El Oro',
 }
 MES_NUM = {'Enero':1,'Febrero':2,'Marzo':3,'Abril':4,'Mayo':5,'Junio':6,
            'Julio':7,'Agosto':8,'Septiembre':9,'Octubre':10,'Noviembre':11,'Diciembre':12}
@@ -109,6 +123,9 @@ AGENCIES = {
     'MANTA':      'Manta',
     'ORELLANA':   'Orellana',
     'PORTOVIEJO': 'Portoviejo',
+    'LA Y':       'La Y',
+    'TUMBACO':    'Tumbaco',
+    'MACHALA':    'Machala',
 }
 
 
@@ -188,6 +205,9 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
             return s
         target_full = _strip(fname)
         target_stem = _stem(fname)
+        import difflib
+        # 1ª pasada: match exacto o por raíz
+        candidates = []
         for p in folder.glob('*.xlsx'):
             if p.name.startswith('~$'):
                 continue
@@ -196,6 +216,18 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
                 return p
             if _stem(p.stem) == target_stem:
                 return p
+            candidates.append((p, cand_full))
+        # 2ª pasada: fuzzy match (tolera typos tipo 'Aptobaciones' vs 'Aprobaciones')
+        if candidates:
+            best, best_ratio = None, 0
+            for p, cand in candidates:
+                # comparar contra full y stem
+                r = max(difflib.SequenceMatcher(None, cand, target_full).ratio(),
+                        difflib.SequenceMatcher(None, _stem(p.stem), target_stem).ratio())
+                if r > best_ratio:
+                    best_ratio, best = r, p
+            if best_ratio >= 0.85:
+                return best
         return None
 
     stage_dfs = {}
@@ -359,6 +391,11 @@ def compute_embudo_data():
     if not out['agencias']:
         return None
     out['default_agencia'] = next(iter(out['agencias'].keys()))
+    # Mapa agencia → región (provincia) y agrupación inversa región → [agencias]
+    out['region_agencia'] = {ag: AGENCY_REGION.get(ag, '(Sin región)') for ag in out['agencias'].keys()}
+    out['agencias_por_region'] = {}
+    for ag, reg in out['region_agencia'].items():
+        out['agencias_por_region'].setdefault(reg, []).append(ag)
     return out
 
 

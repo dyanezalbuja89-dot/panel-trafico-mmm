@@ -1882,6 +1882,9 @@ HTML = r"""<!doctype html>
     </div>
 
     <div style="margin:14px 0;display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+      <label style="font-size:12px;color:var(--muted)">Región:
+        <select id="embudo-region" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;margin-left:8px"></select>
+      </label>
       <label style="font-size:12px;color:var(--muted)">Concesionario:
         <select id="embudo-agencia" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;margin-left:8px"></select>
       </label>
@@ -5129,17 +5132,20 @@ HTML = r"""<!doctype html>
     const E = DATA.embudo_data; if(!E) return null;
     return document.getElementById('embudo-agencia').value || E.default_agencia;
   }
-  function embudoAgenciasActivas(){
-    // Si el filtro es 'TODOS' o no hay valor, devuelve todas las agencias disponibles
+  function embudoAgenciasDeRegion(){
+    // Devuelve la lista de agencias permitidas por el filtro de región.
     const E = DATA.embudo_data; if(!E) return [];
+    const reg = (document.getElementById('embudo-region')||{}).value || 'TODAS';
+    if(reg === 'TODAS') return Object.keys(E.agencias);
+    return (E.agencias_por_region||{})[reg] || [];
+  }
+  function embudoAgenciasActivas(){
+    // Cruza el filtro de región con el filtro de concesionario.
+    const E = DATA.embudo_data; if(!E) return [];
+    const enReg = embudoAgenciasDeRegion();
     const sel = (document.getElementById('embudo-agencia')||{}).value;
-    if(sel === 'TODOS' || !sel) {
-      // si no hay selección explícita y hay más de una agencia, usar todas
-      const all = Object.keys(E.agencias);
-      if(sel === 'TODOS') return all;
-      return [sel || E.default_agencia];
-    }
-    return [sel];
+    if(sel === 'TODOS' || !sel) return enReg;
+    return enReg.includes(sel) ? [sel] : [];
   }
   // Agrega (suma) los meses seleccionados, posiblemente a través de varias agencias
   function embudoAggregate(){
@@ -5216,17 +5222,50 @@ HTML = r"""<!doctype html>
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(b)),
              agencias };
   }
-  function embudoInitFilters(){
+  function embudoRellenarAgencias(){
+    // Llena el selector de concesionario en base a la región seleccionada.
     const E = DATA.embudo_data; if(!E) return;
     const selA = document.getElementById('embudo-agencia');
+    const previo = selA.value;
+    const agencias = embudoAgenciasDeRegion();
+    selA.innerHTML = '';
+    const reg = (document.getElementById('embudo-region')||{}).value || 'TODAS';
+    const txtTodos = reg==='TODAS'
+      ? '🌐 Todos los concesionarios (ORGU)'
+      : `🌐 Todos · ${reg} (${agencias.length})`;
+    const todasOpt = document.createElement('option');
+    todasOpt.value='TODOS'; todasOpt.textContent=txtTodos;
+    selA.appendChild(todasOpt);
+    agencias.forEach(a=>{ const o=document.createElement('option'); o.value=a; o.textContent=a; selA.appendChild(o);});
+    // mantener selección previa si sigue siendo válida; sino, "Todos"
+    selA.value = (previo && (previo==='TODOS' || agencias.includes(previo))) ? previo : 'TODOS';
+  }
+  function embudoInitFilters(){
+    const E = DATA.embudo_data; if(!E) return;
+    const selReg = document.getElementById('embudo-region');
+    const selA = document.getElementById('embudo-agencia');
     const selMod = document.getElementById('embudo-modelo');
+    if(selReg && selReg.options.length===0){
+      const opt = document.createElement('option'); opt.value='TODAS'; opt.textContent='🌎 Todas las regiones';
+      selReg.appendChild(opt);
+      // Orden fijo de regiones para que aparezca primero costa→sierra→amazonía
+      const orden = ['Guayas','Manabí','El Oro','Pichincha','Azuay','Tungurahua','Imbabura','(Sin región)'];
+      const regsDisp = Object.keys(E.agencias_por_region||{});
+      const todas = orden.filter(r=> regsDisp.includes(r)).concat(regsDisp.filter(r=> !orden.includes(r)));
+      todas.forEach(r=>{
+        const n = (E.agencias_por_region[r]||[]).length;
+        const o = document.createElement('option');
+        o.value = r; o.textContent = `${r} (${n})`;
+        selReg.appendChild(o);
+      });
+      selReg.value = 'TODAS';
+      selReg.addEventListener('change', ()=>{
+        embudoRellenarAgencias();
+        embudoResetMeses(); embudoRenderChips(); embudoFillModelos(); renderEmbudo();
+      });
+    }
     if(selA.options.length===0){
-      const todasOpt = document.createElement('option');
-      todasOpt.value='TODOS'; todasOpt.textContent='🌐 Todos los concesionarios (ORGU)';
-      selA.appendChild(todasOpt);
-      Object.keys(E.agencias).forEach(a=>{ const o=document.createElement('option'); o.value=a;o.textContent=a;selA.appendChild(o);});
-      // por defecto: si hay más de 1 agencia, "Todos"; si solo hay 1, esa
-      selA.value = Object.keys(E.agencias).length>1 ? 'TODOS' : E.default_agencia;
+      embudoRellenarAgencias();
       selA.addEventListener('change', ()=>{ embudoResetMeses(); embudoRenderChips(); embudoFillModelos(); renderEmbudo(); });
     }
     embudoResetMeses();
@@ -5574,11 +5613,17 @@ HTML = r"""<!doctype html>
 
     // ── 4. Evolución mensual (solo si hay varios meses seleccionados) ──
     if(c.meses && c.meses.length>=2){
-      const ag = embudoAgencia(); const E = DATA.embudo_data;
+      const E = DATA.embudo_data;
+      const agsAct = c.agencias || [];
       const mesData = c.meses.map(m=>{
-        const cm = E.agencias[ag][m]; const t = cm.totales[E0]||0;
-        return {mes:m, cotiz:t, cierre:cm.totales[EC]||0, sol:cm.totales[etapas[2]||EC]||0,
-                pct: t? 100*(cm.totales[EC]||0)/t : 0};
+        let cot=0, cie=0, sol=0;
+        agsAct.forEach(ag=>{
+          const cm = (E.agencias[ag]||{})[m]; if(!cm) return;
+          cot += cm.totales[E0]||0;
+          cie += cm.totales[EC]||0;
+          sol += cm.totales[etapas[2]||EC]||0;
+        });
+        return {mes:m, cotiz:cot, cierre:cie, sol, pct: cot? 100*cie/cot : 0};
       });
       const first = mesData[0], last = mesData[mesData.length-1];
       const deltaConv = last.pct - first.pct;
