@@ -270,8 +270,16 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     # Cotizaciones.xlsx como denominador.
     cotiz_ase_ch = {}  # {asesor: {canal: n_negocios_únicos}}
     cierre_ase_ch = {}
+    sol_ase_ch = {}    # solicitudes por (asesor, canal)
+    apr_ase_ch = {}    # aprobaciones por (asesor, canal)
+    sol_por_canal = {} # solicitudes por canal
+    apr_por_canal = {} # aprobaciones por canal
+    sol_por_modelo = {}# solicitudes por modelo
+    apr_por_modelo = {}# aprobaciones por modelo
     df_cot = stage_dfs.get('Cotización', pd.DataFrame())
     df_cie = stage_dfs.get('Cierre', pd.DataFrame())
+    df_sol = stage_dfs.get('Solicitud', pd.DataFrame())
+    df_apr = stage_dfs.get('Aprobación', pd.DataFrame())
     # Cotización: negocios únicos (id) por (asesor, canal)
     if not df_cot.empty:
         dedup = df_cot.dropna(subset=['ASESOR','CANAL']).drop_duplicates(subset=['id','ASESOR','CANAL'])
@@ -283,6 +291,27 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         for _, r in dedup.iterrows():
             cierre_ase_ch.setdefault(r['ASESOR'], {})
             cierre_ase_ch[r['ASESOR']][r['CANAL']] = cierre_ase_ch[r['ASESOR']].get(r['CANAL'],0)+1
+    # Solicitudes: negocios únicos por (asesor, canal) y por canal/modelo
+    if not df_sol.empty:
+        dedup = df_sol.dropna(subset=['ASESOR','CANAL']).drop_duplicates(subset=['id','ASESOR','CANAL'])
+        for _, r in dedup.iterrows():
+            sol_ase_ch.setdefault(r['ASESOR'], {})
+            sol_ase_ch[r['ASESOR']][r['CANAL']] = sol_ase_ch[r['ASESOR']].get(r['CANAL'],0)+1
+        # por canal: negocios únicos
+        for canal, n in df_sol.dropna(subset=['CANAL']).drop_duplicates(subset=['id','CANAL'])['CANAL'].value_counts().items():
+            sol_por_canal[canal] = int(n)
+        # por modelo: negocios únicos
+        for modelo, n in df_sol.drop_duplicates(subset=['id','MODELO_N'])['MODELO_N'].value_counts().items():
+            sol_por_modelo[modelo] = int(n)
+    if not df_apr.empty:
+        dedup = df_apr.dropna(subset=['ASESOR','CANAL']).drop_duplicates(subset=['id','ASESOR','CANAL'])
+        for _, r in dedup.iterrows():
+            apr_ase_ch.setdefault(r['ASESOR'], {})
+            apr_ase_ch[r['ASESOR']][r['CANAL']] = apr_ase_ch[r['ASESOR']].get(r['CANAL'],0)+1
+        for canal, n in df_apr.dropna(subset=['CANAL']).drop_duplicates(subset=['id','CANAL'])['CANAL'].value_counts().items():
+            apr_por_canal[canal] = int(n)
+        for modelo, n in df_apr.drop_duplicates(subset=['id','MODELO_N'])['MODELO_N'].value_counts().items():
+            apr_por_modelo[modelo] = int(n)
 
     # Conversión de CADA etapa vs la base del embudo (Cotización = labels[0])
     base = totales[labels[0]]
@@ -300,6 +329,12 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         'por_asesor': por_asesor,
         'cotiz_asesor_canal': cotiz_ase_ch,
         'cierre_asesor_canal': cierre_ase_ch,
+        'sol_asesor_canal': sol_ase_ch,
+        'apr_asesor_canal': apr_ase_ch,
+        'sol_por_canal': sol_por_canal,
+        'apr_por_canal': apr_por_canal,
+        'sol_por_modelo': sol_por_modelo,
+        'apr_por_modelo': apr_por_modelo,
         'conversion_etapa': conv,
         'conversion_total': conv_total,
         'cierre_fuente': 'inventario (ventas facturadas)',

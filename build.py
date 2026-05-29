@@ -1939,6 +1939,45 @@ HTML = r"""<!doctype html>
       <div class="footer-note" style="margin-top:8px">Cada celda: <strong>cierres / cotizaciones (%)</strong>. El canal indica de dónde vino originalmente el prospecto (Showroom, Digital, Hubspot, etc.). Verde ≥30%, amarillo 15-30%, rojo &lt;15%. Para detectar qué canal funciona mejor con cada asesor.</div>
     </div>
 
+    <!-- TABLERO: ANÁLISIS DE CRÉDITO (SOLICITUDES → APROBACIÓN) -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>💳 Análisis de crédito · Solicitudes → Aprobación <span class="sub">qué % de solicitudes terminan aprobadas, por modelo / asesor / canal</span></h3>
+      <div id="embudo-credito-kpis" class="kpi-row" style="margin-bottom:12px"></div>
+      <div class="ford-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <h4 style="margin:0 0 6px 0;font-size:14px">📦 Por modelo</h4>
+          <div style="overflow-x:auto">
+            <table class="analysis" id="embudo-credito-modelo-tbl">
+              <thead><tr><th>Modelo</th><th>Solic.</th><th>Aprob.</th><th>% Apr.</th></tr></thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h4 style="margin:0 0 6px 0;font-size:14px">📡 Por canal</h4>
+          <div style="overflow-x:auto">
+            <table class="analysis" id="embudo-credito-canal-tbl">
+              <thead><tr><th>Canal</th><th>Solic.</th><th>Aprob.</th><th>% Apr.</th></tr></thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:14px">
+        <h4 style="margin:0 0 6px 0;font-size:14px">👤 Por asesor</h4>
+        <div style="overflow-x:auto">
+          <table class="analysis" id="embudo-credito-asesor-tbl">
+            <thead><tr><th>Asesor</th><th>Solic.</th><th>Aprob.</th><th>% Apr.</th></tr></thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+      </div>
+      <div class="footer-note" style="margin-top:8px">Solicitud = cliente envía expediente al banco. Aprobación = banco autoriza el crédito. Tasa = Aprobaciones ÷ Solicitudes. Verde ≥80%, amarillo 60-80%, rojo &lt;60% (con N≥3). Una tasa baja indica problema con la documentación, el perfil del cliente o el banco aliado.</div>
+    </div>
+
     <!-- INSIGHTS AUTOMÁTICOS -->
     <div class="ford-section" style="margin-top:18px">
       <h3>💡 Hallazgos automáticos <span class="sub">se recalculan según los filtros de meses y modelo</span></h3>
@@ -5120,6 +5159,9 @@ HTML = r"""<!doctype html>
     if(!etapas) return null;
     const totales = {}; const por_modelo = {}; const por_asesor = {};
     const cotiz_asesor_canal = {}; const cierre_asesor_canal = {};
+    const sol_asesor_canal = {}; const apr_asesor_canal = {};
+    const sol_por_canal = {}; const apr_por_canal = {};
+    const sol_por_modelo = {}; const apr_por_modelo = {};
     const por_agencia = {}; // agregado por agencia para insights comparativos
     etapas.forEach(e=> totales[e]=0);
     let mesesUsados = new Set();
@@ -5149,10 +5191,26 @@ HTML = r"""<!doctype html>
           cierre_asesor_canal[ase] = cierre_asesor_canal[ase] || {};
           Object.entries(chs).forEach(([ch,n])=> cierre_asesor_canal[ase][ch]=(cierre_asesor_canal[ase][ch]||0)+n);
         });
+        // matrices crédito: solicitudes + aprobaciones
+        Object.entries(c.sol_asesor_canal||{}).forEach(([ase,chs])=>{
+          sol_asesor_canal[ase] = sol_asesor_canal[ase] || {};
+          Object.entries(chs).forEach(([ch,n])=> sol_asesor_canal[ase][ch]=(sol_asesor_canal[ase][ch]||0)+n);
+        });
+        Object.entries(c.apr_asesor_canal||{}).forEach(([ase,chs])=>{
+          apr_asesor_canal[ase] = apr_asesor_canal[ase] || {};
+          Object.entries(chs).forEach(([ch,n])=> apr_asesor_canal[ase][ch]=(apr_asesor_canal[ase][ch]||0)+n);
+        });
+        Object.entries(c.sol_por_canal||{}).forEach(([ch,n])=> sol_por_canal[ch]=(sol_por_canal[ch]||0)+n);
+        Object.entries(c.apr_por_canal||{}).forEach(([ch,n])=> apr_por_canal[ch]=(apr_por_canal[ch]||0)+n);
+        Object.entries(c.sol_por_modelo||{}).forEach(([mod,n])=> sol_por_modelo[mod]=(sol_por_modelo[mod]||0)+n);
+        Object.entries(c.apr_por_modelo||{}).forEach(([mod,n])=> apr_por_modelo[mod]=(apr_por_modelo[mod]||0)+n);
       });
     });
     return { etapas, totales, por_modelo, por_asesor, por_agencia,
              cotiz_asesor_canal, cierre_asesor_canal,
+             sol_asesor_canal, apr_asesor_canal,
+             sol_por_canal, apr_por_canal,
+             sol_por_modelo, apr_por_modelo,
              meses: Array.from(mesesUsados).sort((a,b)=>
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(a)-
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(b)),
@@ -5302,8 +5360,107 @@ HTML = r"""<!doctype html>
     // ─── TABLERO: TASA DE CIERRE POR ASESOR × CANAL ───
     renderEmbudoAsesorCanal(c);
 
+    // ─── TABLERO: ANÁLISIS DE CRÉDITO ───
+    renderEmbudoCredito(c);
+
     // ─── INSIGHTS AUTOMÁTICOS ───
     renderEmbudoInsights(c, modelo);
+  }
+
+  function renderEmbudoCredito(c){
+    // Color semáforo basado en tasa de aprobación
+    function rateColor(rate, n){
+      if(rate==null || n<3) return '#6b7280';
+      if(rate>=80) return '#16a34a';
+      if(rate>=60) return '#d97706';
+      return '#dc2626';
+    }
+    function rateBadge(sol, apr){
+      if(!sol) return '<span style="color:#9ca3af">—</span>';
+      const rate = 100*apr/sol;
+      const col = rateColor(rate, sol);
+      return `<span style="color:${col};font-weight:700">${rate.toFixed(0)}%</span>`;
+    }
+    // KPIs globales
+    const totSol = Object.values(c.sol_por_canal||{}).reduce((s,n)=>s+n,0);
+    const totApr = Object.values(c.apr_por_canal||{}).reduce((s,n)=>s+n,0);
+    const totRate = totSol? 100*totApr/totSol : 0;
+    const totRateCol = rateColor(totRate, totSol);
+    // Cotizaciones del período (para mostrar el embudo crédito vs cotización)
+    const totCot = c.totales[c.etapas[0]] || 0;
+    const cotToSol = totCot? 100*totSol/totCot : 0;
+    document.getElementById('embudo-credito-kpis').innerHTML = `
+      <div class="kpi-card" style="border-left:4px solid #1976d2">
+        <div class="kpi-label">Solicitudes de crédito</div>
+        <div class="kpi-value">${totSol}</div>
+        <div class="kpi-sub">${cotToSol.toFixed(0)}% de las cotizaciones</div>
+      </div>
+      <div class="kpi-card" style="border-left:4px solid #7c3aed">
+        <div class="kpi-label">Aprobaciones</div>
+        <div class="kpi-value">${totApr}</div>
+        <div class="kpi-sub">expedientes autorizados por el banco</div>
+      </div>
+      <div class="kpi-card" style="border-left:4px solid ${totRateCol}">
+        <div class="kpi-label">Tasa de aprobación</div>
+        <div class="kpi-value" style="color:${totRateCol}">${totRate.toFixed(1)}%</div>
+        <div class="kpi-sub">${totApr} de ${totSol} solicitudes aprobadas</div>
+      </div>`;
+
+    // POR MODELO
+    const modelos = new Set([...Object.keys(c.sol_por_modelo||{}), ...Object.keys(c.apr_por_modelo||{})]);
+    const filasMod = Array.from(modelos).map(m=>{
+      const sol = (c.sol_por_modelo||{})[m]||0;
+      const apr = (c.apr_por_modelo||{})[m]||0;
+      return {m, sol, apr};
+    }).filter(r=> r.sol+r.apr>0).sort((a,b)=> b.sol - a.sol);
+    const tbMod = document.querySelector('#embudo-credito-modelo-tbl tbody');
+    tbMod.innerHTML = filasMod.length ? filasMod.map(r=>
+      `<tr><td class="left"><strong>${r.m}</strong></td>`+
+      `<td class="num">${r.sol}</td>`+
+      `<td class="num">${r.apr}</td>`+
+      `<td class="num">${rateBadge(r.sol, r.apr)}</td></tr>`
+    ).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:14px">Sin datos</td></tr>`;
+    const sMod = filasMod.reduce((s,r)=>s+r.sol,0), aMod = filasMod.reduce((s,r)=>s+r.apr,0);
+    document.querySelector('#embudo-credito-modelo-tbl tfoot').innerHTML =
+      `<tr class="total"><td><strong>TOTAL</strong></td><td class="num">${sMod}</td><td class="num">${aMod}</td><td class="num">${rateBadge(sMod, aMod)}</td></tr>`;
+
+    // POR CANAL
+    const canales = new Set([...Object.keys(c.sol_por_canal||{}), ...Object.keys(c.apr_por_canal||{})]);
+    const filasCh = Array.from(canales).map(ch=>{
+      const sol = (c.sol_por_canal||{})[ch]||0;
+      const apr = (c.apr_por_canal||{})[ch]||0;
+      return {ch, sol, apr};
+    }).filter(r=> r.sol+r.apr>0).sort((a,b)=> b.sol - a.sol);
+    const tbCh = document.querySelector('#embudo-credito-canal-tbl tbody');
+    tbCh.innerHTML = filasCh.length ? filasCh.map(r=>
+      `<tr><td class="left"><strong>${r.ch}</strong></td>`+
+      `<td class="num">${r.sol}</td>`+
+      `<td class="num">${r.apr}</td>`+
+      `<td class="num">${rateBadge(r.sol, r.apr)}</td></tr>`
+    ).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:14px">Sin datos</td></tr>`;
+    const sCh = filasCh.reduce((s,r)=>s+r.sol,0), aCh = filasCh.reduce((s,r)=>s+r.apr,0);
+    document.querySelector('#embudo-credito-canal-tbl tfoot').innerHTML =
+      `<tr class="total"><td><strong>TOTAL</strong></td><td class="num">${sCh}</td><td class="num">${aCh}</td><td class="num">${rateBadge(sCh, aCh)}</td></tr>`;
+
+    // POR ASESOR
+    const aSol = c.sol_asesor_canal || {};
+    const aApr = c.apr_asesor_canal || {};
+    const asesSet = new Set([...Object.keys(aSol), ...Object.keys(aApr)]);
+    const filasAse = Array.from(asesSet).map(ase=>{
+      const sol = Object.values(aSol[ase]||{}).reduce((s,n)=>s+n,0);
+      const apr = Object.values(aApr[ase]||{}).reduce((s,n)=>s+n,0);
+      return {ase, sol, apr};
+    }).filter(r=> r.sol+r.apr>0).sort((a,b)=> b.sol - a.sol);
+    const tbAse = document.querySelector('#embudo-credito-asesor-tbl tbody');
+    tbAse.innerHTML = filasAse.length ? filasAse.map(r=>
+      `<tr><td class="left"><strong>${r.ase}</strong></td>`+
+      `<td class="num">${r.sol}</td>`+
+      `<td class="num">${r.apr}</td>`+
+      `<td class="num">${rateBadge(r.sol, r.apr)}</td></tr>`
+    ).join('') : `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:14px">Sin datos</td></tr>`;
+    const sAse = filasAse.reduce((s,r)=>s+r.sol,0), aAse = filasAse.reduce((s,r)=>s+r.apr,0);
+    document.querySelector('#embudo-credito-asesor-tbl tfoot').innerHTML =
+      `<tr class="total"><td><strong>TOTAL</strong></td><td class="num">${sAse}</td><td class="num">${aAse}</td><td class="num">${rateBadge(sAse, aAse)}</td></tr>`;
   }
 
   function renderEmbudoAsesorCanal(c){
@@ -5465,6 +5622,64 @@ HTML = r"""<!doctype html>
         }
       }
     }
+
+    // ── 4.7 Análisis de crédito (Solicitudes → Aprobación) ──
+    const credSolMod = c.sol_por_modelo || {};
+    const credAprMod = c.apr_por_modelo || {};
+    const credSolCh  = c.sol_por_canal  || {};
+    const credAprCh  = c.apr_por_canal  || {};
+    const totSolGlob = Object.values(credSolCh).reduce((s,n)=>s+n,0);
+    const totAprGlob = Object.values(credAprCh).reduce((s,n)=>s+n,0);
+    const tasaGlobAp = totSolGlob? 100*totAprGlob/totSolGlob : 0;
+    // Insight de tasa global
+    if(totSolGlob >= 5){
+      if(tasaGlobAp > 105){
+        insights.push({tipo:'warn', titulo:'⚠️ Datos de crédito inconsistentes',
+          html:`Hay <strong>${totAprGlob}</strong> aprobaciones contra <strong>${totSolGlob}</strong> solicitudes (${tasaGlobAp.toFixed(0)}%). Eso es imposible salvo que: (a) se estén registrando aprobaciones sin la solicitud previa, (b) un negocio tenga varios modelos en aprobación pero uno solo en solicitud, o (c) traspaso de meses entre etapas. Sugerencia: auditar Cotizaciones/Solicitudes vs Aprobaciones por id.`});
+      } else if(tasaGlobAp < 60){
+        insights.push({tipo:'bad', titulo:'Crédito: tasa de aprobación BAJA',
+          html:`Sólo <strong>${tasaGlobAp.toFixed(0)}%</strong> de las solicitudes terminan aprobadas (${totAprGlob} de ${totSolGlob}). El banco está rechazando expedientes. Revisar: calidad del expediente, perfil del cliente, política del banco aliado o tasas que se ofrecen.`});
+      } else if(tasaGlobAp < 80){
+        insights.push({tipo:'warn', titulo:'Crédito: tasa de aprobación mejorable',
+          html:`<strong>${tasaGlobAp.toFixed(0)}%</strong> de aprobación (${totAprGlob}/${totSolGlob}). Mejorar la pre-calificación antes de enviar al banco reduciría rechazos y aceleraría cierres.`});
+      } else if(tasaGlobAp <= 105){
+        insights.push({tipo:'good', titulo:'Crédito: tasa de aprobación alta',
+          html:`<strong>${tasaGlobAp.toFixed(0)}%</strong> de las solicitudes son aprobadas (${totAprGlob}/${totSolGlob}). Equipo de F&I sólido, expedientes bien armados.`});
+      }
+    }
+    // Insight por modelo con baja aprobación (N≥3)
+    const credModelos = new Set([...Object.keys(credSolMod), ...Object.keys(credAprMod)]);
+    const filasCredMod = Array.from(credModelos).map(m=>{
+      const s = credSolMod[m]||0, a = credAprMod[m]||0;
+      return {m, s, a, tasa: s? 100*a/s : null};
+    }).filter(r=> r.s >= 3);
+    filasCredMod.filter(r=> r.tasa!==null && r.tasa < 60).forEach(r=>{
+      insights.push({tipo:'bad', titulo:`Crédito ${r.m}: rechazo alto`,
+        html:`Solo <strong>${r.tasa.toFixed(0)}%</strong> de las solicitudes para <strong>${r.m}</strong> son aprobadas (${r.a} de ${r.s}). Posible problema con la versión, plan de pago propuesto o precio del modelo.`});
+    });
+    // Insight por canal con baja aprobación
+    const credCanales = new Set([...Object.keys(credSolCh), ...Object.keys(credAprCh)]);
+    const filasCredCh = Array.from(credCanales).map(ch=>{
+      const s = credSolCh[ch]||0, a = credAprCh[ch]||0;
+      return {ch, s, a, tasa: s? 100*a/s : null};
+    }).filter(r=> r.s >= 5);
+    filasCredCh.filter(r=> r.tasa!==null && r.tasa < 60).forEach(r=>{
+      insights.push({tipo:'warn', titulo:`Crédito por canal ${r.ch}: baja aprobación`,
+        html:`Los prospectos que vienen por <strong>${r.ch}</strong> sólo logran <strong>${r.tasa.toFixed(0)}%</strong> de aprobación (${r.a}/${r.s}). Pueden ser leads de baja calidad crediticia. Ajustar segmentación de pauta o pre-calificación al entrar.`});
+    });
+    // Insight por asesor con baja aprobación
+    const aSol_i = c.sol_asesor_canal || {};
+    const aApr_i = c.apr_asesor_canal || {};
+    const credAses = new Set([...Object.keys(aSol_i), ...Object.keys(aApr_i)]);
+    const filasCredAse = Array.from(credAses).map(ase=>{
+      const s = Object.values(aSol_i[ase]||{}).reduce((x,n)=>x+n,0);
+      const a = Object.values(aApr_i[ase]||{}).reduce((x,n)=>x+n,0);
+      return {ase, s, a, tasa: s? 100*a/s : null};
+    }).filter(r=> r.s >= 5);
+    filasCredAse.filter(r=> r.tasa!==null && r.tasa < 60).forEach(r=>{
+      insights.push({tipo:'warn', titulo:`${r.ase}: crédito con fricción`,
+        html:`<strong>${r.ase}</strong> arma <strong>${r.s}</strong> solicitudes pero sólo <strong>${r.a}</strong> son aprobadas (<strong>${r.tasa.toFixed(0)}%</strong>). Necesita acompañamiento de F&I para mejorar la calidad del expediente antes de enviarlo al banco.`});
+    });
 
     // ── 5. Oportunidad de margen (modelo top conversion + bajo volumen) ──
     if(!modeloFiltro){
