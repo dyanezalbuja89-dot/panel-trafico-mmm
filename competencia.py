@@ -141,6 +141,29 @@ def find_aduana_files():
     return found
 
 
+def normalize_origen(s):
+    """Normaliza el país de origen (los datos mezclan 'UNITED STATES' y
+    'ESTADOS UNIDOS DE AMERICA', etc.)."""
+    s = str(s).strip().upper()
+    if 'UNITED STATES' in s or 'ESTADOS UNIDOS' in s or 'EEUU' in s or s == 'USA':
+        return 'USA'
+    if 'CHINA' in s:
+        return 'China'
+    if 'SPAIN' in s or 'ESPAÑA' in s or 'ESPANA' in s:
+        return 'España'
+    if 'THAILAND' in s or 'TAILANDIA' in s:
+        return 'Tailandia'
+    if 'ARGENTINA' in s:
+        return 'Argentina'
+    if not s or s == 'NAN':
+        return 'Sin dato'
+    return s.title()
+
+
+# Orígenes considerados de "alto margen" (vehículos premium importados de USA)
+HIGH_MARGIN_ORIGINS = {'USA'}
+
+
 def parse_aduana_file(path, distribuidor):
     """Lee las 3 hojas (2024/2025/2026) de un archivo aduanero y devuelve filas
     planas. Cada fila = 1 vehículo (se cuenta por registro, robusto ante el
@@ -160,6 +183,7 @@ def parse_aduana_file(path, distribuidor):
         col_anio   = cols.get('AÑO') or cols.get('ANO') or cols.get('AÑO ')
         col_cant   = cols.get('CANTIDAD')
         col_cif    = cols.get('US$ CIF') or cols.get('US$CIF')
+        col_origen = cols.get('PAÍS DE ORIGEN') or cols.get('PAIS DE ORIGEN')
         if col_modelo is None:
             continue
         for _, r in df.iterrows():
@@ -194,6 +218,7 @@ def parse_aduana_file(path, distribuidor):
                     cif = cif_raw if cant_raw < 1000 else 0.0
                 except (ValueError, TypeError):
                     cif = 0.0
+            origen = normalize_origen(r.get(col_origen)) if col_origen is not None else 'Sin dato'
             rows.append({
                 'modelo_raw': str(modelo_raw).strip(),
                 'modelo': consolidate_model(str(modelo_raw)),
@@ -202,6 +227,7 @@ def parse_aduana_file(path, distribuidor):
                 'ym': ym,
                 'cantidad': cant,
                 'cif': cif,
+                'origen': origen,
             })
     return rows
 
@@ -364,10 +390,46 @@ def compute_competencia_data(path=None):
             'detalle': ' · '.join(f"{m['modelo']} (ORGU {m['orgu_total']} vs QM {m['qm_total']}, {m['orgu_share_total']:.0f}%/{m['qm_share_total']:.0f}%)" for m in orgu_lidera[:5]),
         })
 
+    # ── Análisis por ORIGEN (USA = alto margen) ──
+    # origen_por_anio[anio][dist] = {origen: unidades}; + % USA
+    origen_por_anio = {}
+    usa_share = {}  # {anio: {ORGU: %usa, QM: %usa}}
+    for anio in (2024, 2025, 2026):
+        origen_por_anio[anio] = {}
+        usa_share[anio] = {}
+        for dist in ('ORGU', 'QM'):
+            sub = df[(df['distribuidor'] == dist) & (df['anio'] == anio)]
+            tot_d = int(len(sub))
+            by_org = {o: int(n) for o, n in sub['origen'].value_counts().items()}
+            origen_por_anio[anio][dist] = by_org
+            usa = sum(v for k, v in by_org.items() if k in HIGH_MARGIN_ORIGINS)
+            usa_share[anio][dist] = {
+                'usa': usa, 'total': tot_d,
+                'pct': round(100 * usa / tot_d, 1) if tot_d else 0,
+            }
+
+    # ── Swing de share por modelo 2025→2026 ──
+    swing = []
+    for m in modelos_data:
+        if m['orgu_share_2025'] is not None and m['orgu_share_2026'] is not None \
+           and (m['tot_2025'] >= 10 or m['tot_2026'] >= 10):
+            swing.append({
+                'modelo': m['modelo'],
+                'share_2025': m['orgu_share_2025'],
+                'share_2026': m['orgu_share_2026'],
+                'delta': round(m['orgu_share_2026'] - m['orgu_share_2025'], 1),
+                'orgu_2025': m['orgu_2025'], 'qm_2025': m['qm_2025'],
+                'orgu_2026': m['orgu_2026'], 'qm_2026': m['qm_2026'],
+            })
+    swing.sort(key=lambda x: -x['delta'])
+
     return {
         'source_file': ' + '.join(p.name for p in files_map.values()),
         'modelos': modelos_data,
         'totales': tot,
         'meses': all_months,
         'insights': insights,
+        'origen_por_anio': origen_por_anio,
+        'usa_share': usa_share,
+        'swing': swing,
     }

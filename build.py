@@ -1751,6 +1751,43 @@ HTML = r"""<!doctype html>
         <div id="comp-cif" style="font-size:13px;color:var(--muted);background:#faf5ff;padding:12px;border-radius:8px"></div>
       </div>
 
+      <!-- ORIGEN USA (alto margen) -->
+      <div class="ford-section" style="margin-top:18px">
+        <h3>🇺🇸 Origen de importación: USA = alto margen <span class="sub">% de unidades importadas desde Estados Unidos (Explorer, Expedition, Bronco, F-150)</span></h3>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Los vehículos de fuente USA son los de mayor margen del portafolio. Un mayor % USA indica enfoque en gama premium/rentable vs volumen de bajo costo (China/Tailandia/Argentina).</div>
+        <div style="overflow-x:auto">
+          <table class="analysis" id="comp-usa-tbl">
+            <thead><tr>
+              <th>Año</th>
+              <th class="num">ORGU · % USA</th>
+              <th class="num">ORGU · u. USA</th>
+              <th class="num">QM · % USA</th>
+              <th class="num">QM · u. USA</th>
+              <th class="num">Ventaja ORGU</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SWING DE SHARE POR MODELO -->
+      <div class="ford-section" style="margin-top:18px">
+        <h3>🔄 Swing de share ORGU por modelo (2025 → 2026) <span class="sub">qué modelos recuperó o cedió ORGU vs QM</span></h3>
+        <div style="overflow-x:auto">
+          <table class="analysis" id="comp-swing-tbl">
+            <thead><tr>
+              <th>Modelo</th>
+              <th class="num">Share ORGU 2025</th>
+              <th class="num">Share ORGU 2026</th>
+              <th class="num">Δ swing</th>
+              <th class="num">2025 (O/QM)</th>
+              <th class="num">2026 (O/QM)</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- TABLA POR MODELO -->
       <div class="ford-section" style="margin-top:18px">
         <h3>📋 Importaciones por modelo (ordenado por volumen total) <span class="sub">Cada celda es unidades importadas</span></h3>
@@ -4977,6 +5014,41 @@ HTML = r"""<!doctype html>
       const pctO = totCif? Math.round(100*t.cif_orgu_2026/totCif):0;
       cifEl.innerHTML = `<strong>💵 Inversión CIF en importación 2026:</strong> ORGU ${fUSD(t.cif_orgu_2026)} (${pctO}%) · QM ${fUSD(t.cif_qm_2026)} (${100-pctO}%). `+
         `<span style="color:#9333ea">El CIF es el valor aduanero (costo+seguro+flete) de los vehículos importados. Nota: se excluyeron 32 registros de mayo con cantidad/CIF mal capturados (=100.000).</span>`;
+    }
+
+    // ORIGEN USA
+    const usaTb = document.querySelector('#comp-usa-tbl tbody');
+    if(usaTb && C.usa_share){
+      usaTb.innerHTML = [2024,2025,2026].map(yr=>{
+        const u = C.usa_share[yr]; if(!u) return '';
+        const o = u.ORGU || {pct:0,usa:0}, q = u.QM || {pct:0,usa:0};
+        const vent = (o.pct - q.pct).toFixed(0);
+        return `<tr>
+          <td><strong>${yr}${yr===2026?' (parcial)':''}</strong></td>
+          <td class="num"><span class="status-pill ${o.pct>=30?'green':o.pct>=15?'yellow':'red'}">${o.pct}%</span></td>
+          <td class="num">${o.usa}</td>
+          <td class="num"><span class="status-pill ${q.pct>=30?'green':q.pct>=15?'yellow':'red'}">${q.pct}%</span></td>
+          <td class="num">${q.usa}</td>
+          <td class="num" style="font-weight:700;color:${(o.pct-q.pct)>=0?'var(--pos)':'var(--neg)'}">${(o.pct-q.pct)>=0?'+':''}${vent} pts</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // SWING DE SHARE
+    const swTb = document.querySelector('#comp-swing-tbl tbody');
+    if(swTb && C.swing){
+      swTb.innerHTML = C.swing.map(s=>{
+        const dCol = s.delta>=0 ? 'var(--pos)' : 'var(--neg)';
+        const arrow = s.delta>=15?'⬆️':s.delta<=-15?'⬇️':'→';
+        return `<tr>
+          <td class="left"><strong>${s.modelo}</strong></td>
+          <td class="num">${s.share_2025}%</td>
+          <td class="num">${s.share_2026}%</td>
+          <td class="num" style="font-weight:700;color:${dCol}">${arrow} ${s.delta>=0?'+':''}${s.delta} pts</td>
+          <td class="num" style="color:var(--muted)">${s.orgu_2025}/${s.qm_2025}</td>
+          <td class="num" style="color:var(--muted)">${s.orgu_2026}/${s.qm_2026}</td>
+        </tr>`;
+      }).join('');
     }
 
     // TABLA
