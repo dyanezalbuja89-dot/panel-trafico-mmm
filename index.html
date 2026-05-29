@@ -1744,12 +1744,6 @@
         <div id="comp-cif" style="font-size:13px;color:var(--muted);background:#faf5ff;padding:12px;border-radius:8px"></div>
       </div>
 
-      <!-- INSIGHTS -->
-      <div class="ford-section" style="margin-top:18px">
-        <h3>💡 Oportunidades y hallazgos automáticos</h3>
-        <div id="comp-imp-insights"></div>
-      </div>
-
       <!-- TABLA POR MODELO -->
       <div class="ford-section" style="margin-top:18px">
         <h3>📋 Importaciones por modelo (ordenado por volumen total) <span class="sub">Cada celda es unidades importadas</span></h3>
@@ -1774,9 +1768,17 @@
       <!-- EVOLUCIÓN MENSUAL POR MODELO -->
       <div class="ford-section" style="margin-top:18px">
         <h3>📈 Evolución mensual por modelo <span class="sub">Selecciona un modelo para ver su trayectoria ORGU vs QM</span></h3>
-        <div style="margin-bottom:12px">
+        <div style="margin-bottom:12px;display:flex;gap:18px;flex-wrap:wrap;align-items:center">
           <label style="font-size:12px;color:var(--muted)">Modelo:
             <select id="comp-imp-modelo" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;margin-left:8px;min-width:200px">
+            </select>
+          </label>
+          <label style="font-size:12px;color:var(--muted)">Año:
+            <select id="comp-imp-anio" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;margin-left:8px">
+              <option value="">Todos (2024–2026)</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
             </select>
           </label>
         </div>
@@ -4970,21 +4972,6 @@
         `<span style="color:#9333ea">El CIF es el valor aduanero (costo+seguro+flete) de los vehículos importados. Nota: se excluyeron 32 registros de mayo con cantidad/CIF mal capturados (=100.000).</span>`;
     }
 
-    // INSIGHTS
-    const insWrap = document.getElementById('comp-imp-insights');
-    insWrap.innerHTML = C.insights.map(ins=>{
-      let cls = 'info';
-      if(ins.tipo === 'lanzamiento')      cls = 'good';
-      else if(ins.tipo === 'ascenso')     cls = 'good';
-      else if(ins.tipo === 'caida')       cls = 'warn';
-      else if(ins.tipo === 'oportunidad_qm') cls = 'warn';
-      else if(ins.tipo === 'fortaleza_orgu') cls = 'good';
-      return `<div class="insight-card ${cls}">
-        <h4>${ins.titulo}</h4>
-        <p>${ins.detalle}</p>
-      </div>`;
-    }).join('');
-
     // TABLA
     const tbody = document.querySelector('#comp-tbl tbody');
     tbody.innerHTML = C.modelos.map(m=>{
@@ -5028,6 +5015,11 @@
       sel.addEventListener('change', renderCompImpChart);
     }
     if(!sel.value) sel.value = C.modelos[0].modelo;
+    const selAnio = document.getElementById('comp-imp-anio');
+    if(selAnio && !selAnio.dataset.bound){
+      selAnio.addEventListener('change', renderCompImpChart);
+      selAnio.dataset.bound = '1';
+    }
     renderCompImpChart();
   }
 
@@ -5036,7 +5028,8 @@
     const modelo = document.getElementById('comp-imp-modelo').value;
     const m = C.modelos.find(x=>x.modelo===modelo);
     if(!m) return;
-    const meses = C.meses;
+    const anioF = (document.getElementById('comp-imp-anio')||{}).value || '';
+    const meses = anioF ? C.meses.filter(ym=>ym.startsWith(anioF)) : C.meses;
     const orgu = meses.map(ym=>m.mensual[ym]?.orgu || 0);
     const qm   = meses.map(ym=>m.mensual[ym]?.qm || 0);
     const labels = meses.map(ym=>{
