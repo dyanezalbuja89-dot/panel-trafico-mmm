@@ -1881,12 +1881,13 @@ HTML = r"""<!doctype html>
       <label style="font-size:12px;color:var(--muted)">Concesionario:
         <select id="embudo-agencia" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;margin-left:8px"></select>
       </label>
-      <label style="font-size:12px;color:var(--muted)">Mes:
-        <select id="embudo-mes" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;margin-left:8px"></select>
-      </label>
       <label style="font-size:12px;color:var(--muted)">Modelo:
         <select id="embudo-modelo" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;margin-left:8px;min-width:160px"><option value="">Todos los modelos</option></select>
       </label>
+    </div>
+    <div style="margin:10px 0;font-size:12px;color:var(--muted)">
+      Meses <span style="font-size:11px">(clic para sumar varios)</span>:
+      <span id="embudo-meses-chips" style="display:inline-flex;flex-wrap:wrap;gap:6px;margin-left:8px;vertical-align:middle"></span>
     </div>
 
     <!-- EMBUDO VISUAL -->
@@ -5047,51 +5048,92 @@ HTML = r"""<!doctype html>
   // ─────────── TAB EMBUDO ───────────
   let _embudoInit = false;
   const EMBUDO_COLORS = ['#003478','#1565c0','#0f766e','#f57f17','#e65100','#2e7d32'];
-  function embudoCurrent(){
+  const embudoState = { meses: [] };  // meses seleccionados (multi)
+
+  function embudoAgencia(){
     const E = DATA.embudo_data; if(!E) return null;
-    const ag = document.getElementById('embudo-agencia').value || E.default_agencia;
-    const mes = document.getElementById('embudo-mes').value;
-    return (E.agencias[ag] && E.agencias[ag][mes]) ? E.agencias[ag][mes] : null;
+    return document.getElementById('embudo-agencia').value || E.default_agencia;
+  }
+  // Agrega (suma) los meses seleccionados en un solo embudo
+  function embudoAggregate(){
+    const E = DATA.embudo_data; if(!E) return null;
+    const ag = embudoAgencia();
+    const agData = E.agencias[ag] || {};
+    const meses = embudoState.meses.filter(m=> agData[m]);
+    if(meses.length===0) return null;
+    // etapas: de cualquier mes
+    const etapas = agData[meses[0]].etapas;
+    const totales = {}; const por_modelo = {};
+    etapas.forEach(e=> totales[e]=0);
+    meses.forEach(mes=>{
+      const c = agData[mes];
+      etapas.forEach(e=> totales[e]+=(c.totales[e]||0));
+      Object.entries(c.por_modelo).forEach(([mod,fila])=>{
+        por_modelo[mod] = por_modelo[mod] || {};
+        etapas.forEach(e=> por_modelo[mod][e]=(por_modelo[mod][e]||0)+(fila[e]||0));
+      });
+    });
+    return { etapas, totales, por_modelo, meses };
   }
   function embudoInitFilters(){
     const E = DATA.embudo_data; if(!E) return;
     const selA = document.getElementById('embudo-agencia');
-    const selM = document.getElementById('embudo-mes');
     const selMod = document.getElementById('embudo-modelo');
     if(selA.options.length===0){
       Object.keys(E.agencias).forEach(a=>{ const o=document.createElement('option'); o.value=a;o.textContent=a;selA.appendChild(o);});
       selA.value = E.default_agencia;
-      selA.addEventListener('change', ()=>{ embudoFillMeses(); renderEmbudo(); });
+      selA.addEventListener('change', ()=>{ embudoResetMeses(); embudoRenderChips(); embudoFillModelos(); renderEmbudo(); });
     }
-    embudoFillMeses();
-    selM.addEventListener('change', ()=>{ embudoFillModelos(); renderEmbudo(); });
+    embudoResetMeses();
+    embudoRenderChips();
+    embudoFillModelos();
     selMod.addEventListener('change', renderEmbudo);
   }
-  function embudoFillMeses(){
-    const E = DATA.embudo_data;
-    const ag = document.getElementById('embudo-agencia').value || E.default_agencia;
-    const selM = document.getElementById('embudo-mes');
-    const meses = (E.meses[ag]||[]).filter(m=> E.agencias[ag] && E.agencias[ag][m]);
-    selM.innerHTML = meses.map(m=>`<option value="${m}">${m}</option>`).join('');
-    embudoFillModelos();
+  function embudoMesesDisponibles(){
+    const E = DATA.embudo_data; const ag = embudoAgencia();
+    return (E.meses[ag]||[]).filter(m=> E.agencias[ag] && E.agencias[ag][m]);
+  }
+  function embudoResetMeses(){
+    // por defecto: todos los meses seleccionados
+    embudoState.meses = embudoMesesDisponibles().slice();
+  }
+  function embudoRenderChips(){
+    const wrap = document.getElementById('embudo-meses-chips');
+    const meses = embudoMesesDisponibles();
+    wrap.innerHTML = meses.map(m=>{
+      const on = embudoState.meses.includes(m);
+      return `<button type="button" class="embudo-mes-chip" data-mes="${m}"
+        style="padding:5px 12px;border-radius:16px;border:1.5px solid #0f766e;cursor:pointer;font-size:12px;font-weight:600;
+        background:${on?'#0f766e':'#fff'};color:${on?'#fff':'#0f766e'}">${m}</button>`;
+    }).join('') + `<button type="button" id="embudo-mes-todos" style="padding:5px 10px;border-radius:16px;border:1px dashed #94a3b8;background:#fff;color:#64748b;cursor:pointer;font-size:11px">Todos</button>`;
+    wrap.querySelectorAll('.embudo-mes-chip').forEach(b=> b.addEventListener('click',()=>{
+      const m=b.dataset.mes;
+      if(embudoState.meses.includes(m)) embudoState.meses = embudoState.meses.filter(x=>x!==m);
+      else embudoState.meses.push(m);
+      if(embudoState.meses.length===0) embudoState.meses=[m]; // no dejar vacío
+      embudoRenderChips(); embudoFillModelos(); renderEmbudo();
+    }));
+    const todos = document.getElementById('embudo-mes-todos');
+    if(todos) todos.addEventListener('click',()=>{ embudoResetMeses(); embudoRenderChips(); embudoFillModelos(); renderEmbudo(); });
   }
   function embudoFillModelos(){
-    const c = embudoCurrent();
+    const agg = embudoAggregate();
     const selMod = document.getElementById('embudo-modelo');
     const cur = selMod.value;
-    const mods = c ? Object.keys(c.por_modelo) : [];
+    const mods = agg ? Object.keys(agg.por_modelo) : [];
     selMod.innerHTML = '<option value="">Todos los modelos</option>' + mods.map(m=>`<option value="${m}">${m}</option>`).join('');
     if(mods.includes(cur)) selMod.value = cur;
   }
   function renderEmbudo(){
     const E = DATA.embudo_data;
     if(!E){ document.getElementById('embudo-source').textContent='Datos de embudo no disponibles'; return; }
-    const c = embudoCurrent();
+    const c = embudoAggregate();
     if(!c) return;
-    const ag = document.getElementById('embudo-agencia').value || E.default_agencia;
+    const ag = embudoAgencia();
     const modelo = document.getElementById('embudo-modelo').value;
+    const mesesLbl = c.meses.length === embudoMesesDisponibles().length ? 'todos los meses' : c.meses.join(' + ');
     document.getElementById('embudo-source').textContent =
-      `${ag} · ${c.mes} · ${modelo||'todos los modelos'}`;
+      `${ag} · ${mesesLbl} · ${modelo||'todos los modelos'}`;
 
     // Datos según filtro de modelo
     const etapas = c.etapas;
@@ -5117,24 +5159,31 @@ HTML = r"""<!doctype html>
       </div>`;
     }).join('');
 
-    // Tabla por modelo × etapa
+    // Tabla por modelo × etapa (respeta filtros: meses agregados + modelo)
     const head = document.getElementById('embudo-tbl-head');
     head.innerHTML = '<th>Modelo</th>' + etapas.map(e=>`<th class="num">${e}</th>`).join('') + '<th class="num">% cierre</th>';
     const tbody = document.querySelector('#embudo-tbl tbody');
-    const mods = Object.entries(c.por_modelo).sort((a,b)=> (b[1][etapas[0]]||0)-(a[1][etapas[0]]||0));
+    let mods = Object.entries(c.por_modelo).sort((a,b)=> (b[1][etapas[0]]||0)-(a[1][etapas[0]]||0));
+    // Filtro de modelo: si hay uno seleccionado, mostrar solo ese
+    if(modelo) mods = mods.filter(([mod])=> mod===modelo);
     tbody.innerHTML = mods.map(([mod,fila])=>{
       const t = fila[etapas[0]]||0, ci = fila[etapas[etapas.length-1]]||0;
       const cierrePct = t? (100*ci/t).toFixed(0):0;
-      const hl = (modelo && mod===modelo) ? 'background:#ecfeff' : '';
-      return `<tr style="${hl}"><td class="left"><strong>${mod}</strong></td>`+
+      return `<tr><td class="left"><strong>${mod}</strong></td>`+
         etapas.map(e=>`<td class="num">${fila[e]||''}</td>`).join('')+
         `<td class="num" style="font-weight:600">${cierrePct}%</td></tr>`;
-    }).join('');
-    const tot = c.totales;
+    }).join('') || `<tr><td colspan="${etapas.length+2}" style="text-align:center;color:var(--muted);padding:14px">Sin datos para esta selección</td></tr>`;
+    // TOTAL: si hay modelo filtrado, el total es ese modelo; si no, suma de todos
     const tf = document.querySelector('#embudo-tbl tfoot');
-    const tCierre = tot[etapas[0]]? (100*tot[etapas[etapas.length-1]]/tot[etapas[0]]).toFixed(0):0;
-    tf.innerHTML = `<tr class="total"><td><strong>TOTAL</strong></td>`+
-      etapas.map(e=>`<td class="num" style="font-weight:700">${tot[e]||0}</td>`).join('')+
+    let totRow = {};
+    if(modelo && c.por_modelo[modelo]){
+      etapas.forEach(e=> totRow[e]=c.por_modelo[modelo][e]||0);
+    } else {
+      etapas.forEach(e=> totRow[e]=c.totales[e]||0);
+    }
+    const tCierre = totRow[etapas[0]]? (100*totRow[etapas[etapas.length-1]]/totRow[etapas[0]]).toFixed(0):0;
+    tf.innerHTML = `<tr class="total"><td><strong>TOTAL${modelo?' ('+modelo+')':''}</strong></td>`+
+      etapas.map(e=>`<td class="num" style="font-weight:700">${totRow[e]||0}</td>`).join('')+
       `<td class="num" style="font-weight:700">${tCierre}%</td></tr>`;
   }
   document.querySelector('.tab-btn[data-tab="embudo"]').addEventListener('click', ()=>{
