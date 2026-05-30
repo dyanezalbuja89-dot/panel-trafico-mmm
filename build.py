@@ -5512,9 +5512,9 @@ HTML = r"""<!doctype html>
     const cotToApr = totCot? 100*totApr/totCot : 0;
     // Embudo visual de crédito: 3 barras decrecientes
     const stages = [
-      {label:'Cotización',  v: totCot, color:'#1565c0', pct: 100,                  desc:'prospectos en el embudo'},
-      {label:'Solicitud',   v: totSol, color:'#7c3aed', pct: cotToSol,             desc:'expedientes enviados al banco'},
-      {label:'Aprobación',  v: totApr, color: solToApr<60?'#dc2626':(solToApr<80?'#d97706':'#16a34a'), pct: cotToApr, desc:'créditos autorizados'},
+      {label:'Cotización',  v: totCot, color:'#1565c0', pct: 100},
+      {label:'Solicitud',   v: totSol, color:'#7c3aed', pct: cotToSol},
+      {label:'Aprobación',  v: totApr, color: solToApr<60?'#dc2626':(solToApr<80?'#d97706':'#16a34a'), pct: cotToApr},
     ];
     const maxV = Math.max(totCot, 1);
     document.getElementById('embudo-credito-kpis').innerHTML = `
@@ -5533,10 +5533,7 @@ HTML = r"""<!doctype html>
             <div style="display:flex;align-items:center;gap:12px">
               <div style="width:110px;text-align:right;font-size:12px;font-weight:600;color:#374151">${s.label}</div>
               <div style="flex:1;background:#f1f5f9;border-radius:6px;overflow:hidden;position:relative">
-                <div style="width:${w}%;background:${s.color};color:#fff;padding:10px 14px;border-radius:6px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center;white-space:nowrap">
-                  <span>${s.v}</span>
-                  <span style="font-size:11px;font-weight:500;opacity:.9">${s.desc}</span>
-                </div>
+                <div style="width:${w}%;background:${s.color};color:#fff;padding:10px 14px;border-radius:6px;font-weight:700;font-size:14px;white-space:nowrap">${s.v}</div>
               </div>
               <div style="width:200px;font-size:11px;color:${i===2?s.color:'var(--muted)'};font-weight:${i===2?'700':'500'}">${convTxt}</div>
             </div>`;
