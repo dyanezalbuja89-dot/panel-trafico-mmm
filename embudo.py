@@ -399,6 +399,24 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     por_asesor = {}
     # Breakdown por (asesor, modelo, etapa) para que el filtro de modelo aplique
     por_asesor_modelo = {}  # {asesor: {modelo: {etapa: n}}}
+    # Métrica de gestión: cuántas cotizaciones del asesor avanzaron a CUALQUIER
+    # etapa posterior (Pres / Sol / Apr / Cierre). No exige pasar por Pres
+    # porque los de contado saltan directo a Cierre y no es fallo del asesor.
+    # Pre-compute: set de ids que están en CUALQUIER etapa post-cotización
+    post_cot_ids = set()
+    for lbl in labels:
+        if lbl == 'Cotización':
+            continue
+        d = stage_dfs.get(lbl, pd.DataFrame())
+        if not d.empty and 'id' in d.columns:
+            post_cot_ids.update(d['id'].dropna().tolist())
+    avanzados_por_asesor = {}  # {asesor: n_cotizaciones_que_avanzaron}
+    _df_cot_local = stage_dfs.get('Cotización', pd.DataFrame())
+    if not _df_cot_local.empty:
+        df_cot_u = _df_cot_local.drop_duplicates(subset=['id','ASESOR'])
+        df_cot_av = df_cot_u[df_cot_u['id'].isin(post_cot_ids)]
+        for ase, n in df_cot_av['ASESOR'].dropna().value_counts().items():
+            avanzados_por_asesor[ase] = int(n)
     for ase in asesores:
         fila = {}
         for lbl in labels:
@@ -577,6 +595,8 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         'enfriados_por_modelo': enfriados_por_modelo,
         'enfriados_por_asesor': enfriados_por_asesor,
         'enfriados_por_canal': enfriados_por_canal,
+        # Calidad gestión: cuántas cot del asesor avanzan a CUALQUIER etapa post
+        'avanzados_por_asesor': avanzados_por_asesor,
         # Base honesta del embudo de crédito (sólo Pago = credit)
         'cot_credito_total': cot_credito_total,
         'cot_credito_por_modelo': cot_credito_por_modelo,

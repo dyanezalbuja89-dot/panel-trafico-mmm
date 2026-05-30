@@ -1942,7 +1942,7 @@ HTML = r"""<!doctype html>
 
     <!-- TABLERO: CALIDAD DE GESTIÓN POR ASESOR -->
     <div class="ford-section" style="margin-top:18px">
-      <h3>🎯 Calidad de gestión por asesor <span class="sub">proxies de seguimiento: avance Cot→Pres + tasa de enfriamiento</span></h3>
+      <h3>🎯 Calidad de gestión por asesor <span class="sub">proxies de seguimiento: avance del lead + tasa de enfriamiento</span></h3>
       <div style="overflow-x:auto">
         <table class="analysis" id="embudo-gestion-tbl">
           <thead>
@@ -1950,7 +1950,7 @@ HTML = r"""<!doctype html>
               <th></th>
               <th>Asesor</th>
               <th class="num">Cot</th>
-              <th class="num">→Pres %</th>
+              <th class="num">→Avanza %</th>
               <th class="num">Cold %</th>
               <th class="num">Score</th>
               <th>Diagnóstico</th>
@@ -1961,9 +1961,9 @@ HTML = r"""<!doctype html>
         </table>
       </div>
       <div class="footer-note" style="margin-top:8px">
-        <strong>Score = 0.6 × (Cot→Pres%) + 0.4 × (100 − Cold%).</strong>
+        <strong>→ Avanza %</strong> = cotizaciones que llegan a CUALQUIER etapa posterior (Pres / Sol / Apr / Cierre). No exige pasar por Pres porque los de contado saltan directo a Cierre.
+        <strong>Score = 0.6 × (Avanza%) + 0.4 × (100 − Cold%).</strong>
         🟢 ≥60 buena gestión · 🟡 40-60 aceptable · 🔴 &lt;40 intervenir · ⚪ N&lt;10 datos insuficientes.
-        <em>Limitación:</em> Cot→Pres puede subestimar a sucursales donde el negocio salta directo a Cierre (contado o falta de captura de la etapa Presentación).
       </div>
     </div>
 
@@ -5226,6 +5226,8 @@ HTML = r"""<!doctype html>
     const enfriados_por_canal = {};
     let cot_credito_total = 0;
     const cot_credito_por_modelo = {};
+    // Cotizaciones que avanzaron a CUALQUIER etapa post (para calidad gestión)
+    const avanzados_por_asesor = {};
     const por_agencia = {}; // agregado por agencia para insights comparativos
     etapas.forEach(e=> totales[e]=0);
     let mesesUsados = new Set();
@@ -5306,6 +5308,8 @@ HTML = r"""<!doctype html>
         // Cotizaciones con crédito (base honesta del embudo crédito)
         cot_credito_total += (c.cot_credito_total || 0);
         Object.entries(c.cot_credito_por_modelo||{}).forEach(([m,n])=> cot_credito_por_modelo[m] = (cot_credito_por_modelo[m]||0)+n);
+        // Avanzados por asesor (para calidad gestión)
+        Object.entries(c.avanzados_por_asesor||{}).forEach(([a,n])=> avanzados_por_asesor[a] = (avanzados_por_asesor[a]||0)+n);
       });
     });
     return { etapas, totales, por_modelo, por_asesor, por_asesor_modelo, por_agencia,
@@ -5318,6 +5322,7 @@ HTML = r"""<!doctype html>
              sol_canal_mod, apr_canal_mod,
              enfriados_total, enfriados_por_modelo, enfriados_por_asesor, enfriados_por_canal,
              cot_credito_total, cot_credito_por_modelo,
+             avanzados_por_asesor,
              meses: Array.from(mesesUsados).sort((a,b)=>
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(a)-
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(b)),
@@ -5754,7 +5759,7 @@ HTML = r"""<!doctype html>
   }
 
   function renderEmbudoGestion(c, modelo){
-    // Fuente de cotización / presentación por asesor
+    // Fuente de cotización por asesor (respeta filtro modelo si aplica)
     let porAse;
     if(modelo){
       porAse = {};
@@ -5766,33 +5771,36 @@ HTML = r"""<!doctype html>
     }
     const etapas = c.etapas;
     const E0 = etapas[0];           // Cotización
-    const E1 = etapas[1] || E0;     // Presentación
+    // Avanzados = cotizaciones del asesor en CUALQUIER etapa post (Pres/Sol/Apr/Cierre)
+    // (No exige Pres específicamente, para no penalizar contado / cierre directo.)
+    const avanzadosAse = c.avanzados_por_asesor || {};
     // Cold por asesor: global del asesor (no por modelo) — simplificación
     const enfriadosAse = c.enfriados_por_asesor || {};
 
     // Construir filas con métricas
     const filas = Object.entries(porAse).map(([ase, fila])=>{
       const cot = fila[E0] || 0;
-      const pres = fila[E1] || 0;
+      const av = modelo ? 0 : (avanzadosAse[ase] || 0);  // si modelo filtrado, no tenemos breakdown
       const cold = enfriadosAse[ase] || 0;
-      const presPct = cot ? 100*pres/cot : 0;
+      const avPct = cot ? 100*av/cot : 0;
       const coldPct = cot ? 100*cold/cot : 0;
-      const valid = cot >= 10;
-      const score = valid ? (0.6*presPct + 0.4*(100 - coldPct)) : null;
-      // Diagnóstico textual
+      const valid = cot >= 10 && !modelo;  // si hay filtro modelo, no calculamos score (sin breakdown)
+      const score = valid ? (0.6*avPct + 0.4*(100 - coldPct)) : null;
+      // Diagnóstico textual basado en av% y cold%
       let diag = '—';
-      if(!valid){ diag = `<span style="color:#94a3b8">Datos insuficientes (N&lt;10)</span>`; }
-      else if(presPct < 20 && coldPct > 50) diag = `<span style="color:#7f1d1d">No agenda + abandona</span>`;
-      else if(presPct < 20 && coldPct < 20) diag = `<span style="color:#7f1d1d">No agenda</span>`;
-      else if(presPct < 25 && coldPct > 40) diag = `<span style="color:#7f1d1d">Volumen sin trabajo</span>`;
-      else if(presPct >= 45 && coldPct < 10) diag = `<span style="color:#15803d;font-weight:700">Líder del equipo</span>`;
-      else if(presPct >= 40 && coldPct < 25) diag = `<span style="color:#15803d">Buen seguimiento</span>`;
-      else if(presPct >= 40 && coldPct >= 25) diag = `<span style="color:#a16207">Agenda OK, enfría</span>`;
-      else if(presPct >= 25 && coldPct < 10) diag = `<span style="color:#a16207">Sólido</span>`;
+      if(modelo){ diag = `<span style="color:#94a3b8">Quita filtro modelo para ver score</span>`; }
+      else if(!valid){ diag = `<span style="color:#94a3b8">Datos insuficientes (N&lt;10)</span>`; }
+      else if(avPct < 25 && coldPct > 50) diag = `<span style="color:#7f1d1d">No trabaja + abandona</span>`;
+      else if(avPct < 25 && coldPct < 20) diag = `<span style="color:#7f1d1d">No hace seguimiento</span>`;
+      else if(avPct < 35 && coldPct > 40) diag = `<span style="color:#7f1d1d">Volumen sin trabajo</span>`;
       else if(coldPct > 60) diag = `<span style="color:#7f1d1d">Patrón defensivo (marca todo Cold)</span>`;
+      else if(avPct >= 55 && coldPct < 10) diag = `<span style="color:#15803d;font-weight:700">Líder del equipo</span>`;
+      else if(avPct >= 45 && coldPct < 25) diag = `<span style="color:#15803d">Buen seguimiento</span>`;
+      else if(avPct >= 40 && coldPct >= 25) diag = `<span style="color:#a16207">Trabaja, pero enfría</span>`;
+      else if(avPct >= 35 && coldPct < 10) diag = `<span style="color:#a16207">Sólido</span>`;
       else diag = `<span style="color:#6b7280">Aceptable</span>`;
-      return {ase, cot, pres, cold, presPct, coldPct, score, valid, diag};
-    }).filter(r=> r.cot+r.pres+r.cold > 0);
+      return {ase, cot, av, cold, avPct, coldPct, score, valid, diag};
+    }).filter(r=> r.cot+r.av+r.cold > 0);
     // Orden: válidos por score asc (peores arriba), luego inválidos por cot desc
     filas.sort((a,b)=>{
       if(a.valid !== b.valid) return a.valid ? -1 : 1;
@@ -5814,10 +5822,10 @@ HTML = r"""<!doctype html>
       </div>`;
     }
     function badge(pct, mode){
-      // mode: 'pres' (alto=verde) o 'cold' (alto=rojo)
+      // mode: 'av' (alto=verde) o 'cold' (alto=rojo)
       let col;
-      if(mode === 'pres'){
-        col = pct >= 45 ? '#16a34a' : (pct >= 25 ? '#d97706' : '#dc2626');
+      if(mode === 'av'){
+        col = pct >= 55 ? '#16a34a' : (pct >= 35 ? '#d97706' : '#dc2626');
       } else {
         col = pct < 10 ? '#16a34a' : (pct < 40 ? '#d97706' : '#dc2626');
       }
@@ -5834,7 +5842,7 @@ HTML = r"""<!doctype html>
         <td style="text-align:center">${r.valid ? dot(sCol) : dot('#cbd5e1')}</td>
         <td class="left"><strong>${r.ase}</strong></td>
         <td class="num">${r.cot}</td>
-        <td class="num">${badge(r.presPct, 'pres')}</td>
+        <td class="num">${modelo ? '<span style="color:#94a3b8">—</span>' : badge(r.avPct, 'av')}</td>
         <td class="num">${badge(r.coldPct, 'cold')}</td>
         <td class="num">${scoreCell}</td>
         <td style="font-size:12px">${r.diag}</td>
@@ -5845,18 +5853,18 @@ HTML = r"""<!doctype html>
     const validos = filas.filter(r=> r.valid);
     if(validos.length){
       const sumCot = validos.reduce((s,r)=>s+r.cot,0);
-      const sumPres = validos.reduce((s,r)=>s+r.pres,0);
-      const sumCold = validos.reduce((s,r)=>s+r.cold,0);
-      const avgPres = sumCot? 100*sumPres/sumCot : 0;
-      const avgCold = sumCot? 100*sumCold/sumCot : 0;
-      const avgScore = 0.6*avgPres + 0.4*(100-avgCold);
+      const sumAv  = validos.reduce((s,r)=>s+r.av,0);
+      const sumCold= validos.reduce((s,r)=>s+r.cold,0);
+      const avgAv  = sumCot? 100*sumAv/sumCot : 0;
+      const avgCold= sumCot? 100*sumCold/sumCot : 0;
+      const avgScore = 0.6*avgAv + 0.4*(100-avgCold);
       const sCol = scoreCol(avgScore, true);
       document.querySelector('#embudo-gestion-tbl tfoot').innerHTML = `
         <tr class="total">
           <td></td>
           <td><strong>Promedio del equipo</strong></td>
           <td class="num"><strong>${Math.round(sumCot/validos.length)}</strong></td>
-          <td class="num">${badge(avgPres, 'pres')}</td>
+          <td class="num">${badge(avgAv, 'av')}</td>
           <td class="num">${badge(avgCold, 'cold')}</td>
           <td class="num"><strong style="color:${sCol}">${avgScore.toFixed(0)}</strong></td>
           <td style="font-size:12px;color:#6b7280">benchmark interno</td>
@@ -6092,45 +6100,45 @@ HTML = r"""<!doctype html>
 
     // ── 4.8 Calidad de gestión por asesor (proxies de seguimiento) ──
     const enfAse = c.enfriados_por_asesor || {};
+    const avAse = c.avanzados_por_asesor || {};
     const gFilas = Object.entries(c.por_asesor||{}).map(([ase, fila])=>{
       const cot = fila[E0] || 0;
-      const pres = fila[EP] || 0;
+      const av = avAse[ase] || 0;
       const cold = enfAse[ase] || 0;
-      const presPct = cot ? 100*pres/cot : 0;
+      const avPct = cot ? 100*av/cot : 0;
       const coldPct = cot ? 100*cold/cot : 0;
-      const score = cot >= 10 ? (0.6*presPct + 0.4*(100-coldPct)) : null;
-      return {ase, cot, pres, cold, presPct, coldPct, score};
+      const score = cot >= 10 ? (0.6*avPct + 0.4*(100-coldPct)) : null;
+      return {ase, cot, av, cold, avPct, coldPct, score};
     }).filter(r=> r.cot >= 10);
     if(gFilas.length >= 2){
-      // Promedio del equipo
       const sumCot = gFilas.reduce((s,r)=>s+r.cot,0);
-      const sumPres = gFilas.reduce((s,r)=>s+r.pres,0);
+      const sumAv = gFilas.reduce((s,r)=>s+r.av,0);
       const sumCold = gFilas.reduce((s,r)=>s+r.cold,0);
-      const avgPres = sumCot ? 100*sumPres/sumCot : 0;
+      const avgAv = sumCot ? 100*sumAv/sumCot : 0;
       const avgCold = sumCot ? 100*sumCold/sumCot : 0;
-      // Asesor con score muy bajo
+      // Gestión deficiente
       const peorScore = [...gFilas].sort((a,b)=> a.score - b.score)[0];
-      if(peorScore.score < 35 && peorScore.cot >= 30){
-        const lost = Math.round(peorScore.cot * (avgPres - peorScore.presPct) / 100);
+      if(peorScore.score < 40 && peorScore.cot >= 30){
+        const lost = Math.round(peorScore.cot * (avgAv - peorScore.avPct) / 100);
         insights.push({tipo:'bad', titulo:`Gestión deficiente: ${peorScore.ase}`,
-          html:`<strong>${peorScore.ase}</strong> tiene <strong>${peorScore.cot}</strong> cotizaciones pero solo <strong>${fPct(peorScore.presPct)}</strong> avanza a presentación (promedio equipo: ${fPct(avgPres)}). Enfría <strong>${fPct(peorScore.coldPct)}</strong>. Score de gestión: <strong>${peorScore.score.toFixed(0)}/100</strong>. ${lost>0 ? `Si igualara el promedio, generaría ~${lost} presentaciones más.` : ''}`});
+          html:`<strong>${peorScore.ase}</strong> tiene <strong>${peorScore.cot}</strong> cotizaciones pero solo <strong>${fPct(peorScore.avPct)}</strong> avanza a alguna etapa posterior (promedio equipo: ${fPct(avgAv)}). Enfría <strong>${fPct(peorScore.coldPct)}</strong>. Score: <strong>${peorScore.score.toFixed(0)}/100</strong>. ${lost>0 ? `Si igualara el promedio, generaría ~${lost} leads trabajados más.` : ''}`});
       }
-      // Patrón defensivo: marca todo como Cold
+      // Patrón defensivo
       gFilas.filter(r=> r.coldPct >= 60 && r.cot >= 20).forEach(r=>{
         insights.push({tipo:'warn', titulo:`Patrón defensivo: ${r.ase}`,
-          html:`<strong>${r.ase}</strong> marca <strong>${fPct(r.coldPct)}</strong> de sus ${r.cot} cotizaciones como Cold. Eso es 3× el promedio del equipo (${fPct(avgCold)}). Posible patrón de "enfriar para sacar del pipeline" en lugar de trabajar el lead. Auditar criterio de etiquetado.`});
+          html:`<strong>${r.ase}</strong> marca <strong>${fPct(r.coldPct)}</strong> de sus ${r.cot} cotizaciones como Cold. Eso es muy por encima del promedio del equipo (${fPct(avgCold)}). Posible patrón de "enfriar para sacar del pipeline" en lugar de trabajar el lead. Auditar criterio de etiquetado.`});
       });
-      // Asesor estrella (score alto con volumen)
+      // Benchmark
       const mejorScore = [...gFilas].sort((a,b)=> b.score - a.score)[0];
-      if(mejorScore.score >= 60 && mejorScore.cot >= 50){
+      if(mejorScore.score >= 65 && mejorScore.cot >= 50){
         insights.push({tipo:'good', titulo:`🏆 Benchmark de gestión: ${mejorScore.ase}`,
-          html:`<strong>${mejorScore.ase}</strong> avanza <strong>${fPct(mejorScore.presPct)}</strong> de sus ${mejorScore.cot} cotizaciones a presentación y solo enfría <strong>${fPct(mejorScore.coldPct)}</strong>. Score: <strong>${mejorScore.score.toFixed(0)}/100</strong>. Replicar su proceso en sesión de coaching con el resto del equipo.`});
+          html:`<strong>${mejorScore.ase}</strong> trabaja <strong>${fPct(mejorScore.avPct)}</strong> de sus ${mejorScore.cot} cotizaciones (las lleva a alguna etapa posterior) y solo enfría <strong>${fPct(mejorScore.coldPct)}</strong>. Score: <strong>${mejorScore.score.toFixed(0)}/100</strong>. Replicar su proceso en sesión de coaching con el resto del equipo.`});
       }
-      // Asesor con buena gestión pero bajo volumen → oportunidad
-      const subutilizado = gFilas.filter(r=> r.presPct >= 45 && r.coldPct < 25 && r.cot < 40).sort((a,b)=> b.presPct - a.presPct)[0];
+      // Subutilizado
+      const subutilizado = gFilas.filter(r=> r.avPct >= 55 && r.coldPct < 25 && r.cot < 40).sort((a,b)=> b.avPct - a.avPct)[0];
       if(subutilizado){
         insights.push({tipo:'info', titulo:`✨ Subutilizado: ${subutilizado.ase}`,
-          html:`<strong>${subutilizado.ase}</strong> tiene la mejor tasa Cot→Pres (<strong>${fPct(subutilizado.presPct)}</strong>) pero solo recibe ${subutilizado.cot} cotizaciones. Reasignar más leads a este asesor.`});
+          html:`<strong>${subutilizado.ase}</strong> tiene la mejor tasa de trabajo del pipeline (<strong>${fPct(subutilizado.avPct)}</strong> de avance) pero solo recibe ${subutilizado.cot} cotizaciones. Reasignar más leads a este asesor.`});
       }
     }
 
