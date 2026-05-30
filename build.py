@@ -5502,30 +5502,49 @@ HTML = r"""<!doctype html>
     const aprCanal = modelo ? _canal_filtered(c.apr_canal_mod, modelo) : (c.apr_por_canal||{});
     const solAseTot = modelo ? _asesor_totals_by_modelo(c.sol_ase_ch_mod, modelo) : null;
     const aprAseTot = modelo ? _asesor_totals_by_modelo(c.apr_ase_ch_mod, modelo) : null;
-    // KPIs globales
-    const totSol = Object.values(solCanal).reduce((s,n)=>s+n,0);
-    const totApr = Object.values(aprCanal).reduce((s,n)=>s+n,0);
-    const totRate = totSol? 100*totApr/totSol : 0;
-    const totRateCol = rateColor(totRate, totSol);
-    // Cotizaciones del período (para mostrar el embudo crédito vs cotización)
+    // Totales: Cotización → Solicitud → Aprobación
     let totCot = c.totales[c.etapas[0]] || 0;
     if(modelo && c.por_modelo[modelo]) totCot = c.por_modelo[modelo][c.etapas[0]]||0;
+    const totSol = Object.values(solCanal).reduce((s,n)=>s+n,0);
+    const totApr = Object.values(aprCanal).reduce((s,n)=>s+n,0);
     const cotToSol = totCot? 100*totSol/totCot : 0;
+    const solToApr = totSol? 100*totApr/totSol : 0;
+    const cotToApr = totCot? 100*totApr/totCot : 0;
+    // Embudo visual de crédito: 3 barras decrecientes
+    const stages = [
+      {label:'Cotización',  v: totCot, color:'#1565c0', pct: 100,                  desc:'prospectos en el embudo'},
+      {label:'Solicitud',   v: totSol, color:'#7c3aed', pct: cotToSol,             desc:'expedientes enviados al banco'},
+      {label:'Aprobación',  v: totApr, color: solToApr<60?'#dc2626':(solToApr<80?'#d97706':'#16a34a'), pct: cotToApr, desc:'créditos autorizados'},
+    ];
+    const maxV = Math.max(totCot, 1);
     document.getElementById('embudo-credito-kpis').innerHTML = `
-      <div class="kpi-card" style="border-left:4px solid #1976d2">
-        <div class="kpi-label">Solicitudes de crédito</div>
-        <div class="kpi-value">${totSol}</div>
-        <div class="kpi-sub">${cotToSol.toFixed(0)}% de las cotizaciones</div>
-      </div>
-      <div class="kpi-card" style="border-left:4px solid #7c3aed">
-        <div class="kpi-label">Aprobaciones</div>
-        <div class="kpi-value">${totApr}</div>
-        <div class="kpi-sub">expedientes autorizados por el banco</div>
-      </div>
-      <div class="kpi-card" style="border-left:4px solid ${totRateCol}">
-        <div class="kpi-label">Tasa de aprobación</div>
-        <div class="kpi-value" style="color:${totRateCol}">${totRate.toFixed(1)}%</div>
-        <div class="kpi-sub">${totApr} de ${totSol} solicitudes aprobadas</div>
+      <div style="display:flex;flex-direction:column;gap:8px;padding:14px;background:#fff;border:1px solid #e5e7eb;border-radius:10px">
+        <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);margin-bottom:4px">
+          <span style="font-weight:700;color:#111827;font-size:13px">Embudo de financiamiento</span>
+          <span>Cotización → Solicitud → Aprobación</span>
+        </div>
+        ${stages.map((s,i)=>{
+          const w = Math.max(12, 100*s.v/maxV);
+          // texto de conversión vs etapa anterior
+          let convTxt = '';
+          if(i===1) convTxt = `${cotToSol.toFixed(0)}% de cotizaciones piden crédito`;
+          else if(i===2) convTxt = `${solToApr.toFixed(0)}% de aprobación`;
+          return `
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:110px;text-align:right;font-size:12px;font-weight:600;color:#374151">${s.label}</div>
+              <div style="flex:1;background:#f1f5f9;border-radius:6px;overflow:hidden;position:relative">
+                <div style="width:${w}%;background:${s.color};color:#fff;padding:10px 14px;border-radius:6px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center;white-space:nowrap">
+                  <span>${s.v}</span>
+                  <span style="font-size:11px;font-weight:500;opacity:.9">${s.desc}</span>
+                </div>
+              </div>
+              <div style="width:200px;font-size:11px;color:${i===2?s.color:'var(--muted)'};font-weight:${i===2?'700':'500'}">${convTxt}</div>
+            </div>`;
+        }).join('')}
+        <div style="margin-top:8px;padding:10px 12px;background:#f8fafc;border-radius:8px;font-size:12px;color:#475569;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <span><strong>${totApr}</strong> ventas financiadas / <strong>${totCot}</strong> cotizaciones = <strong style="color:${stages[2].color}">${cotToApr.toFixed(1)}%</strong> de impacto neto del crédito en el embudo</span>
+          <span>Tasa de aprobación del banco: <strong style="color:${stages[2].color}">${solToApr.toFixed(1)}%</strong></span>
+        </div>
       </div>`;
 
     // POR MODELO (si hay filtro modelo, sólo ese modelo)
