@@ -197,22 +197,39 @@ def _norm_canal(s):
     return s
 
 
+def _norm_temp(s):
+    """Normaliza Temperatura. Devuelve 'cold' si frío/cold, 'hot' si hot, etc., None si vacío."""
+    if not isinstance(s, str):
+        return None
+    s = s.strip().lower()
+    if not s or s == 'nan':
+        return None
+    if s.startswith('cold') or s.startswith('frío') or s.startswith('frio'):
+        return 'cold'
+    if 'hot' in s:
+        return 'hot'
+    if 'tibio' in s or 'warm' in s:
+        return 'tibio'
+    return s
+
+
 def _load_stage(path):
-    """Lee un archivo de etapa, devuelve DataFrame con id + MODELO_N + ASESOR + CANAL,
+    """Lee un archivo de etapa, devuelve DataFrame con id + MODELO_N + ASESOR + CANAL + TEMP,
     explotando los registros multi-modelo (una fila por (id, modelo))."""
     df = pd.read_excel(path, sheet_name=0)
     if 'Modelo' not in df.columns or 'id' not in df.columns:
-        return pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL'])
+        return pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL', 'TEMP'])
     rows = []
     for _, r in df.iterrows():
         if pd.isna(r['id']):
             continue
         ase = _norm_asesor(r.get('Asesor'))
         canal = _norm_canal(r.get('Canal'))
+        temp = _norm_temp(r.get('Temperatura'))
         for mod in _split_modelos(r['Modelo']):
-            rows.append({'id': r['id'], 'MODELO_N': mod, 'ASESOR': ase, 'CANAL': canal})
+            rows.append({'id': r['id'], 'MODELO_N': mod, 'ASESOR': ase, 'CANAL': canal, 'TEMP': temp})
     if not rows:
-        return pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL'])
+        return pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL', 'TEMP'])
     return pd.DataFrame(rows)
 
 
@@ -269,7 +286,7 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         if p and p.exists():
             stage_dfs[label] = _load_stage(p)
         else:
-            stage_dfs[label] = pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL'])
+            stage_dfs[label] = pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL', 'TEMP'])
 
     # ► Reasignación de asesores (home / Otros). Las filas se quedan en esta
     # agencia pero el nombre del asesor pasa a "Otros" si:
@@ -476,6 +493,43 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
             apr_canal_mod.setdefault(r['CANAL'], {})
             apr_canal_mod[r['CANAL']][r['MODELO_N']] = apr_canal_mod[r['CANAL']].get(r['MODELO_N'], 0) + 1
 
+    # ── NEGOCIOS CAÍDOS ──
+    # Definición: id en Cotización con Temperatura ∈ {cold, frío} que NO aparece
+    # en ninguna etapa posterior (Presentación / Solicitud / Aprobación / Cierre)
+    caidos_total = 0
+    caidos_por_modelo = {}
+    caidos_por_asesor = {}
+    caidos_por_canal = {}
+    caidos_por_modelo_filtro = {}  # estructura {modelo: n} para que filtro modelo aplique
+    caidos_lista = []  # lista de ids para auditoría / drill-down
+    if not df_cot.empty and 'TEMP' in df_cot.columns:
+        # ids que avanzaron (presentes en cualquier etapa post-Cotización)
+        post_ids = set()
+        for lbl in labels:
+            if lbl == 'Cotización':
+                continue
+            d = stage_dfs.get(lbl, pd.DataFrame())
+            if not d.empty and 'id' in d.columns:
+                post_ids.update(d['id'].dropna().tolist())
+        # cotizaciones con temperatura fría
+        df_fria = df_cot[df_cot['TEMP'] == 'cold']
+        # filas únicas por id (dedup)
+        df_fria_u = df_fria.drop_duplicates(subset=['id'])
+        # las que NO avanzaron
+        df_caidos = df_fria_u[~df_fria_u['id'].isin(post_ids)]
+        caidos_total = int(len(df_caidos))
+        # breakdown necesita volver a unir multi-modelo (un id puede traer varios)
+        df_caidos_mods = df_fria[~df_fria['id'].isin(post_ids)].drop_duplicates(subset=['id','MODELO_N'])
+        for mod, n in df_caidos_mods['MODELO_N'].value_counts().items():
+            caidos_por_modelo[mod] = int(n)
+        # por asesor (un id puede tener un solo asesor — dedup por id)
+        for ase, n in df_caidos['ASESOR'].dropna().value_counts().items():
+            caidos_por_asesor[ase] = int(n)
+        for ch, n in df_caidos['CANAL'].dropna().value_counts().items():
+            caidos_por_canal[ch] = int(n)
+        # lista de ids (para drill-down si lo necesitamos en el futuro)
+        caidos_lista = df_caidos['id'].dropna().astype(str).tolist()
+
     # Conversión de CADA etapa vs la base del embudo (Cotización = labels[0])
     base = totales[labels[0]]
     conv = {}
@@ -506,6 +560,11 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         'apr_ase_ch_mod': apr_ase_ch_mod,
         'sol_canal_mod': sol_canal_mod,
         'apr_canal_mod': apr_canal_mod,
+        # Negocios caídos (cold + sin avance)
+        'caidos_total': caidos_total,
+        'caidos_por_modelo': caidos_por_modelo,
+        'caidos_por_asesor': caidos_por_asesor,
+        'caidos_por_canal': caidos_por_canal,
         'conversion_etapa': conv,
         'conversion_total': conv_total,
         'cierre_fuente': 'inventario (ventas facturadas)',

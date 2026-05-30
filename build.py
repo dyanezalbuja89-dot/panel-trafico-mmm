@@ -1897,11 +1897,22 @@ HTML = r"""<!doctype html>
       <span id="embudo-meses-chips" style="display:inline-flex;flex-wrap:wrap;gap:6px;margin-left:8px;vertical-align:middle"></span>
     </div>
 
-    <!-- EMBUDO VISUAL -->
-    <div class="ford-section">
-      <h3>📉 Embudo general <span class="sub" id="embudo-sub-general"></span></h3>
-      <div id="embudo-funnel" style="max-width:760px;margin:0 auto"></div>
+    <!-- EMBUDO VISUAL + NEGOCIOS CAÍDOS (lado a lado) -->
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:0" class="embudo-grid-top">
+      <div class="ford-section" style="margin:0">
+        <h3>📉 Embudo general <span class="sub" id="embudo-sub-general"></span></h3>
+        <div id="embudo-funnel"></div>
+      </div>
+      <div class="ford-section" style="margin:0">
+        <h3>❄️ Negocios caídos <span class="sub" id="embudo-caidos-sub">cotizaciones marcadas Cold/Frío que no avanzaron</span></h3>
+        <div id="embudo-caidos"></div>
+      </div>
     </div>
+    <style>
+      @media (max-width: 1100px){
+        .embudo-grid-top{grid-template-columns:1fr !important}
+      }
+    </style>
 
     <!-- TABLA POR MODELO -->
     <div class="ford-section" style="margin-top:18px">
@@ -5173,6 +5184,11 @@ HTML = r"""<!doctype html>
     const cotiz_ase_ch_mod = {}; const cierre_ase_ch_mod = {};
     const sol_ase_ch_mod = {};   const apr_ase_ch_mod = {};
     const sol_canal_mod = {};    const apr_canal_mod = {};
+    // Negocios caídos
+    let caidos_total = 0;
+    const caidos_por_modelo = {};
+    const caidos_por_asesor = {};
+    const caidos_por_canal = {};
     const por_agencia = {}; // agregado por agencia para insights comparativos
     etapas.forEach(e=> totales[e]=0);
     let mesesUsados = new Set();
@@ -5245,6 +5261,11 @@ HTML = r"""<!doctype html>
         };
         sumar2(sol_canal_mod, c.sol_canal_mod);
         sumar2(apr_canal_mod, c.apr_canal_mod);
+        // Caídos
+        caidos_total += (c.caidos_total || 0);
+        Object.entries(c.caidos_por_modelo||{}).forEach(([m,n])=> caidos_por_modelo[m] = (caidos_por_modelo[m]||0)+n);
+        Object.entries(c.caidos_por_asesor||{}).forEach(([a,n])=> caidos_por_asesor[a] = (caidos_por_asesor[a]||0)+n);
+        Object.entries(c.caidos_por_canal||{}).forEach(([ch,n])=> caidos_por_canal[ch] = (caidos_por_canal[ch]||0)+n);
       });
     });
     return { etapas, totales, por_modelo, por_asesor, por_asesor_modelo, por_agencia,
@@ -5255,6 +5276,7 @@ HTML = r"""<!doctype html>
              cotiz_ase_ch_mod, cierre_ase_ch_mod,
              sol_ase_ch_mod, apr_ase_ch_mod,
              sol_canal_mod, apr_canal_mod,
+             caidos_total, caidos_por_modelo, caidos_por_asesor, caidos_por_canal,
              meses: Array.from(mesesUsados).sort((a,b)=>
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(a)-
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(b)),
@@ -5444,6 +5466,9 @@ HTML = r"""<!doctype html>
       etapas.map(e=>`<td class="num" style="font-weight:700">${aTot[e]||0}</td>`).join('')+
       `<td class="num" style="font-weight:700">${aCierre}%</td></tr>`;
 
+    // ─── TABLERO: NEGOCIOS CAÍDOS (junto al embudo general) ───
+    renderEmbudoCaidos(c, modelo);
+
     // ─── TABLERO: TASA DE CIERRE POR ASESOR × CANAL ───
     renderEmbudoAsesorCanal(c, modelo);
 
@@ -5481,6 +5506,75 @@ HTML = r"""<!doctype html>
       if(tot>0) out[ase] = tot;
     });
     return out;
+  }
+
+  function renderEmbudoCaidos(c, modelo){
+    const el = document.getElementById('embudo-caidos'); if(!el) return;
+    // Filtro por modelo: si hay, el total y los breakdowns por asesor/canal se reducen
+    // proporcionalmente al modelo seleccionado.
+    let total = c.caidos_total || 0;
+    let porAsesor = c.caidos_por_asesor || {};
+    let porCanal = c.caidos_por_canal || {};
+    const porModelo = c.caidos_por_modelo || {};
+    if(modelo){
+      total = porModelo[modelo] || 0;
+      // los breakdowns asesor/canal NO están desagregados por modelo en backend
+      // (no implementado por simplicidad). Si hay modelo seleccionado, mostramos solo el KPI.
+      porAsesor = {};
+      porCanal = {};
+    }
+    // Denominador: cotizaciones totales (filtradas)
+    let totCot = c.totales[c.etapas[0]] || 0;
+    if(modelo && c.por_modelo[modelo]) totCot = c.por_modelo[modelo][c.etapas[0]]||0;
+    const pct = totCot ? 100*total/totCot : 0;
+    const col = pct >= 20 ? '#dc2626' : (pct >= 10 ? '#d97706' : '#16a34a');
+    document.getElementById('embudo-caidos-sub').textContent =
+      modelo ? `${modelo} · marcadas Cold/Frío sin avance` : 'cotizaciones Cold/Frío que no avanzaron a presentación';
+
+    // Top 5 por modelo (siempre, incluso si hay filtro modelo — para no perder contexto cuando no hay filtro)
+    const topMod = Object.entries(porModelo).sort((a,b)=> b[1]-a[1]).slice(0, 5);
+    const topAse = Object.entries(porAsesor).sort((a,b)=> b[1]-a[1]).slice(0, 5);
+    const topCh  = Object.entries(porCanal).sort((a,b)=> b[1]-a[1]).slice(0, 5);
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:baseline;gap:10px;padding:10px 12px;background:linear-gradient(90deg,#fef2f2 0%,#fff 100%);border-left:6px solid ${col};border-radius:8px;margin-bottom:10px">
+        <div style="font-size:32px;font-weight:800;color:${col};line-height:1">${total}</div>
+        <div style="flex:1">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;font-weight:600">Negocios caídos</div>
+          <div style="font-size:13px;color:#111827"><strong>${pct.toFixed(1)}%</strong> de las ${totCot} cotizaciones</div>
+        </div>
+      </div>
+      ${modelo ? '' : `
+      <div style="display:grid;grid-template-columns:1fr;gap:8px">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#374151;margin-bottom:4px">📦 Por modelo</div>
+          ${topMod.length ? topMod.map(([m,n])=>{
+            const w = Math.max(8, 100*n/(topMod[0][1]||1));
+            return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin:2px 0">
+              <div style="width:90px;text-align:right;color:#374151">${m}</div>
+              <div style="flex:1;background:#fef2f2;border-radius:4px;overflow:hidden">
+                <div style="width:${w}%;background:#fecaca;color:#7f1d1d;padding:3px 6px;border-radius:4px;font-weight:700">${n}</div>
+              </div>
+            </div>`;
+          }).join('') : '<div style="font-size:11px;color:var(--muted);padding:6px">—</div>'}
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#374151;margin:6px 0 4px">👤 Por asesor</div>
+          ${topAse.length ? topAse.map(([a,n])=>{
+            const w = Math.max(8, 100*n/(topAse[0][1]||1));
+            return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin:2px 0">
+              <div style="width:140px;text-align:right;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${a}">${a}</div>
+              <div style="flex:1;background:#fef2f2;border-radius:4px;overflow:hidden">
+                <div style="width:${w}%;background:#fecaca;color:#7f1d1d;padding:3px 6px;border-radius:4px;font-weight:700">${n}</div>
+              </div>
+            </div>`;
+          }).join('') : '<div style="font-size:11px;color:var(--muted);padding:6px">—</div>'}
+        </div>
+      </div>`}
+      <div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.4">
+        <strong>Definición:</strong> cotización con Temperatura = Cold/Frío que <strong>no</strong> aparece en Presentación/Solicitud/Aprobación/Cierre. Es prospecto que el asesor enfrió y nunca regresó al embudo.
+      </div>
+    `;
   }
 
   function renderEmbudoCredito(c, modelo){
