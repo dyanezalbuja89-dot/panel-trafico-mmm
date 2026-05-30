@@ -5156,7 +5156,8 @@
     const E = DATA.embudo_data; if(!E) return null;
     const agencias = embudoAgenciasActivas();
     if(agencias.length===0) return null;
-    // etapas: usar las del primer mes/agencia disponible
+    // etapas: usar las del primer mes/agencia disponible. Si no hay mes seleccionado,
+    // tomamos las etapas de cualquier mes disponible para no romper los renders.
     let etapas = null;
     for(const ag of agencias){
       for(const m of (embudoState.meses||[])){
@@ -5165,6 +5166,13 @@
         }
       }
       if(etapas) break;
+    }
+    if(!etapas){
+      // fallback: usar etapas de cualquier mes de la primera agencia
+      for(const ag of agencias){
+        const meses = Object.keys(E.agencias[ag]||{});
+        if(meses.length){ etapas = E.agencias[ag][meses[0]].etapas; break; }
+      }
     }
     if(!etapas) return null;
     const totales = {}; const por_modelo = {}; const por_asesor = {};
@@ -5353,16 +5361,22 @@
       return `<button type="button" class="embudo-mes-chip" data-mes="${m}"
         style="padding:5px 12px;border-radius:16px;border:1.5px solid #0f766e;cursor:pointer;font-size:12px;font-weight:600;
         background:${on?'#0f766e':'#fff'};color:${on?'#fff':'#0f766e'}">${m}</button>`;
-    }).join('') + `<button type="button" id="embudo-mes-todos" style="padding:5px 10px;border-radius:16px;border:1px dashed #94a3b8;background:#fff;color:#64748b;cursor:pointer;font-size:11px">Todos</button>`;
+    }).join('')
+      + `<button type="button" id="embudo-mes-todos" style="padding:5px 10px;border-radius:16px;border:1px dashed #94a3b8;background:#fff;color:#64748b;cursor:pointer;font-size:11px">Todos</button>`
+      + `<button type="button" id="embudo-mes-ninguno" style="padding:5px 10px;border-radius:16px;border:1px dashed #94a3b8;background:#fff;color:#64748b;cursor:pointer;font-size:11px">Ninguno</button>`;
     wrap.querySelectorAll('.embudo-mes-chip').forEach(b=> b.addEventListener('click',()=>{
       const m=b.dataset.mes;
       if(embudoState.meses.includes(m)) embudoState.meses = embudoState.meses.filter(x=>x!==m);
       else embudoState.meses.push(m);
-      if(embudoState.meses.length===0) embudoState.meses=[m]; // no dejar vacío
       embudoRenderChips(); embudoFillModelos(); renderEmbudo();
     }));
     const todos = document.getElementById('embudo-mes-todos');
     if(todos) todos.addEventListener('click',()=>{ embudoResetMeses(); embudoRenderChips(); embudoFillModelos(); renderEmbudo(); });
+    const ninguno = document.getElementById('embudo-mes-ninguno');
+    if(ninguno) ninguno.addEventListener('click',()=>{
+      embudoState.meses = [];
+      embudoRenderChips(); embudoFillModelos(); renderEmbudo();
+    });
   }
   function embudoFillModelos(){
     const agg = embudoAggregate();
