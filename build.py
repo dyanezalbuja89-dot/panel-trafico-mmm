@@ -1904,7 +1904,7 @@ HTML = r"""<!doctype html>
         <div id="embudo-funnel"></div>
       </div>
       <div class="ford-section" style="margin:0">
-        <h3>❄️ Negocios caídos <span class="sub" id="embudo-caidos-sub">cotizaciones marcadas Cold/Frío que no avanzaron</span></h3>
+        <h3>❄️ Prospectos enfriados <span class="sub" id="embudo-caidos-sub">cotizaciones marcadas Cold/Frío por el asesor</span></h3>
         <div id="embudo-caidos"></div>
       </div>
     </div>
@@ -1955,7 +1955,7 @@ HTML = r"""<!doctype html>
 
     <!-- TABLERO: ANÁLISIS DE CRÉDITO (SOLICITUDES → APROBACIÓN) -->
     <div class="ford-section" style="margin-top:18px">
-      <h3>💳 Análisis de crédito · Solicitudes → Aprobación <span class="sub">qué % de solicitudes terminan aprobadas, por modelo / asesor / canal</span></h3>
+      <h3>💳 Análisis de crédito · Solicitudes → Aprobación <span class="sub">base: sólo cotizaciones con Pago=crédito (los de contado no entran)</span></h3>
       <div id="embudo-credito-kpis" class="kpi-row" style="margin-bottom:12px"></div>
       <div class="ford-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div>
@@ -5184,11 +5184,13 @@ HTML = r"""<!doctype html>
     const cotiz_ase_ch_mod = {}; const cierre_ase_ch_mod = {};
     const sol_ase_ch_mod = {};   const apr_ase_ch_mod = {};
     const sol_canal_mod = {};    const apr_canal_mod = {};
-    // Negocios caídos
-    let caidos_total = 0;
-    const caidos_por_modelo = {};
-    const caidos_por_asesor = {};
-    const caidos_por_canal = {};
+    // Prospectos enfriados (Cold) + Cotizaciones con Pago=credit
+    let enfriados_total = 0;
+    const enfriados_por_modelo = {};
+    const enfriados_por_asesor = {};
+    const enfriados_por_canal = {};
+    let cot_credito_total = 0;
+    const cot_credito_por_modelo = {};
     const por_agencia = {}; // agregado por agencia para insights comparativos
     etapas.forEach(e=> totales[e]=0);
     let mesesUsados = new Set();
@@ -5261,11 +5263,14 @@ HTML = r"""<!doctype html>
         };
         sumar2(sol_canal_mod, c.sol_canal_mod);
         sumar2(apr_canal_mod, c.apr_canal_mod);
-        // Caídos
-        caidos_total += (c.caidos_total || 0);
-        Object.entries(c.caidos_por_modelo||{}).forEach(([m,n])=> caidos_por_modelo[m] = (caidos_por_modelo[m]||0)+n);
-        Object.entries(c.caidos_por_asesor||{}).forEach(([a,n])=> caidos_por_asesor[a] = (caidos_por_asesor[a]||0)+n);
-        Object.entries(c.caidos_por_canal||{}).forEach(([ch,n])=> caidos_por_canal[ch] = (caidos_por_canal[ch]||0)+n);
+        // Enfriados
+        enfriados_total += (c.enfriados_total || 0);
+        Object.entries(c.enfriados_por_modelo||{}).forEach(([m,n])=> enfriados_por_modelo[m] = (enfriados_por_modelo[m]||0)+n);
+        Object.entries(c.enfriados_por_asesor||{}).forEach(([a,n])=> enfriados_por_asesor[a] = (enfriados_por_asesor[a]||0)+n);
+        Object.entries(c.enfriados_por_canal||{}).forEach(([ch,n])=> enfriados_por_canal[ch] = (enfriados_por_canal[ch]||0)+n);
+        // Cotizaciones con crédito (base honesta del embudo crédito)
+        cot_credito_total += (c.cot_credito_total || 0);
+        Object.entries(c.cot_credito_por_modelo||{}).forEach(([m,n])=> cot_credito_por_modelo[m] = (cot_credito_por_modelo[m]||0)+n);
       });
     });
     return { etapas, totales, por_modelo, por_asesor, por_asesor_modelo, por_agencia,
@@ -5276,7 +5281,8 @@ HTML = r"""<!doctype html>
              cotiz_ase_ch_mod, cierre_ase_ch_mod,
              sol_ase_ch_mod, apr_ase_ch_mod,
              sol_canal_mod, apr_canal_mod,
-             caidos_total, caidos_por_modelo, caidos_por_asesor, caidos_por_canal,
+             enfriados_total, enfriados_por_modelo, enfriados_por_asesor, enfriados_por_canal,
+             cot_credito_total, cot_credito_por_modelo,
              meses: Array.from(mesesUsados).sort((a,b)=>
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(a)-
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(b)),
@@ -5466,8 +5472,8 @@ HTML = r"""<!doctype html>
       etapas.map(e=>`<td class="num" style="font-weight:700">${aTot[e]||0}</td>`).join('')+
       `<td class="num" style="font-weight:700">${aCierre}%</td></tr>`;
 
-    // ─── TABLERO: NEGOCIOS CAÍDOS (junto al embudo general) ───
-    renderEmbudoCaidos(c, modelo);
+    // ─── TABLERO: PROSPECTOS ENFRIADOS (junto al embudo general) ───
+    renderEmbudoEnfriados(c, modelo);
 
     // ─── TABLERO: TASA DE CIERRE POR ASESOR × CANAL ───
     renderEmbudoAsesorCanal(c, modelo);
@@ -5508,18 +5514,14 @@ HTML = r"""<!doctype html>
     return out;
   }
 
-  function renderEmbudoCaidos(c, modelo){
+  function renderEmbudoEnfriados(c, modelo){
     const el = document.getElementById('embudo-caidos'); if(!el) return;
-    // Filtro por modelo: si hay, el total y los breakdowns por asesor/canal se reducen
-    // proporcionalmente al modelo seleccionado.
-    let total = c.caidos_total || 0;
-    let porAsesor = c.caidos_por_asesor || {};
-    let porCanal = c.caidos_por_canal || {};
-    const porModelo = c.caidos_por_modelo || {};
+    let total = c.enfriados_total || 0;
+    let porAsesor = c.enfriados_por_asesor || {};
+    let porCanal = c.enfriados_por_canal || {};
+    const porModelo = c.enfriados_por_modelo || {};
     if(modelo){
       total = porModelo[modelo] || 0;
-      // los breakdowns asesor/canal NO están desagregados por modelo en backend
-      // (no implementado por simplicidad). Si hay modelo seleccionado, mostramos solo el KPI.
       porAsesor = {};
       porCanal = {};
     }
@@ -5529,7 +5531,7 @@ HTML = r"""<!doctype html>
     const pct = totCot ? 100*total/totCot : 0;
     const col = pct >= 20 ? '#dc2626' : (pct >= 10 ? '#d97706' : '#16a34a');
     document.getElementById('embudo-caidos-sub').textContent =
-      modelo ? `${modelo} · marcadas Cold/Frío sin avance` : 'cotizaciones Cold/Frío que no avanzaron a presentación';
+      modelo ? `${modelo} · marcados Cold/Frío por el asesor` : 'cotizaciones marcadas Cold/Frío por el asesor';
 
     // Top 5 por modelo (siempre, incluso si hay filtro modelo — para no perder contexto cuando no hay filtro)
     const topMod = Object.entries(porModelo).sort((a,b)=> b[1]-a[1]).slice(0, 5);
@@ -5537,10 +5539,10 @@ HTML = r"""<!doctype html>
     const topCh  = Object.entries(porCanal).sort((a,b)=> b[1]-a[1]).slice(0, 5);
 
     el.innerHTML = `
-      <div style="display:flex;align-items:baseline;gap:10px;padding:10px 12px;background:linear-gradient(90deg,#fef2f2 0%,#fff 100%);border-left:6px solid ${col};border-radius:8px;margin-bottom:10px">
+      <div style="display:flex;align-items:baseline;gap:10px;padding:10px 12px;background:linear-gradient(90deg,#eff6ff 0%,#fff 100%);border-left:6px solid ${col};border-radius:8px;margin-bottom:10px">
         <div style="font-size:32px;font-weight:800;color:${col};line-height:1">${total}</div>
         <div style="flex:1">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;font-weight:600">Negocios caídos</div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;font-weight:600">Prospectos enfriados</div>
           <div style="font-size:13px;color:#111827"><strong>${pct.toFixed(1)}%</strong> de las ${totCot} cotizaciones</div>
         </div>
       </div>
@@ -5596,9 +5598,11 @@ HTML = r"""<!doctype html>
     const aprCanal = modelo ? _canal_filtered(c.apr_canal_mod, modelo) : (c.apr_por_canal||{});
     const solAseTot = modelo ? _asesor_totals_by_modelo(c.sol_ase_ch_mod, modelo) : null;
     const aprAseTot = modelo ? _asesor_totals_by_modelo(c.apr_ase_ch_mod, modelo) : null;
-    // Totales: Cotización → Solicitud → Aprobación
-    let totCot = c.totales[c.etapas[0]] || 0;
-    if(modelo && c.por_modelo[modelo]) totCot = c.por_modelo[modelo][c.etapas[0]]||0;
+    // Totales: Cotización (con crédito) → Solicitud → Aprobación
+    // ► Base honesta: SOLO cotizaciones marcadas Pago=credit. Los de contado
+    // no entran al embudo de crédito y distorsionarían la tasa.
+    let totCot = c.cot_credito_total || 0;
+    if(modelo) totCot = (c.cot_credito_por_modelo||{})[modelo] || 0;
     const totSol = Object.values(solCanal).reduce((s,n)=>s+n,0);
     const totApr = Object.values(aprCanal).reduce((s,n)=>s+n,0);
     const cotToSol = totCot? 100*totSol/totCot : 0;
@@ -5606,9 +5610,9 @@ HTML = r"""<!doctype html>
     const cotToApr = totCot? 100*totApr/totCot : 0;
     // Embudo visual de crédito: 3 barras decrecientes
     const stages = [
-      {label:'Cotización',  v: totCot, color:'#1565c0', pct: 100},
-      {label:'Solicitud',   v: totSol, color:'#7c3aed', pct: cotToSol},
-      {label:'Aprobación',  v: totApr, color: solToApr<60?'#dc2626':(solToApr<80?'#d97706':'#16a34a'), pct: cotToApr},
+      {label:'Cot. crédito', v: totCot, color:'#1565c0', pct: 100},
+      {label:'Solicitud',    v: totSol, color:'#7c3aed', pct: cotToSol},
+      {label:'Aprobación',   v: totApr, color: solToApr<60?'#dc2626':(solToApr<80?'#d97706':'#16a34a'), pct: cotToApr},
     ];
     const maxV = Math.max(totCot, 1);
     document.getElementById('embudo-credito-kpis').innerHTML = `
@@ -5621,7 +5625,7 @@ HTML = r"""<!doctype html>
           const w = Math.max(12, 100*s.v/maxV);
           // texto de conversión vs etapa anterior
           let convTxt = '';
-          if(i===1) convTxt = `${cotToSol.toFixed(0)}% de cotizaciones piden crédito`;
+          if(i===1) convTxt = `${cotToSol.toFixed(0)}% llega a solicitar`;
           else if(i===2) convTxt = `${solToApr.toFixed(0)}% de aprobación`;
           return `
             <div style="display:flex;align-items:center;gap:12px">
@@ -5633,7 +5637,7 @@ HTML = r"""<!doctype html>
             </div>`;
         }).join('')}
         <div style="margin-top:8px;padding:10px 12px;background:#f8fafc;border-radius:8px;font-size:12px;color:#475569;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <span><strong>${totApr}</strong> ventas financiadas / <strong>${totCot}</strong> cotizaciones = <strong style="color:${stages[2].color}">${cotToApr.toFixed(1)}%</strong> de impacto neto del crédito en el embudo</span>
+          <span><strong>${totApr}</strong> aprobados / <strong>${totCot}</strong> cot. con crédito = <strong style="color:${stages[2].color}">${cotToApr.toFixed(1)}%</strong> termina con crédito autorizado</span>
           <span>Tasa de aprobación del banco: <strong style="color:${stages[2].color}">${solToApr.toFixed(1)}%</strong></span>
         </div>
       </div>`;
