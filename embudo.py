@@ -107,17 +107,16 @@ def _match_asesor(nombre_inv, canonicos):
 
 def _ventas_inventario(agencia_short, mes, asesores_canonicos=None, anio=2026):
     """Cuenta ventas facturadas del inventario para una agencia/mes.
-    Devuelve (por_modelo, por_version, por_asesor, total).
-    por_asesor mapea el ASESOR_FACTURACION al asesor canónico del embudo."""
+    Devuelve (por_modelo, por_version, por_asesor, por_asesor_modelo, total)."""
     inv = _load_inventory_sales()
     kw = AGENCY_INV_KEYWORD.get(agencia_short)
     mnum = MES_NUM.get(mes)
     if inv is None or not kw or not mnum:
-        return {}, {}, {}, 0
+        return {}, {}, {}, {}, 0
     sub = inv[inv['AGENCIA_FACTURACION'].astype(str).str.contains(kw, case=False, na=False)]
     sub = sub[(sub['fac_dt'].dt.year == anio) & (sub['fac_dt'].dt.month == mnum)]
     canonicos = asesores_canonicos or []
-    por_modelo, por_version, por_asesor = {}, {}, {}
+    por_modelo, por_version, por_asesor, por_asesor_modelo = {}, {}, {}, {}
     for _, r in sub.iterrows():
         mod = r['MODELO'] or '(Sin modelo)'
         ver = r['VERSION'] or mod
@@ -127,7 +126,9 @@ def _ventas_inventario(agencia_short, mes, asesores_canonicos=None, anio=2026):
         # asesor: matchear al canónico del embudo; si no, usar el del inventario
         ase = _match_asesor(r.get('ASESOR_F'), canonicos) or r.get('ASESOR_F') or '(Sin asesor)'
         por_asesor[ase] = por_asesor.get(ase, 0) + 1
-    return por_modelo, por_version, por_asesor, int(len(sub))
+        por_asesor_modelo.setdefault(ase, {})
+        por_asesor_modelo[ase][mod] = por_asesor_modelo[ase].get(mod, 0) + 1
+    return por_modelo, por_version, por_asesor, por_asesor_modelo, int(len(sub))
 
 # Orden del embudo: (nombre_archivo, etiqueta_panel)
 # La base del embudo es Cotización (Tráfico se excluye a pedido del negocio).
@@ -311,7 +312,7 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     asesores_canon = sorted(asesores_canon)
 
     # ── CIERRE desde el INVENTARIO (ventas facturadas reales), no del archivo Cierre.xlsx ──
-    cierre_modelo, cierre_version, cierre_asesor, cierre_total = _ventas_inventario(
+    cierre_modelo, cierre_version, cierre_asesor, cierre_asesor_modelo, cierre_total = _ventas_inventario(
         short_agencia, mes, asesores_canonicos=asesores_canon)
     # Aplica la misma reasignación al asesor del inventario para que coincida con el embudo
     if cierre_asesor:
@@ -320,6 +321,14 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
             ase2 = _reasignar(ase)
             nuevo[ase2] = nuevo.get(ase2, 0) + n
         cierre_asesor = nuevo
+    if cierre_asesor_modelo:
+        nuevo = {}
+        for ase, mods in cierre_asesor_modelo.items():
+            ase2 = _reasignar(ase)
+            nuevo.setdefault(ase2, {})
+            for mod, n in mods.items():
+                nuevo[ase2][mod] = nuevo[ase2].get(mod, 0) + n
+        cierre_asesor_modelo = nuevo
 
     # Totales por etapa = negocios únicos (id). Cierre = ventas facturadas inventario.
     totales = {}
@@ -356,6 +365,8 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     # Por asesor × etapa = negocios únicos por asesor; cierre desde inventario
     asesores = sorted(set(asesores_canon) | set(cierre_asesor.keys()))
     por_asesor = {}
+    # Breakdown por (asesor, modelo, etapa) para que el filtro de modelo aplique
+    por_asesor_modelo = {}  # {asesor: {modelo: {etapa: n}}}
     for ase in asesores:
         fila = {}
         for lbl in labels:
@@ -366,6 +377,17 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
                 fila[lbl] = int(d[d['ASESOR'] == ase]['id'].nunique())
         if sum(fila.values()) > 0:
             por_asesor[ase] = fila
+        # por modelo
+        for mod in modelos + ['(Sin modelo)']:
+            fila_m = {}
+            for lbl in labels:
+                if lbl == 'Cierre':
+                    fila_m[lbl] = int((cierre_asesor_modelo.get(ase, {}) or {}).get(mod, 0))
+                else:
+                    d = stage_dfs[lbl]
+                    fila_m[lbl] = int(d[(d['ASESOR'] == ase) & (d['MODELO_N'] == mod)]['id'].nunique())
+            if sum(fila_m.values()) > 0:
+                por_asesor_modelo.setdefault(ase, {})[mod] = fila_m
 
     # ── MATRIZ asesor × canal con cotizaciones y cierres ──
     # Para que la "tasa de cierre por asesor × canal" sea consistente, se usa
@@ -379,6 +401,13 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     apr_por_canal = {} # aprobaciones por canal
     sol_por_modelo = {}# solicitudes por modelo
     apr_por_modelo = {}# aprobaciones por modelo
+    # Breakdowns por modelo (para que el filtro de modelo aplique a estas tablas)
+    cotiz_ase_ch_mod = {}   # {asesor: {canal: {modelo: n}}}
+    cierre_ase_ch_mod = {}  # idem (desde Cierre.xlsx)
+    sol_ase_ch_mod = {}
+    apr_ase_ch_mod = {}
+    sol_canal_mod = {}      # {canal: {modelo: n}}
+    apr_canal_mod = {}
     df_cot = stage_dfs.get('Cotización', pd.DataFrame())
     df_cie = stage_dfs.get('Cierre', pd.DataFrame())
     df_sol = stage_dfs.get('Solicitud', pd.DataFrame())
@@ -389,11 +418,22 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         for _, r in dedup.iterrows():
             cotiz_ase_ch.setdefault(r['ASESOR'], {})
             cotiz_ase_ch[r['ASESOR']][r['CANAL']] = cotiz_ase_ch[r['ASESOR']].get(r['CANAL'],0)+1
+        # por (asesor, canal, modelo)
+        d_acm = df_cot.dropna(subset=['ASESOR','CANAL']).drop_duplicates(subset=['id','ASESOR','CANAL','MODELO_N'])
+        for _, r in d_acm.iterrows():
+            cotiz_ase_ch_mod.setdefault(r['ASESOR'], {}).setdefault(r['CANAL'], {})
+            cotiz_ase_ch_mod[r['ASESOR']][r['CANAL']][r['MODELO_N']] = \
+                cotiz_ase_ch_mod[r['ASESOR']][r['CANAL']].get(r['MODELO_N'], 0) + 1
     if not df_cie.empty:
         dedup = df_cie.dropna(subset=['ASESOR','CANAL']).drop_duplicates(subset=['id','ASESOR','CANAL'])
         for _, r in dedup.iterrows():
             cierre_ase_ch.setdefault(r['ASESOR'], {})
             cierre_ase_ch[r['ASESOR']][r['CANAL']] = cierre_ase_ch[r['ASESOR']].get(r['CANAL'],0)+1
+        d_acm = df_cie.dropna(subset=['ASESOR','CANAL']).drop_duplicates(subset=['id','ASESOR','CANAL','MODELO_N'])
+        for _, r in d_acm.iterrows():
+            cierre_ase_ch_mod.setdefault(r['ASESOR'], {}).setdefault(r['CANAL'], {})
+            cierre_ase_ch_mod[r['ASESOR']][r['CANAL']][r['MODELO_N']] = \
+                cierre_ase_ch_mod[r['ASESOR']][r['CANAL']].get(r['MODELO_N'], 0) + 1
     # Solicitudes: negocios únicos por (asesor, canal) y por canal/modelo
     if not df_sol.empty:
         dedup = df_sol.dropna(subset=['ASESOR','CANAL']).drop_duplicates(subset=['id','ASESOR','CANAL'])
@@ -406,6 +446,17 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         # por modelo: negocios únicos
         for modelo, n in df_sol.drop_duplicates(subset=['id','MODELO_N'])['MODELO_N'].value_counts().items():
             sol_por_modelo[modelo] = int(n)
+        # por (asesor, canal, modelo)
+        d_acm = df_sol.dropna(subset=['ASESOR','CANAL']).drop_duplicates(subset=['id','ASESOR','CANAL','MODELO_N'])
+        for _, r in d_acm.iterrows():
+            sol_ase_ch_mod.setdefault(r['ASESOR'], {}).setdefault(r['CANAL'], {})
+            sol_ase_ch_mod[r['ASESOR']][r['CANAL']][r['MODELO_N']] = \
+                sol_ase_ch_mod[r['ASESOR']][r['CANAL']].get(r['MODELO_N'], 0) + 1
+        # por (canal, modelo)
+        d_cm = df_sol.dropna(subset=['CANAL']).drop_duplicates(subset=['id','CANAL','MODELO_N'])
+        for _, r in d_cm.iterrows():
+            sol_canal_mod.setdefault(r['CANAL'], {})
+            sol_canal_mod[r['CANAL']][r['MODELO_N']] = sol_canal_mod[r['CANAL']].get(r['MODELO_N'], 0) + 1
     if not df_apr.empty:
         dedup = df_apr.dropna(subset=['ASESOR','CANAL']).drop_duplicates(subset=['id','ASESOR','CANAL'])
         for _, r in dedup.iterrows():
@@ -415,6 +466,15 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
             apr_por_canal[canal] = int(n)
         for modelo, n in df_apr.drop_duplicates(subset=['id','MODELO_N'])['MODELO_N'].value_counts().items():
             apr_por_modelo[modelo] = int(n)
+        d_acm = df_apr.dropna(subset=['ASESOR','CANAL']).drop_duplicates(subset=['id','ASESOR','CANAL','MODELO_N'])
+        for _, r in d_acm.iterrows():
+            apr_ase_ch_mod.setdefault(r['ASESOR'], {}).setdefault(r['CANAL'], {})
+            apr_ase_ch_mod[r['ASESOR']][r['CANAL']][r['MODELO_N']] = \
+                apr_ase_ch_mod[r['ASESOR']][r['CANAL']].get(r['MODELO_N'], 0) + 1
+        d_cm = df_apr.dropna(subset=['CANAL']).drop_duplicates(subset=['id','CANAL','MODELO_N'])
+        for _, r in d_cm.iterrows():
+            apr_canal_mod.setdefault(r['CANAL'], {})
+            apr_canal_mod[r['CANAL']][r['MODELO_N']] = apr_canal_mod[r['CANAL']].get(r['MODELO_N'], 0) + 1
 
     # Conversión de CADA etapa vs la base del embudo (Cotización = labels[0])
     base = totales[labels[0]]
@@ -430,6 +490,7 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         'por_modelo': por_modelo,
         'por_version': por_version,
         'por_asesor': por_asesor,
+        'por_asesor_modelo': por_asesor_modelo,
         'cotiz_asesor_canal': cotiz_ase_ch,
         'cierre_asesor_canal': cierre_ase_ch,
         'sol_asesor_canal': sol_ase_ch,
@@ -438,6 +499,13 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         'apr_por_canal': apr_por_canal,
         'sol_por_modelo': sol_por_modelo,
         'apr_por_modelo': apr_por_modelo,
+        # Breakdowns por modelo (para que el filtro modelo aplique a todas las tablas)
+        'cotiz_ase_ch_mod': cotiz_ase_ch_mod,
+        'cierre_ase_ch_mod': cierre_ase_ch_mod,
+        'sol_ase_ch_mod': sol_ase_ch_mod,
+        'apr_ase_ch_mod': apr_ase_ch_mod,
+        'sol_canal_mod': sol_canal_mod,
+        'apr_canal_mod': apr_canal_mod,
         'conversion_etapa': conv,
         'conversion_total': conv_total,
         'cierre_fuente': 'inventario (ventas facturadas)',

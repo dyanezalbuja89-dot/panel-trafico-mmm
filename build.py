@@ -5164,10 +5164,15 @@ HTML = r"""<!doctype html>
     }
     if(!etapas) return null;
     const totales = {}; const por_modelo = {}; const por_asesor = {};
+    const por_asesor_modelo = {}; // {asesor: {modelo: {etapa: n}}}
     const cotiz_asesor_canal = {}; const cierre_asesor_canal = {};
     const sol_asesor_canal = {}; const apr_asesor_canal = {};
     const sol_por_canal = {}; const apr_por_canal = {};
     const sol_por_modelo = {}; const apr_por_modelo = {};
+    // Breakdowns por modelo
+    const cotiz_ase_ch_mod = {}; const cierre_ase_ch_mod = {};
+    const sol_ase_ch_mod = {};   const apr_ase_ch_mod = {};
+    const sol_canal_mod = {};    const apr_canal_mod = {};
     const por_agencia = {}; // agregado por agencia para insights comparativos
     etapas.forEach(e=> totales[e]=0);
     let mesesUsados = new Set();
@@ -5210,13 +5215,46 @@ HTML = r"""<!doctype html>
         Object.entries(c.apr_por_canal||{}).forEach(([ch,n])=> apr_por_canal[ch]=(apr_por_canal[ch]||0)+n);
         Object.entries(c.sol_por_modelo||{}).forEach(([mod,n])=> sol_por_modelo[mod]=(sol_por_modelo[mod]||0)+n);
         Object.entries(c.apr_por_modelo||{}).forEach(([mod,n])=> apr_por_modelo[mod]=(apr_por_modelo[mod]||0)+n);
+        // breakdown por modelo: por_asesor_modelo
+        Object.entries(c.por_asesor_modelo||{}).forEach(([ase, mods])=>{
+          por_asesor_modelo[ase] = por_asesor_modelo[ase] || {};
+          Object.entries(mods).forEach(([mod, fila])=>{
+            por_asesor_modelo[ase][mod] = por_asesor_modelo[ase][mod] || {};
+            etapas.forEach(e=> por_asesor_modelo[ase][mod][e] = (por_asesor_modelo[ase][mod][e]||0)+(fila[e]||0));
+          });
+        });
+        // breakdowns asesor × canal × modelo y canal × modelo
+        const sumar3 = (dst, src)=>{
+          Object.entries(src||{}).forEach(([ase, chs])=>{
+            dst[ase] = dst[ase] || {};
+            Object.entries(chs).forEach(([ch, mods])=>{
+              dst[ase][ch] = dst[ase][ch] || {};
+              Object.entries(mods).forEach(([mod, n])=> dst[ase][ch][mod] = (dst[ase][ch][mod]||0)+n);
+            });
+          });
+        };
+        sumar3(cotiz_ase_ch_mod, c.cotiz_ase_ch_mod);
+        sumar3(cierre_ase_ch_mod, c.cierre_ase_ch_mod);
+        sumar3(sol_ase_ch_mod, c.sol_ase_ch_mod);
+        sumar3(apr_ase_ch_mod, c.apr_ase_ch_mod);
+        const sumar2 = (dst, src)=>{
+          Object.entries(src||{}).forEach(([ch, mods])=>{
+            dst[ch] = dst[ch] || {};
+            Object.entries(mods).forEach(([mod, n])=> dst[ch][mod] = (dst[ch][mod]||0)+n);
+          });
+        };
+        sumar2(sol_canal_mod, c.sol_canal_mod);
+        sumar2(apr_canal_mod, c.apr_canal_mod);
       });
     });
-    return { etapas, totales, por_modelo, por_asesor, por_agencia,
+    return { etapas, totales, por_modelo, por_asesor, por_asesor_modelo, por_agencia,
              cotiz_asesor_canal, cierre_asesor_canal,
              sol_asesor_canal, apr_asesor_canal,
              sol_por_canal, apr_por_canal,
              sol_por_modelo, apr_por_modelo,
+             cotiz_ase_ch_mod, cierre_ase_ch_mod,
+             sol_ase_ch_mod, apr_ase_ch_mod,
+             sol_canal_mod, apr_canal_mod,
              meses: Array.from(mesesUsados).sort((a,b)=>
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(a)-
                ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].indexOf(b)),
@@ -5376,11 +5414,21 @@ HTML = r"""<!doctype html>
       etapas.map(e=>`<td class="num" style="font-weight:700">${totRow[e]||0}</td>`).join('')+
       `<td class="num" style="font-weight:700">${tCierre}%</td></tr>`;
 
-    // Tabla por ASESOR × etapa (suma meses seleccionados)
+    // Tabla por ASESOR × etapa (suma meses seleccionados, respeta filtro modelo)
     const aHead = document.getElementById('embudo-asesor-head');
-    aHead.innerHTML = '<th>Asesor</th>' + etapas.map(e=>`<th class="num">${e}</th>`).join('') + '<th class="num">% cierre</th>';
+    aHead.innerHTML = '<th>Asesor'+(modelo?` · ${modelo}`:'')+'</th>' + etapas.map(e=>`<th class="num">${e}</th>`).join('') + '<th class="num">% cierre</th>';
     const aBody = document.querySelector('#embudo-asesor-tbl tbody');
-    const ases = Object.entries(c.por_asesor||{}).sort((a,b)=> (b[1][etapas[etapas.length-1]]||0)-(a[1][etapas[etapas.length-1]]||0));
+    // Si hay filtro modelo, usar el breakdown por_asesor_modelo
+    let asesFuente;
+    if(modelo) {
+      asesFuente = {};
+      Object.entries(c.por_asesor_modelo||{}).forEach(([ase, mods])=>{
+        if(mods[modelo]) asesFuente[ase] = mods[modelo];
+      });
+    } else {
+      asesFuente = c.por_asesor||{};
+    }
+    const ases = Object.entries(asesFuente).sort((a,b)=> (b[1][etapas[etapas.length-1]]||0)-(a[1][etapas[etapas.length-1]]||0));
     aBody.innerHTML = ases.length ? ases.map(([ase,fila])=>{
       const t = fila[etapas[0]]||0, ci = fila[etapas[etapas.length-1]]||0;
       const cierrePct = t? (100*ci/t).toFixed(0):0;
@@ -5397,16 +5445,45 @@ HTML = r"""<!doctype html>
       `<td class="num" style="font-weight:700">${aCierre}%</td></tr>`;
 
     // ─── TABLERO: TASA DE CIERRE POR ASESOR × CANAL ───
-    renderEmbudoAsesorCanal(c);
+    renderEmbudoAsesorCanal(c, modelo);
 
     // ─── TABLERO: ANÁLISIS DE CRÉDITO ───
-    renderEmbudoCredito(c);
+    renderEmbudoCredito(c, modelo);
 
     // ─── INSIGHTS AUTOMÁTICOS ───
     renderEmbudoInsights(c, modelo);
   }
 
-  function renderEmbudoCredito(c){
+  // Helpers para colapsar mod-breakdown a totales filtrados por modelo
+  function _ase_ch_filtered(mod_breakdown, modelo){
+    const out = {};
+    Object.entries(mod_breakdown||{}).forEach(([ase, chs])=>{
+      Object.entries(chs).forEach(([ch, mods])=>{
+        const n = mods[modelo] || 0;
+        if(n>0){ out[ase] = out[ase] || {}; out[ase][ch] = (out[ase][ch]||0)+n; }
+      });
+    });
+    return out;
+  }
+  function _canal_filtered(canal_mod, modelo){
+    const out = {};
+    Object.entries(canal_mod||{}).forEach(([ch, mods])=>{
+      const n = mods[modelo] || 0;
+      if(n>0) out[ch] = n;
+    });
+    return out;
+  }
+  function _asesor_totals_by_modelo(ase_ch_mod, modelo){
+    const out = {};
+    Object.entries(ase_ch_mod||{}).forEach(([ase, chs])=>{
+      let tot = 0;
+      Object.values(chs).forEach(mods=> tot += (mods[modelo]||0));
+      if(tot>0) out[ase] = tot;
+    });
+    return out;
+  }
+
+  function renderEmbudoCredito(c, modelo){
     // Color semáforo basado en tasa de aprobación
     function rateColor(rate, n){
       if(rate==null || n<3) return '#6b7280';
@@ -5420,13 +5497,19 @@ HTML = r"""<!doctype html>
       const col = rateColor(rate, sol);
       return `<span style="color:${col};font-weight:700">${rate.toFixed(0)}%</span>`;
     }
+    // Fuentes filtradas por modelo (si aplica)
+    const solCanal = modelo ? _canal_filtered(c.sol_canal_mod, modelo) : (c.sol_por_canal||{});
+    const aprCanal = modelo ? _canal_filtered(c.apr_canal_mod, modelo) : (c.apr_por_canal||{});
+    const solAseTot = modelo ? _asesor_totals_by_modelo(c.sol_ase_ch_mod, modelo) : null;
+    const aprAseTot = modelo ? _asesor_totals_by_modelo(c.apr_ase_ch_mod, modelo) : null;
     // KPIs globales
-    const totSol = Object.values(c.sol_por_canal||{}).reduce((s,n)=>s+n,0);
-    const totApr = Object.values(c.apr_por_canal||{}).reduce((s,n)=>s+n,0);
+    const totSol = Object.values(solCanal).reduce((s,n)=>s+n,0);
+    const totApr = Object.values(aprCanal).reduce((s,n)=>s+n,0);
     const totRate = totSol? 100*totApr/totSol : 0;
     const totRateCol = rateColor(totRate, totSol);
     // Cotizaciones del período (para mostrar el embudo crédito vs cotización)
-    const totCot = c.totales[c.etapas[0]] || 0;
+    let totCot = c.totales[c.etapas[0]] || 0;
+    if(modelo && c.por_modelo[modelo]) totCot = c.por_modelo[modelo][c.etapas[0]]||0;
     const cotToSol = totCot? 100*totSol/totCot : 0;
     document.getElementById('embudo-credito-kpis').innerHTML = `
       <div class="kpi-card" style="border-left:4px solid #1976d2">
@@ -5445,8 +5528,10 @@ HTML = r"""<!doctype html>
         <div class="kpi-sub">${totApr} de ${totSol} solicitudes aprobadas</div>
       </div>`;
 
-    // POR MODELO
-    const modelos = new Set([...Object.keys(c.sol_por_modelo||{}), ...Object.keys(c.apr_por_modelo||{})]);
+    // POR MODELO (si hay filtro modelo, sólo ese modelo)
+    let modelos;
+    if(modelo) modelos = new Set([modelo]);
+    else modelos = new Set([...Object.keys(c.sol_por_modelo||{}), ...Object.keys(c.apr_por_modelo||{})]);
     const filasMod = Array.from(modelos).map(m=>{
       const sol = (c.sol_por_modelo||{})[m]||0;
       const apr = (c.apr_por_modelo||{})[m]||0;
@@ -5463,11 +5548,11 @@ HTML = r"""<!doctype html>
     document.querySelector('#embudo-credito-modelo-tbl tfoot').innerHTML =
       `<tr class="total"><td><strong>TOTAL</strong></td><td class="num">${sMod}</td><td class="num">${aMod}</td><td class="num">${rateBadge(sMod, aMod)}</td></tr>`;
 
-    // POR CANAL
-    const canales = new Set([...Object.keys(c.sol_por_canal||{}), ...Object.keys(c.apr_por_canal||{})]);
+    // POR CANAL (filtra por modelo si aplica)
+    const canales = new Set([...Object.keys(solCanal), ...Object.keys(aprCanal)]);
     const filasCh = Array.from(canales).map(ch=>{
-      const sol = (c.sol_por_canal||{})[ch]||0;
-      const apr = (c.apr_por_canal||{})[ch]||0;
+      const sol = solCanal[ch]||0;
+      const apr = aprCanal[ch]||0;
       return {ch, sol, apr};
     }).filter(r=> r.sol+r.apr>0).sort((a,b)=> b.sol - a.sol);
     const tbCh = document.querySelector('#embudo-credito-canal-tbl tbody');
@@ -5481,15 +5566,23 @@ HTML = r"""<!doctype html>
     document.querySelector('#embudo-credito-canal-tbl tfoot').innerHTML =
       `<tr class="total"><td><strong>TOTAL</strong></td><td class="num">${sCh}</td><td class="num">${aCh}</td><td class="num">${rateBadge(sCh, aCh)}</td></tr>`;
 
-    // POR ASESOR
-    const aSol = c.sol_asesor_canal || {};
-    const aApr = c.apr_asesor_canal || {};
-    const asesSet = new Set([...Object.keys(aSol), ...Object.keys(aApr)]);
-    const filasAse = Array.from(asesSet).map(ase=>{
-      const sol = Object.values(aSol[ase]||{}).reduce((s,n)=>s+n,0);
-      const apr = Object.values(aApr[ase]||{}).reduce((s,n)=>s+n,0);
-      return {ase, sol, apr};
-    }).filter(r=> r.sol+r.apr>0).sort((a,b)=> b.sol - a.sol);
+    // POR ASESOR (filtra por modelo si aplica)
+    let filasAse;
+    if(modelo) {
+      const asesSet = new Set([...Object.keys(solAseTot||{}), ...Object.keys(aprAseTot||{})]);
+      filasAse = Array.from(asesSet).map(ase=>({
+        ase, sol: (solAseTot||{})[ase]||0, apr: (aprAseTot||{})[ase]||0
+      })).filter(r=> r.sol+r.apr>0).sort((a,b)=> b.sol - a.sol);
+    } else {
+      const aSol = c.sol_asesor_canal || {};
+      const aApr = c.apr_asesor_canal || {};
+      const asesSet = new Set([...Object.keys(aSol), ...Object.keys(aApr)]);
+      filasAse = Array.from(asesSet).map(ase=>({
+        ase,
+        sol: Object.values(aSol[ase]||{}).reduce((s,n)=>s+n,0),
+        apr: Object.values(aApr[ase]||{}).reduce((s,n)=>s+n,0),
+      })).filter(r=> r.sol+r.apr>0).sort((a,b)=> b.sol - a.sol);
+    }
     const tbAse = document.querySelector('#embudo-credito-asesor-tbl tbody');
     tbAse.innerHTML = filasAse.length ? filasAse.map(r=>
       `<tr><td class="left"><strong>${r.ase}</strong></td>`+
@@ -5502,9 +5595,9 @@ HTML = r"""<!doctype html>
       `<tr class="total"><td><strong>TOTAL</strong></td><td class="num">${sAse}</td><td class="num">${aAse}</td><td class="num">${rateBadge(sAse, aAse)}</td></tr>`;
   }
 
-  function renderEmbudoAsesorCanal(c){
-    const cot = c.cotiz_asesor_canal || {};
-    const cie = c.cierre_asesor_canal || {};
+  function renderEmbudoAsesorCanal(c, modelo){
+    const cot = modelo ? _ase_ch_filtered(c.cotiz_ase_ch_mod, modelo) : (c.cotiz_asesor_canal || {});
+    const cie = modelo ? _ase_ch_filtered(c.cierre_ase_ch_mod, modelo) : (c.cierre_asesor_canal || {});
     // Canales únicos
     const setCh = new Set();
     Object.values(cot).forEach(o=> Object.keys(o).forEach(k=> setCh.add(k)));
