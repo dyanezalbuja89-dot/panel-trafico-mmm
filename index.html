@@ -4461,28 +4461,27 @@
       });
     });
 
-    // Summary text: comparación al día actual del mes B vs mismo día del mes A
+    // Summary text: comparación de TOTAL real de cada mes (no al día X).
+    // Mayo cerró con su corte disponible (cut_day=29 = 22), Abril cerró completo
+    // (día 30 = 27). El usuario quiere comparar "lo que se logró" en cada mes,
+    // no día-a-día — porque ambos meses ya pasaron.
     if(dataA && dataB){
-      const cutDay = dataB.cut_day || (dataB.pace || []).length;
       const dailyA = cpDailySeriesForMonth(dataA);
       const dailyB = cpDailySeriesForMonth(dataB);
       const monthLenA = (dataA.pace || []).length || 31;
-      // Comparar al min(cutDay, monthLenA) para que sea válido en el mes A
-      const compareDay = Math.min(cutDay, monthLenA);
-      let cumA = 0, cumB = 0;
-      for(let d=1; d<=compareDay; d++){
-        cumA += dailyA[d] || 0;
-        cumB += dailyB[d] || 0;
-      }
-      const delta = cumB - cumA;
-      const dPct = cumA > 0 ? (100 * delta / cumA) : null;
+      const monthLenB = (dataB.pace || []).length || 31;
+      let totalA = 0, totalB = 0;
+      for(let d=1; d<=monthLenA; d++) totalA += dailyA[d] || 0;
+      for(let d=1; d<=monthLenB; d++) totalB += dailyB[d] || 0;
+      const delta = totalB - totalA;
+      const dPct = totalA > 0 ? (100 * delta / totalA) : null;
       const arrow = delta>0?'▲':delta<0?'▼':'—';
       const color = delta>0?'var(--pos)':delta<0?'var(--neg)':'var(--muted)';
       const pctStr = dPct==null ? '' : ` (${delta>0?'+':''}${dPct.toFixed(1)}%)`;
       const labelA = cfgA.label.split(' ')[0];
       const labelB = cfgB.label.split(' ')[0];
       document.getElementById('cp-dc-summary').innerHTML =
-        `Al día ${compareDay} · ${labelB} <strong>${fmt(cumB)}</strong> vs ${labelA} <strong>${fmt(cumA)}</strong> ` +
+        `Total · ${labelB} <strong>${fmt(totalB)}</strong> vs ${labelA} <strong>${fmt(totalA)}</strong> ` +
         `<span style="color:${color};font-weight:700">${arrow} ${delta>0?'+':''}${delta}${pctStr}</span>`;
     } else {
       document.getElementById('cp-dc-summary').textContent = '';
