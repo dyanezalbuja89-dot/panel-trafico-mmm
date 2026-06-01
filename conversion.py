@@ -568,78 +568,45 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
         'p75_dias': statistics.quantiles(ciclo_dias, n=4)[2] if len(ciclo_dias) >= 4 else None,
     }
 
-    # Por canal de primer toque
-    canal_breakdown = {}
+    # ► Set de client_keys cuya cohorte es real (sí tienen facturas posteriores
+    # al primer toque). Igual al filtro que aplicamos abajo en clientes_flat.
+    # Antes contábamos matched a NIVEL de fila de factura sin filtrar fecha,
+    # inflando el conteo con facturas anteriores al touch (típico B2B).
+    valid_ck_to_n_ventas = {}
     for ck, ft in first_touch.items():
-        canal = ft.get('first_canal') or 'Sin canal'
-        canal_breakdown.setdefault(canal, {'traffic': 0, 'matched': 0})
-        canal_breakdown[canal]['traffic'] += 1
-    for _, row in matched_sales.iterrows():
-        ck = row['matched_ck']
-        ft = first_touch.get(ck)
-        if not ft:
+        first_t = ft.get('first_fecha')
+        if pd.isna(first_t):
             continue
-        canal = ft.get('first_canal') or 'Sin canal'
-        if canal in canal_breakdown:
-            canal_breakdown[canal]['matched'] += 1
-    # Añadir % conversión
-    for canal in canal_breakdown:
-        d = canal_breakdown[canal]
-        d['conv_pct'] = round(100*d['matched']/d['traffic'], 1) if d['traffic'] else 0
+        # Buscar facturas posteriores al touch para este ck
+        if ck in matched_sales['matched_ck'].values:
+            sub = matched_sales[
+                (matched_sales['matched_ck'] == ck)
+                & matched_sales['fecha_fact'].notna()
+                & (matched_sales['fecha_fact'] >= first_t)
+            ]
+            if len(sub):
+                valid_ck_to_n_ventas[ck] = len(sub)
 
-    # Por modelo de primer toque
-    modelo_breakdown = {}
-    for ck, ft in first_touch.items():
-        modelo = (ft.get('first_modelo') or 'Por definir').upper().strip()
-        modelo_breakdown.setdefault(modelo, {'traffic': 0, 'matched': 0})
-        modelo_breakdown[modelo]['traffic'] += 1
-    for _, row in matched_sales.iterrows():
-        ck = row['matched_ck']
-        ft = first_touch.get(ck)
-        if not ft:
-            continue
-        modelo = (ft.get('first_modelo') or 'Por definir').upper().strip()
-        if modelo in modelo_breakdown:
-            modelo_breakdown[modelo]['matched'] += 1
-    for m in modelo_breakdown:
-        d = modelo_breakdown[m]
-        d['conv_pct'] = round(100*d['matched']/d['traffic'], 1) if d['traffic'] else 0
+    def _build_breakdown(get_key):
+        bd = {}
+        for ck, ft in first_touch.items():
+            k = get_key(ft)
+            bd.setdefault(k, {'traffic': 0, 'matched': 0, 'ventas': 0})
+            bd[k]['traffic'] += 1
+            if ck in valid_ck_to_n_ventas:
+                bd[k]['matched'] += 1
+                bd[k]['ventas'] += valid_ck_to_n_ventas[ck]
+        for k in bd:
+            d = bd[k]
+            d['conv_pct'] = round(100*d['matched']/d['traffic'], 1) if d['traffic'] else 0
+        return bd
 
-    # Por agencia
-    agencia_breakdown = {}
-    for ck, ft in first_touch.items():
-        ag = ft.get('first_agencia') or 'Sin agencia'
-        agencia_breakdown.setdefault(ag, {'traffic': 0, 'matched': 0})
-        agencia_breakdown[ag]['traffic'] += 1
-    for _, row in matched_sales.iterrows():
-        ck = row['matched_ck']
-        ft = first_touch.get(ck)
-        if not ft:
-            continue
-        ag = ft.get('first_agencia') or 'Sin agencia'
-        if ag in agencia_breakdown:
-            agencia_breakdown[ag]['matched'] += 1
-    for a in agencia_breakdown:
-        d = agencia_breakdown[a]
-        d['conv_pct'] = round(100*d['matched']/d['traffic'], 1) if d['traffic'] else 0
+    canal_breakdown   = _build_breakdown(lambda ft: ft.get('first_canal') or 'Sin canal')
+    modelo_breakdown  = _build_breakdown(lambda ft: (ft.get('first_modelo') or 'Por definir').upper().strip())
+    agencia_breakdown = _build_breakdown(lambda ft: ft.get('first_agencia') or 'Sin agencia')
 
-    # Top asesores
-    asesor_breakdown = {}
-    for ck, ft in first_touch.items():
-        ase = ft.get('first_asesor') or 'Sin asesor'
-        asesor_breakdown.setdefault(ase, {'traffic': 0, 'matched': 0})
-        asesor_breakdown[ase]['traffic'] += 1
-    for _, row in matched_sales.iterrows():
-        ck = row['matched_ck']
-        ft = first_touch.get(ck)
-        if not ft:
-            continue
-        ase = ft.get('first_asesor') or 'Sin asesor'
-        if ase in asesor_breakdown:
-            asesor_breakdown[ase]['matched'] += 1
-    for a in asesor_breakdown:
-        d = asesor_breakdown[a]
-        d['conv_pct'] = round(100*d['matched']/d['traffic'], 1) if d['traffic'] else 0
+    # Top asesores (mismo patrón cohort-aware)
+    asesor_breakdown = _build_breakdown(lambda ft: ft.get('first_asesor') or 'Sin asesor')
 
     # Quedarnos con asesores que tienen al menos 5 leads (filtrar ruido)
     asesor_breakdown = {k: v for k, v in asesor_breakdown.items() if v['traffic'] >= 5}
@@ -658,20 +625,21 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
     modelo_mkt = {}
     agencia_mkt = {}
     canal_mkt = {}
-    matched_cks_set = set(matched_sales['matched_ck'].dropna().tolist()) \
-        if 'matched_ck' in matched_sales.columns else set()
+    # Usamos valid_ck_to_n_ventas (cohort-aware) en lugar de matched_cks_set crudo
     for ck, ft in first_touch.items():
         canal = ft.get('first_canal') or 'Sin canal'
         if canal not in MKT_CHANNELS:
             continue
-        modelo = ft.get('first_modelo') or 'Por definir'
+        modelo = (ft.get('first_modelo') or 'Por definir').upper().strip()
         ag = ft.get('first_agencia') or 'Sin agencia'
-        cerro = ck in matched_cks_set
+        n_v = valid_ck_to_n_ventas.get(ck, 0)
+        cerro = n_v > 0
         for bd, key in [(modelo_mkt, modelo), (agencia_mkt, ag), (canal_mkt, canal)]:
-            bd.setdefault(key, {'traffic': 0, 'matched': 0})
+            bd.setdefault(key, {'traffic': 0, 'matched': 0, 'ventas': 0})
             bd[key]['traffic'] += 1
             if cerro:
                 bd[key]['matched'] += 1
+                bd[key]['ventas'] += n_v
     for bd in (modelo_mkt, agencia_mkt, canal_mkt):
         for k, v in bd.items():
             v['conv_pct'] = round(100 * v['matched'] / v['traffic'], 1) if v['traffic'] else 0
@@ -742,6 +710,10 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
     n_clients_2026 = len(clientes_flat)
     n_clients_2026_cerro = sum(1 for c in clientes_flat if c['cerro'])
     conv_2026 = round(100 * n_clients_2026_cerro / n_clients_2026, 1) if n_clients_2026 else 0
+    # ► Vehículos atribuidos: suma cohort-aware (solo facturas ≥ first_fecha)
+    # Antes usábamos n_facturas_atribuidas (count crudo de matched_sales) que
+    # incluía facturas anteriores al primer toque — inconsistente con clientes_flat.
+    n_vehiculos_atribuidos = sum(c['n_ventas'] for c in clientes_flat if c['cerro'])
 
     return {
         'global': {
@@ -750,13 +722,13 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
             'n_clientes_matched': n_clients_2026_cerro,
             'conv_rate_pct': conv_2026,
             'n_facturas_total': n_facturas_total,
-            'n_facturas_atribuidas': n_facturas_atribuidas,
-            'n_facturas_sin_atribuir': n_facturas_sin_atribuir,
-            'cov_rate_pct': round(cov_rate, 1),
+            'n_facturas_atribuidas': n_vehiculos_atribuidos,  # cohort-aware
+            'n_facturas_sin_atribuir': n_facturas_total - n_vehiculos_atribuidos,
+            'cov_rate_pct': round(100*n_vehiculos_atribuidos/n_facturas_total, 1) if n_facturas_total else 0,
             'n_clientes_unicos_total': n_clientes_unicos_total,
             'n_clientes_unicos_matched': n_clientes_unicos_matched,
             'n_ventas_clientes_total': n_clientes_unicos_total,
-            'n_ventas_atribuidas': n_facturas_atribuidas,
+            'n_ventas_atribuidas': n_vehiculos_atribuidos,  # cohort-aware
             'n_facturas_en_periodo': facturas_in_period,
             'n_facturas_total_historico': facturas_all_count,
             'ciclo': ciclo,
