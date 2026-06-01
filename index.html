@@ -4141,7 +4141,7 @@
       type:'line',
       data:{ labels, datasets },
       options:{
-        layout:{padding:{top:14, bottom:8}},
+        layout:{padding:{top:24, bottom:8, right:14}},
         plugins:{
           legend:{display:false}, // usamos chips arriba
           tooltip:{mode:'index',intersect:false,
@@ -4149,7 +4149,27 @@
               title: items => 'Día ' + items[0].label,
               label: c => ' '+c.dataset.label+': '+(c.parsed.y==null?'—':fmt(c.parsed.y))
             }},
-          datalabels:{display:false}
+          datalabels:{
+            // Mostrar el número sobre cada punto. Si hay 1 sola línea visible,
+            // mostramos todos los días; si hay varias, omitimos los días donde
+            // varios canales coinciden (para no apilar números).
+            display: (ctx) => {
+              const v = ctx.dataset.data[ctx.dataIndex];
+              if(v == null) return false;
+              // si hay un solo dataset visible → mostrar todos los días
+              if(canalesActivos.length <= 1) return true;
+              // varios datasets: mostrar solo si valor cambia respecto al día anterior
+              const prev = ctx.dataset.data[ctx.dataIndex-1];
+              if(prev === undefined) return v > 0;  // primer día
+              return v !== prev;
+            },
+            anchor: 'end',
+            align: 'top',
+            offset: 4,
+            font: {size: 10, weight: '700'},
+            color: (ctx) => ctx.dataset.borderColor,
+            formatter: (v) => v == null ? '' : v
+          }
         },
         scales:{
           y:{beginAtZero:true,ticks:{precision:0,font:{size:11}},
