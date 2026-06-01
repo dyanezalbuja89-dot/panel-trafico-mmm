@@ -2269,6 +2269,15 @@ HTML = r"""<!doctype html>
     items.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o); });
   }
 
+  // ---------- Chart helpers globales (usados por Ford / Brand / Comp / Conv / etc) ----------
+  Chart.defaults.font.family = "Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif";
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = '#1c2434';
+  Chart.defaults.plugins.legend.labels.boxWidth = 10;
+  Chart.defaults.plugins.legend.labels.boxHeight = 10;
+  if(window.ChartDataLabels){ Chart.register(ChartDataLabels); Chart.defaults.plugins.datalabels = { display:false }; }
+  let charts = {};
+  function destroy(k){ if(charts[k]){ charts[k].destroy(); delete charts[k]; } }
 
   // =========================================================
   //                   FORD TAB (dinámico)
