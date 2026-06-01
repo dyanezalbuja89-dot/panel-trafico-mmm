@@ -590,7 +590,7 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
     # Por modelo de primer toque
     modelo_breakdown = {}
     for ck, ft in first_touch.items():
-        modelo = (ft.get('first_modelo') or 'Sin modelo').upper().strip()
+        modelo = (ft.get('first_modelo') or 'Por definir').upper().strip()
         modelo_breakdown.setdefault(modelo, {'traffic': 0, 'matched': 0})
         modelo_breakdown[modelo]['traffic'] += 1
     for _, row in matched_sales.iterrows():
@@ -598,7 +598,7 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
         ft = first_touch.get(ck)
         if not ft:
             continue
-        modelo = (ft.get('first_modelo') or 'Sin modelo').upper().strip()
+        modelo = (ft.get('first_modelo') or 'Por definir').upper().strip()
         if modelo in modelo_breakdown:
             modelo_breakdown[modelo]['matched'] += 1
     for m in modelo_breakdown:
@@ -664,7 +664,7 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
         canal = ft.get('first_canal') or 'Sin canal'
         if canal not in MKT_CHANNELS:
             continue
-        modelo = ft.get('first_modelo') or 'Sin modelo'
+        modelo = ft.get('first_modelo') or 'Por definir'
         ag = ft.get('first_agencia') or 'Sin agencia'
         cerro = ck in matched_cks_set
         for bd, key in [(modelo_mkt, modelo), (agencia_mkt, ag), (canal_mkt, canal)]:
@@ -712,7 +712,7 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
         first_ym = ft['first_fecha'].strftime('%Y-%m') if pd.notna(ft.get('first_fecha')) else None
         clientes_flat.append({
             'canal':    ft.get('first_canal'),
-            'modelo':   (ft.get('first_modelo') or '').upper().strip() or 'Sin modelo',
+            'modelo':   (ft.get('first_modelo') or '').upper().strip() or 'Por definir',
             'agencia':  ag or 'Sin agencia',
             'zona':     ft.get('first_zona') or 'Otra',
             'asesor':   ft.get('first_asesor') or 'Sin asesor',

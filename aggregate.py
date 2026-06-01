@@ -277,13 +277,17 @@ def process_bd_ford(df, channels=None):
     if channels is None:
         channels = VALID_TRAFFIC_CHANNELS
     df = df[df["MARCA"] == "FORD"].copy()
-    df = df.sort_values("FECHA")
     df["MODELO_F"] = df["MODELO"].apply(normalize_modelo_ford)
-    # Registros con MODELO vacío/NaN → '(Sin modelo)' para que entren en la
-    # matriz modelo×agencia y no se pierdan del conteo del tab (suma matrix_cnt).
     df["MODELO_F"] = df["MODELO_F"].astype(str).str.strip().str.upper()
-    df.loc[df["MODELO_F"].isin(['NAN','NONE','']) | df["MODELO_F"].isna(), "MODELO_F"] = '(Sin modelo)'
+    df.loc[df["MODELO_F"].isin(['NAN','NONE','']) | df["MODELO_F"].isna(), "MODELO_F"] = 'Por definir'
+    # ► Dedup por cédula: si un cliente tiene varias filas en el mes, preferimos
+    # la última que TENGA modelo válido. Antes hacíamos keep='last' por fecha,
+    # lo que podía dejar 'Por definir' si la fila más reciente del cliente
+    # estaba sin modelo (típico cuando un asesor reabre el negocio sin completarlo).
+    df["_has_model"] = (~df["MODELO_F"].isin(['Por definir'])).astype(int)
+    df = df.sort_values(["FECHA", "_has_model"])  # con modelo va al final
     df = df.drop_duplicates(subset=["CEDULA"], keep="last")
+    df = df.drop(columns=["_has_model"])
     df = df[df["CANAL"].isin(channels)]
     return df
 
@@ -413,7 +417,7 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
     velocity = total_curr / days_trans if days_trans else 0
     projection_total = round(velocity * days_lab)
 
-    # Lista de modelos: MODEL_ORDER + extras presentes en la data (ej. '(Sin modelo)'
+    # Lista de modelos: MODEL_ORDER + extras presentes en la data (ej. 'Por definir'
     # para registros con MODELO vacío). Así la matriz suma == total_curr y el tab
     # Ford no pierde registros. Las metas de los extras son 0.
     _extra_models = [m for m in set(list(curr["MODELO_F"].unique()) + list(prev["MODELO_F"].unique()))
@@ -766,14 +770,15 @@ def process_bd_brand(df, brand, channels=None):
     if channels is None:
         channels = VALID_TRAFFIC_CHANNELS
     df = df[df['MARCA'] == brand].copy()
-    df = df.sort_values('FECHA')
     df['MODELO_F'] = df['MODELO'].astype(str).str.strip().str.upper()
     df.loc[df['MODELO_F']=='F150','MODELO_F'] = 'F-150'
-    # Registros con MODELO vacío/NaN (error de carga) se agrupan en '(Sin modelo)'
-    # para que entren en la matriz modelo×agencia y NO se pierdan del conteo
-    # del tab Marcas (que suma matrix_cnt). Sin esto, total_curr (78) ≠ matriz (67).
-    df.loc[df['MODELO_F'].isin(['NAN','NONE','']) | df['MODELO_F'].isna(), 'MODELO_F'] = '(Sin modelo)'
+    df.loc[df['MODELO_F'].isin(['NAN','NONE','']) | df['MODELO_F'].isna(), 'MODELO_F'] = 'Por definir'
+    # ► Dedup por cédula: preferir la fila que TENGA modelo válido cuando hay
+    # varias del mismo cliente (mismo razonamiento que get_traffic_df).
+    df['_has_model'] = (~df['MODELO_F'].isin(['Por definir'])).astype(int)
+    df = df.sort_values(['FECHA','_has_model'])
     df = df.drop_duplicates(subset=['CEDULA'], keep='last')
+    df = df.drop(columns=['_has_model'])
     df = df[df['CANAL'].isin(channels)]
     return df
 

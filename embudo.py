@@ -118,7 +118,7 @@ def _ventas_inventario(agencia_short, mes, asesores_canonicos=None, anio=2026):
     canonicos = asesores_canonicos or []
     por_modelo, por_version, por_asesor, por_asesor_modelo = {}, {}, {}, {}
     for _, r in sub.iterrows():
-        mod = r['MODELO'] or '(Sin modelo)'
+        mod = r['MODELO'] or 'Por definir'
         ver = r['VERSION'] or mod
         por_modelo[mod] = por_modelo.get(mod, 0) + 1
         por_version.setdefault(mod, {})
@@ -165,10 +165,10 @@ def _split_modelos(m):
     """Un campo Modelo puede traer varios modelos separados por coma
     ('ESCAPE,EVEREST'). Devuelve lista normalizada de modelos."""
     if not isinstance(m, str):
-        return ['(Sin modelo)']
+        return ['Por definir']
     parts = [_norm_one(p) for p in m.split(',')]
     parts = [p for p in parts if p]
-    return parts or ['(Sin modelo)']
+    return parts or ['Por definir']
 
 
 def _norm_asesor(s):
@@ -375,12 +375,12 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     for lbl in labels:
         modelos.update(stage_dfs[lbl]['MODELO_N'].dropna().unique().tolist())
     modelos.update(cierre_modelo.keys())
-    modelos.discard('(Sin modelo)')
+    modelos.discard('Por definir')
     modelos = sorted(modelos)
 
     por_modelo = {}
     por_version = {}  # {modelo: {version: cierre_count}} — solo cierre tiene versión
-    for mod in modelos + ['(Sin modelo)']:
+    for mod in modelos + ['Por definir']:
         fila = {}
         for lbl in labels:
             if lbl == 'Cierre':
@@ -428,7 +428,7 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         if sum(fila.values()) > 0:
             por_asesor[ase] = fila
         # por modelo
-        for mod in modelos + ['(Sin modelo)']:
+        for mod in modelos + ['Por definir']:
             fila_m = {}
             for lbl in labels:
                 if lbl == 'Cierre':

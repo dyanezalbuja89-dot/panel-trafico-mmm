@@ -7682,7 +7682,7 @@ HTML = r"""<!doctype html>
         out.modelo_objective[modCanonical][objCat] = (out.modelo_objective[modCanonical][objCat]||0) + amt;
       } else {
         out.total_non_modelo += amt;
-        const label = L.modelo || 'Sin modelo';
+        const label = L.modelo || 'Por definir';
         out.non_modelo[label] = out.non_modelo[label] || {amount:0, convers:0, n_lines:0};
         out.non_modelo[label].amount += amt;
         out.non_modelo[label].convers += conv;
@@ -7744,7 +7744,7 @@ HTML = r"""<!doctype html>
       // Aplicar filtros de modelo / agencia
       if(xiyFilters.modelo && (c.modelo||'').toUpperCase() !== xiyFilters.modelo) return;
       if(xiyFilters.agencia && c.agencia !== xiyFilters.agencia) return;
-      const mod = (c.modelo||'Sin modelo').toUpperCase();
+      const mod = (c.modelo||'Por definir').toUpperCase();
       const ag  = c.agencia || 'Sin agencia';
       por_modelo[mod]  = por_modelo[mod]  || {traffic:0, matched:0};
       por_agencia[ag]  = por_agencia[ag]  || {traffic:0, matched:0};
