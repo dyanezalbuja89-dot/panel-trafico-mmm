@@ -679,10 +679,14 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
     # ========== TABLA PLANA DE CLIENTES ==========
     # Para que JS pueda filtrar/agregar dinámicamente sin recalcular en backend.
     matched_ck_set = set(matched_sales['matched_ck'].dropna().unique())
-    sales_by_ck = matched_sales.groupby('matched_ck').agg(
-        n_ventas=('matched_ck','count'),
-        primera_fact=('fecha_fact','min'),
-    ).to_dict('index')
+    # ► Mantenemos toda la lista de facturas por client_key (no solo el count)
+    # para poder filtrar por fecha de primer toque cuando armamos n_ventas.
+    # Antes contábamos TODAS las facturas históricas del cliente (n_ventas=count),
+    # lo cual atribuía erróneamente al cohorte de primer toque ventas ANTERIORES
+    # a ese primer toque (caso típico: B2B/flotas que compran varias veces al año,
+    # ej. MAREAUTO S.A. en La Y).
+    sales_by_ck = matched_sales[matched_sales['matched_ck'].notna()] \
+                    .groupby('matched_ck')['fecha_fact'].apply(list).to_dict()
     # Calcular n_toques mensuales por client_key (un toque = aparece en BD en un mes
     # distinto). Esto es equivalente a la suma cross-mes de cédulas únicas del panel
     # principal (dealer_model_channel) que muestra "tráfico atendido".
@@ -700,12 +704,24 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
         n_ventas = 0
         ciclo_d = None
         if cerro:
-            sb = sales_by_ck.get(ck, {})
-            n_ventas = int(sb.get('n_ventas', 1))
-            if pd.notna(sb.get('primera_fact')) and pd.notna(ft.get('first_fecha')):
-                d = (sb['primera_fact'] - ft['first_fecha']).days
-                if 0 <= d <= 730:
-                    ciclo_d = int(d)
+            fechas_fact = sales_by_ck.get(ck, [])
+            first_t = ft.get('first_fecha')
+            if pd.notna(first_t):
+                # ► Solo contar facturas posteriores (o iguales) al primer toque.
+                # Las facturas anteriores al touch no son atribuibles a esa cohorte.
+                fechas_post = [f for f in fechas_fact if pd.notna(f) and f >= first_t]
+                n_ventas = len(fechas_post)
+                if fechas_post:
+                    primera_fact = min(fechas_post)
+                    d = (primera_fact - first_t).days
+                    if 0 <= d <= 730:
+                        ciclo_d = int(d)
+                else:
+                    # Si no hay facturas posteriores al toque → no es conversión real
+                    cerro = False
+            else:
+                # Sin fecha de toque (raro), usar count total como fallback
+                n_ventas = len(fechas_fact)
         # n_toques: cuántos meses distintos vino el cliente. Para B2B sintéticos sin
         # tráfico, asumimos 1 (la "venta" cuenta como un toque atendido).
         n_toques = int(toques_mensuales.get(ck, 1)) if str(ck).startswith('r') else 1
