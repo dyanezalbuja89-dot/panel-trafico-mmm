@@ -1570,10 +1570,17 @@ HTML = r"""<!doctype html>
         <strong>Período: 2026 (Ene a hoy).</strong> Contamos <strong>personas únicas</strong> que tocaron BD tráfico (GUC) por primera vez en 2026. Cada persona cuenta 1 sin importar cuántas veces vino. Identidad robusta: cédula natural ↔ RUC del titular ↔ mismo email/celular. Atribuimos al canal/modelo/agencia/asesor de su <strong>primer toque</strong>. <em>Nota: el conteo de "tráfico" en la pestaña Otros (2,216) usa otra metodología — cuenta atenciones mensuales y duplica clientes que vinieron en varios meses.</em>
       </div>
 
+      <div style="font-size:12px;color:#7f1d1d;background:#fef2f2;border-left:4px solid #dc2626;padding:10px 14px;border-radius:6px;margin:10px 0 14px;line-height:1.5">
+        ⚠️ <strong>El filtro "Mes" es de COHORTE de primer toque, NO de mes de venta.</strong>
+        Si filtras por Mayo, ves cuántos clientes cuyo <em>primer touchpoint</em> fue en Mayo ya cerraron alguna venta — independiente de cuándo facturaron.
+        Para ver <strong>cuántas unidades se vendieron en Mayo</strong>, consulta la pestaña <em>T-Reporte Ford Mensual</em> o la columna Cierre del <em>Embudo</em>.
+        <br>Ejemplo: CJA Mayo aquí muestra ~7 cerrados (cohorte fresca); en Inventario aparecen 19 facturas reales (incluye clientes que entraron antes pero cerraron en Mayo).
+      </div>
+
       <!-- FILTROS -->
       <div class="filter-bar">
-        <label>Mes (1er toque)
-          <select id="conv-f-mes">
+        <label>Mes de PRIMER TOQUE
+          <select id="conv-f-mes" title="Mes en que el cliente apareció por primera vez en BD tráfico. NO es el mes en que se facturó.">
             <option value="">YTD 2026</option>
             <option value="2026-01">Enero</option>
             <option value="2026-02">Febrero</option>
