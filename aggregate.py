@@ -1192,6 +1192,21 @@ def main():
         print(f"INFO: no data_xiy.json at {xiy_path}; tab Inversión quedará vacío")
 
     outpath = ABRIL_BASE / "panel-trafico/data.json"
+    # ► Sanea NaN/Infinity antes de serializar. Python json.dump por default
+    # escribe los tokens literales NaN/Infinity (no son JSON válido). El
+    # navegador (JSON.parse) los rechaza con SyntaxError y rompe el IIFE
+    # principal del panel — TODAS las pestañas quedan en blanco. Este saneo
+    # blinda el panel ante cualquier división 0/0 que se cuele en el output.
+    import math as _math
+    def _json_safe(o):
+        if isinstance(o, float):
+            return None if (_math.isnan(o) or _math.isinf(o)) else o
+        if isinstance(o, dict):
+            return {k: _json_safe(v) for k, v in o.items()}
+        if isinstance(o, list):
+            return [_json_safe(v) for v in o]
+        return o
+    out = _json_safe(out)
     with open(outpath,"w",encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=None, separators=(",", ":"))
     print("Wrote", outpath)

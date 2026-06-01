@@ -26,7 +26,9 @@ import pandas as pd
 
 def norm_ced(v):
     """Normaliza una cédula/RUC: solo dígitos, sin .0, sin espacios.
-    Retorna None si tiene menos de 9 dígitos."""
+    Retorna None si tiene menos de 9 dígitos.
+    Restaura el cero inicial que Excel descarta cuando guarda la cédula
+    como número (provincias Guayas/09 y Pichincha/01 son las más afectadas)."""
     if pd.isna(v):
         return None
     s = str(v).strip()
@@ -35,6 +37,10 @@ def norm_ced(v):
     s = re.sub(r'\D', '', s)
     if not s or len(s) < 9:
         return None
+    if len(s) == 9:
+        s = '0' + s    # cédula que perdió el cero inicial
+    elif len(s) == 12:
+        s = '0' + s    # RUC persona natural que perdió el cero
     return s
 
 
