@@ -1127,9 +1127,13 @@ def main():
         },
         # Snapshot de inventario (REPORTE DE INVENTARIO.xlsm): oferta por modelo/agencia
         # + reservas en cola + pipeline USA/Nac + cruce mes-a-mes (snapshots históricos).
+        # ► is_current: True solo si la fecha actual cae DENTRO del mes del config.
+        # Antes lo marcábamos al último mes del array, pero eso seguía mostrando "en curso"
+        # para meses ya cerrados (ej. mayo cuando ya estamos en junio).
         "inventario": (load_inventario(months_config=[
             {'key':c['key'], 'label':c['label'], 'year':c['year'], 'month':c['month'],
-             'cut_day':c['cut_day'], 'is_current':(c['key']==MONTHS_CONFIG[-1]['key'])}
+             'cut_day':c['cut_day'],
+             'is_current': (datetime.now().year == c['year'] and datetime.now().month == c['month'])}
             for c in MONTHS_CONFIG
         ]) if DEFAULT_INVENTORY_PATH.exists() else None),
         # Análisis competitivo de importaciones Ford: ORGU vs QM
