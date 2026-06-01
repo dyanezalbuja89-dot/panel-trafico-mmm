@@ -1093,6 +1093,20 @@ HTML = r"""<!doctype html>
       <div style="position:relative;height:260px"><canvas id="cp-chart-channel"></canvas></div>
     </div>
 
+    <!-- Avance diario por canal (Mes B) -->
+    <div class="ford-section">
+      <h3>📈 Avance diario por canal <span class="sub">trayectoria día a día de cada canal en el Mes B · respeta Agencia</span></h3>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12px">
+        <div style="display:flex;gap:4px;background:#eef1f5;padding:3px;border-radius:8px">
+          <button class="dch-mode-btn" data-mode="cum" style="padding:5px 12px;border:0;background:#003478;color:#fff;border-radius:6px;font:inherit;font-weight:600;cursor:pointer">Acumulado</button>
+          <button class="dch-mode-btn" data-mode="daily" style="padding:5px 12px;border:0;background:transparent;color:var(--ink);border-radius:6px;font:inherit;font-weight:600;cursor:pointer">Diario</button>
+        </div>
+        <span id="cp-dch-summary" style="margin-left:auto;color:var(--muted)"></span>
+      </div>
+      <div id="cp-dch-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
+      <div style="position:relative;height:340px"><canvas id="cp-chart-daily-channel"></canvas></div>
+    </div>
+
     <!-- Heat map Δ modelo × agencia -->
     <div class="ford-section">
       <h3>🔥 Δ tráfico modelo × agencia <span class="sub">verde = creció · rojo = cayó · grueso de número = magnitud absoluta</span></h3>
@@ -4009,6 +4023,153 @@ HTML = r"""<!doctype html>
     });
   }
 
+  // ── AVANCE DIARIO POR CANAL (Mes B) ──
+  const dchstate = { mode: 'cum', hidden: new Set() };
+  // Paleta de canales (replica colores de "Por canal" para consistencia visual)
+  const CP_CHANNEL_COLORS = {
+    'Showroom':                 '#003478',
+    'Hubspot':                  '#1565c0',
+    'Feria/Eventos':            '#e65100',
+    'Redes Sociales Propias':   '#7c3aed',
+    'Referido por Cliente':     '#16a34a',
+    'Referidos por empleado':   '#15803d',
+    'Recompra':                 '#a16207',
+    'Gestión Externa':          '#475569',
+    'Llamada In':               '#c2185b',
+    'Talleres':                 '#6b7280',
+    'Empleado':                 '#0f766e',
+  };
+  function cpChannelColor(canal, i){
+    return CP_CHANNEL_COLORS[canal] || ['#dc2626','#ea580c','#facc15','#84cc16','#06b6d4','#8b5cf6','#ec4899'][i % 7];
+  }
+
+  function cpAggDailyByChannel(monthData){
+    // Devuelve {canal: {day: count}} sumando dealers seleccionados.
+    if(!monthData) return {};
+    const ddc = monthData.daily_dealer_channel || {};
+    const dealersAll = monthData.dealer_order || Object.keys(ddc);
+    const dealers = cpstate.agencia ? [cpstate.agencia] : dealersAll;
+    const includeOtros = cpstate.marca === 'FORD' && !cpstate.agencia;
+    const dealersFinal = includeOtros ? [...dealers, 'Otros'] : dealers;
+    const out = {};
+    dealersFinal.forEach(d=>{
+      const dch = ddc[d] || {};
+      Object.entries(dch).forEach(([canal, dayMap])=>{
+        // Filtrar a canales marketing (consistente con chart "Por canal")
+        if(!FORD_TAB_MARKETING_CHANNELS.has(canal)) return;
+        Object.entries(dayMap).forEach(([day, n])=>{
+          out[canal] = out[canal] || {};
+          out[canal][+day] = (out[canal][+day] || 0) + n;
+        });
+      });
+    });
+    return out;
+  }
+
+  function cpRenderDailyByChannelChips(canales){
+    const wrap = document.getElementById('cp-dch-chips');
+    if(!wrap) return;
+    wrap.innerHTML = canales.map(c=>{
+      const on = !dchstate.hidden.has(c);
+      const col = CP_CHANNEL_COLORS[c] || '#6b7280';
+      return `<button type="button" class="dch-chip" data-canal="${c}"
+        style="padding:4px 11px;border-radius:14px;border:1.5px solid ${col};cursor:pointer;font:inherit;font-size:11px;font-weight:600;
+        background:${on?col:'#fff'};color:${on?'#fff':col}">${c}</button>`;
+    }).join('');
+    wrap.querySelectorAll('.dch-chip').forEach(b=> b.addEventListener('click',()=>{
+      const c = b.dataset.canal;
+      if(dchstate.hidden.has(c)) dchstate.hidden.delete(c);
+      else dchstate.hidden.add(c);
+      cpRenderDailyByChannel();
+    }));
+  }
+
+  function cpRenderDailyByChannel(){
+    destroy('cp-chart-daily-channel');
+    const cfgB = MONTHS_CONFIG.find(c=>c.key===cpstate.monthB) || MONTHS_CONFIG[MONTHS_CONFIG.length-1];
+    const dataB = cpstate.marca==='FORD' ? FORD_MONTHS[cfgB.key] : (BRANDS_MONTHS[cfgB.key]||{})[cpstate.marca];
+    if(!dataB){
+      document.getElementById('cp-dch-summary').textContent = 'Sin datos para Mes B';
+      return;
+    }
+    const monthLen = (dataB.pace || []).length || 31;
+    const labels = Array.from({length: monthLen}, (_, i) => String(i+1));
+    const agg = cpAggDailyByChannel(dataB);
+    // Ordenar canales por volumen total descendente
+    const canalesOrden = Object.keys(agg).sort((a,b)=>{
+      const sumA = Object.values(agg[a]).reduce((s,n)=>s+n,0);
+      const sumB = Object.values(agg[b]).reduce((s,n)=>s+n,0);
+      return sumB - sumA;
+    });
+    cpRenderDailyByChannelChips(canalesOrden);
+    const canalesActivos = canalesOrden.filter(c=> !dchstate.hidden.has(c));
+
+    const datasets = canalesActivos.map((canal, idx)=>{
+      const dayMap = agg[canal];
+      let running = 0;
+      const series = labels.map((_,i)=>{
+        const day = i+1;
+        const v = dayMap[day] || 0;
+        if(dchstate.mode === 'cum'){
+          running += v;
+          return running;
+        }
+        return v;
+      });
+      const color = cpChannelColor(canal, idx);
+      return {
+        label: canal,
+        data: series,
+        borderColor: color,
+        backgroundColor: color + '22',
+        fill: false,
+        tension: dchstate.mode==='cum' ? .25 : 0,
+        pointRadius: 2,
+        pointBackgroundColor: color,
+        borderWidth: 2,
+      };
+    });
+
+    // Summary: top canal + delta vs 2do
+    if(canalesActivos.length){
+      const totales = canalesActivos.map(c=> ({c, n: Object.values(agg[c]).reduce((s,n)=>s+n,0)}))
+                                    .sort((a,b)=> b.n-a.n);
+      const top = totales[0];
+      const second = totales[1];
+      const cutDay = dataB.cut_day || monthLen;
+      let summary = `${cfgB.label} · al día ${cutDay} · <strong style="color:${cpChannelColor(top.c,0)}">${top.c} ${fmt(top.n)}</strong>`;
+      if(second) summary += ` · ${second.c} ${fmt(second.n)}`;
+      document.getElementById('cp-dch-summary').innerHTML = summary;
+    } else {
+      document.getElementById('cp-dch-summary').textContent = 'Sin canales activos';
+    }
+
+    charts['cp-chart-daily-channel'] = new Chart(document.getElementById('cp-chart-daily-channel'),{
+      type:'line',
+      data:{ labels, datasets },
+      options:{
+        layout:{padding:{top:14, bottom:8}},
+        plugins:{
+          legend:{display:false}, // usamos chips arriba
+          tooltip:{mode:'index',intersect:false,
+            callbacks:{
+              title: items => 'Día ' + items[0].label,
+              label: c => ' '+c.dataset.label+': '+(c.parsed.y==null?'—':fmt(c.parsed.y))
+            }},
+          datalabels:{display:false}
+        },
+        scales:{
+          y:{beginAtZero:true,ticks:{precision:0,font:{size:11}},
+             title:{display:true, text:dchstate.mode==='cum'?'Tráfico acumulado':'Tráfico del día', font:{size:11,weight:'600'}}},
+          x:{ticks:{font:{size:10}}, grid:{display:false},
+             title:{display:true,text:'Día del mes',color:'#6b7280',font:{size:11}}}
+        },
+        maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false}
+      }
+    });
+  }
+
   function cpRenderHeatmap(){
     const A = cpGetData(cpstate.monthA);
     const B = cpGetData(cpstate.monthB);
@@ -4364,6 +4525,18 @@ HTML = r"""<!doctype html>
     });
   });
 
+  document.querySelectorAll('.dch-mode-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      dchstate.mode = btn.dataset.mode;
+      document.querySelectorAll('.dch-mode-btn').forEach(b=>{
+        const active = b.dataset.mode===dchstate.mode;
+        b.style.background = active ? '#003478':'transparent';
+        b.style.color = active ? '#fff':'var(--ink)';
+      });
+      cpRenderDailyByChannel();
+    });
+  });
+
   document.querySelectorAll('.ev-mode-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       evstate.mode = btn.dataset.mode;
@@ -4397,6 +4570,7 @@ HTML = r"""<!doctype html>
     cpRenderModelChart();
     cpRenderAgencyChart();
     cpRenderChannelChart();
+    cpRenderDailyByChannel();
     cpRenderHeatmap();
   }
 

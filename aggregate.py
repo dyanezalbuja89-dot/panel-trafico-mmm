@@ -541,6 +541,9 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
     # matrix_cnt_prev: {model: {dealer: count}} en el corte anterior — para deltas exactos por filtro
     daily_breakdown = {}
     dealer_model_channel = {}
+    # Nuevo: avance diario por canal por dealer. {dealer: {channel: {day: count}}}
+    # Lo usa el chart "Avance diario por canal" en el Comparativo.
+    daily_dealer_channel = {}
     matrix_cnt_prev = {m: {d: 0 for d in DEALERS} for m in model_order_f}
     # All-channel filter para Otros (marketing + asesor) — captura los ~20% que vienen
     # de asesor comercial y se pierden en el filtro marketing-only.
@@ -557,6 +560,17 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
         d_curr_all = curr_all[mask_c_all]
         daily_breakdown[dealer] = {}
         dealer_model_channel[dealer] = {}
+        # daily_dealer_channel: agrupa por canal × día para este dealer
+        # (canales válidos = ALL_TRAFFIC_CHANNELS, sumando marketing + asesor)
+        ddc = {}
+        if len(d_curr_all):
+            tmp = d_curr_all.dropna(subset=['FECHA']).copy()
+            if len(tmp):
+                tmp['DAY'] = tmp['FECHA'].dt.day
+                tmp = tmp[tmp['CANAL'].isin(all_channels_set)]
+                for (canal, day), n in tmp.groupby(['CANAL','DAY']).size().items():
+                    ddc.setdefault(canal, {})[int(day)] = int(n)
+        daily_dealer_channel[dealer] = ddc
         for m in model_order_f:
             sub_c = d_curr[d_curr['MODELO_F']==m]
             # daily (marketing only — usado en chart "Avance día a día" de Ford tab)
@@ -577,6 +591,7 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
     # Otros (current and prev for completeness)
     daily_breakdown['Otros'] = {}
     dealer_model_channel['Otros'] = {}
+    daily_dealer_channel['Otros'] = {}
     otros_prev_by_model = {}
     # Otros all-channel (records con MARCA=FORD pero fuera de DEALER_CONFIG patrones)
     attributed_all = False
@@ -585,6 +600,14 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
         mm = curr_all["SUCURSAL"].str.contains(pattern, case=False, na=False)
         attributed_all = mm if attributed_all is False else (attributed_all | mm)
     otros_curr_all = curr_all[~attributed_all]
+    # daily_dealer_channel['Otros']: agrupa canal × día para Otros
+    if len(otros_curr_all):
+        tmp = otros_curr_all.dropna(subset=['FECHA']).copy()
+        if len(tmp):
+            tmp['DAY'] = tmp['FECHA'].dt.day
+            tmp = tmp[tmp['CANAL'].isin(all_channels_set)]
+            for (canal, day), n in tmp.groupby(['CANAL','DAY']).size().items():
+                daily_dealer_channel['Otros'].setdefault(canal, {})[int(day)] = int(n)
     for m in model_order_f:
         sub_c = otros_curr[otros_curr['MODELO_F']==m]
         sub_dt = sub_c.dropna(subset=['FECHA'])
@@ -619,6 +642,7 @@ def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, ex
         "movements": movements,
         "daily": daily_cum_filtered(curr),
         "daily_breakdown": daily_breakdown,
+        "daily_dealer_channel": daily_dealer_channel,
         "dealer_model_channel": dealer_model_channel,
         "matrix_cnt_prev": matrix_cnt_prev,
         "otros_prev_by_model": otros_prev_by_model,
@@ -813,6 +837,7 @@ def brand_report(brand, curr_raw, prev_raw, brand_metas, month=4, year=2026, up_
     matrix_cnt_prev = {m: {d: 0 for d in dealers} for m in ordered}
     daily_breakdown = {}
     dealer_model_channel = {}
+    daily_dealer_channel = {}  # {dealer: {canal: {day: n}}} para chart "Avance diario por canal"
     all_channels_set = set(ALL_TRAFFIC_CHANNELS)
     for d in dealers:
         d_curr = get_dealer_df_brand(curr, brand, d)
@@ -832,6 +857,15 @@ def brand_report(brand, curr_raw, prev_raw, brand_metas, month=4, year=2026, up_
         }
         daily_breakdown[d] = {}
         dealer_model_channel[d] = {}
+        ddc = {}
+        if len(d_curr_all):
+            tmp = d_curr_all.dropna(subset=['FECHA']).copy()
+            if len(tmp):
+                tmp['DAY'] = tmp['FECHA'].dt.day
+                tmp = tmp[tmp['CANAL'].isin(all_channels_set)]
+                for (canal, day), n in tmp.groupby(['CANAL','DAY']).size().items():
+                    ddc.setdefault(canal, {})[int(day)] = int(n)
+        daily_dealer_channel[d] = ddc
         for m in ordered:
             sub_c = d_curr[d_curr['MODELO_F']==m]
             mc = int(len(sub_c))
@@ -906,6 +940,7 @@ def brand_report(brand, curr_raw, prev_raw, brand_metas, month=4, year=2026, up_
         'movements': movements,
         'daily': daily_cum_filtered(curr),
         'daily_breakdown': daily_breakdown,
+        'daily_dealer_channel': daily_dealer_channel,
         'dealer_model_channel': dealer_model_channel,
         'matrix_cnt_prev': matrix_cnt_prev,
         'pace': expected_pace_calendar(month, year, total_meta, days_lab, extra_non_working=extra_non_working),
