@@ -644,74 +644,13 @@
   <button class="tab-btn" data-tab="comp">Comparativo de Tráfico</button>
   <button class="tab-btn" data-tab="otros">Análisis General de Tráfico</button>
   <button class="tab-btn" data-tab="conv">Conversión</button>
+  <button class="tab-btn" data-tab="embudo">🫙 Embudo</button>
   <button class="tab-btn" data-tab="inv">📦 Inventario Orgu</button>
   <button class="tab-btn" data-tab="xiy">💰 Inversión Digital</button>
   <button class="tab-btn" data-tab="comp-imp">🔒 Inventario Competencia</button>
-  <button class="tab-btn" data-tab="embudo">🫙 Embudo</button>
-  <button class="tab-btn" data-tab="dash">Dashboard</button>
 </nav>
 
 <main>
-
-  <!-- ======================= TAB DASHBOARD ======================= -->
-  <section id="tab-dash" class="tab-panel">
-    <div class="filter-bar">
-      <label>Marca<select id="f-marca"><option value="">Todas</option></select></label>
-      <label>Modelo<select id="f-modelo"><option value="">Todos</option></select></label>
-      <label>Agencia<select id="f-agencia"><option value="">Todas</option></select></label>
-      <button class="reset" id="btn-reset" type="button">↺ Limpiar filtros</button>
-    </div>
-
-    <div class="kpis">
-      <div class="kpi"><div class="label">Marzo (cierre)</div><div class="num" id="kpi-marzo">—</div><div class="hint" id="kpi-marzo-hint"></div></div>
-      <div class="kpi accent"><div class="label">Abril (cierre 30/04)</div><div class="num" id="kpi-abril">—</div><div class="hint" id="kpi-abril-hint"></div></div>
-      <div class="kpi"><div class="label">Proyección Abril</div><div class="num" id="kpi-proj">—</div><div class="hint" id="kpi-proj-hint"></div></div>
-      <div class="kpi"><div class="label">Meta mensual (Ford)</div><div class="num" id="kpi-meta">313</div><div class="hint" id="kpi-meta-hint">Abril · agencias Ford</div></div>
-    </div>
-
-    <div class="card">
-      <h3>Comparativo por agencia <span class="sub">Marzo cierre vs Abril corte — barras proporcionales</span></h3>
-      <div style="overflow-x:auto">
-      <table class="comp" id="tbl-agencias">
-        <thead>
-          <tr><th>Agencia</th><th class="num">Marzo</th><th class="num">Abril</th><th class="num">Δ</th><th>Avance visual (Marzo vs Abril)</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      </div>
-    </div>
-
-    <div class="grid-2">
-      <div class="card tall"><h3>Distribución por canal <span class="sub">Abril</span></h3><div class="chart-wrap"><canvas id="chart-canales"></canvas></div></div>
-      <div class="card tall"><h3>Funnel de conversión <span class="sub">Abril</span></h3><div class="funnel-wrap" id="funnel"></div>
-        <div style="margin-top:12px;font-size:12px;color:var(--muted)"><strong>Tasa de cierre:</strong> <span id="funnel-rate">—</span> · <strong>Entrega/Cotización:</strong> <span id="funnel-delivery">—</span></div>
-      </div>
-    </div>
-
-    <div class="grid-2">
-      <div class="card tall"><h3>Tendencia acumulada <span class="sub">día a día — Abril vs Marzo</span></h3><div class="chart-wrap"><canvas id="chart-trend"></canvas></div></div>
-      <div class="card tall"><h3>Top modelos <span class="sub">Abril</span></h3><div class="chart-wrap"><canvas id="chart-modelos"></canvas></div></div>
-    </div>
-
-    <div class="card zoom-card">
-      <h3>Zoom por agencia <span class="sub">Selecciona una agencia para ver su corte: canal, asesor, campaña, modelo</span></h3>
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
-        <label style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px">Agencia
-          <select id="zoom-agencia" style="margin-left:8px;padding:7px 10px;border:1px solid #d1d5db;border-radius:8px;font:inherit;min-width:160px"></select>
-        </label>
-        <span class="tag" id="zoom-badge">—</span>
-      </div>
-      <div class="zoom-sub-grid">
-        <div class="mini"><h4>Por canal</h4><ul id="zoom-canal"></ul></div>
-        <div class="mini"><h4>Top asesores</h4><ul id="zoom-asesor"></ul></div>
-        <div class="mini"><h4>Top campañas</h4><ul id="zoom-campana"></ul></div>
-        <div class="mini"><h4>Por modelo</h4><ul id="zoom-modelo"></ul></div>
-      </div>
-      <div style="margin-top:12px;font-size:12px;color:var(--muted)">Funnel agencia: <span id="zoom-funnel"></span></div>
-    </div>
-
-    <div class="footer-note">Fuente: BD Marzo (cierre 31/03) y BD Abril (cierre 30/04). Datos agregados sin PII. · Reporte oficial Ford en la pestaña <strong>Reporte Ford</strong>.</div>
-  </section>
 
   <!-- ======================= TAB FORD ======================= -->
   <section id="tab-ford" class="tab-panel active">
@@ -2204,9 +2143,6 @@
 
   // ---------- TAB SWITCH ----------
   function tabSubtitle(tab){
-    if(tab === 'dash'){
-      return MARZO.label + ' vs ' + ABRIL.label;
-    }
     if(tab === 'ford'){
       const c = MONTHS_CONFIG.find(x=>x.key===currentMonthFF);
       return (c?c.label:'Mes') + ' · corte al ' + (FORD.cut_date || '—');
@@ -2267,7 +2203,7 @@
     });
   });
   // Initial subtitle (matches initial active tab)
-  setTopbarSub(document.querySelector('.tab-btn.active')?.dataset.tab || 'dash');
+  setTopbarSub(document.querySelector('.tab-btn.active')?.dataset.tab || 'ford');
 
   // ─────────── MODAL DE DETALLE (tap-to-show en mobile) ───────────
   // En desktop el atributo title="" muestra tooltip nativo al hover.
@@ -2326,159 +2262,6 @@
     items.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o); });
   }
 
-  // =========================================================
-  //                DASHBOARD (tab 1) — UNCHANGED
-  // =========================================================
-  const marcas = Array.from(new Set([...Object.keys(MARZO.byBrand),...Object.keys(ABRIL.byBrand)])).filter(CLEAN_BRAND).sort();
-  const modelos = Array.from(new Set([...Object.keys(MARZO.byModel),...Object.keys(ABRIL.byModel)])).filter(CLEAN_MODEL).sort();
-  const agencias = Array.from(new Set([...Object.keys(MARZO.byAgency),...Object.keys(ABRIL.byAgency)])).sort();
-  fillSelect('f-marca', marcas); fillSelect('f-modelo', modelos); fillSelect('f-agencia', agencias);
-
-  const zoomAgList = Object.entries(ABRIL.byAgency).sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
-  zoomAgList.forEach(ag=>{ const o=document.createElement('option'); o.value=ag; o.textContent=ag; document.getElementById('zoom-agencia').appendChild(o); });
-
-  const state = { marca:'', modelo:'', agencia:'' };
-  function setFilters(){
-    state.marca = document.getElementById('f-marca').value;
-    state.modelo = document.getElementById('f-modelo').value;
-    state.agencia = document.getElementById('f-agencia').value;
-    renderAll();
-  }
-  ['f-marca','f-modelo','f-agencia'].forEach(id=>document.getElementById(id).addEventListener('change',setFilters));
-  document.getElementById('btn-reset').addEventListener('click',()=>{
-    ['f-marca','f-modelo','f-agencia'].forEach(id=>document.getElementById(id).value='');
-    setFilters();
-  });
-
-  function filteredTotal(p){
-    if(state.agencia){
-      const det = (p.agencyDetail||{})[state.agencia]; if(!det) return 0;
-      if(state.modelo){ return ((p.agencyModel||{})[state.agencia]||{})[state.modelo]||0; }
-      return det.total||0;
-    }
-    if(state.modelo) return (p.byModel||{})[state.modelo]||0;
-    if(state.marca)  return (p.byBrand||{})[state.marca]||0;
-    return p.total||0;
-  }
-  function filteredByAgency(p){
-    if(state.modelo){
-      const out={}; Object.entries(p.agencyModel||{}).forEach(([ag,m])=>out[ag]=m[state.modelo]||0); return out;
-    }
-    if(state.marca){
-      const share = (p.byBrand?.[state.marca]||0) / (p.total||1);
-      const out={}; Object.entries(p.byAgency||{}).forEach(([ag,v])=>out[ag]=Math.round(v*share)); return out;
-    }
-    return p.byAgency||{};
-  }
-  const filteredByChannel = p => state.agencia? (p.agencyChannel||{})[state.agencia]||{} : (p.byChannel||{});
-  const filteredByModel = p => state.agencia? (p.agencyModel||{})[state.agencia]||{} : (p.byModel||{});
-  const filteredByStatus = p => state.agencia? (p.agencyStatus||{})[state.agencia]||p.byStatus||{} : (p.byStatus||{});
-
-  Chart.defaults.font.family = "Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif";
-  Chart.defaults.font.size = 12;
-  Chart.defaults.color = '#1c2434';
-  Chart.defaults.plugins.legend.labels.boxWidth = 10;
-  Chart.defaults.plugins.legend.labels.boxHeight = 10;
-  // Register datalabels but disable globally; enable per-chart.
-  if(window.ChartDataLabels){ Chart.register(ChartDataLabels); Chart.defaults.plugins.datalabels = { display:false }; }
-  let charts = {};
-  function destroy(k){ if(charts[k]){ charts[k].destroy(); delete charts[k]; } }
-
-  function renderKpis(){
-    const mTot = filteredTotal(MARZO), aTot = filteredTotal(ABRIL);
-    const daysLab = META.abril.days_lab, daysTrans = META.abril.days_trans;
-    const velocity = daysTrans? (aTot/daysTrans) : 0;
-    const projection = Math.round(velocity * daysLab);
-    document.getElementById('kpi-marzo').textContent = fmt(mTot);
-    document.getElementById('kpi-marzo-hint').textContent = MARZO.label + (state.agencia||state.modelo||state.marca?' · filtrado':'');
-    document.getElementById('kpi-abril').textContent = fmt(aTot);
-    document.getElementById('kpi-abril-hint').textContent = ABRIL.label + ' · vel. ' + velocity.toFixed(1) + '/día';
-    document.getElementById('kpi-proj').textContent = fmt(projection);
-    document.getElementById('kpi-proj-hint').textContent = 'A '+daysLab+' días lab. · lineal';
-    if(state.marca && state.marca !== 'FORD'){ document.getElementById('kpi-meta').textContent='—'; document.getElementById('kpi-meta-hint').textContent='No aplica · meta es sólo Ford'; }
-    else if(state.agencia){ document.getElementById('kpi-meta').textContent='—'; document.getElementById('kpi-meta-hint').textContent='Ver reporte Ford por agencia'; }
-    else { document.getElementById('kpi-meta').textContent = fmt(META.abril.meta_total); document.getElementById('kpi-meta-hint').textContent = 'Abril · agencias Ford (oficial)'; }
-  }
-  function renderAgencyTable(){
-    const mar = filteredByAgency(MARZO), abr = filteredByAgency(ABRIL);
-    const all = Array.from(new Set([...Object.keys(mar),...Object.keys(abr)])).sort((a,b)=>(abr[b]||0)-(abr[a]||0));
-    const maxAll = Math.max(1, ...all.map(a=>Math.max(mar[a]||0,abr[a]||0)));
-    document.querySelector('#tbl-agencias tbody').innerHTML = all.map(ag=>{
-      const mv=mar[ag]||0, av=abr[ag]||0;
-      const mw=Math.round(100*mv/maxAll), aw=Math.round(100*av/maxAll);
-      return `<tr><td><strong>${ag}</strong></td><td class="num">${fmt(mv)}</td><td class="num">${fmt(av)}</td><td class="num">${deltaCell(av-mv)}</td>
-        <td class="bar-cell"><div class="bar-dual">
-          <div class="row"><span>Mar</span><div class="bar-outer" style="flex:1"><div class="bar-inner marzo" style="width:${mw}%"></div></div></div>
-          <div class="row"><span>Abr</span><div class="bar-outer" style="flex:1"><div class="bar-inner" style="width:${aw}%"></div></div></div>
-        </div></td></tr>`;
-    }).join('');
-  }
-  function renderCanales(){
-    destroy('canales');
-    const ch = filteredByChannel(ABRIL);
-    const entries = Object.entries(ch).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-    charts.canales = new Chart(document.getElementById('chart-canales'),{
-      type:'bar', data:{labels:entries.map(e=>e[0]), datasets:[{label:'Abril', data:entries.map(e=>e[1]), backgroundColor:'#2e5090', borderRadius:6, maxBarThickness:22}]},
-      options:{indexAxis:'y', plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.parsed.x)+' registros'}}},
-        scales:{x:{beginAtZero:true,ticks:{precision:0}},y:{ticks:{font:{size:11}}}}, maintainAspectRatio:false}
-    });
-  }
-  function renderTrend(){
-    destroy('trend');
-    const a = ABRIL.daily.cum, m = MARZO.daily.cum;
-    const days = Array.from(new Set([...Object.keys(a),...Object.keys(m)])).map(n=>parseInt(n)).sort((x,y)=>x-y);
-    charts.trend = new Chart(document.getElementById('chart-trend'),{
-      type:'line', data:{labels:days.map(String), datasets:[
-        {label:'Marzo (cierre)', data:days.map(d=>m[d]!=null?m[d]:null), borderColor:'#9aa8c1', backgroundColor:'rgba(154,168,193,.15)', fill:true, tension:.25, pointRadius:2, borderWidth:2, borderDash:[4,3]},
-        {label:'Abril (acum.)',  data:days.map(d=>a[d]!=null?a[d]:null), borderColor:'#003478', backgroundColor:'rgba(0,52,120,.15)', fill:true, tension:.25, pointRadius:2, borderWidth:2.5}
-      ]},
-      options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+(c.parsed.y==null?'—':fmt(c.parsed.y))}}},
-        scales:{y:{beginAtZero:true,ticks:{precision:0}},x:{title:{display:true,text:'Día del mes',color:'#6b7280'}}}, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}}
-    });
-  }
-  function renderModelos(){
-    destroy('modelos');
-    const entries = topN(filteredByModel(ABRIL),10,CLEAN_MODEL);
-    charts.modelos = new Chart(document.getElementById('chart-modelos'),{
-      type:'bar', data:{labels:entries.map(e=>e[0]), datasets:[{label:'Abril', data:entries.map(e=>e[1]), backgroundColor:'#5c84d6', borderRadius:6, maxBarThickness:22}]},
-      options:{indexAxis:'y', plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.parsed.x)+' registros'}}}, scales:{x:{beginAtZero:true,ticks:{precision:0}}}, maintainAspectRatio:false}
-    });
-  }
-  function renderFunnel(){
-    const order = ['Indagación','Cotización','Demostración','Cierre','Entrega'];
-    const s = filteredByStatus(ABRIL);
-    const max = Math.max(1, ...order.map(k=>s[k]||0));
-    document.getElementById('funnel').innerHTML = order.map(k=>{
-      const v=s[k]||0, w=Math.max(2,Math.round(100*v/max));
-      return `<div class="funnel-row"><div class="fname">${k}</div><div class="fbar"><div class="finner" style="width:${w}%">${v>0?fmt(v):''}</div></div><div class="fpct">${max>0?(100*v/max).toFixed(0)+'%':'—'}</div></div>`;
-    }).join('');
-    document.getElementById('funnel-rate').textContent = pct(s['Cierre']||0, s['Cotización']||0);
-    document.getElementById('funnel-delivery').textContent = pct(s['Entrega']||0, s['Cotización']||0);
-  }
-  function renderZoom(){
-    const ag = document.getElementById('zoom-agencia').value || zoomAgList[0];
-    if(!ag) return;
-    document.getElementById('zoom-agencia').value = ag;
-    const det = (ABRIL.agencyDetail||{})[ag];
-    document.getElementById('zoom-badge').textContent = det? fmt(det.total)+' registros · Abril' : 'Sin datos';
-    const ul = (id,obj,filter)=>{
-      const list = Object.entries(obj||{}).filter(([k,v])=>v>0 && (!filter||filter(k))).sort((a,b)=>b[1]-a[1]).slice(0,8);
-      document.getElementById(id).innerHTML = list.length
-        ? list.map(([k,v])=>`<li><span title="${k}">${k.length>36?k.slice(0,33)+'…':k}</span><span class="v">${fmt(v)}</span></li>`).join('')
-        : '<li style="color:#9aa0a6">— sin datos —</li>';
-    };
-    if(!det){ ['zoom-canal','zoom-asesor','zoom-campana','zoom-modelo'].forEach(id=>document.getElementById(id).innerHTML='<li style="color:#9aa0a6">— sin datos —</li>'); document.getElementById('zoom-funnel').textContent='—'; return; }
-    ul('zoom-canal', det.byChannel);
-    ul('zoom-asesor', det.topAdvisors);
-    ul('zoom-campana', det.topCampaigns, k=> k && k!=='nan' && k!=='Ninguna');
-    ul('zoom-modelo', det.byModel, CLEAN_MODEL);
-    const f = det.byStatus||{};
-    document.getElementById('zoom-funnel').textContent = ['Indagación','Cotización','Demostración','Cierre','Entrega'].map(k=>`${k}: ${f[k]||0}`).join(' · ');
-  }
-  document.getElementById('zoom-agencia').addEventListener('change',renderZoom);
-
-  function renderAll(){ renderKpis(); renderAgencyTable(); renderCanales(); renderTrend(); renderModelos(); renderFunnel(); }
-  renderAll(); renderZoom();
 
   // =========================================================
   //                   FORD TAB (dinámico)
