@@ -4945,12 +4945,35 @@
     const canvas = document.getElementById('conv-chart-modelos');
     if(!canvas) return;
 
+    // Si hay filtro de mes activo, ocultar gráfico (evolución con 1 mes no es evolución)
+    const parent = canvas.parentElement;
+    const sec = parent?.closest('.ford-section');
+    if(convState.mes && sec){
+      sec.style.opacity = '0.5';
+      sec.style.pointerEvents = 'none';
+      let hint = sec.querySelector('.evol-disabled-hint');
+      if(!hint){
+        hint = document.createElement('div');
+        hint.className = 'evol-disabled-hint';
+        hint.style.cssText = 'background:#fef3c7;border:1px solid #fbbf24;color:#78350f;padding:8px 12px;border-radius:6px;font-size:12px;margin:8px 0';
+        sec.insertBefore(hint, sec.firstChild.nextSibling);
+      }
+      hint.textContent = `⚠️ Gráfico desactivado · el filtro Mes (${convState.mes}) solo deja una cohorte. Limpia el filtro de mes para ver la evolución completa.`;
+      if(convChartModelos){ convChartModelos.destroy(); convChartModelos = null; }
+      return;
+    } else if(sec){
+      sec.style.opacity = '1';
+      sec.style.pointerEvents = 'auto';
+      const hint = sec.querySelector('.evol-disabled-hint');
+      if(hint) hint.remove();
+    }
+
     // Asegurar que los chips estén renderizados (primera vez)
     if(!document.querySelector('#conv-modelos-chips .conv-model-chip')){
       renderConvModelosChips();
     }
 
-    // Filtros activos EXCEPTO mes y modelo (queremos ver todos los modelos activos)
+    // Filtros activos EXCEPTO modelo (queremos ver todos los modelos activos)
     const filtered = CONV.clientes_flat.filter(c => {
       if(convState.agencia && c.agencia !== convState.agencia) return false;
       if(convState.zona    && c.zona    !== convState.zona)    return false;
@@ -5051,7 +5074,30 @@
     const canvas = document.getElementById('conv-chart-evol');
     if(!canvas) return;
 
-    // Aplicar todos los filtros EXCEPTO mes (porque el gráfico ya separa por mes)
+    // Si hay filtro de mes activo, ocultar gráfico (no tiene sentido ver evolución con 1 mes)
+    const parent = canvas.parentElement;
+    const sec = parent?.closest('.ford-section');
+    if(convState.mes && sec){
+      sec.style.opacity = '0.5';
+      sec.style.pointerEvents = 'none';
+      let hint = sec.querySelector('.evol-disabled-hint');
+      if(!hint){
+        hint = document.createElement('div');
+        hint.className = 'evol-disabled-hint';
+        hint.style.cssText = 'background:#fef3c7;border:1px solid #fbbf24;color:#78350f;padding:8px 12px;border-radius:6px;font-size:12px;margin:8px 0';
+        sec.insertBefore(hint, sec.firstChild.nextSibling);
+      }
+      hint.textContent = `⚠️ Gráfico desactivado · el filtro Mes (${convState.mes}) solo deja una cohorte. Limpia el filtro de mes para ver la evolución completa.`;
+      if(convChartEvol){ convChartEvol.destroy(); convChartEvol = null; }
+      return;
+    } else if(sec){
+      sec.style.opacity = '1';
+      sec.style.pointerEvents = 'auto';
+      const hint = sec.querySelector('.evol-disabled-hint');
+      if(hint) hint.remove();
+    }
+
+    // Aplicar todos los demás filtros (el gráfico separa por mes en el eje X)
     const filtered = CONV.clientes_flat.filter(c => {
       if(convState.agencia && c.agencia !== convState.agencia) return false;
       if(convState.zona    && c.zona    !== convState.zona)    return false;
