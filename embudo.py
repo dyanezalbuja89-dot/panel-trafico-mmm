@@ -65,28 +65,37 @@ _INV_CACHE = {}
 
 
 def _load_inventory_sales():
-    """Carga las ventas facturadas del inventario (cache), filtradas a Ford.
-    DataFrame con agencia_fact, fecha, MODELO (consolidado), VERSION, ASESOR_F.
-    Filtra fuera DongFeng/Chery/Mazda/RAM para no mezclar asesores que no
-    venden Ford (relevante en La Y, Machala, etc., que son multi-marca)."""
-    key = str(DEFAULT_INVENTORY_PATH)
+    """Carga las ventas NETAS desde el archivo "Base de ventas YTD ...xlsx"
+    (cache), filtradas a Ford.
+
+    ► Antes leíamos del inventario (REPORTE DE INVENTARIO ... DATOS) que
+    incluía facturas brutas. Ahora usamos el archivo de ventas netas que ya
+    descuenta Notas de Crédito (devoluciones), dando el cierre real.
+
+    DataFrame con AGENCIA_FACTURACION, fac_dt, MODELO, VERSION, ASESOR_F."""
+    from ventas import load_ventas, DEFAULT_VENTAS_PATH
+    key = str(DEFAULT_VENTAS_PATH) if DEFAULT_VENTAS_PATH else 'NONE'
     if key in _INV_CACHE:
         return _INV_CACHE[key]
-    if not DEFAULT_INVENTORY_PATH.exists():
+    df = load_ventas()
+    if df is None or len(df) == 0:
         _INV_CACHE[key] = None
         return None
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-        df = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS', header=0)
-    df.columns = [str(c).strip() for c in df.columns]
-    df['fac_dt'] = pd.to_datetime(df.get('fecha de facturacion'), errors='coerce')
-    df['marca_up'] = df.get('marca', '').astype(str).str.strip().str.upper()
+    df = df.copy()
+    df['fac_dt'] = pd.to_datetime(df['fecha de facturacion'], errors='coerce')
+    df['marca_up'] = df['marca'].astype(str).str.strip().str.upper()
     # ► Sólo Ford. Las otras marcas tienen sus propios asesores y modelos.
     df = df[df['marca_up'] == 'FORD']
+    # ► Incluimos FACTURAS y NC para que la suma neta = ventas reales.
+    # Cantidad: +1 para FACTURA, -1 para NC. Al agregar usamos sum(Cantidad)
+    # en lugar de count(rows) para obtener cierres NETOS (lo que coincide con
+    # el pivot oficial del archivo: Ford 414 YTD).
     df['MODELO'] = df.apply(lambda r: normalize_familia(r.get('familia'), 'FORD'), axis=1)
     df['VERSION'] = df.apply(lambda r: normalize_version(r.get('familia'), 'FORD'), axis=1)
-    df['ASESOR_F'] = df.get('ASESOR_FACTURACION').apply(_norm_asesor) if 'ASESOR_FACTURACION' in df.columns else None
-    out = df[['AGENCIA_FACTURACION', 'fac_dt', 'MODELO', 'VERSION', 'ASESOR_F']].dropna(subset=['fac_dt'])
+    df['ASESOR_F'] = df['ASESOR_FACTURACION'].apply(_norm_asesor) if 'ASESOR_FACTURACION' in df.columns else None
+    # Asegurar Cantidad numérica
+    df['Cantidad'] = df['Cantidad'].fillna(0).astype(int) if 'Cantidad' in df.columns else 1
+    out = df[['AGENCIA_FACTURACION', 'fac_dt', 'MODELO', 'VERSION', 'ASESOR_F', 'Cantidad']].dropna(subset=['fac_dt'])
     _INV_CACHE[key] = out
     return out
 
@@ -117,18 +126,21 @@ def _ventas_inventario(agencia_short, mes, asesores_canonicos=None, anio=2026):
     sub = sub[(sub['fac_dt'].dt.year == anio) & (sub['fac_dt'].dt.month == mnum)]
     canonicos = asesores_canonicos or []
     por_modelo, por_version, por_asesor, por_asesor_modelo = {}, {}, {}, {}
+    # ► Usamos Cantidad con signo (FACTURA=+1, NC=-1) para obtener cierres NETOS.
     for _, r in sub.iterrows():
         mod = r['MODELO'] or 'Por definir'
         ver = r['VERSION'] or mod
-        por_modelo[mod] = por_modelo.get(mod, 0) + 1
+        cnt = int(r.get('Cantidad', 1))
+        por_modelo[mod] = por_modelo.get(mod, 0) + cnt
         por_version.setdefault(mod, {})
-        por_version[mod][ver] = por_version[mod].get(ver, 0) + 1
+        por_version[mod][ver] = por_version[mod].get(ver, 0) + cnt
         # asesor: matchear al canónico del embudo; si no, usar el del inventario
         ase = _match_asesor(r.get('ASESOR_F'), canonicos) or r.get('ASESOR_F') or '(Sin asesor)'
-        por_asesor[ase] = por_asesor.get(ase, 0) + 1
+        por_asesor[ase] = por_asesor.get(ase, 0) + cnt
         por_asesor_modelo.setdefault(ase, {})
-        por_asesor_modelo[ase][mod] = por_asesor_modelo[ase].get(mod, 0) + 1
-    return por_modelo, por_version, por_asesor, por_asesor_modelo, int(len(sub))
+        por_asesor_modelo[ase][mod] = por_asesor_modelo[ase].get(mod, 0) + cnt
+    total_neto = int(sub['Cantidad'].sum()) if 'Cantidad' in sub.columns else int(len(sub))
+    return por_modelo, por_version, por_asesor, por_asesor_modelo, total_neto
 
 # Orden del embudo: (nombre_archivo, etiqueta_panel)
 # La base del embudo es Cotización (Tráfico se excluye a pedido del negocio).

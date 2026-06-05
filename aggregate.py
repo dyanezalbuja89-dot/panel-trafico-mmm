@@ -1176,15 +1176,16 @@ def main():
         # Embudo (funnel) de ventas por modelo y concesionario (CJA por ahora)
         "embudo_data": _compute_embudo_safe(),
         # Análisis de conversión tráfico → venta (módulo aislado, no afecta el resto).
-        # Cruza BDs históricos de tráfico contra DATOS (facturas) usando "client_key"
-        # robusto (mismo cliente con cédula natural / RUC / persona-empresa).
+        # ► Fuente de ventas: archivo "Base de ventas YTD ...xlsx" (ventas netas).
+        # El inventario sigue siendo la fuente de stock/reservas (eso no cambia).
         "conversion_data": (
-            {'FORD': compute_conversion_metrics(
-                bd_dir=str(BASE / 'BD_MAYO'),
-                sales_df_path=str(DEFAULT_INVENTORY_PATH),
-                marca_filter='FORD',
-            )}
-            if DEFAULT_INVENTORY_PATH.exists() else None
+            (lambda: {
+                'FORD': compute_conversion_metrics(
+                    bd_dir=str(BASE / 'BD_MAYO'),
+                    sales_df=__import__('ventas').load_ventas(),
+                    marca_filter='FORD',
+                )
+            } if __import__('ventas').load_ventas() is not None else None)()
         ),
         # matrix_meta carga la meta marketing (80%). Para escalar la meta cuando se
         # filtra por categoría de canal en la pestaña Otros, JS aplica estos ratios.

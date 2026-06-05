@@ -487,8 +487,15 @@ def agencia_to_zona(ag):
     return 'Otra'
 
 
-def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
+def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_filter=None):
     """Calcula métricas de conversión global y por dimensión.
+
+    sales_df: si se pasa un DataFrame ya cargado (con columnas IDENTIFICACION,
+              ASESOR_FACTURACION, AGENCIA_FACTURACION, familia, marca,
+              fecha de facturacion, CLIENTE_FACTURACION, Chasis, etc.),
+              se usa directamente. Esto es lo que hace aggregate.py cuando
+              pasa el archivo de ventas netas (ventas.load_ventas()).
+    sales_df_path: legacy — path al archivo de inventario DATOS (modo viejo).
 
     Solo considera facturas DENTRO del período donde tenemos BDs de tráfico.
     Cruzar facturas viejas (e.g. 2024) contra BD tráfico que solo existe desde
@@ -509,12 +516,23 @@ def compute_conversion_metrics(bd_dir, sales_df_path, marca_filter=None):
     # BD en 2025 y comprado en 2026 — la atribución cubre toda su trayectoria.
     period_start = pd.Timestamp('2026-01-01')
 
-    # Cargar facturas (DATOS con status=FACTURADO)
-    inv = pd.read_excel(sales_df_path, sheet_name='DATOS', header=0)
-    inv['STATUS_H'] = inv['STATUS HOMOLOGADO'].astype(str).str.strip().str.upper()
-    facturas = inv[inv['STATUS_H'] == 'FACTURADO'].copy()
-    facturas['fecha_fact'] = pd.to_datetime(facturas['fecha de facturacion'], errors='coerce')
-    facturas['marca_up'] = facturas['marca'].astype(str).str.strip().str.upper()
+    # Cargar facturas. Modo nuevo (sales_df pasado) o legacy (sales_df_path).
+    if sales_df is not None:
+        # ► Archivo de ventas netas (Base de ventas YTD ...xlsx) ya viene con
+        # columnas mapeadas vía ventas.load_ventas(). Sólo facturación (no NC)
+        # y solo Ford si marca_filter está activo.
+        facturas = sales_df.copy()
+        if 'Tipo Transaccion' in facturas.columns:
+            facturas = facturas[facturas['Tipo Transaccion'].astype(str).str.upper() == 'FACTURA']
+        facturas['fecha_fact'] = pd.to_datetime(facturas['fecha de facturacion'], errors='coerce')
+        facturas['marca_up'] = facturas['marca'].astype(str).str.strip().str.upper()
+    else:
+        # Modo legacy: leer del inventario DATOS
+        inv = pd.read_excel(sales_df_path, sheet_name='DATOS', header=0)
+        inv['STATUS_H'] = inv['STATUS HOMOLOGADO'].astype(str).str.strip().str.upper()
+        facturas = inv[inv['STATUS_H'] == 'FACTURADO'].copy()
+        facturas['fecha_fact'] = pd.to_datetime(facturas['fecha de facturacion'], errors='coerce')
+        facturas['marca_up'] = facturas['marca'].astype(str).str.strip().str.upper()
     if marca_filter:
         facturas = facturas[facturas['marca_up'] == marca_filter.upper()]
     # Filtrar a período donde tenemos BDs
