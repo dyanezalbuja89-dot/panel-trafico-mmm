@@ -1463,6 +1463,34 @@ HTML = r"""<!doctype html>
         <div style="position:relative;height:240px"><canvas id="br-chart-channels"></canvas></div>
       </div>
 
+      <!-- BULLET CHARTS — cumplimiento por sucursal -->
+      <div class="ford-section">
+        <h3>🎯 Cumplimiento por sucursal <span class="sub">sucursales de la marca seleccionada · meta vs proyección · click para filtrar</span></h3>
+        <div id="br-bullets-agency" class="bullet-grid"></div>
+        <div style="display:flex; gap:var(--sp-4); align-items:center; margin-top:var(--sp-3); font-size:var(--t-caption); color:var(--c-muted); flex-wrap:wrap">
+          <span style="display:flex; align-items:center; gap:6px">
+            <span style="display:inline-block;width:14px;height:8px;background:var(--c-primary);border-radius:2px"></span> Proyección
+          </span>
+          <span style="display:flex; align-items:center; gap:6px">
+            <span style="display:inline-block;width:3px;height:14px;background:var(--c-slate-900);border-radius:1px"></span> Meta
+          </span>
+          <span style="display:flex; align-items:center; gap:6px">
+            <span style="display:inline-flex;border-radius:2px;overflow:hidden">
+              <span style="width:14px;height:8px;background:var(--c-red-100)"></span>
+              <span style="width:6px;height:8px;background:var(--c-amber-100)"></span>
+              <span style="width:10px;height:8px;background:var(--c-emerald-100)"></span>
+            </span>
+            Bandas: &lt;50% riesgo · 50-70% alerta · ≥70% sano
+          </span>
+        </div>
+      </div>
+
+      <!-- BULLET CHARTS — cumplimiento por modelo -->
+      <div class="ford-section">
+        <h3>🚗 Cumplimiento por modelo <span class="sub">modelos de la marca seleccionada · click para filtrar</span></h3>
+        <div id="br-bullets-model" class="bullet-grid compact"></div>
+      </div>
+
       <!-- PROYECCIÓN POR AGENCIA -->
       <div class="ford-section">
         <h3>🔮 Proyección de cierre — por agencia <span class="sub">click fila para filtrar</span></h3>
@@ -4257,6 +4285,70 @@ HTML = r"""<!doctype html>
     });
   }
 
+  // ─── BULLET CHARTS para Brand tab (mismo patrón que Ford) ───
+  function brRenderBulletsAgency(){
+    const wrap = document.getElementById('br-bullets-agency');
+    if(!wrap) return;
+    const B = brCurrent(); if(!B) return;
+    const rows = B.dealer_order.map(d=>{
+      let curr, meta;
+      if(bstate.modelo){
+        curr = (B.matrix_cnt[bstate.modelo]||{})[d]||0;
+        meta = (B.matrix_meta[bstate.modelo]||{})[d]||0;
+      } else {
+        curr = B.dealers[d].curr; meta = B.dealers[d].meta;
+      }
+      const proj = Math.round((B.days_trans? curr/B.days_trans:0) * B.days_lab);
+      const cumpl = meta>0? 100*proj/meta : null;
+      return {name:d, proj, meta, cumpl};
+    });
+    rows.sort((a,b)=>{
+      if(a.cumpl == null && b.cumpl == null) return 0;
+      if(a.cumpl == null) return 1;
+      if(b.cumpl == null) return -1;
+      return a.cumpl - b.cumpl;
+    });
+    wrap.innerHTML = rows.map(r => ffRenderBullet(r, bstate.agencia === r.name)).join('');
+    wrap.querySelectorAll('.bullet-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const ag = card.dataset.name;
+        bstate.agencia = bstate.agencia === ag ? '' : ag;
+        const sel = document.getElementById('br-agencia');
+        if(sel) sel.value = bstate.agencia;
+        brRenderAll();
+      });
+    });
+  }
+  function brRenderBulletsModel(){
+    const wrap = document.getElementById('br-bullets-model');
+    if(!wrap) return;
+    const B = brCurrent(); if(!B) return;
+    const dealers = bstate.agencia? [bstate.agencia] : B.dealer_order;
+    const rows = B.model_order.map(m=>{
+      const curr = dealers.reduce((s,d)=>s+((B.matrix_cnt[m]||{})[d]||0),0);
+      const meta = dealers.reduce((s,d)=>s+((B.matrix_meta[m]||{})[d]||0),0);
+      const proj = Math.round((B.days_trans? curr/B.days_trans:0) * B.days_lab);
+      const cumpl = meta>0? 100*proj/meta : null;
+      return {name:m, proj, meta, cumpl};
+    });
+    rows.sort((a,b)=>{
+      if(a.cumpl == null && b.cumpl == null) return 0;
+      if(a.cumpl == null) return 1;
+      if(b.cumpl == null) return -1;
+      return a.cumpl - b.cumpl;
+    });
+    wrap.innerHTML = rows.map(r => ffRenderBullet(r, bstate.modelo === r.name)).join('');
+    wrap.querySelectorAll('.bullet-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const m = card.dataset.name;
+        bstate.modelo = bstate.modelo === m ? '' : m;
+        const sel = document.getElementById('br-modelo');
+        if(sel) sel.value = bstate.modelo;
+        brRenderAll();
+      });
+    });
+  }
+
   function brRenderAll(){
     const hasBrand = !!bstate.brand;
     document.getElementById('br-empty').style.display = hasBrand? 'none':'block';
@@ -4269,6 +4361,8 @@ HTML = r"""<!doctype html>
     elM.innerHTML = '<option value="">Todos</option>' + B.model_order.map(m=>`<option value="${m}" ${bstate.modelo===m?'selected':''}>${m}</option>`).join('');
     brRenderFilterSummary();
     brRenderHero();
+    brRenderBulletsAgency();   // ← nuevo: cumplimiento por sucursal
+    brRenderBulletsModel();    // ← nuevo: cumplimiento por modelo
     brRenderMovementsFiltered();
     brRenderAgencies();
     brRenderRanking();
