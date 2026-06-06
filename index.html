@@ -2162,6 +2162,20 @@
         </div>
       </div>
 
+      <!-- BULLET VIEW POR AGENCIA -->
+      <div class="ford-section" style="margin-top:18px">
+        <h3>🎯 Conversión por agencia — vista rápida <span class="sub">cada sucursal vs el promedio ORGU · click para drill-down</span></h3>
+        <div id="conv-bullets-agency" class="bullet-grid"></div>
+        <div style="display:flex; gap:var(--sp-4); align-items:center; margin-top:var(--sp-3); font-size:var(--t-caption); color:var(--c-muted); flex-wrap:wrap">
+          <span style="display:flex; align-items:center; gap:6px">
+            <span style="display:inline-block;width:14px;height:8px;background:var(--c-primary);border-radius:2px"></span> Conversión actual
+          </span>
+          <span style="display:flex; align-items:center; gap:6px">
+            <span style="display:inline-block;width:3px;height:14px;background:var(--c-slate-900);border-radius:1px"></span> Promedio ORGU
+          </span>
+        </div>
+      </div>
+
       <!-- POR AGENCIA -->
       <div class="ford-section" style="margin-top:18px">
         <h3>🏬 Conversión por agencia de primer toque <span class="sub">¿Qué agencia cierra más de lo que trae?</span></h3>
@@ -5580,8 +5594,68 @@
     renderTable('#conv-tbl-modelo tbody',  aggModelo,  'modelo',  true);
     renderTable('#conv-tbl-agencia tbody', aggAgencia, 'agencia', true);
     renderTable('#conv-tbl-asesor tbody',  aggAsesorFilt, 'rank',  false, 5, 20);
+    renderConvBulletsAgency(aggAgencia);   // ← nuevo: bullets % conversión vs promedio
     renderConvChartEvol();
     renderConvChartModelos();
+  }
+
+  // ─── BULLET CHARTS: conversión por agencia vs promedio ORGU ───
+  // Cada bullet muestra el % conversión actual con un marker en el
+  // promedio ORGU. Si la sucursal está por encima del promedio, color
+  // good; cerca del promedio, warn; muy por debajo, bad.
+  function renderConvBulletsAgency(agg){
+    const wrap = document.getElementById('conv-bullets-agency');
+    if(!wrap) return;
+    // Calcular promedio ORGU global
+    const entries = Object.entries(agg).filter(([,v])=>v.traffic >= 5);
+    if(entries.length === 0){ wrap.innerHTML = ''; return; }
+    const totT = entries.reduce((s,[,v])=>s+v.traffic, 0);
+    const totM = entries.reduce((s,[,v])=>s+v.matched, 0);
+    const avg = totT>0 ? 100*totM/totT : 0;
+    // Construir filas estilo bullet (reusamos ffRenderBullet)
+    const rows = entries.map(([name, v])=>{
+      const conv = v.conv_pct || 0;
+      // Para bullets: proj = conv, meta = avg
+      const cumpl = avg>0 ? 100*conv/avg : null;
+      return {name, proj:conv, meta:avg, cumpl, _ventas:v.ventas||0, _matched:v.matched, _traffic:v.traffic};
+    });
+    rows.sort((a,b)=> b.proj - a.proj); // mejor a peor (descendente, las top primero)
+    // Render
+    wrap.innerHTML = rows.map(r=>{
+      const cls = ffBulletClasses(r.cumpl);
+      const trackMax = Math.max(avg * 1.8, 30);
+      const fillPct = Math.min(100, Math.max(0, 100*r.proj/trackMax));
+      const targetPct = avg>0 ? (100*avg/trackMax) : null;
+      return `<div class="bullet-card" data-name="${r.name}">
+        <div class="bullet-header">
+          <div class="bullet-name" title="${r.name}">${r.name}</div>
+          <div class="bullet-cumpl ${cls.col}">${r.proj.toFixed(1)}%</div>
+        </div>
+        <div class="bullet-track">
+          <div class="bullet-fill" style="width:${fillPct}%"></div>
+          ${targetPct != null ? `<div class="bullet-target" style="left:${targetPct}%"></div>` : ''}
+        </div>
+        <div class="bullet-footer">
+          <span><span class="val">${fmt(r._matched)}</span> de ${fmt(r._traffic)}</span>
+          <span>Prom. ORGU <span class="meta-val">${avg.toFixed(1)}%</span></span>
+        </div>
+        ${r.cumpl != null ? `<span class="bullet-tag ${cls.col}">${
+          r.cumpl >= 110 ? 'sobre promedio' :
+          r.cumpl >= 90  ? 'en promedio'    :
+          r.cumpl >= 60  ? 'bajo promedio'  : 'muy bajo'
+        }</span>` : ''}
+      </div>`;
+    }).join('');
+    // Click → filtrar esa agencia
+    wrap.querySelectorAll('.bullet-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const ag = card.dataset.name;
+        convState.agencia = convState.agencia === ag ? '' : ag;
+        const sel = document.getElementById('conv-f-agencia');
+        if(sel) sel.value = convState.agencia;
+        renderConversion();
+      });
+    });
   }
 
   // Gráfica de conversión por modelo mes a mes (líneas múltiples).
