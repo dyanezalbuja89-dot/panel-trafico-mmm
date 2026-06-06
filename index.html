@@ -584,12 +584,78 @@
   .pw-gate .logout{margin-top:14px;font-size:11px;color:var(--muted)}
   .pw-gate .logout a{color:var(--ford-2);cursor:pointer;text-decoration:underline}
 
-  /* Otros tab content */
-  #tab-otros .otros-header{background:linear-gradient(135deg,#003478 0%,#2e5090 100%);color:#fff;padding:18px 22px;border-radius:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
-  #tab-otros .otros-header h2{margin:0;font-size:18px}
-  #tab-otros .otros-header .sub{font-size:12px;opacity:.85;margin-top:2px}
-  #tab-otros .otros-header .logout-btn{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);padding:6px 12px;border-radius:6px;font:inherit;font-size:11px;cursor:pointer}
-  #tab-otros .otros-header .logout-btn:hover{background:rgba(255,255,255,.25)}
+  /* ─── BANNER DE PESTAÑA (usado en Otros, Conv, Embudo, Inv, Xiy, Comp-Imp) ─── */
+  .otros-header{
+    background:linear-gradient(135deg, var(--c-ford-800) 0%, var(--c-ford-700) 60%, var(--c-ford-600) 100%);
+    color:#fff;
+    padding:var(--sp-5) var(--sp-6);
+    border-radius:var(--r-lg);
+    margin-bottom:var(--sp-4);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:var(--sp-3);
+    box-shadow:var(--shadow-sm);
+    position:relative;
+    overflow:hidden;
+  }
+  /* Acento amber lateral (recuerda el branding Ford del topbar) */
+  .otros-header::before{
+    content:'';
+    position:absolute;
+    left:0; top:0; bottom:0;
+    width:5px;
+    background:var(--c-amber-600);
+    box-shadow:0 0 16px rgba(217,119,6,.5);
+  }
+  /* Highlight radial sutil */
+  .otros-header::after{
+    content:'';
+    position:absolute;
+    top:0; right:0; width:240px; height:100%;
+    background:radial-gradient(ellipse at top right, rgba(255,255,255,.08) 0%, transparent 65%);
+    pointer-events:none;
+  }
+  .otros-header > *{position:relative; z-index:1}
+  .otros-header h2{
+    margin:0;
+    font-size:var(--t-title);
+    font-weight:700;
+    letter-spacing:-.01em;
+    line-height:1.2;
+  }
+  .otros-header .sub{
+    font-size:var(--t-label);
+    opacity:.85;
+    margin-top:var(--sp-1);
+    font-weight:400;
+  }
+  .otros-header .logout-btn{
+    background:rgba(255,255,255,.12);
+    color:#fff;
+    border:1px solid rgba(255,255,255,.28);
+    padding:var(--sp-2) var(--sp-3);
+    border-radius:var(--r);
+    font:inherit;
+    font-size:var(--t-caption);
+    font-weight:600;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .otros-header .logout-btn:hover{background:rgba(255,255,255,.22); border-color:rgba(255,255,255,.45)}
+
+  /* Variantes de color de banner por pestaña (clases modifier opcionales) */
+  .otros-header.theme-conv{background:linear-gradient(135deg, var(--c-emerald-800) 0%, var(--c-ford-700) 100%)}
+  .otros-header.theme-conv::before{background:var(--c-emerald-600)}
+  .otros-header.theme-xiy{background:linear-gradient(135deg, var(--c-amber-700) 0%, var(--c-ford-700) 100%)}
+  .otros-header.theme-xiy::before{background:var(--c-amber-200)}
+  .otros-header.theme-inv{background:linear-gradient(135deg, var(--c-slate-700) 0%, var(--c-ford-700) 100%)}
+  .otros-header.theme-inv::before{background:var(--c-slate-300)}
+  .otros-header.theme-comp{background:linear-gradient(135deg, #6a1b9a 0%, var(--c-ford-700) 100%)}
+  .otros-header.theme-comp::before{background:#ce93d8}
+  .otros-header.theme-embudo{background:linear-gradient(135deg, var(--c-ford-800) 0%, #0f766e 100%)}
+  .otros-header.theme-embudo::before{background:#5eead4}
 
   /* Big stat card */
   .stat-hero{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:var(--sp-3);margin-bottom:var(--sp-4)}
@@ -1650,7 +1716,7 @@
 
   <!-- ======================= TAB INVENTARIO ======================= -->
   <section id="tab-inv" class="tab-panel">
-    <div class="otros-header" style="background:linear-gradient(135deg,#1565c0 0%,#003478 100%)">
+    <div class="otros-header theme-inv">
       <div>
         <h2>📦 Inventario · Oferta vs Demanda</h2>
         <div class="sub" id="inv-sub">Cobertura por modelo, reservas en cola y pipeline · snapshot del archivo</div>
@@ -1820,7 +1886,7 @@
 
   <!-- ======================= TAB INVERSIÓN XIY ======================= -->
   <section id="tab-xiy" class="tab-panel">
-    <div class="otros-header" style="background:linear-gradient(135deg,#b58105 0%,#003478 100%)">
+    <div class="otros-header theme-xiy">
       <div>
         <h2>💰 Inversión Digital 2026</h2>
         <div class="sub" id="xiy-source">Pauta digital Ford · cruzada con tráfico y ventas del panel</div>
@@ -2037,7 +2103,7 @@
     </div>
 
     <div id="conv-content">
-      <div class="otros-header" style="background:linear-gradient(135deg,#1b5e20 0%,#003478 100%)">
+      <div class="otros-header theme-conv">
         <div>
           <h2>🎯 Conversión Tráfico → Venta</h2>
           <div class="sub">Solo Ford · clientes únicos atribuidos a tráfico que terminaron en factura</div>
@@ -2229,7 +2295,7 @@
     </div>
 
     <div id="comp-imp-content" style="display:none">
-      <div class="otros-header" style="background:linear-gradient(135deg,#6a1b9a 0%,#003478 100%)">
+      <div class="otros-header theme-comp">
         <div>
           <h2>🚗 Competencia · Importaciones Ford</h2>
           <div class="sub" id="comp-imp-source">ORGU (AUTOSHARECORP) vs QM (Quito Motors)</div>
@@ -2374,7 +2440,7 @@
 
   <!-- ======================= TAB EMBUDO ======================= -->
   <section id="tab-embudo" class="tab-panel">
-    <div class="otros-header" style="background:linear-gradient(135deg,#0f766e 0%,#003478 100%)">
+    <div class="otros-header theme-embudo">
       <div>
         <h2>🫙 Embudo de ventas por modelo</h2>
         <div class="sub" id="embudo-source">Prospectos por etapa del embudo · por modelo y concesionario</div>
