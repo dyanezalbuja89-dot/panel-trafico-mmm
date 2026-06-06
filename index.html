@@ -6,19 +6,120 @@
 <title>Dashboard Tráfico DY — ORGU / Maresa</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@500;600&display=swap">
 <style>
+  /* ─────────────────────────────────────────────────────────────
+     DESIGN TOKENS — arquitectura en 3 capas
+     1. Primitivos: paleta cruda (no usar directamente en componentes)
+     2. Semánticos: por intención (primary, danger, success, …)
+     3. Componente: específicos (kpi, chart, …)
+     ───────────────────────────────────────────────────────────── */
   :root{
-    --ford:#003478; --ford-2:#2e5090; --bg:#f3f5f8; --card:#fff;
-    --ink:#1c2434; --muted:#6b7280;
-    --pos:#155724; --neg:#c62828; --zoom:#8b0000; --yellow:#f9a825;
-    --green-bg:#c8e6c9; --green-tx:#2e7d32;
-    --yellow-bg:#fff9c4; --yellow-tx:#f57f17;
-    --red-bg:#ffcdd2; --red-tx:#c62828;
-    --grey-bg:#f5f5f5; --grey-tx:#999;
+    /* ─── 1. PRIMITIVOS ─── */
+    /* Ford brand */
+    --c-ford-900:#001d4a; --c-ford-800:#002959; --c-ford-700:#003478;
+    --c-ford-600:#1e4a93; --c-ford-500:#2e5090; --c-ford-300:#5c84d6;
+    --c-ford-100:#dbeafe;
+    /* Slate (neutros) */
+    --c-slate-50:#f8fafc;  --c-slate-100:#f1f5f9; --c-slate-200:#e5e7eb;
+    --c-slate-300:#cbd5e1; --c-slate-400:#94a3b8; --c-slate-500:#64748b;
+    --c-slate-600:#475569; --c-slate-700:#334155; --c-slate-800:#1e293b;
+    --c-slate-900:#0f172a; --c-ink:#1c2434;
+    /* Semáforo (con contraste WCAG AA verificado en fondo blanco) */
+    --c-emerald-50:#ecfdf5;  --c-emerald-100:#d1fae5; --c-emerald-200:#a7f3d0;
+    --c-emerald-600:#16a34a; --c-emerald-700:#15803d; --c-emerald-800:#166534;
+    --c-amber-50:#fffbeb;    --c-amber-100:#fef3c7;  --c-amber-200:#fde68a;
+    --c-amber-600:#d97706;   --c-amber-700:#b45309;  --c-amber-800:#92400e;
+    --c-red-50:#fef2f2;      --c-red-100:#fee2e2;    --c-red-200:#fecaca;
+    --c-red-600:#dc2626;     --c-red-700:#b91c1c;    --c-red-800:#991b1b;
+
+    /* ─── 2. SEMÁNTICOS (por intención) ─── */
+    --c-primary:    var(--c-ford-700);
+    --c-primary-2:  var(--c-ford-500);
+    --c-primary-bg: var(--c-ford-100);
+    --c-good:       var(--c-emerald-600);
+    --c-good-bg:    var(--c-emerald-50);
+    --c-good-tx:    var(--c-emerald-800);
+    --c-warn:       var(--c-amber-600);
+    --c-warn-bg:    var(--c-amber-50);
+    --c-warn-tx:    var(--c-amber-800);
+    --c-bad:        var(--c-red-600);
+    --c-bad-bg:     var(--c-red-50);
+    --c-bad-tx:     var(--c-red-800);
+    --c-info:       var(--c-ford-500);
+    --c-info-bg:    var(--c-ford-100);
+    --c-surface:    #ffffff;
+    --c-bg:         var(--c-slate-100);
+    --c-fg:         var(--c-ink);
+    --c-muted:      var(--c-slate-500);
+    --c-border:     var(--c-slate-200);
+    --c-border-strong: var(--c-slate-300);
+    --c-ring:       var(--c-ford-500);
+
+    /* ─── 3. ESPACIADO (escala 4/8) ─── */
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
+    --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-12:48px;
+
+    /* ─── 4. RADIO ─── */
+    --r-sm:6px; --r:8px; --r-md:10px; --r-lg:12px; --r-xl:16px; --r-full:999px;
+
+    /* ─── 5. SOMBRAS ─── */
+    --shadow-xs:0 1px 2px rgba(15,23,42,.04);
+    --shadow-sm:0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
+    --shadow-md:0 4px 6px -1px rgba(15,23,42,.08), 0 2px 4px -2px rgba(15,23,42,.05);
+
+    /* ─── 6. TIPOGRAFÍA ─── */
+    --font-sans:'Inter','Inter Fallback',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+    --font-mono:'Fira Code','SF Mono','Cascadia Code',Consolas,monospace;
+    /* Tipos por rol (Material-style) */
+    --t-display:32px;   --t-display-lh:1.1;
+    --t-headline:24px;  --t-headline-lh:1.2;
+    --t-title:18px;     --t-title-lh:1.3;
+    --t-body:14px;      --t-body-lh:1.5;
+    --t-label:12px;     --t-label-lh:1.4;
+    --t-caption:11px;   --t-caption-lh:1.4;
+
+    /* ─── 7. KPI TIERS ─── */
+    --kpi-hero-size:36px;     --kpi-hero-weight:800;
+    --kpi-primary-size:24px;  --kpi-primary-weight:700;
+    --kpi-secondary-size:18px;--kpi-secondary-weight:600;
+
+    /* ─── LEGACY (mapeo a tokens nuevos para no romper código existente) ─── */
+    --ford: var(--c-primary);
+    --ford-2: var(--c-primary-2);
+    --bg: var(--c-bg);
+    --card: var(--c-surface);
+    --ink: var(--c-fg);
+    --muted: var(--c-muted);
+    --pos: var(--c-good);
+    --neg: var(--c-bad);
+    --zoom:#8b0000;
+    --yellow: var(--c-warn);
+    --green-bg: var(--c-good-bg);   --green-tx: var(--c-good-tx);
+    --yellow-bg: var(--c-warn-bg);  --yellow-tx: var(--c-warn-tx);
+    --red-bg: var(--c-bad-bg);      --red-tx: var(--c-bad-tx);
+    --grey-bg: var(--c-slate-100);  --grey-tx: var(--c-slate-400);
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
-  body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;line-height:1.45}
+  body{
+    font-family:var(--font-sans);
+    color:var(--c-fg);
+    background:var(--c-bg);
+    font-size:var(--t-body);
+    line-height:var(--t-body-lh);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    text-rendering:optimizeLegibility;
+    /* Números siempre tabulares (alineación de columnas en tablas) */
+    font-variant-numeric:tabular-nums;
+    font-feature-settings:'tnum' 1, 'cv11' 1;
+  }
+  /* Focus ring accesible */
+  :focus-visible{outline:2px solid var(--c-ring); outline-offset:2px; border-radius:var(--r-sm)}
+  button:focus-visible, select:focus-visible, input:focus-visible{outline-offset:2px}
   header.topbar{background:var(--ford);color:#fff;padding:18px 28px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
   header.topbar h1{margin:0;font-size:20px;letter-spacing:.3px;font-weight:700}
   header.topbar .sub{font-size:12px;opacity:.82;margin-top:2px}
@@ -44,12 +145,28 @@
   .filter-bar .reset{align-self:end;background:#fff;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;cursor:pointer;font:inherit;font-weight:600}
   .filter-bar .reset:hover{background:#f3f4f6}
 
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:18px}
-  .kpi{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-  .kpi .label{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:600}
-  .kpi .num{font-size:28px;font-weight:800;color:var(--ford);margin-top:4px;line-height:1.05}
-  .kpi .hint{font-size:12px;color:var(--muted);margin-top:4px}
-  .kpi.accent .num{color:var(--ford-2)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:var(--sp-3);margin-bottom:var(--sp-5)}
+  .kpi{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);padding:var(--sp-4) var(--sp-4);box-shadow:var(--shadow-sm)}
+  .kpi .label{font-size:var(--t-caption);text-transform:uppercase;letter-spacing:.7px;color:var(--c-muted);font-weight:600}
+  .kpi .num{font-size:var(--kpi-primary-size);font-weight:var(--kpi-primary-weight);color:var(--c-primary);margin-top:var(--sp-1);line-height:1.05;font-variant-numeric:tabular-nums}
+  .kpi .hint{font-size:var(--t-label);color:var(--c-muted);margin-top:var(--sp-1)}
+  .kpi.accent .num{color:var(--c-primary-2)}
+
+  /* ─── KPI TIERS (jerarquía visual) ─── */
+  /* Hero: 1-2 por pantalla, lo más crítico (cumplimiento, tasa cierre) */
+  .kpi.hero{padding:var(--sp-6);border-left:4px solid var(--c-primary)}
+  .kpi.hero .num{font-size:var(--kpi-hero-size);font-weight:var(--kpi-hero-weight)}
+  .kpi.hero .label{font-size:var(--t-label)}
+  /* Primary: KPIs principales */
+  .kpi.primary .num{font-size:var(--kpi-primary-size);font-weight:var(--kpi-primary-weight)}
+  /* Secondary: chips compactos */
+  .kpi.secondary{padding:var(--sp-3) var(--sp-4)}
+  .kpi.secondary .num{font-size:var(--kpi-secondary-size);font-weight:var(--kpi-secondary-weight)}
+  .kpi.secondary .label{font-size:var(--t-caption)}
+  /* Variantes semáforo */
+  .kpi.good{border-left:4px solid var(--c-good)} .kpi.good .num{color:var(--c-good-tx)}
+  .kpi.warn{border-left:4px solid var(--c-warn)} .kpi.warn .num{color:var(--c-warn-tx)}
+  .kpi.bad{border-left:4px solid var(--c-bad)}   .kpi.bad .num{color:var(--c-bad-tx)}
 
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   .grid-3{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:14px}
@@ -61,6 +178,11 @@
   .card .chart-wrap{position:relative;height:280px}
   .card.tall .chart-wrap{height:360px}
 
+  /* Todas las tablas heredan tabular-nums del body (mejor alineación de columnas) */
+  table{font-variant-numeric:tabular-nums}
+  th, td{font-variant-numeric:tabular-nums}
+  /* Datos numéricos opcional: usar Fira Code para énfasis monoespaciado */
+  .num-mono{font-family:var(--font-mono);font-feature-settings:'tnum' 1;font-weight:500}
   table.comp{width:100%;border-collapse:collapse;font-size:13px}
   table.comp th{background:var(--ford-2);color:#fff;font-weight:600;padding:7px 8px;text-align:center;font-size:11px;letter-spacing:.4px;text-transform:uppercase}
   table.comp th:first-child,table.comp th.left{text-align:left}
