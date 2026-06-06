@@ -120,13 +120,115 @@
   /* Focus ring accesible */
   :focus-visible{outline:2px solid var(--c-ring); outline-offset:2px; border-radius:var(--r-sm)}
   button:focus-visible, select:focus-visible, input:focus-visible{outline-offset:2px}
-  header.topbar{background:var(--ford);color:#fff;padding:18px 28px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-  header.topbar h1{margin:0;font-size:20px;letter-spacing:.3px;font-weight:700}
-  header.topbar .sub{font-size:12px;opacity:.82;margin-top:2px}
-  nav.tabs{display:flex;gap:8px;padding:14px 28px 0;background:#f3f5f8;position:sticky;top:0;z-index:5;border-bottom:1px solid #e5e7eb}
-  .tab-btn{background:#fff;border:1px solid #d1d5db;color:var(--ink);padding:9px 18px;border-radius:999px;cursor:pointer;font:inherit;font-weight:600;font-size:13px;transition:all .15s}
-  .tab-btn:hover{border-color:var(--ford-2)}
-  .tab-btn.active{background:var(--ford);color:#fff;border-color:var(--ford)}
+  /* ─── HEADER refinado ─── */
+  header.topbar{
+    background:linear-gradient(135deg, var(--c-ford-800) 0%, var(--c-ford-700) 45%, var(--c-ford-600) 100%);
+    color:#fff;
+    padding:var(--sp-5) var(--sp-8);
+    box-shadow:var(--shadow-md);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:var(--sp-6);
+    position:relative;
+    overflow:hidden;
+  }
+  /* Patrón sutil de líneas diagonales decoration */
+  header.topbar::after{
+    content:'';
+    position:absolute;
+    top:0; right:0; width:280px; height:100%;
+    background:radial-gradient(ellipse at top right, rgba(255,255,255,.08) 0%, transparent 60%);
+    pointer-events:none;
+  }
+  header.topbar .topbar-left{position:relative; z-index:1}
+  header.topbar h1{
+    margin:0;
+    font-size:var(--t-title);
+    letter-spacing:-.01em;
+    font-weight:700;
+    font-family:var(--font-sans);
+    display:flex; align-items:center; gap:var(--sp-2);
+  }
+  header.topbar h1::before{
+    content:'';
+    display:inline-block;
+    width:6px; height:24px;
+    background:var(--c-amber-600);
+    border-radius:var(--r-sm);
+  }
+  header.topbar .sub{
+    font-size:var(--t-label);
+    opacity:.85;
+    margin-top:var(--sp-1);
+    font-weight:400;
+    letter-spacing:.01em;
+  }
+  /* KPI hero del header (cumplimiento Ford del mes actual) */
+  header.topbar .topbar-hero{
+    display:flex; flex-direction:column; align-items:flex-end;
+    position:relative; z-index:1;
+    padding-left:var(--sp-6);
+    border-left:1px solid rgba(255,255,255,.18);
+  }
+  header.topbar .topbar-hero .h-label{
+    font-size:var(--t-caption);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    opacity:.75;
+    font-weight:600;
+  }
+  header.topbar .topbar-hero .h-value{
+    font-size:32px;
+    font-weight:800;
+    line-height:1;
+    margin-top:var(--sp-1);
+    font-variant-numeric:tabular-nums;
+    letter-spacing:-.02em;
+  }
+  header.topbar .topbar-hero .h-hint{
+    font-size:var(--t-caption);
+    opacity:.75;
+    margin-top:var(--sp-1);
+    font-weight:500;
+  }
+  @media (max-width:760px){
+    header.topbar{padding:var(--sp-3) var(--sp-4); gap:var(--sp-3)}
+    header.topbar h1{font-size:var(--t-body)}
+    header.topbar .sub{font-size:var(--t-caption)}
+    header.topbar .topbar-hero{padding-left:var(--sp-3)}
+    header.topbar .topbar-hero .h-value{font-size:22px}
+    header.topbar h1::before{height:18px; width:4px}
+  }
+  nav.tabs{
+    display:flex; gap:var(--sp-2);
+    padding:var(--sp-3) var(--sp-8) 0;
+    background:var(--c-surface);
+    position:sticky; top:0; z-index:5;
+    border-bottom:1px solid var(--c-border);
+    box-shadow:0 1px 0 var(--c-border);
+    overflow-x:auto;
+  }
+  .tab-btn{
+    background:transparent;
+    border:0;
+    color:var(--c-slate-600);
+    padding:var(--sp-3) var(--sp-4);
+    border-bottom:2px solid transparent;
+    border-radius:0;
+    cursor:pointer;
+    font:inherit; font-weight:600; font-size:var(--t-label);
+    letter-spacing:.01em;
+    transition:color .15s ease, border-color .15s ease, background .15s ease;
+    white-space:nowrap;
+    position:relative;
+  }
+  .tab-btn:hover{color:var(--c-primary); background:var(--c-slate-50)}
+  .tab-btn.active{
+    color:var(--c-primary);
+    border-bottom-color:var(--c-primary);
+    font-weight:700;
+  }
   main{padding:22px 28px 48px;max-width:1400px;margin:0 auto;box-sizing:border-box;width:100%}
   *{box-sizing:border-box}
   body{overflow-x:hidden}
@@ -756,8 +858,15 @@
 <body>
 
 <header class="topbar">
-  <h1>Dashboard de Tráfico - Orgu</h1>
-  <div class="sub" id="topbar-sub">Marzo 2026 (cierre) vs Abril 2026 (cierre 30/04)</div>
+  <div class="topbar-left">
+    <h1>Dashboard de Tráfico ORGU</h1>
+    <div class="sub" id="topbar-sub">Marzo 2026 (cierre) vs Abril 2026 (cierre 30/04)</div>
+  </div>
+  <div class="topbar-hero" id="topbar-hero">
+    <div class="h-label">Cumplimiento Ford</div>
+    <div class="h-value" id="topbar-hero-value">—</div>
+    <div class="h-hint" id="topbar-hero-hint">mes actual</div>
+  </div>
 </header>
 
 <nav class="tabs" role="tablist">
@@ -2535,6 +2644,21 @@
     else if(k.cumpl_proj>=100){ tag.textContent='🟢 en meta'; tag.style.background='var(--green-bg)'; tag.style.color='var(--green-tx)'; }
     else if(k.cumpl_proj>=70){ tag.textContent='🟡 alerta'; tag.style.background='var(--yellow-bg)'; tag.style.color='var(--yellow-tx)'; }
     else{ tag.textContent='🔴 riesgo'; tag.style.background='var(--red-bg)'; tag.style.color='var(--red-tx)'; }
+    // ► Sincronizar KPI hero del topbar (refleja siempre el cumplimiento Ford
+    // del mes actualmente seleccionado en la pestaña Ford)
+    const heroV = document.getElementById('topbar-hero-value');
+    const heroH = document.getElementById('topbar-hero-hint');
+    if(heroV){
+      heroV.textContent = k.cumpl_proj==null? '—' : k.cumpl_proj+'%';
+      heroV.style.color = k.cumpl_proj==null ? '#fff'
+        : k.cumpl_proj>=100 ? '#86efac'   /* emerald-300 sobre fondo azul */
+        : k.cumpl_proj>=70  ? '#fcd34d'   /* amber-300 sobre fondo azul */
+        : '#fca5a5';                       /* red-300 sobre fondo azul */
+    }
+    if(heroH){
+      const cfgMes = MONTHS_CONFIG.find(x=>x.key===currentMonthFF);
+      heroH.textContent = cfgMes ? cfgMes.label : 'mes actual';
+    }
   }
   function ffRenderGauge(cumpl){
     destroy('ff-gauge');
