@@ -644,6 +644,128 @@ HTML = r"""<!doctype html>
   table.analysis tr.total{background:var(--c-slate-100);font-weight:700}
   table.analysis tr.total td{border-top:2px solid var(--c-primary)}
   table.analysis .bar-cell{min-width:140px}
+
+  /* ─── BULLET CHARTS (CSS puro, no Chart.js) ─── */
+  .bullet-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));
+    gap:var(--sp-3);
+  }
+  .bullet-grid.compact{grid-template-columns:repeat(auto-fill, minmax(280px, 1fr))}
+  .bullet-card{
+    background:var(--c-surface);
+    border:1px solid var(--c-border);
+    border-radius:var(--r-md);
+    padding:var(--sp-3) var(--sp-4);
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    position:relative;
+  }
+  .bullet-card:hover{
+    transform:translateY(-1px);
+    box-shadow:var(--shadow-sm);
+    border-color:var(--c-border-strong);
+  }
+  .bullet-card.active{
+    border-color:var(--c-primary);
+    box-shadow:0 0 0 3px var(--c-primary-bg), var(--shadow-sm);
+  }
+  .bullet-header{
+    display:flex; align-items:baseline; justify-content:space-between;
+    gap:var(--sp-2); margin-bottom:var(--sp-2);
+  }
+  .bullet-name{
+    font-size:var(--t-label);
+    font-weight:700;
+    color:var(--c-fg);
+    letter-spacing:-.01em;
+    flex:1;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .bullet-cumpl{
+    font-size:var(--t-title);
+    font-weight:800;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:-.02em;
+    line-height:1;
+    white-space:nowrap;
+  }
+  .bullet-cumpl.good{color:var(--c-good)}
+  .bullet-cumpl.warn{color:var(--c-warn)}
+  .bullet-cumpl.bad{color:var(--c-bad)}
+  .bullet-cumpl.zero{color:var(--c-muted)}
+  /* Barra del bullet (la "carretera") */
+  .bullet-track{
+    position:relative;
+    height:18px;
+    background:
+      linear-gradient(to right,
+        var(--c-red-100) 0%, var(--c-red-100) 50%,
+        var(--c-amber-100) 50%, var(--c-amber-100) 70%,
+        var(--c-emerald-100) 70%, var(--c-emerald-100) 100%);
+    border-radius:var(--r-sm);
+    overflow:hidden;
+  }
+  /* Barra de proyección encima */
+  .bullet-fill{
+    position:absolute;
+    left:0; top:50%; transform:translateY(-50%);
+    height:8px;
+    background:var(--c-primary);
+    border-radius:var(--r-sm);
+    transition:width .4s ease;
+    min-width:2px;
+  }
+  /* Marcador de meta (línea vertical negra) */
+  .bullet-target{
+    position:absolute;
+    top:-2px; bottom:-2px;
+    width:3px;
+    background:var(--c-slate-900);
+    border-radius:var(--r-sm);
+    pointer-events:none;
+  }
+  .bullet-target::after{
+    content:'';
+    position:absolute;
+    top:-3px; left:50%; transform:translateX(-50%);
+    width:0; height:0;
+    border-left:3px solid transparent;
+    border-right:3px solid transparent;
+    border-top:4px solid var(--c-slate-900);
+  }
+  .bullet-footer{
+    display:flex; justify-content:space-between;
+    margin-top:var(--sp-2);
+    font-size:var(--t-caption);
+    color:var(--c-muted);
+    font-variant-numeric:tabular-nums;
+  }
+  .bullet-footer .val{font-weight:600; color:var(--c-fg)}
+  .bullet-footer .meta-val{font-weight:600; color:var(--c-slate-700)}
+  .bullet-tag{
+    display:inline-block;
+    margin-top:var(--sp-2);
+    font-size:10px;
+    font-weight:700;
+    padding:2px 7px;
+    border-radius:var(--r-full);
+    letter-spacing:.04em;
+    text-transform:uppercase;
+  }
+  .bullet-tag.good{background:var(--c-good-bg); color:var(--c-good-tx)}
+  .bullet-tag.warn{background:var(--c-warn-bg); color:var(--c-warn-tx)}
+  .bullet-tag.bad{background:var(--c-bad-bg); color:var(--c-bad-tx)}
+  .bullet-tag.zero{background:var(--c-slate-100); color:var(--c-slate-500)}
+  /* Mobile: bullets más compactos */
+  @media (max-width:520px){
+    .bullet-grid{grid-template-columns:1fr; gap:var(--sp-2)}
+    .bullet-cumpl{font-size:var(--t-body)}
+    .bullet-track{height:14px}
+    .bullet-fill{height:6px}
+  }
   .meta-bar{position:relative;background:#eef1f5;height:18px;border-radius:5px;overflow:hidden;margin-top:3px}
   .meta-bar .fill{position:absolute;top:0;left:0;bottom:0;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding:0 6px;font-size:10px;font-weight:700;color:#fff;min-width:24px}
   .meta-bar .fill.green{background:linear-gradient(90deg,#2e7d32,#66bb6a)}
@@ -1143,6 +1265,34 @@ HTML = r"""<!doctype html>
     <div class="ford-section">
       <h3>📡 Distribución por canal <span class="sub">Tráfico + share · respeta filtros activos</span></h3>
       <div style="position:relative;height:240px"><canvas id="ff-chart-channels"></canvas></div>
+    </div>
+
+    <!-- BULLET CHARTS — cumplimiento por sucursal -->
+    <div class="ford-section">
+      <h3>🎯 Cumplimiento por sucursal <span class="sub">7 sucursales en una sola vista · meta vs proyección · click para filtrar</span></h3>
+      <div id="ff-bullets-agency" class="bullet-grid"></div>
+      <div style="display:flex; gap:var(--sp-4); align-items:center; margin-top:var(--sp-3); font-size:var(--t-caption); color:var(--c-muted); flex-wrap:wrap">
+        <span style="display:flex; align-items:center; gap:6px">
+          <span style="display:inline-block;width:14px;height:8px;background:var(--c-primary);border-radius:2px"></span> Proyección
+        </span>
+        <span style="display:flex; align-items:center; gap:6px">
+          <span style="display:inline-block;width:3px;height:14px;background:var(--c-slate-900);border-radius:1px"></span> Meta
+        </span>
+        <span style="display:flex; align-items:center; gap:6px">
+          <span style="display:inline-flex;border-radius:2px;overflow:hidden">
+            <span style="width:14px;height:8px;background:var(--c-red-100)"></span>
+            <span style="width:6px;height:8px;background:var(--c-amber-100)"></span>
+            <span style="width:10px;height:8px;background:var(--c-emerald-100)"></span>
+          </span>
+          Bandas: &lt;50% riesgo · 50-70% alerta · ≥70% sano
+        </span>
+      </div>
+    </div>
+
+    <!-- BULLET CHARTS — cumplimiento por modelo -->
+    <div class="ford-section">
+      <h3>🚗 Cumplimiento por modelo <span class="sub">todos los modelos Ford en grid compacto · click para filtrar</span></h3>
+      <div id="ff-bullets-model" class="bullet-grid compact"></div>
     </div>
 
     <!-- PROYECCIÓN POR AGENCIA -->
@@ -2851,7 +3001,110 @@ HTML = r"""<!doctype html>
     }).join('') || '<div style="color:var(--muted);text-align:center;padding:12px">Sin datos para esta selección</div>';
   }
 
-  // ----- CHART: Proyección vs Meta por agencia -----
+  // ─── BULLET CHARTS: cumplimiento por agencia/modelo ───
+  // Reemplaza el chart canvas (que era código muerto) por una vista
+  // CSS-pura más compacta y profesional. Cada bullet muestra:
+  //   - Banda de zonas (rojo <50%, ámbar 50-70%, verde ≥70%)
+  //   - Barra azul Ford con la proyección
+  //   - Marker negro en la meta
+  //   - % cumplimiento + valores absolutos
+  function ffBulletClasses(cumpl){
+    if(cumpl == null) return {col:'zero', tag:'sin meta'};
+    if(cumpl >= 100)  return {col:'good', tag:'en meta'};
+    if(cumpl >= 70)   return {col:'warn', tag:'alerta'};
+    return {col:'bad', tag:'riesgo'};
+  }
+  function ffRenderBullet(item, isActive, onClickHandler){
+    // item: {name, proj, meta, cumpl}
+    const cls = ffBulletClasses(item.cumpl);
+    // Escala visual: el track va de 0 a 1.5× meta (para que valores >meta también quepan)
+    const trackMax = (item.meta || 1) * 1.5;
+    const fillPct = Math.min(100, Math.max(0, 100 * (item.proj||0) / trackMax));
+    const targetPct = item.meta > 0 ? (100 * item.meta / trackMax) : null;
+    const cumplStr = item.cumpl == null ? '—' : item.cumpl.toFixed(0) + '%';
+    return `<div class="bullet-card ${isActive?'active':''}" data-name="${item.name}">
+      <div class="bullet-header">
+        <div class="bullet-name" title="${item.name}">${item.name}</div>
+        <div class="bullet-cumpl ${cls.col}">${cumplStr}</div>
+      </div>
+      <div class="bullet-track">
+        <div class="bullet-fill" style="width:${fillPct}%"></div>
+        ${targetPct != null ? `<div class="bullet-target" style="left:${targetPct}%"></div>` : ''}
+      </div>
+      <div class="bullet-footer">
+        <span><span class="val">${fmt(item.proj||0)}</span> proyección</span>
+        <span>Meta <span class="meta-val">${fmt(item.meta||0)}</span></span>
+      </div>
+      ${item.meta>0 ? `<span class="bullet-tag ${cls.col}">${cls.tag}</span>` : ''}
+    </div>`;
+  }
+
+  function ffRenderBulletsAgency(){
+    const wrap = document.getElementById('ff-bullets-agency');
+    if(!wrap) return;
+    const pool = fstate.zona? FORD.zones[fstate.zona].dealers : FORD.dealer_order;
+    const rows = pool.map(d=>{
+      let curr, meta;
+      if(fstate.modelo){
+        curr = (FORD.matrix_cnt[fstate.modelo]||{})[d]||0;
+        meta = (FORD.matrix_meta[fstate.modelo]||{})[d]||0;
+      } else {
+        curr = FORD.dealers[d].curr; meta = FORD.dealers[d].meta;
+      }
+      const proj = Math.round((FORD.days_trans? curr/FORD.days_trans:0) * FORD.days_lab);
+      const cumpl = meta>0? 100*proj/meta : null;
+      return {name:d, proj, meta, cumpl};
+    });
+    // Orden: peores cumplimientos arriba (mayor gap a meta), sin meta al final
+    rows.sort((a,b)=>{
+      if(a.cumpl == null && b.cumpl == null) return 0;
+      if(a.cumpl == null) return 1;
+      if(b.cumpl == null) return -1;
+      return a.cumpl - b.cumpl;
+    });
+    wrap.innerHTML = rows.map(r => ffRenderBullet(r, fstate.agencia === r.name)).join('');
+    wrap.querySelectorAll('.bullet-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const ag = card.dataset.name;
+        fstate.agencia = fstate.agencia === ag ? '' : ag;
+        const sel = document.getElementById('ff-agencia');
+        if(sel) sel.value = fstate.agencia;
+        ffRenderAll();
+      });
+    });
+  }
+
+  function ffRenderBulletsModel(){
+    const wrap = document.getElementById('ff-bullets-model');
+    if(!wrap) return;
+    const dealers = activeDealers();
+    const models = FORD.model_order.filter(includeModel);
+    const rows = models.map(m=>{
+      const curr = dealers.reduce((s,d)=>s+((FORD.matrix_cnt[m]||{})[d]||0),0);
+      const meta = dealers.reduce((s,d)=>s+((FORD.matrix_meta[m]||{})[d]||0),0);
+      const proj = Math.round((FORD.days_trans? curr/FORD.days_trans:0) * FORD.days_lab);
+      const cumpl = meta>0? 100*proj/meta : null;
+      return {name:m, proj, meta, cumpl};
+    });
+    rows.sort((a,b)=>{
+      if(a.cumpl == null && b.cumpl == null) return 0;
+      if(a.cumpl == null) return 1;
+      if(b.cumpl == null) return -1;
+      return a.cumpl - b.cumpl;
+    });
+    wrap.innerHTML = rows.map(r => ffRenderBullet(r, fstate.modelo === r.name)).join('');
+    wrap.querySelectorAll('.bullet-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const m = card.dataset.name;
+        fstate.modelo = fstate.modelo === m ? '' : m;
+        const sel = document.getElementById('ff-modelo');
+        if(sel) sel.value = fstate.modelo;
+        ffRenderAll();
+      });
+    });
+  }
+
+  // ----- CHART (legacy code muerto, mantengo por compat) -----
   function ffRenderAgencyChart(){
     destroy('ff-chart-agency');
     const pool = fstate.zona? FORD.zones[fstate.zona].dealers : FORD.dealer_order;
@@ -3459,6 +3712,8 @@ HTML = r"""<!doctype html>
   function ffRenderAll(){
     ffRenderFilterSummary();
     ffRenderHero();
+    ffRenderBulletsAgency();   // ← nuevo: cumplimiento por sucursal en grid compacto
+    ffRenderBulletsModel();    // ← nuevo: cumplimiento por modelo en grid compacto
     ffRenderMovements();
     ffRenderZoneChart();
     ffRenderZonas();
