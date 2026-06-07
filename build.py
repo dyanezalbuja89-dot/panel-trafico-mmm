@@ -1532,7 +1532,7 @@ HTML = r"""<!doctype html>
     </div>
   </div>
 
-  <div class="sidebar-section-label">Reportes</div>
+  <div class="sidebar-section-label">Marketing</div>
   <button class="tab-btn active" data-tab="ford" title="T - Reporte Ford Mensual">
     <svg class="tab-icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16l4-7 4 5 5-9"/></svg>
     <span class="tab-label">Reporte Ford</span>
