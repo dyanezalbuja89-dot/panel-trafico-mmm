@@ -1049,6 +1049,90 @@
   table.analysis tr.total td{border-top:2px solid var(--c-primary)}
   table.analysis .bar-cell{min-width:140px}
 
+  /* ─── ANOMALY BADGES (pill flotante en esquina) ─── */
+  .anomaly-badge{
+    position:absolute;
+    top:var(--sp-3); right:var(--sp-3);
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:10px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.06em;
+    padding:3px 8px;
+    border-radius:var(--r-full);
+    z-index:2;
+    line-height:1;
+    box-shadow:0 1px 3px rgba(15,23,42,.08);
+    animation:anomaly-pulse 2s ease-in-out infinite;
+  }
+  .anomaly-badge.bad{
+    background:var(--c-bad-bg); color:var(--c-bad-tx);
+    border:1px solid var(--c-bad);
+  }
+  .anomaly-badge.warn{
+    background:var(--c-warn-bg); color:var(--c-warn-tx);
+    border:1px solid var(--c-warn);
+  }
+  .anomaly-badge.pos{
+    background:var(--c-good-bg); color:var(--c-good-tx);
+    border:1px solid var(--c-good);
+    animation:none;
+  }
+  .anomaly-badge svg{width:10px; height:10px}
+  @keyframes anomaly-pulse{
+    0%, 100%{box-shadow:0 1px 3px rgba(15,23,42,.08), 0 0 0 0 currentColor}
+    50%{box-shadow:0 1px 3px rgba(15,23,42,.08), 0 0 0 4px transparent}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .anomaly-badge{animation:none}
+  }
+
+  /* ─── SKELETON SCREENS (shimmer placeholders) ─── */
+  @keyframes skeleton-shimmer{
+    0%{background-position:-400px 0}
+    100%{background-position:400px 0}
+  }
+  .skeleton{
+    background:linear-gradient(90deg,
+      var(--c-slate-100) 0%,
+      var(--c-slate-50) 50%,
+      var(--c-slate-100) 100%);
+    background-size:800px 100%;
+    animation:skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius:var(--r);
+    color:transparent !important;
+    pointer-events:none;
+    user-select:none;
+  }
+  .skeleton *{visibility:hidden}
+  html[data-theme="dark"] .skeleton{
+    background:linear-gradient(90deg,
+      var(--c-slate-200) 0%,
+      var(--c-slate-100) 50%,
+      var(--c-slate-200) 100%);
+    background-size:800px 100%;
+  }
+  /* Skeleton para canvas wrappers (charts) */
+  .chart-wrap-skeleton{
+    position:relative;
+    border-radius:var(--r-lg);
+    overflow:hidden;
+  }
+  .chart-wrap-skeleton::after{
+    content:'';
+    position:absolute; inset:0;
+    background:linear-gradient(90deg,
+      rgba(148,163,184,.08) 0%,
+      rgba(148,163,184,.20) 50%,
+      rgba(148,163,184,.08) 100%);
+    background-size:800px 100%;
+    animation:skeleton-shimmer 1.5s ease-in-out infinite;
+    pointer-events:none;
+    border-radius:var(--r-lg);
+  }
+  .chart-wrap-skeleton.loaded::after{display:none}
+  @media (prefers-reduced-motion: reduce){
+    .skeleton, .chart-wrap-skeleton::after{animation:none}
+  }
+
   /* ─── BENTO GRID (Apple-style modular layout) ─── */
   .bento-grid{
     display:grid;
@@ -1072,9 +1156,12 @@
     overflow:hidden;
     min-height:0;
   }
-  /* En cada KPI cell: label arriba, value abajo (al fondo) */
-  .bento-cell > .bento-value{margin-top:auto}
+  /* En cada KPI cell: label arriba, value debajo, hint, sparkline al fondo */
+  .bento-cell > .bento-value{margin-top:6px}
   .bento-cell > .bento-hint{margin-top:0}
+  .bento-cell > .bento-spark{margin-top:auto !important; height:28px; width:100%}
+  /* Si NO hay sparkline, el value se empuja al fondo */
+  .bento-cell:not(:has(> .bento-spark)) > .bento-value{margin-top:auto}
   .bento-cell:hover{
     transform:translateY(-2px);
     box-shadow:0 8px 24px rgba(15,23,42,.06);
@@ -3536,6 +3623,179 @@
 (function(){
   const DATA = JSON.parse(document.getElementById('data').textContent);
 
+  // ─── COUNT-UP ANIMATION (auto, vía MutationObserver) ─────────
+  // Anima cualquier elemento con clase .bento-value, .kpi .num, .num
+  // cuando su textContent cambia a un número. Sin tocar el resto del JS.
+  (function initCountUp(){
+    if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const SELECTORS = '.bento-value, .kpi .num, .num';
+    const DURATION = 600;
+    const easeOutCubic = t => 1 - Math.pow(1-t, 3);
+    // Parse "XX,YYY", "+12", "85%", "12.3" → { num, prefix, suffix, decimals }
+    function parseFmt(s){
+      if(s == null) return null;
+      const txt = String(s).trim();
+      if(!txt || txt === '—' || txt === '-' || txt === '...') return null;
+      const m = txt.match(/^([^\d\-+.]*)([+-]?[\d.,]+)(.*)$/);
+      if(!m) return null;
+      const prefix = m[1];
+      const numStr = m[2].replace(/,/g,'');
+      const num = parseFloat(numStr);
+      if(!isFinite(num)) return null;
+      const suffix = m[3];
+      const decimals = (numStr.split('.')[1] || '').length;
+      const hasComma = m[2].indexOf(',') >= 0;
+      return { num, prefix, suffix, decimals, hasComma };
+    }
+    function fmtNum(n, decimals, hasComma){
+      const fixed = n.toFixed(decimals);
+      if(!hasComma) return fixed;
+      const [intPart, decPart] = fixed.split('.');
+      const withComma = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      return decPart ? withComma + '.' + decPart : withComma;
+    }
+    function animate(el, from, to, info){
+      // Cancela animación previa si existía
+      if(el._countUpRaf) cancelAnimationFrame(el._countUpRaf);
+      const start = performance.now();
+      function step(now){
+        const t = Math.min(1, (now - start) / DURATION);
+        const val = from + (to - from) * easeOutCubic(t);
+        el.textContent = info.prefix + fmtNum(val, info.decimals, info.hasComma) + info.suffix;
+        if(t < 1) el._countUpRaf = requestAnimationFrame(step);
+        else { el._countUpRaf = null; el._countUpLast = to; }
+      }
+      el._countUpRaf = requestAnimationFrame(step);
+    }
+    function handle(el){
+      const newInfo = parseFmt(el.textContent);
+      if(!newInfo){
+        // Texto no numérico → no animar, limpiar caché
+        el._countUpLast = null;
+        return;
+      }
+      const from = (typeof el._countUpLast === 'number') ? el._countUpLast : 0;
+      const to = newInfo.num;
+      if(from === to) return; // sin cambio
+      animate(el, from, to, newInfo);
+    }
+    // Observer global: cualquier cambio de characterData o childList en estos elementos
+    const observer = new MutationObserver(muts => {
+      const seen = new Set();
+      for(const m of muts){
+        // Si el target es un text node, su parent es la celda
+        let el = m.target.nodeType === 3 ? m.target.parentNode : m.target;
+        if(!el || seen.has(el)) continue;
+        if(el.matches && el.matches(SELECTORS)){
+          seen.add(el);
+          handle(el);
+        }
+      }
+    });
+    // Arranca el observer
+    function startObserving(){
+      const els = document.querySelectorAll(SELECTORS);
+      els.forEach(el => {
+        observer.observe(el, { characterData: true, childList: true, subtree: true });
+      });
+    }
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', startObserving);
+    } else {
+      startObserving();
+    }
+  })();
+
+  // ─── SPARKLINE HELPER ──────────────────────────────────────
+  // drawSparkline(cell, data, opts) — crea un SVG inline al final
+  // de la celda con la curva de los últimos N puntos.
+  // opts: { color: 'var(--c-primary)', height: 28, padding: 2 }
+  function drawSparkline(cell, data, opts){
+    if(!cell || !data || data.length < 2) return;
+    opts = opts || {};
+    const h = opts.height || 28;
+    const padY = opts.padding != null ? opts.padding : 3;
+    const w = 100;
+    // Reusar o crear el wrapper
+    let wrap = cell.querySelector(':scope > .bento-spark');
+    if(!wrap){
+      wrap = document.createElement('div');
+      wrap.className = 'bento-spark';
+      wrap.style.marginTop = 'auto';
+      cell.appendChild(wrap);
+    }
+    const min = Math.min.apply(null, data);
+    const max = Math.max.apply(null, data);
+    const range = (max - min) || 1;
+    const stepX = w / (data.length - 1);
+    const pts = data.map((v, i) => {
+      const x = i * stepX;
+      const y = h - padY - ((v - min)/range) * (h - 2*padY);
+      return [x.toFixed(2), y.toFixed(2)];
+    });
+    const linePath = 'M ' + pts.map(p => p.join(',')).join(' L ');
+    const areaPath = linePath + ` L ${w},${h} L 0,${h} Z`;
+    const last = pts[pts.length-1];
+    const color = opts.color || 'var(--c-primary)';
+    wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+      <path class="spark-area" d="${areaPath}" style="fill:${color}; opacity:.12" />
+      <path class="spark-line" d="${linePath}" style="fill:none; stroke:${color}; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke" />
+      <circle class="spark-point" cx="${last[0]}" cy="${last[1]}" r="2.4" style="fill:${color}; stroke:var(--c-surface); stroke-width:1.5" />
+    </svg>`;
+  }
+  window.drawSparkline = drawSparkline;
+
+  // Helpers para series Ford daily/cum
+  function fordDailySeries(){
+    // Combina daily de todos los modelos atribuidos a dealers activos
+    if(!FORD.daily) return null;
+    const obj = FORD.daily.daily || {};
+    const days = Object.keys(obj).map(Number).sort((a,b)=>a-b);
+    if(!days.length) return null;
+    return days.map(d => obj[d] || 0);
+  }
+  function fordCumSeries(){
+    if(!FORD.daily) return null;
+    const obj = FORD.daily.cum || {};
+    const days = Object.keys(obj).map(Number).sort((a,b)=>a-b);
+    if(!days.length) return null;
+    return days.map(d => obj[d] || 0);
+  }
+
+  // ─── ANOMALY MARKER HELPER ──────────────────────────────────
+  // setAnomaly(el, pct, opts) → pone/quita un pill en la esquina
+  // pct: número porcentual (no fracción). 15 = 15%.
+  // opts: { thresholds: {warn:10, bad:20}, labels: {pos:'↑ ALTA', warn:'⚠ BAJA', bad:'↓ CRÍTICO'} }
+  function setAnomaly(el, pct, opts){
+    if(!el) return;
+    // Remover badge previo
+    const prev = el.querySelector(':scope > .anomaly-badge');
+    if(prev) prev.remove();
+    if(pct == null || !isFinite(pct)) return;
+    const t = (opts && opts.thresholds) || { warn: 10, bad: 20 };
+    const labels = (opts && opts.labels) || {
+      pos:  '↑ Alta',
+      warn: '⚠ Baja',
+      bad:  '↓ Crítica',
+    };
+    const abs = Math.abs(pct);
+    if(abs < t.warn) return; // dentro del umbral → sin badge
+    let cls, text;
+    if(pct < 0 && abs >= t.bad){ cls = 'bad';  text = labels.bad; }
+    else if(pct < 0)           { cls = 'warn'; text = labels.warn; }
+    else if(abs >= t.bad)      { cls = 'pos';  text = labels.pos; }
+    else return;
+    // Asegurar que el contenedor sea relative
+    const cs = getComputedStyle(el);
+    if(cs.position === 'static') el.style.position = 'relative';
+    const pill = document.createElement('div');
+    pill.className = 'anomaly-badge ' + cls;
+    pill.textContent = text + ' ' + (pct>0?'+':'') + pct.toFixed(0) + '%';
+    pill.setAttribute('aria-label', 'Anomalía: '+text+' ('+pct.toFixed(1)+'%)');
+    el.appendChild(pill);
+  }
+  window.setAnomaly = setAnomaly;
+
   // ─── THEME TOGGLE (light / dark) ─────────────────────────────
   (function initTheme(){
     const btn = document.getElementById('theme-toggle');
@@ -3652,6 +3912,24 @@
     const el = document.getElementById('topbar-sub');
     if(el) el.textContent = tabSubtitle(tab);
   }
+  // ─── SKELETON shimmer al cambiar tab ───
+  function showSkeletonsForTab(tabId){
+    const tab = document.getElementById(tabId);
+    if(!tab) return;
+    const wraps = new Set();
+    tab.querySelectorAll('canvas').forEach(c => {
+      const wrap = c.parentElement;
+      if(wrap && wrap.offsetHeight > 40) wraps.add(wrap);
+    });
+    wraps.forEach(w => w.classList.add('chart-wrap-skeleton'));
+    // Fade out tras 280ms (al rato de que Chart.js terminó)
+    setTimeout(() => {
+      wraps.forEach(w => {
+        w.classList.add('loaded');
+        setTimeout(() => w.classList.remove('chart-wrap-skeleton','loaded'), 200);
+      });
+    }, 280);
+  }
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
       document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -3660,6 +3938,7 @@
       const tab = btn.dataset.tab;
       document.getElementById('tab-'+tab).classList.add('active');
       setTopbarSub(tab);
+      showSkeletonsForTab('tab-'+tab);
     });
   });
   // Initial subtitle (matches initial active tab)
@@ -3821,6 +4100,50 @@
     hsDelta.classList.remove('good','warn','bad');
     hsDelta.classList.add(k.delta>0?'good':k.delta<0?'bad':'warn');
     document.getElementById('hs-delta-d').textContent = 'vs '+(FORD.prev_date||'corte anterior');
+    // Anomaly marker: pct delta vs corte anterior
+    const deltaPct = k.prev>0 ? (k.delta/k.prev*100) : null;
+    setAnomaly(hsDelta, deltaPct, { thresholds:{warn:10, bad:20} });
+    // Sparklines en celdas KPI: curva acumulada (Tráfico) y diaria (Velocidad)
+    const cumSeries = fordCumSeries();
+    const dailySeries = fordDailySeries();
+    if(cumSeries && cumSeries.length >= 2){
+      drawSparkline(document.getElementById('hs-total'), cumSeries);
+    }
+    if(dailySeries && dailySeries.length >= 2){
+      drawSparkline(document.getElementById('hs-vel'), dailySeries, { color: 'var(--c-good)' });
+    }
+    // Para hs-proj: extiende cumSeries con proyección lineal
+    if(cumSeries && cumSeries.length >= 2 && k.days_lab > 0){
+      const proj = [];
+      const todayIdx = cumSeries.length - 1;
+      const startVal = cumSeries[todayIdx];
+      const dailyVel = k.velocity || 0;
+      // Series = cum + proyección hasta días laborables
+      const fullProj = cumSeries.slice();
+      const remaining = Math.max(0, k.days_lab - todayIdx);
+      for(let i=1; i<=remaining; i++){
+        fullProj.push(startVal + dailyVel * i);
+      }
+      drawSparkline(document.getElementById('hs-proj'), fullProj, {
+        color: k.cumpl_proj != null && k.cumpl_proj < 85 ? 'var(--c-warn)' : 'var(--c-primary)'
+      });
+    }
+    // Anomaly también en cumplimiento proyectado (gauge cell)
+    const gaugeCell = document.querySelector('#tab-ford .bento-cell.hero');
+    if(k.cumpl_proj != null){
+      // Reformulamos: si cumpl < 70 → critico, < 85 → warn, > 110 → positivo
+      let cumplPct;
+      if(k.cumpl_proj < 70)        cumplPct = -25;
+      else if(k.cumpl_proj < 85)   cumplPct = -12;
+      else if(k.cumpl_proj > 110)  cumplPct =  22;
+      else                          cumplPct = null;
+      setAnomaly(gaugeCell, cumplPct, {
+        thresholds:{warn:10, bad:20},
+        labels:{ pos:'↑ Sobre meta', warn:'⚠ Alerta', bad:'↓ Riesgo' }
+      });
+    } else {
+      setAnomaly(gaugeCell, null);
+    }
     document.getElementById('hs-vel-v').textContent = k.velocity.toFixed(1);
     document.getElementById('hs-proj-v').textContent = fmt(k.projection);
     document.getElementById('hs-proj-d').textContent = 'A '+k.days_lab+' días lab. (lineal)';
