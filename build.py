@@ -199,6 +199,7 @@ HTML = r"""<!doctype html>
   button:focus-visible, select:focus-visible, input:focus-visible{outline-offset:2px}
   /* ─── HEADER refinado (ahora dentro del grid app-shell, columna principal) ─── */
   header.topbar{
+    grid-area:topbar;
     background:var(--c-surface);
     color:var(--c-fg);
     padding:var(--sp-4) var(--sp-6);
@@ -211,7 +212,7 @@ HTML = r"""<!doctype html>
     position:sticky;
     top:0;
     z-index:5;
-    grid-column:2;
+    align-self:start;             /* No estirar verticalmente */
   }
   header.topbar .topbar-left{display:flex; align-items:center; gap:var(--sp-3); min-width:0}
   header.topbar h1{
@@ -294,14 +295,18 @@ HTML = r"""<!doctype html>
   .app-shell{
     display:grid;
     grid-template-columns:var(--sidebar-w) 1fr;
+    grid-template-rows:auto 1fr;          /* header auto, main toma resto */
+    grid-template-areas:
+      "sidebar topbar"
+      "sidebar main";
     min-height:100vh;
     transition:grid-template-columns .25s ease;
   }
   .app-shell.collapsed{grid-template-columns:var(--sidebar-w-collapsed) 1fr}
 
   nav.tabs{
-    /* Ahora es la sidebar vertical */
-    grid-row:1 / -1;
+    /* Ahora es la sidebar vertical, ocupa toda la columna izquierda */
+    grid-area:sidebar;
     background:linear-gradient(180deg, var(--c-ford-800) 0%, var(--c-ford-700) 50%, var(--c-ford-800) 100%);
     color:#fff;
     display:flex;
@@ -448,11 +453,23 @@ HTML = r"""<!doctype html>
     justify-content:center;
   }
   .mobile-menu-btn svg{width:24px;height:24px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
-  main{padding:var(--sp-5) var(--sp-6) var(--sp-12);max-width:1400px;margin:0 auto;box-sizing:border-box;width:100%;grid-column:2}
+  main{
+    grid-area:main;
+    padding:var(--sp-5) var(--sp-6) var(--sp-12);
+    max-width:1400px;
+    margin:0 auto;
+    box-sizing:border-box;
+    width:100%;
+  }
   /* En mobile, main ocupa todo el ancho (sidebar es drawer) */
   @media (max-width:900px){
-    header.topbar{grid-column:1}
-    main{grid-column:1; padding:var(--sp-4) var(--sp-4) var(--sp-8)}
+    .app-shell{
+      grid-template-columns:1fr;
+      grid-template-areas:
+        "topbar"
+        "main";
+    }
+    main{padding:var(--sp-4) var(--sp-4) var(--sp-8)}
   }
   *{box-sizing:border-box}
   body{overflow-x:hidden}
