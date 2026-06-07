@@ -977,7 +977,7 @@
   .bento-grid{
     display:grid;
     grid-template-columns:repeat(4, 1fr);
-    grid-auto-rows:minmax(120px, auto);
+    grid-auto-rows:140px;
     gap:var(--sp-3);
     margin-bottom:var(--sp-5);
   }
@@ -985,16 +985,20 @@
     background:var(--c-surface);
     border:1px solid var(--c-border);
     border-radius:20px;
-    padding:var(--sp-5) var(--sp-6);
+    padding:var(--sp-4) var(--sp-5);
     display:flex;
     flex-direction:column;
-    justify-content:space-between;
-    gap:var(--sp-3);
+    justify-content:flex-start;
+    gap:var(--sp-2);
     box-shadow:var(--shadow-xs);
     transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
     position:relative;
     overflow:hidden;
+    min-height:0;
   }
+  /* En cada KPI cell: label arriba, value abajo (al fondo) */
+  .bento-cell > .bento-value{margin-top:auto}
+  .bento-cell > .bento-hint{margin-top:0}
   .bento-cell:hover{
     transform:translateY(-2px);
     box-shadow:0 8px 24px rgba(15,23,42,.06);
@@ -1005,6 +1009,36 @@
   .bento-cell.span-3{grid-column:span 3}
   .bento-cell.span-4{grid-column:span 4}
   .bento-cell.hero{grid-column:span 2; grid-row:span 2}
+  /* Gauge inside Bento hero — restaura dimensiones del canvas */
+  .bento-cell.hero .gauge-wrap{
+    position:relative; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    flex:1; min-height:0; width:100%; margin-top:8px;
+  }
+  .bento-cell.hero .gauge-canvas{
+    width:240px; height:240px; max-width:100%; position:relative;
+  }
+  .bento-cell.hero .gauge-center{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    pointer-events:none; text-align:center;
+  }
+  .bento-cell.hero .gauge-center .big{
+    font-size:44px; font-weight:800; line-height:1;
+    color:var(--c-primary); font-variant-numeric:tabular-nums;
+    letter-spacing:-.02em;
+  }
+  .bento-cell.hero .gauge-center .mid{
+    font-size:11px; color:var(--c-muted);
+    margin-top:6px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.08em;
+  }
+  .bento-cell.hero .gauge-center .tag{
+    margin-top:10px; font-size:11px; font-weight:700;
+    padding:3px 10px; border-radius:var(--r-full);
+    letter-spacing:.02em;
+  }
   /* Variantes de tema (acento de marca en esquina) */
   .bento-cell.accent::before{
     content:'';
@@ -1028,14 +1062,14 @@
     display:flex; align-items:center; gap:var(--sp-2);
   }
   .bento-cell .bento-value{
-    font-size:42px;
+    font-size:32px;
     font-weight:800;
     line-height:1;
     color:var(--c-fg);
     font-variant-numeric:tabular-nums;
     letter-spacing:-.025em;
   }
-  .bento-cell.hero .bento-value{font-size:64px}
+  .bento-cell.hero .bento-value{font-size:48px}
   .bento-cell .bento-value.good{color:var(--c-good-tx)}
   .bento-cell .bento-value.warn{color:var(--c-warn-tx)}
   .bento-cell .bento-value.bad{color:var(--c-bad-tx)}
