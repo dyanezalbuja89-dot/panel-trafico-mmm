@@ -23,15 +23,18 @@ ABRIL_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa
 MARZO  = BASE / "BD_MAYO/BD_MARZO_31_03_26.xlsx"
 ABRIL  = BASE / "BD_MAYO/BD_ABR_30_04_26.xlsx"
 ABRIL_PREV = BASE / "BD_MAYO/BD_ABR_29_04_26.xlsx"
-# Brand metas file: default (Abril) for prior months, Mayo file for Mayo
+# Brand metas file: default (Abril) for prior months, Mayo file for Mayo, Junio for Junio
 DEFAULT_BRAND_METAS_FILE = ABRIL_BASE / "TRAFICO_DY/ABR_NUEVO_AI_MARCAS.xlsx"
 MAY_BRAND_METAS_FILE = BASE / "TRAFICO_DY/MAY_NUEVO_AI_MARCAS.xlsx"
+JUN_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Junio")
+JUN_BRAND_METAS_FILE = JUN_BASE / "TRAFICO_DY/JUNIO_NUEVO_AI_MARCAS.xlsx"
 # Ford metas files por mes (cada uno con metas oficiales del mes)
 ENE_FORD_METAS_FILE = BASE / "TRAFICO_DY/ENE_NUEVO_AI_FORD.xlsx"
 FEB_FORD_METAS_FILE = BASE / "TRAFICO_DY/FEB_NUEVO_AI_FORD.xlsx"
 MAR_FORD_METAS_FILE = BASE / "TRAFICO_DY/MAR_NUEVO_AI_FORD.xlsx"
 ABR_FORD_METAS_FILE = ABRIL_BASE / "TRAFICO_DY/ABR_NUEVO_AI_FORD.xlsx"
 MAY_FORD_METAS_FILE = BASE / "TRAFICO_DY/MAY_NUEVO_AI_FORD.xlsx"
+JUN_FORD_METAS_FILE = JUN_BASE / "TRAFICO_DY/JUNIO_NUEVO_AI_FORD.xlsx"
 
 # ---------------- SHORT NAMES ----------------
 SUCURSAL_TO_SHORT = {
@@ -992,6 +995,12 @@ MONTHS_CONFIG = [
      "brand_metas_file": str(MAY_BRAND_METAS_FILE),
      # Override: Sábado 2 de mayo no se trabajó (puente con feriado del Día del Trabajo)
      "extra_non_working_days": [(5, 2)]},
+    {"key": "junio_2026", "label": "Junio 2026", "month": 6, "year": 2026, "cut_day": 7,
+     "curr_file": "../Junio/BD_JUNIO/BD_JUN_07_06_26.xlsx",
+     "prev_file": "BD_MAYO/BD_MAY_31_05_26.xlsx",
+     "prev_date": "31/05/2026",
+     "ford_metas_file": str(JUN_FORD_METAS_FILE),
+     "brand_metas_file": str(JUN_BRAND_METAS_FILE)},
 ]
 
 def _marca_group(marca):
