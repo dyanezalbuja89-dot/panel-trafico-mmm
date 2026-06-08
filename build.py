@@ -91,6 +91,38 @@ HTML = r"""<!doctype html>
   window._drawerToggle = toggle;
   window._drawerClose = close;
 })();
+
+// ─── MOBILE TAB SELECT — fallback robusto al drawer ───
+(function setupMobileTabSelect(){
+  function attach(){
+    var sel = document.getElementById('mobile-tab-select');
+    if(!sel) { setTimeout(attach, 50); return; }
+    if(sel._bound) return;
+    sel._bound = true;
+    sel.addEventListener('change', function(){
+      var tab = sel.value;
+      if(!tab) return;
+      var btn = document.querySelector('.tab-btn[data-tab="'+tab+'"]');
+      if(btn) btn.click();
+    });
+    // Sincronizar con el tab activo cada vez que cambia
+    function syncFromActive(){
+      var act = document.querySelector('.tab-btn.active');
+      if(act && act.dataset && act.dataset.tab) sel.value = act.dataset.tab;
+    }
+    syncFromActive();
+    // Observer para mantener sincronizado
+    var mo = new MutationObserver(syncFromActive);
+    document.querySelectorAll('.tab-btn').forEach(function(b){
+      mo.observe(b, {attributes:true, attributeFilter:['class']});
+    });
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', attach);
+  } else {
+    attach();
+  }
+})();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -351,6 +383,30 @@ HTML = r"""<!doctype html>
   html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
   html:not([data-theme="dark"]) .theme-toggle .icon-sun{display:none}
 
+  /* Mobile tab selector — solo visible en mobile */
+  .mobile-tab-select{display:none}
+  @media (max-width:900px){
+    .mobile-tab-select{
+      display:block;
+      margin-top:6px;
+      width:100%; max-width:280px;
+      padding:8px 28px 8px 10px;
+      font:inherit; font-size:13px; font-weight:600;
+      background:var(--c-surface);
+      color:var(--c-fg);
+      border:1px solid var(--c-border);
+      border-radius:8px;
+      -webkit-appearance:none; -moz-appearance:none; appearance:none;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23667' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+      background-position:right 8px center;
+      background-repeat:no-repeat;
+      cursor:pointer;
+    }
+    html[data-theme="dark"] .mobile-tab-select{
+      background-color:var(--c-surface);
+      color:var(--c-fg);
+    }
+  }
   /* h1 dual: full en desktop, short en mobile */
   header.topbar h1 .h1-short{display:none}
   @media (max-width:540px){
@@ -2220,6 +2276,24 @@ HTML = r"""<!doctype html>
     <div style="min-width:0; flex:1">
       <h1><span class="h1-full">Dashboard de Tráfico ORGU</span><span class="h1-short">Tráfico ORGU</span></h1>
       <div class="sub" id="topbar-sub">Marzo 2026 (cierre) vs Abril 2026 (cierre 30/04)</div>
+      <!-- Mobile tab selector — fallback al drawer, siempre disponible -->
+      <select id="mobile-tab-select" class="mobile-tab-select" aria-label="Cambiar pestaña">
+        <optgroup label="Marketing">
+          <option value="ford">📊 Reporte Ford</option>
+          <option value="brand">🏷️ Reporte Marcas</option>
+          <option value="comp">🔁 Comparativo</option>
+          <option value="otros">📑 Análisis General</option>
+        </optgroup>
+        <optgroup label="Ventas">
+          <option value="conv">🎯 Conversión</option>
+          <option value="embudo">🪜 Embudo</option>
+        </optgroup>
+        <optgroup label="Operación">
+          <option value="inv">📦 Inventario</option>
+          <option value="xiy">💰 Inversión Digital</option>
+          <option value="comp-imp">⚔️ Competencia</option>
+        </optgroup>
+      </select>
     </div>
   </div>
   <div class="topbar-actions">
