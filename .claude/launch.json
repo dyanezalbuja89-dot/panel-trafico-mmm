@@ -4,8 +4,8 @@
     {
       "name": "panel",
       "runtimeExecutable": "/usr/bin/python3",
-      "runtimeArgs": ["-m", "http.server", "8123"],
-      "port": 8123
+      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Abril/panel-trafico"],
+      "port": 8765
     }
   ]
 }

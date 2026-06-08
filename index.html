@@ -643,9 +643,10 @@
       top:0; left:0;
       transform:translateX(-100%);
       width:var(--sidebar-w);
-      transition:transform .25s ease;
+      /* sin transition: con !important + transition la animation se quedaba stuck en frame 0 */
     }
-    .app-shell.mobile-open nav.tabs{transform:translateX(0)}
+    .app-shell.mobile-open nav.tabs,
+    nav.tabs.drawer-open{transform:translateX(0) !important}
     .mobile-menu-btn{
       display:flex !important;
     }
@@ -2133,7 +2134,7 @@
 <header class="topbar">
   <div class="topbar-left">
     <button class="mobile-menu-btn" id="mobile-menu-btn" title="Menú" aria-label="Abrir menú"
-            onclick="var s=document.getElementById('app-shell'); if(s){s.classList.toggle('mobile-open');} event.stopPropagation();">
+            onclick="var s=document.getElementById('app-shell'); var n=document.querySelector('nav.tabs'); if(s){s.classList.toggle('mobile-open');} if(n){n.classList.toggle('drawer-open');} event.stopPropagation();">
       <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
     <div style="min-width:0; flex:1">
@@ -4083,13 +4084,9 @@
         if(svg) svg.style.transform = 'rotate(180deg)';
       }
     }
-    const mobileBtn = document.getElementById('mobile-menu-btn');
-    if(mobileBtn){
-      mobileBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        shell.classList.toggle('mobile-open');
-      });
-    }
+    // mobile-menu-btn ahora usa onclick inline en el HTML (más confiable).
+    // No registramos un addEventListener aquí porque DOS handlers haciendo
+    // toggle se cancelaban mutuamente.
     // Al click en cualquier tab en mobile, cerrar el drawer
     document.querySelectorAll('.tab-btn').forEach(b => {
       b.addEventListener('click', () => {
