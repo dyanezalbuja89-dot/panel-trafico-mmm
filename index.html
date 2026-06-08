@@ -1229,31 +1229,73 @@
   .otros-header.theme-embudo{background:linear-gradient(135deg, var(--c-ford-800) 0%, #0f766e 100%)}
   .otros-header.theme-embudo::before{background:#5eead4}
 
-  /* Big stat card */
-  .stat-hero{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:var(--sp-3);margin-bottom:var(--sp-4)}
-  @media(max-width:768px){.stat-hero{grid-template-columns:1fr 1fr}}
+  /* Big stat card — refactored to Bento look */
+  .stat-hero{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    grid-auto-rows:140px;
+    gap:var(--sp-3);
+    margin-bottom:var(--sp-5);
+  }
   .stat-hero .card-big{
     background:var(--c-surface);
     border:1px solid var(--c-border);
-    border-radius:var(--r-lg);
-    padding:var(--sp-5) var(--sp-6);
-    box-shadow:var(--shadow-sm);
-    position:relative;
-    overflow:hidden;
-    transition:transform .15s ease, box-shadow .15s ease;
+    border-radius:20px;
+    padding:var(--sp-4) var(--sp-5);
+    box-shadow:var(--shadow-xs);
+    display:flex; flex-direction:column;
+    justify-content:flex-start;
+    gap:var(--sp-2);
+    position:relative; overflow:hidden;
+    transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    min-height:0;
   }
-  .stat-hero .card-big:hover{transform:translateY(-1px); box-shadow:var(--shadow-md)}
-  .stat-hero .card-big::after{
-    content:''; position:absolute; top:0; left:0; right:0; height:3px;
-    background:var(--c-primary);
-    opacity:.85;
+  .stat-hero .card-big:hover{
+    transform:translateY(-2px);
+    box-shadow:0 8px 24px rgba(15,23,42,.06);
+    border-color:var(--c-border-strong);
   }
-  .stat-hero .card-big .lbl{font-size:var(--t-caption);text-transform:uppercase;letter-spacing:.08em;color:var(--c-muted);font-weight:600}
-  .stat-hero .card-big .val{font-size:32px;font-weight:800;color:var(--c-primary);margin-top:var(--sp-1);line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-  .stat-hero .card-big .val.neg{color:var(--c-bad)}
-  .stat-hero .card-big .val.pos{color:var(--c-good)}
-  .stat-hero .card-big .val.warn{color:var(--c-warn)}
-  .stat-hero .card-big .hint{font-size:var(--t-label);color:var(--c-muted);margin-top:var(--sp-2)}
+  /* Accent radial en esquina (igual que .bento-cell.accent) */
+  .stat-hero .card-big::before{
+    content:''; position:absolute;
+    top:-20px; right:-20px;
+    width:120px; height:120px;
+    background:radial-gradient(circle, var(--c-primary-bg) 0%, transparent 70%);
+    border-radius:50%;
+    pointer-events:none;
+  }
+  .stat-hero .card-big .lbl{
+    font-size:var(--t-caption);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:var(--c-muted);
+    font-weight:600;
+    display:flex; align-items:center; gap:var(--sp-2);
+  }
+  .stat-hero .card-big .val{
+    font-size:32px;
+    font-weight:800;
+    color:var(--c-fg);
+    margin-top:auto;
+    line-height:1;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:-.025em;
+  }
+  .stat-hero .card-big .val.neg{color:var(--c-bad-tx)}
+  .stat-hero .card-big .val.pos{color:var(--c-good-tx)}
+  .stat-hero .card-big .val.warn{color:var(--c-warn-tx)}
+  .stat-hero .card-big .hint{
+    font-size:var(--t-label);
+    color:var(--c-muted);
+    margin-top:0;
+    font-weight:500;
+    line-height:1.4;
+  }
+  @media (max-width:540px){
+    .stat-hero{grid-template-columns:1fr 1fr; grid-auto-rows:auto}
+    .stat-hero .card-big{padding:var(--sp-3); border-radius:14px}
+    .stat-hero .card-big .val{font-size:24px}
+  }
 
   table.analysis{width:100%;border-collapse:collapse;font-size:var(--t-body);border-radius:var(--r-md);overflow:hidden}
   table.analysis th{
@@ -1771,19 +1813,35 @@
   .version-card .vc-bar .fill{height:100%;background:linear-gradient(90deg,var(--ford-2),var(--ford));border-radius:2px}
   .version-card .vc-empty{color:var(--muted);font-size:12px;text-align:center;padding:20px}
 
-  /* Stat-hero con 4 columnas — responsive */
-  .stat-hero-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
-  @media(max-width:768px){.stat-hero-4{grid-template-columns:1fr 1fr;gap:10px}}
-  @media(max-width:480px){.stat-hero-4{grid-template-columns:1fr 1fr;gap:8px}}
+  /* Stat-hero con 4 columnas — alineado a Bento */
+  .stat-hero-4{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    grid-auto-rows:140px;
+    gap:var(--sp-3);
+    margin-bottom:var(--sp-5);
+  }
+  @media(max-width:768px){.stat-hero-4{grid-template-columns:1fr 1fr; grid-auto-rows:auto}}
+  @media(max-width:480px){.stat-hero-4{grid-template-columns:1fr 1fr}}
 
-  /* KPI grid con N columnas — responsive */
-  .kpi-row-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-  .kpi-row-5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  /* KPI grid con N columnas — responsive (alineado a Bento) */
+  .kpi-row,
+  .kpi-row-3,
+  .kpi-row-4,
+  .kpi-row-5{
+    display:grid;
+    gap:var(--sp-3);
+    grid-auto-rows:140px;
+  }
+  .kpi-row{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+  .kpi-row-3{grid-template-columns:repeat(3,1fr)}
+  .kpi-row-4{grid-template-columns:repeat(4,1fr)}
+  .kpi-row-5{grid-template-columns:repeat(5,1fr)}
   @media(max-width:768px){
-    .kpi-row-4,.kpi-row-5{grid-template-columns:repeat(3,1fr);gap:8px}
+    .kpi-row,.kpi-row-3,.kpi-row-4,.kpi-row-5{grid-template-columns:repeat(2,1fr); grid-auto-rows:auto}
   }
   @media(max-width:480px){
-    .kpi-row-4,.kpi-row-5{grid-template-columns:1fr 1fr;gap:8px}
+    .kpi-row,.kpi-row-3,.kpi-row-4,.kpi-row-5{grid-template-columns:1fr 1fr}
   }
 
   /* Inventario responsive */
@@ -3870,7 +3928,7 @@
   // cuando su textContent cambia a un número. Sin tocar el resto del JS.
   (function initCountUp(){
     if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const SELECTORS = '.bento-value, .kpi .num, .num';
+    const SELECTORS = '.bento-value, .kpi .num, .num, .card-big .val, .stat-hero .val';
     const DURATION = 600;
     const easeOutCubic = t => 1 - Math.pow(1-t, 3);
     // Parse "XX,YYY", "+12", "85%", "12.3" → { num, prefix, suffix, decimals }
