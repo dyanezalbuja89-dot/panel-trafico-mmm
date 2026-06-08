@@ -9,7 +9,9 @@ HTML = r"""<!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#003478" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0a0e1a" media="(prefers-color-scheme: dark)">
 <title>Dashboard Tráfico DY — ORGU / Maresa</title>
 <!-- Cargar tema ANTES del CSS para evitar flash blanco al cambiar a dark -->
 <script>
@@ -290,6 +292,138 @@ HTML = r"""<!doctype html>
     header.topbar h1{font-size:var(--t-body)}
     header.topbar .sub{font-size:var(--t-caption)}
     header.topbar .topbar-hero{display:none}
+  }
+
+  /* ═════════════════ MOBILE OPTIMIZATIONS ═════════════════ */
+  /* Tap highlight removal + smooth scroll en iOS */
+  html{
+    -webkit-text-size-adjust:100%;
+    -webkit-tap-highlight-color:rgba(0,0,0,0);
+  }
+  body{
+    -webkit-overflow-scrolling:touch;
+    /* safe-area-padding para iPhone notch */
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  /* Drawer backdrop oscurece el fondo cuando abierto en mobile */
+  .app-shell::before{
+    content:'';
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0);
+    pointer-events:none;
+    transition:background .25s ease;
+    z-index:50;
+  }
+  @media (max-width:900px){
+    .app-shell.mobile-open::before{
+      background:rgba(0,0,0,.5);
+      pointer-events:auto;
+    }
+    .app-shell.mobile-open{overflow:hidden}
+    .app-shell.mobile-open body{overflow:hidden}
+    nav.tabs{
+      z-index:60;
+      box-shadow:8px 0 32px rgba(0,0,0,.2);
+      height:100vh;
+      height:100dvh;
+      overflow-y:auto;
+    }
+    /* Touch targets en sidebar 44px mínimo */
+    .tab-btn{padding:var(--sp-3) var(--sp-3); min-height:44px}
+    .tab-btn .tab-icon{width:20px; height:20px}
+  }
+  /* Touch targets 44x44 en todos los botones interactivos */
+  @media (hover:none) and (pointer:coarse){
+    button, .reset, .tab-btn, select, input[type="text"]{
+      min-height:44px;
+    }
+    .theme-toggle, .sidebar-toggle, .mobile-menu-btn{
+      min-width:44px; min-height:44px;
+    }
+    .filter-bar select{
+      min-height:44px;
+      font-size:14px;
+    }
+  }
+
+  /* Mobile ≤540px — el verdadero teléfono */
+  @media (max-width:540px){
+    /* Padding más ajustado */
+    main{padding:var(--sp-3) var(--sp-3) var(--sp-6) !important}
+    /* Topbar más compacto */
+    header.topbar{padding:var(--sp-2) var(--sp-3)}
+    header.topbar h1{
+      font-size:14px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:160px;
+    }
+    /* Filter bar: 1 columna, inputs grandes */
+    .filter-bar{
+      grid-template-columns:1fr 1fr;
+      padding:var(--sp-3);
+      gap:var(--sp-2);
+    }
+    .filter-bar .reset{
+      grid-column:1 / -1;
+      min-height:44px;
+    }
+    .filter-bar select{
+      padding:10px 12px;
+      font-size:14px;
+    }
+    /* Bento gauge canvas más pequeño */
+    .bento-cell.hero .gauge-canvas{
+      width:180px; height:180px;
+    }
+    .bento-cell.hero .gauge-center .big{font-size:36px}
+    .bento-cell.hero .gauge-center .mid{font-size:10px}
+    /* Anomaly badge: ajustar posición y tamaño */
+    .anomaly-badge{
+      top:var(--sp-2); right:var(--sp-2);
+      font-size:9px;
+      padding:2px 6px;
+    }
+    /* Bento spark un poco más alta para ser tappable visualmente */
+    .bento-cell > .bento-spark{height:32px}
+    /* Bento value mobile más chico (32 → 28) para evitar wrap */
+    .bento-cell .bento-value{font-size:28px}
+    .bento-cell.hero .bento-value{font-size:36px}
+    /* Cards bento padding reducido */
+    .bento-cell{padding:var(--sp-3) var(--sp-4); border-radius:16px}
+    /* KPIs (.kpi) idem */
+    .kpi{padding:var(--sp-3) var(--sp-4); border-radius:16px}
+    .kpi .num{font-size:24px}
+    .kpi.hero .num{font-size:32px}
+    /* Tablas: forzar scroll horizontal aunque no haya wrapper explícito */
+    .ford-section table, .tab-panel table{
+      display:block;
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+    }
+    /* Modal full-width en mobile */
+    #cell-detail-modal .cell-detail-body,
+    #cell-detail-modal > div{
+      width:calc(100vw - var(--sp-4)) !important;
+      max-width:none !important;
+      max-height:80vh;
+      overflow-y:auto;
+    }
+    /* Heading y subs más chicos */
+    .ford-section h3{font-size:14px}
+    /* Chips/filter summary se envuelven */
+    .ford-filter-summary{font-size:11px; padding:var(--sp-2)}
+    /* Sidebar drawer ocupa más ancho */
+    nav.tabs{width:min(280px, 85vw)}
+  }
+  /* Pantallas muy pequeñas (iPhone SE: 320px) */
+  @media (max-width:360px){
+    .filter-bar{grid-template-columns:1fr}
+    .bento-cell.hero .gauge-canvas{width:160px; height:160px}
+    .bento-cell.hero .gauge-center .big{font-size:32px}
+    header.topbar h1{max-width:120px; font-size:13px}
   }
   /* ═════════════════ SIDEBAR ═════════════════ */
   .app-shell{
@@ -3875,6 +4009,20 @@ HTML = r"""<!doctype html>
       b.addEventListener('click', () => {
         if(window.innerWidth <= 900) shell.classList.remove('mobile-open');
       });
+    });
+    // Click en backdrop (área fuera del drawer) cierra
+    shell.addEventListener('click', (e) => {
+      if(!shell.classList.contains('mobile-open')) return;
+      // Si el click NO fue dentro del nav.tabs, ni en el botón mobile-menu, cerrar
+      if(!e.target.closest('nav.tabs') && !e.target.closest('.mobile-menu-btn')){
+        shell.classList.remove('mobile-open');
+      }
+    });
+    // ESC cierra drawer
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape' && shell.classList.contains('mobile-open')){
+        shell.classList.remove('mobile-open');
+      }
     });
   })();
 
