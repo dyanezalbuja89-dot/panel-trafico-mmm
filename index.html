@@ -3661,22 +3661,37 @@
       function step(now){
         const t = Math.min(1, (now - start) / DURATION);
         const val = from + (to - from) * easeOutCubic(t);
-        el.textContent = info.prefix + fmtNum(val, info.decimals, info.hasComma) + info.suffix;
-        if(t < 1) el._countUpRaf = requestAnimationFrame(step);
-        else { el._countUpRaf = null; el._countUpLast = to; }
+        const txt = info.prefix + fmtNum(val, info.decimals, info.hasComma) + info.suffix;
+        el._countUpExpected = txt;  // marca lo que ESTOY escribiendo
+        el.textContent = txt;
+        if(t < 1) {
+          el._countUpRaf = requestAnimationFrame(step);
+        } else {
+          el._countUpRaf = null;
+          el._countUpLast = to;
+          el._countUpExpected = null;
+        }
       }
       el._countUpRaf = requestAnimationFrame(step);
     }
     function handle(el){
+      // Si el textContent actual coincide con lo que YO escribí, ignorar
+      // (es mi propia mutación, no un cambio externo).
+      if(el._countUpExpected != null && el.textContent === el._countUpExpected) return;
       const newInfo = parseFmt(el.textContent);
       if(!newInfo){
         // Texto no numérico → no animar, limpiar caché
         el._countUpLast = null;
+        if(el._countUpRaf){ cancelAnimationFrame(el._countUpRaf); el._countUpRaf = null; }
+        el._countUpExpected = null;
         return;
       }
-      const from = (typeof el._countUpLast === 'number') ? el._countUpLast : 0;
+      // Si está animando, animar desde el valor actual mostrado, no desde lo guardado
+      const from = (el._countUpRaf && el._countUpExpected)
+        ? (parseFmt(el._countUpExpected)?.num ?? 0)
+        : ((typeof el._countUpLast === 'number') ? el._countUpLast : newInfo.num);
       const to = newInfo.num;
-      if(from === to) return; // sin cambio
+      if(from === to){ el._countUpLast = to; return; }
       animate(el, from, to, newInfo);
     }
     // Observer global: cualquier cambio de characterData o childList en estos elementos
@@ -3697,6 +3712,9 @@
       const els = document.querySelectorAll(SELECTORS);
       els.forEach(el => {
         observer.observe(el, { characterData: true, childList: true, subtree: true });
+        // Inicializa caché con valor actual (no anima en el primer render)
+        const info = parseFmt(el.textContent);
+        if(info) el._countUpLast = info.num;
       });
     }
     if(document.readyState === 'loading'){
