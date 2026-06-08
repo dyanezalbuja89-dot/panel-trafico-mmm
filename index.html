@@ -16,12 +16,73 @@
     var t = localStorage.getItem('theme');
     if(!t){ t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
     if(t === 'dark') document.documentElement.setAttribute('data-theme','dark');
-    // Sidebar collapse state
     if(localStorage.getItem('sidebar') === 'collapsed'){
-      // Aplicaremos la clase cuando .app-shell exista (en DOMContentLoaded)
       document.documentElement.dataset.sidebarCollapsed = '1';
     }
   } catch(e){}
+})();
+
+// ─── DRAWER TOGGLE — Bootstrap-temprano + multi-event para iOS Safari ───
+// Se registra ANTES de cualquier otro JS para garantizar respuesta al primer tap.
+(function setupDrawer(){
+  function toggle(){
+    var s = document.getElementById('app-shell');
+    var n = document.querySelector('nav.tabs');
+    if(s) s.classList.toggle('mobile-open');
+    if(n) n.classList.toggle('drawer-open');
+  }
+  function close(){
+    var s = document.getElementById('app-shell');
+    var n = document.querySelector('nav.tabs');
+    if(s) s.classList.remove('mobile-open');
+    if(n) n.classList.remove('drawer-open');
+  }
+  function attach(){
+    var btn = document.getElementById('mobile-menu-btn');
+    if(!btn) { setTimeout(attach, 50); return; }
+    if(btn._drawerBound) return;
+    btn._drawerBound = true;
+    // Handler robusto: click + pointer + touch
+    var handler = function(e){
+      if(e) { e.preventDefault && e.preventDefault(); e.stopPropagation && e.stopPropagation(); }
+      toggle();
+      return false;
+    };
+    btn.addEventListener('click', handler, false);
+    btn.addEventListener('pointerup', handler, false);
+    // touchend con guard para no duplicar con click
+    var lastTouch = 0;
+    btn.addEventListener('touchend', function(e){
+      var now = Date.now();
+      if(now - lastTouch < 500) return; // debounce
+      lastTouch = now;
+      handler(e);
+    }, {passive:false, capture:false});
+    // Cierre al click en backdrop (cualquier área fuera del drawer)
+    document.addEventListener('click', function(e){
+      var shell = document.getElementById('app-shell');
+      if(!shell || !shell.classList.contains('mobile-open')) return;
+      var t = e.target;
+      if(!t) return;
+      // Si está dentro del nav o del botón, no cerrar
+      var inNav = (t.closest && t.closest('nav.tabs'));
+      var inBtn = (t.closest && t.closest('.mobile-menu-btn'));
+      if(inNav || inBtn) return;
+      // Fallback contains
+      var nav = document.querySelector('nav.tabs');
+      if(nav && nav.contains(t)) return;
+      if(btn.contains(t)) return;
+      close();
+    }, true /* capture: corremos antes que otros handlers */);
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', attach);
+  } else {
+    attach();
+  }
+  // Expose para debug
+  window._drawerToggle = toggle;
+  window._drawerClose = close;
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -2146,9 +2207,8 @@
 
 <header class="topbar">
   <div class="topbar-left">
-    <button class="mobile-menu-btn" id="mobile-menu-btn" title="Menú" aria-label="Abrir menú" type="button"
-            onclick="(function(e){var s=document.getElementById('app-shell');var n=document.querySelector('nav.tabs');if(s)s.classList.toggle('mobile-open');if(n)n.classList.toggle('drawer-open');if(e&&e.stopPropagation)e.stopPropagation();})(event||window.event)">
-      <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    <button class="mobile-menu-btn" id="mobile-menu-btn" title="Menú" aria-label="Abrir menú" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
     <div style="min-width:0; flex:1">
       <h1><span class="h1-full">Dashboard de Tráfico ORGU</span><span class="h1-short">Tráfico ORGU</span></h1>
@@ -4131,24 +4191,13 @@
         });
       });
     }
-    // Click en backdrop (área fuera del drawer) cierra
-    shell.addEventListener('click', (e) => {
-      if(!shell.classList.contains('mobile-open')) return;
-      const t = e.target;
-      // closest seguro: si t es un SVG element raro, fallback a contains()
-      const inNav = t.closest ? t.closest('nav.tabs') : null;
-      const inBtn = t.closest ? t.closest('.mobile-menu-btn') : null;
-      const navEl = document.querySelector('nav.tabs');
-      const btnEl = document.getElementById('mobile-menu-btn');
-      if(inNav || inBtn || (navEl && navEl.contains(t)) || (btnEl && btnEl.contains(t))) return;
-      shell.classList.remove('mobile-open');
-      const navTabs = document.querySelector('nav.tabs');
-      if(navTabs) navTabs.classList.remove('drawer-open');
-    });
+    // (backdrop click + drawer toggle ya están bound en el bootstrap temprano del <head>)
     // ESC cierra drawer
     document.addEventListener('keydown', (e) => {
       if(e.key === 'Escape' && shell.classList.contains('mobile-open')){
         shell.classList.remove('mobile-open');
+        const navTabs = document.querySelector('nav.tabs');
+        if(navTabs) navTabs.classList.remove('drawer-open');
       }
     });
   })();
