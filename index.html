@@ -22,70 +22,7 @@
   } catch(e){}
 })();
 
-// ─── DRAWER TOGGLE — Bootstrap-temprano + multi-event para iOS Safari ───
-// Se registra ANTES de cualquier otro JS para garantizar respuesta al primer tap.
-(function setupDrawer(){
-  function toggle(){
-    var s = document.getElementById('app-shell');
-    var n = document.querySelector('nav.tabs');
-    if(s) s.classList.toggle('mobile-open');
-    if(n) n.classList.toggle('drawer-open');
-  }
-  function close(){
-    var s = document.getElementById('app-shell');
-    var n = document.querySelector('nav.tabs');
-    if(s) s.classList.remove('mobile-open');
-    if(n) n.classList.remove('drawer-open');
-  }
-  function attach(){
-    var btn = document.getElementById('mobile-menu-btn');
-    if(!btn) { setTimeout(attach, 50); return; }
-    if(btn._drawerBound) return;
-    btn._drawerBound = true;
-    // Handler robusto: click + pointer + touch
-    var handler = function(e){
-      if(e) { e.preventDefault && e.preventDefault(); e.stopPropagation && e.stopPropagation(); }
-      toggle();
-      return false;
-    };
-    btn.addEventListener('click', handler, false);
-    btn.addEventListener('pointerup', handler, false);
-    // touchend con guard para no duplicar con click
-    var lastTouch = 0;
-    btn.addEventListener('touchend', function(e){
-      var now = Date.now();
-      if(now - lastTouch < 500) return; // debounce
-      lastTouch = now;
-      handler(e);
-    }, {passive:false, capture:false});
-    // Cierre al click en backdrop (cualquier área fuera del drawer)
-    document.addEventListener('click', function(e){
-      var shell = document.getElementById('app-shell');
-      if(!shell || !shell.classList.contains('mobile-open')) return;
-      var t = e.target;
-      if(!t) return;
-      // Si está dentro del nav o del botón, no cerrar
-      var inNav = (t.closest && t.closest('nav.tabs'));
-      var inBtn = (t.closest && t.closest('.mobile-menu-btn'));
-      if(inNav || inBtn) return;
-      // Fallback contains
-      var nav = document.querySelector('nav.tabs');
-      if(nav && nav.contains(t)) return;
-      if(btn.contains(t)) return;
-      close();
-    }, true /* capture: corremos antes que otros handlers */);
-  }
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', attach);
-  } else {
-    attach();
-  }
-  // Expose para debug
-  window._drawerToggle = toggle;
-  window._drawerClose = close;
-})();
-
-// ─── MOBILE TAB SELECT — fallback robusto al drawer ───
+// ─── MOBILE TAB SELECT — navegación nativa en mobile ───
 (function setupMobileTabSelect(){
   function attach(){
     var sel = document.getElementById('mobile-tab-select');
@@ -425,42 +362,16 @@
     padding-top:env(safe-area-inset-top);
     padding-bottom:env(safe-area-inset-bottom);
   }
-  /* Drawer backdrop · SOLO existe cuando .mobile-open */
+  /* En mobile, el sidebar queda permanentemente oculto · navegación via select */
   @media (max-width:900px){
-    .app-shell.mobile-open::before{
-      content:'';
-      position:fixed; inset:0;
-      background:rgba(0,0,0,.5);
-      z-index:55;
-      animation:backdrop-in .2s ease-out;
-    }
-    @keyframes backdrop-in{from{background:rgba(0,0,0,0)} to{background:rgba(0,0,0,.5)}}
-    nav.tabs{
-      z-index:70;
-      box-shadow:8px 0 32px rgba(0,0,0,.2);
-      height:100vh;
-      height:100dvh;
-      overflow-y:auto;
-    }
-    /* Topbar siempre encima del backdrop para que la hamburguesa sea tappable */
-    header.topbar{
-      position:relative;
-      z-index:75;
-    }
-    .mobile-menu-btn{
-      position:relative;
-      z-index:80;
-    }
-    /* Touch targets en sidebar 44px mínimo */
-    .tab-btn{padding:var(--sp-3) var(--sp-3); min-height:44px}
-    .tab-btn .tab-icon{width:20px; height:20px}
+    nav.tabs{display:none !important}
   }
   /* Touch targets 44x44 en todos los botones interactivos */
   @media (hover:none) and (pointer:coarse){
     button, .reset, .tab-btn, select, input[type="text"]{
       min-height:44px;
     }
-    .theme-toggle, .sidebar-toggle, .mobile-menu-btn{
+    .theme-toggle, .sidebar-toggle{
       min-width:44px; min-height:44px;
     }
     .filter-bar select{
@@ -599,17 +510,9 @@
     .ford-section h3 .sub{font-size:10px}
     .ford-filter-summary{font-size:10px; padding:var(--sp-2); margin-bottom:var(--sp-2)}
     /* Sidebar drawer */
-    nav.tabs{width:min(280px, 85vw)}
     /* Theme toggle más chico */
     .theme-toggle{width:36px; height:36px; padding:0}
     .theme-toggle svg{width:18px; height:18px}
-    /* Mobile menu btn más visible */
-    .mobile-menu-btn{
-      width:40px; height:40px;
-      padding:8px;
-      border-radius:8px;
-      background:rgba(255,255,255,.06);
-    }
   }
   /* Pantallas muy pequeñas (iPhone SE: 320px) */
   @media (max-width:380px){
@@ -758,38 +661,8 @@
   /* Sidebar en mobile: drawer flotante */
   @media (max-width:900px){
     .app-shell{grid-template-columns:1fr}
-    nav.tabs{
-      position:fixed;
-      top:0; left:0;
-      transform:translateX(-100%);
-      width:var(--sidebar-w);
-      /* sin transition: con !important + transition la animation se quedaba stuck en frame 0 */
-    }
-    .app-shell.mobile-open nav.tabs,
-    nav.tabs.drawer-open{transform:translateX(0) !important}
-    .mobile-menu-btn{
-      display:flex !important;
-    }
   }
-  .mobile-menu-btn{
-    display:none;
-    background:transparent;
-    border:0;
-    color:#fff;
-    padding:var(--sp-2);
-    cursor:pointer;
-    align-items:center;
-    justify-content:center;
-    touch-action:manipulation;       /* elimina delay 300ms iOS legacy */
-    -webkit-user-select:none;
-    user-select:none;
-  }
-  /* SVG hijo NO captura clicks → target siempre es el button, evita
-     bugs de closest()/target con SVGElement en safari iOS */
-  .mobile-menu-btn svg,
-  .mobile-menu-btn svg *{pointer-events:none}
-  .mobile-menu-btn svg{width:24px;height:24px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
-  /* Mismo principio en tab buttons + theme toggle: target siempre el btn */
+  /* SVG hijo no captura clicks · evita bugs SVG/closest en mobile */
   .tab-btn svg, .tab-btn svg *,
   .theme-toggle svg, .theme-toggle svg *{pointer-events:none}
   main{
@@ -2263,13 +2136,10 @@
 
 <header class="topbar">
   <div class="topbar-left">
-    <button class="mobile-menu-btn" id="mobile-menu-btn" title="Menú" aria-label="Abrir menú" type="button">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    </button>
     <div style="min-width:0; flex:1">
       <h1><span class="h1-full">Dashboard de Tráfico ORGU</span><span class="h1-short">Tráfico ORGU</span></h1>
       <div class="sub" id="topbar-sub">Marzo 2026 (cierre) vs Abril 2026 (cierre 30/04)</div>
-      <!-- Mobile tab selector — fallback al drawer, siempre disponible -->
+      <!-- Selector nativo de pestañas (solo mobile) -->
       <select id="mobile-tab-select" class="mobile-tab-select" aria-label="Cambiar pestaña">
         <optgroup label="Marketing">
           <option value="ford">📊 Reporte Ford</option>
@@ -4231,19 +4101,6 @@
         if(svg) svg.style.transform = 'rotate(180deg)';
       }
     }
-    // mobile-menu-btn ahora usa onclick inline en el HTML (más confiable).
-    // No registramos un addEventListener aquí porque DOS handlers haciendo
-    // toggle se cancelaban mutuamente.
-    // Al click en cualquier tab en mobile, cerrar el drawer
-    document.querySelectorAll('.tab-btn').forEach(b => {
-      b.addEventListener('click', () => {
-        if(window.innerWidth <= 900){
-          shell.classList.remove('mobile-open');
-          const nt = document.querySelector('nav.tabs');
-          if(nt) nt.classList.remove('drawer-open');
-        }
-      });
-    });
     // ─── FILTROS COLAPSABLES EN MOBILE ───
     // Cada .filter-bar recibe un botón para expandir/colapsar en mobile
     const isMobile = (window.matchMedia && window.matchMedia('(max-width:540px)').matches) || window.innerWidth <= 540;
@@ -4265,15 +4122,6 @@
         });
       });
     }
-    // (backdrop click + drawer toggle ya están bound en el bootstrap temprano del <head>)
-    // ESC cierra drawer
-    document.addEventListener('keydown', (e) => {
-      if(e.key === 'Escape' && shell.classList.contains('mobile-open')){
-        shell.classList.remove('mobile-open');
-        const navTabs = document.querySelector('nav.tabs');
-        if(navTabs) navTabs.classList.remove('drawer-open');
-      }
-    });
   })();
 
   const MARZO = DATA.marzo, ABRIL = DATA.abril, META = DATA.meta;
