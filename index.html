@@ -280,6 +280,12 @@
   html[data-theme="dark"] .theme-toggle .icon-moon{display:none}
   html:not([data-theme="dark"]) .theme-toggle .icon-sun{display:none}
 
+  /* h1 dual: full en desktop, short en mobile */
+  header.topbar h1 .h1-short{display:none}
+  @media (max-width:540px){
+    header.topbar h1 .h1-full{display:none}
+    header.topbar h1 .h1-short{display:inline}
+  }
   @media (max-width:760px){
     header.topbar{padding:var(--sp-3) var(--sp-4); gap:var(--sp-3)}
     header.topbar h1{font-size:var(--t-body)}
@@ -345,61 +351,121 @@
 
   /* Mobile ≤540px — el verdadero teléfono */
   @media (max-width:540px){
-    /* Padding más ajustado */
-    main{padding:var(--sp-3) var(--sp-3) var(--sp-6) !important}
-    /* Topbar más compacto */
-    header.topbar{padding:var(--sp-2) var(--sp-3)}
+    main{padding:var(--sp-3) var(--sp-3) var(--sp-6) !important; max-width:100vw}
+    /* Topbar súper compacto */
+    header.topbar{padding:var(--sp-2) var(--sp-3); gap:var(--sp-2)}
     header.topbar h1{
-      font-size:14px;
+      font-size:13px;
+      font-weight:700;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      max-width:160px;
+      min-width:0; max-width:none; flex:1;
     }
-    /* Filter bar: 1 columna, inputs grandes */
+    header.topbar h1::before{display:none}
+    header.topbar .sub{font-size:10px}
+    header.topbar .topbar-actions{gap:var(--sp-1)}
+    /* Filter bar COLAPSABLE en mobile */
     .filter-bar{
       grid-template-columns:1fr 1fr;
-      padding:var(--sp-3);
+      padding:var(--sp-2);
       gap:var(--sp-2);
+      margin-bottom:var(--sp-3);
     }
+    .filter-bar.mobile-collapsed > *:not(.filter-toggle){display:none}
+    .filter-bar.mobile-collapsed{
+      grid-template-columns:1fr;
+      padding:var(--sp-1);
+    }
+    .filter-toggle{
+      display:none;
+      grid-column:1 / -1;
+      background:transparent;
+      border:1px dashed var(--c-border);
+      color:var(--c-muted);
+      padding:var(--sp-2) var(--sp-3);
+      font:inherit; font-size:12px; font-weight:600;
+      border-radius:var(--r);
+      cursor:pointer;
+      text-align:center;
+    }
+    .filter-toggle:hover{background:var(--c-surface)}
     .filter-bar .reset{
       grid-column:1 / -1;
-      min-height:44px;
+      min-height:40px;
     }
-    .filter-bar select{
-      padding:10px 12px;
+    .filter-bar select, .filter-bar input{
+      padding:8px 10px;
       font-size:14px;
+      min-height:40px;
     }
-    /* Bento gauge canvas más pequeño */
+    .filter-bar label{font-size:9px}
+    /* GAUGE responsive con aspect-ratio (Chart.js respeta) */
+    .bento-cell.hero{
+      grid-column:span 1 !important;
+      grid-row:span 1 !important;
+      min-height:200px;
+    }
+    .bento-cell.hero .gauge-wrap{
+      max-width:180px;
+      margin:8px auto 0 auto !important;
+    }
     .bento-cell.hero .gauge-canvas{
-      width:180px; height:180px;
+      width:160px !important;
+      height:160px !important;
+      max-width:100%;
     }
-    .bento-cell.hero .gauge-center .big{font-size:36px}
-    .bento-cell.hero .gauge-center .mid{font-size:10px}
-    /* Anomaly badge: ajustar posición y tamaño */
+    .bento-cell.hero .gauge-center .big{font-size:28px !important}
+    .bento-cell.hero .gauge-center .mid{font-size:9px !important; margin-top:2px}
+    .bento-cell.hero .gauge-center .tag{font-size:9px !important; margin-top:4px; padding:2px 6px}
+    /* Anomaly badge MÁS chica y mejor posicionada */
     .anomaly-badge{
-      top:var(--sp-2); right:var(--sp-2);
-      font-size:9px;
-      padding:2px 6px;
+      top:var(--sp-1); right:var(--sp-1);
+      font-size:8px;
+      padding:2px 5px;
+      letter-spacing:.04em;
+      max-width:90px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
     }
-    /* Bento spark un poco más alta para ser tappable visualmente */
-    .bento-cell > .bento-spark{height:32px}
-    /* Bento value mobile más chico (32 → 28) para evitar wrap */
-    .bento-cell .bento-value{font-size:28px}
-    .bento-cell.hero .bento-value{font-size:36px}
-    /* Cards bento padding reducido */
-    .bento-cell{padding:var(--sp-3) var(--sp-4); border-radius:16px}
+    /* Sparkline con padding right para que el último punto no se corte */
+    .bento-cell > .bento-spark{height:28px; padding-right:6px; box-sizing:border-box}
+    /* Bento value y card padding */
+    .bento-cell .bento-value{font-size:26px}
+    .bento-cell.hero .bento-value{font-size:30px}
+    .bento-cell{
+      padding:var(--sp-3) var(--sp-3);
+      border-radius:14px;
+      gap:var(--sp-1) !important;
+    }
+    .bento-cell .bento-label{font-size:9px; gap:4px}
+    .bento-cell .bento-label svg{width:11px; height:11px}
+    /* Bento grid en mobile: 1 columna SIEMPRE */
+    .bento-grid{
+      grid-template-columns:1fr !important;
+      grid-auto-rows:auto !important;
+      gap:var(--sp-2) !important;
+    }
+    .bento-cell.span-2, .bento-cell.span-3, .bento-cell.span-4{grid-column:span 1 !important}
     /* KPIs (.kpi) idem */
-    .kpi{padding:var(--sp-3) var(--sp-4); border-radius:16px}
-    .kpi .num{font-size:24px}
-    .kpi.hero .num{font-size:32px}
-    /* Tablas: forzar scroll horizontal aunque no haya wrapper explícito */
+    .kpis{grid-template-columns:1fr 1fr !important; grid-auto-rows:auto !important; gap:var(--sp-2)}
+    .kpi{padding:var(--sp-3); border-radius:14px}
+    .kpi .num{font-size:22px}
+    .kpi .label{font-size:9px}
+    .kpi.hero{grid-column:1 / -1; grid-row:auto !important}
+    .kpi.hero .num{font-size:28px}
+    /* Tablas: scroll horizontal forzado */
     .ford-section table, .tab-panel table{
       display:block;
       overflow-x:auto;
       -webkit-overflow-scrolling:touch;
+      max-width:100%;
     }
-    /* Modal full-width en mobile */
+    .ford-section table thead, .ford-section table tbody{
+      display:table; width:max-content; min-width:100%;
+    }
+    /* Modal full-width */
     #cell-detail-modal .cell-detail-body,
     #cell-detail-modal > div{
       width:calc(100vw - var(--sp-4)) !important;
@@ -407,19 +473,31 @@
       max-height:80vh;
       overflow-y:auto;
     }
-    /* Heading y subs más chicos */
-    .ford-section h3{font-size:14px}
-    /* Chips/filter summary se envuelven */
-    .ford-filter-summary{font-size:11px; padding:var(--sp-2)}
-    /* Sidebar drawer ocupa más ancho */
+    /* Heading section */
+    .ford-section{padding:var(--sp-3) !important; margin-bottom:var(--sp-3) !important}
+    .ford-section h3{font-size:13px; margin-bottom:var(--sp-2)}
+    .ford-section h3 .sub{font-size:10px}
+    .ford-filter-summary{font-size:10px; padding:var(--sp-2); margin-bottom:var(--sp-2)}
+    /* Sidebar drawer */
     nav.tabs{width:min(280px, 85vw)}
+    /* Theme toggle más chico */
+    .theme-toggle{width:36px; height:36px; padding:0}
+    .theme-toggle svg{width:18px; height:18px}
+    /* Mobile menu btn más visible */
+    .mobile-menu-btn{
+      width:40px; height:40px;
+      padding:8px;
+      border-radius:8px;
+      background:rgba(255,255,255,.06);
+    }
   }
   /* Pantallas muy pequeñas (iPhone SE: 320px) */
-  @media (max-width:360px){
-    .filter-bar{grid-template-columns:1fr}
-    .bento-cell.hero .gauge-canvas{width:160px; height:160px}
-    .bento-cell.hero .gauge-center .big{font-size:32px}
-    header.topbar h1{max-width:120px; font-size:13px}
+  @media (max-width:380px){
+    .filter-bar{grid-template-columns:1fr !important}
+    .kpis{grid-template-columns:1fr !important}
+    .bento-cell.hero .gauge-canvas{width:140px !important; height:140px !important}
+    .bento-cell.hero .gauge-center .big{font-size:24px !important}
+    .bento-cell.hero{min-height:180px}
   }
   /* ═════════════════ SIDEBAR ═════════════════ */
   .app-shell{
@@ -2057,8 +2135,8 @@
     <button class="mobile-menu-btn" id="mobile-menu-btn" title="Menú">
       <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
-    <div>
-      <h1>Dashboard de Tráfico ORGU</h1>
+    <div style="min-width:0; flex:1">
+      <h1><span class="h1-full">Dashboard de Tráfico ORGU</span><span class="h1-short">Tráfico ORGU</span></h1>
       <div class="sub" id="topbar-sub">Marzo 2026 (cierre) vs Abril 2026 (cierre 30/04)</div>
     </div>
   </div>
@@ -4017,6 +4095,27 @@
         if(window.innerWidth <= 900) shell.classList.remove('mobile-open');
       });
     });
+    // ─── FILTROS COLAPSABLES EN MOBILE ───
+    // Cada .filter-bar recibe un botón para expandir/colapsar en mobile
+    const isMobile = (window.matchMedia && window.matchMedia('(max-width:540px)').matches) || window.innerWidth <= 540;
+    if(isMobile){
+      document.querySelectorAll('.filter-bar').forEach((bar, i) => {
+        // Insertar un botón toggle al inicio
+        const btn = document.createElement('button');
+        btn.className = 'filter-toggle';
+        btn.type = 'button';
+        btn.innerHTML = '<span class="toggle-icon">▾</span> <span class="toggle-text">Mostrar filtros</span>';
+        btn.style.display = 'block';
+        bar.classList.add('mobile-collapsed');
+        bar.insertBefore(btn, bar.firstChild);
+        btn.addEventListener('click', () => {
+          bar.classList.toggle('mobile-collapsed');
+          const collapsed = bar.classList.contains('mobile-collapsed');
+          btn.querySelector('.toggle-icon').textContent = collapsed ? '▾' : '▴';
+          btn.querySelector('.toggle-text').textContent = collapsed ? 'Mostrar filtros' : 'Ocultar filtros';
+        });
+      });
+    }
     // Click en backdrop (área fuera del drawer) cierra
     shell.addEventListener('click', (e) => {
       if(!shell.classList.contains('mobile-open')) return;
@@ -4393,8 +4492,10 @@
     charts['ff-gauge'] = new Chart(document.getElementById('ff-gauge'),{
       type:'doughnut',
       data:{labels:['Cumpl','Resto'], datasets:[{data:[val,rem], backgroundColor:[color,'#eef1f5'], borderWidth:0, circumference:270, rotation:225, cutout:'78%'}]},
-      options:{plugins:{legend:{display:false},tooltip:{enabled:false},datalabels:{display:false}}, animation:{duration:600}, maintainAspectRatio:false}
+      options:{plugins:{legend:{display:false},tooltip:{enabled:false},datalabels:{display:false}}, animation:{duration:600}, maintainAspectRatio:false, responsive:true, resizeDelay:50}
     });
+    // Forzar resize tras render para que respete viewport actual (especialmente mobile)
+    requestAnimationFrame(() => { try { charts['ff-gauge'].resize(); } catch(e){} });
   }
 
   function filterBadge(){
@@ -5248,8 +5349,9 @@
     charts['br-gauge'] = new Chart(document.getElementById('br-gauge'),{
       type:'doughnut',
       data:{labels:['Cumpl','Resto'],datasets:[{data:[val,rem],backgroundColor:[color,'#eef1f5'],borderWidth:0,circumference:270,rotation:225,cutout:'78%'}]},
-      options:{plugins:{legend:{display:false},tooltip:{enabled:false},datalabels:{display:false}},animation:{duration:600},maintainAspectRatio:false}
+      options:{plugins:{legend:{display:false},tooltip:{enabled:false},datalabels:{display:false}},animation:{duration:600},maintainAspectRatio:false,responsive:true,resizeDelay:50}
     });
+    requestAnimationFrame(() => { try { charts['br-gauge'].resize(); } catch(e){} });
   }
 
   function brRenderHero(){
