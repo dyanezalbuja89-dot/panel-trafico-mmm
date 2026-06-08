@@ -5385,6 +5385,47 @@
     else if(k.cumpl_proj>=100){ tag.textContent='🟢 en meta'; tag.style.background='var(--green-bg)'; tag.style.color='var(--green-tx)'; }
     else if(k.cumpl_proj>=70){ tag.textContent='🟡 alerta'; tag.style.background='var(--yellow-bg)'; tag.style.color='var(--yellow-tx)'; }
     else{ tag.textContent='🔴 riesgo'; tag.style.background='var(--red-bg)'; tag.style.color='var(--red-tx)'; }
+
+    // ─── Anomaly markers (Brand) ───
+    const deltaPct = k.prev>0 ? (k.delta/k.prev*100) : null;
+    setAnomaly(hs, deltaPct, { thresholds:{warn:10, bad:20} });
+    const gaugeCell = document.querySelector('#tab-brand .bento-cell.hero');
+    if(k.cumpl_proj != null){
+      let cumplPct;
+      if(k.cumpl_proj < 70)       cumplPct = -25;
+      else if(k.cumpl_proj < 85)  cumplPct = -12;
+      else if(k.cumpl_proj > 110) cumplPct =  22;
+      else                         cumplPct = null;
+      setAnomaly(gaugeCell, cumplPct, {
+        thresholds:{warn:10, bad:20},
+        labels:{ pos:'↑ Sobre meta', warn:'⚠ Alerta', bad:'↓ Riesgo' }
+      });
+    } else { setAnomaly(gaugeCell, null); }
+
+    // ─── Sparklines (Brand) ───
+    const dailyObj = B.daily?.daily || {};
+    const cumObj = B.daily?.cum || {};
+    const days = Object.keys(cumObj).map(Number).sort((a,b)=>a-b);
+    const cumSeries = days.length ? days.map(d => cumObj[d] || 0) : null;
+    const dailySeries = days.length ? days.map(d => dailyObj[d] || 0) : null;
+    if(cumSeries && cumSeries.length >= 2){
+      drawSparkline(document.getElementById('br-hs-total').parentElement || document.getElementById('br-hs-total'), cumSeries);
+    }
+    if(dailySeries && dailySeries.length >= 2){
+      const velCell = document.getElementById('br-hs-vel').parentElement;
+      drawSparkline(velCell, dailySeries, { color: 'var(--c-good)' });
+    }
+    if(cumSeries && cumSeries.length >= 2 && k.days_lab > 0){
+      const todayIdx = cumSeries.length - 1;
+      const startVal = cumSeries[todayIdx];
+      const fullProj = cumSeries.slice();
+      const remaining = Math.max(0, k.days_lab - todayIdx);
+      for(let i=1; i<=remaining; i++){ fullProj.push(startVal + (k.velocity||0) * i); }
+      const projCell = document.getElementById('br-hs-proj').parentElement;
+      drawSparkline(projCell, fullProj, {
+        color: k.cumpl_proj != null && k.cumpl_proj < 85 ? 'var(--c-warn)' : 'var(--c-primary)'
+      });
+    }
   }
 
   function brRenderMovements(){
@@ -6046,6 +6087,11 @@
     document.getElementById('cp-kpi-vel').textContent = ka.vel.toFixed(1)+' → '+kb.vel.toFixed(1);
     const dvel = kb.vel - ka.vel;
     document.getElementById('cp-kpi-vel-hint').textContent = (dvel>0?'+':'')+dvel.toFixed(1)+' reg/día';
+    // Anomaly marker en card Δ
+    setAnomaly(document.getElementById('cp-kpi-delta-card'), deltaPct, {
+      thresholds:{warn:10, bad:20},
+      labels:{ pos:'↑ Subida', warn:'⚠ Bajada', bad:'↓ Caída fuerte' }
+    });
   }
 
   function cpRenderTopMovers(){
@@ -9938,6 +9984,18 @@
     document.getElementById('inv-aging-90').textContent = fmt(a90);
     document.getElementById('inv-aging-old').textContent = fmt(aOld);
     document.getElementById('inv-aging-sinvin').textContent = `${sinVin} / ${colaTot}`;
+    // Anomaly markers: aging > 90 días si > 20% del total + sin VIN si > 15%
+    const totalAge = a30 + a60 + a90 + aOld;
+    const oldPct = totalAge>0 ? 100*aOld/totalAge : 0;
+    setAnomaly(document.getElementById('inv-aging-old').parentElement, oldPct > 20 ? -25 : null, {
+      thresholds:{warn:10, bad:20},
+      labels:{ bad:'↓ Stuck', warn:'⚠ Aging', pos:'' }
+    });
+    const sinVinPct = colaTot>0 ? 100*sinVin/colaTot : 0;
+    setAnomaly(document.getElementById('inv-aging-sinvin').parentElement, sinVinPct > 15 ? -25 : null, {
+      thresholds:{warn:10, bad:20},
+      labels:{ bad:'↓ Sin VIN alto', warn:'⚠ Sin VIN', pos:'' }
+    });
 
     // Top reservas más antiguas para esta marca
     const brandKey = invstate.marca === 'FORD' ? 'FORD' :
