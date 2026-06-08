@@ -2132,7 +2132,8 @@
 
 <header class="topbar">
   <div class="topbar-left">
-    <button class="mobile-menu-btn" id="mobile-menu-btn" title="Menú">
+    <button class="mobile-menu-btn" id="mobile-menu-btn" title="Menú" aria-label="Abrir menú"
+            onclick="var s=document.getElementById('app-shell'); if(s){s.classList.toggle('mobile-open');} event.stopPropagation();">
       <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
     <div style="min-width:0; flex:1">
