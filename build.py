@@ -1235,6 +1235,8 @@ HTML = r"""<!doctype html>
   .otros-header.theme-comp::before{background:#ce93d8}
   .otros-header.theme-embudo{background:linear-gradient(135deg, var(--c-ford-800) 0%, #0f766e 100%)}
   .otros-header.theme-embudo::before{background:#5eead4}
+  .otros-header.theme-digital{background:linear-gradient(135deg, #ff7a1a 0%, var(--c-ford-700) 100%)}
+  .otros-header.theme-digital::before{background:#ffb86c}
 
   /* Big stat card — refactored to Bento look */
   .stat-hero{
@@ -2176,6 +2178,10 @@ HTML = r"""<!doctype html>
     <svg class="tab-icon" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
     <span class="tab-label">Embudo</span>
   </button>
+  <button class="tab-btn" data-tab="digital" title="Seguimiento Digital · HubSpot">
+    <svg class="tab-icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><polyline points="7 14 12 9 16 13 21 8"/></svg>
+    <span class="tab-label">Seguimiento Digital</span>
+  </button>
 
   <div class="sidebar-section-label">Operación</div>
   <button class="tab-btn" data-tab="inv" title="Inventario Orgu">
@@ -2215,6 +2221,7 @@ HTML = r"""<!doctype html>
         <optgroup label="Ventas">
           <option value="conv">🎯 Conversión</option>
           <option value="embudo">🪜 Embudo</option>
+          <option value="digital">📡 Seguimiento Digital</option>
         </optgroup>
         <optgroup label="Operación">
           <option value="inv">📦 Inventario</option>
@@ -3602,6 +3609,131 @@ HTML = r"""<!doctype html>
       </div>
 
       <div class="footer-note">Datos del archivo BDD IMPORTACIONES (importaciones Ford a Ecuador). Solo refleja importaciones por distribuidor — no equivale a ventas al consumidor final.</div>
+    </div>
+  </section>
+
+  <!-- ======================= TAB DIGITAL · SEGUIMIENTO HUBSPOT ======================= -->
+  <section id="tab-digital" class="tab-panel">
+    <div class="otros-header theme-digital">
+      <div>
+        <h2>📡 Seguimiento Digital · HubSpot</h2>
+        <div class="sub" id="dig-source">Pipeline Ventas-Ford · datos en vivo del CRM (portal 21339231)</div>
+      </div>
+      <div style="font-size:11px; color:rgba(255,255,255,.7)" id="dig-updated">—</div>
+    </div>
+
+    <!-- KPI hero · totales del período -->
+    <div class="bento-grid" id="dig-hero" style="margin-top:var(--sp-4)">
+      <div class="bento-cell">
+        <div class="bento-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 14 12 9 16 13 21 8"/></svg>
+          Leads Recibidos
+        </div>
+        <div class="bento-value" id="dig-k-leads">—</div>
+        <div class="bento-hint" id="dig-k-leads-hint">7 meses · cohorte ingreso CCT</div>
+      </div>
+      <div class="bento-cell accent">
+        <div class="bento-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.95.37 1.88.7 2.76a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.32-1.32a2 2 0 0 1 2.11-.45c.88.33 1.81.57 2.76.7A2 2 0 0 1 22 16.92z"/></svg>
+          Contactados
+        </div>
+        <div class="bento-value" id="dig-k-cont">—</div>
+        <div class="bento-hint" id="dig-k-cont-hint">tasa contactabilidad</div>
+      </div>
+      <div class="bento-cell">
+        <div class="bento-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Citas Agendadas
+        </div>
+        <div class="bento-value" id="dig-k-agen">—</div>
+        <div class="bento-hint" id="dig-k-agen-hint">deals con fecha de cita</div>
+      </div>
+      <div class="bento-cell">
+        <div class="bento-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Citas Efectivas
+        </div>
+        <div class="bento-value" id="dig-k-efec">—</div>
+        <div class="bento-hint" id="dig-k-efec-hint">asistió = Sí</div>
+      </div>
+      <div class="bento-cell" id="dig-cell-noshow">
+        <div class="bento-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          No-Show
+        </div>
+        <div class="bento-value" id="dig-k-noshow">—</div>
+        <div class="bento-hint" id="dig-k-noshow-hint">agendadas que no asistieron</div>
+      </div>
+      <div class="bento-cell">
+        <div class="bento-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 12l-4-4-4 4"/><path d="M12 16V8"/></svg>
+          Ventas CRM
+        </div>
+        <div class="bento-value" id="dig-k-vent">—</div>
+        <div class="bento-hint">closedwon · sub-registrado vs DMS</div>
+      </div>
+    </div>
+
+    <!-- Funnel mensual (barra apilada por etapa) -->
+    <div class="ford-section">
+      <h3>📊 Embudo mensual por cohorte de ingreso <span class="sub">leads → contactados → agendadas → efectivas · últimos 7 meses</span></h3>
+      <div style="position:relative;height:360px"><canvas id="dig-funnel-chart"></canvas></div>
+      <div class="legend" style="margin-top:8px; font-size:11px; color:var(--c-muted); text-align:center">
+        Cada barra agrupa por <strong>mes de ingreso del lead al CCT</strong>. Cada etapa es subconjunto de la anterior.
+      </div>
+    </div>
+
+    <!-- Tabla por agencia -->
+    <div class="ford-section">
+      <h3>🏢 No-show por agencia <span class="sub" id="dig-ag-period">cohorte ingreso · mes anterior</span></h3>
+      <div style="overflow-x:auto">
+        <table class="ford" id="dig-tbl-agency">
+          <thead><tr>
+            <th class="left">Agencia</th>
+            <th>Leads</th>
+            <th>Agendadas</th>
+            <th>Efectivas</th>
+            <th>Show rate</th>
+            <th>Tendencia</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Top modelos de interés -->
+    <div class="ford-section">
+      <h3>🚗 Top modelos de interés <span class="sub" id="dig-mod-period">cohorte ingreso · mes anterior</span></h3>
+      <div style="position:relative;height:280px"><canvas id="dig-models-chart"></canvas></div>
+    </div>
+
+    <!-- Hallazgos / insights estáticos del knowledge base -->
+    <div class="ford-section">
+      <h3>🎯 Hallazgos del periodo <span class="sub">desperdicios confirmados · base dic-25 a may-26</span></h3>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:var(--sp-3)">
+        <div class="kpi bad">
+          <div class="label">⚠ No-show ~62%</div>
+          <div class="hint">Fuga #1 del embudo. Foco: CJA-Guayaquil (peor show-rate + mayor volumen) y modelos Ranger XL / Everest / Escape ST LINE</div>
+        </div>
+        <div class="kpi warn">
+          <div class="label">⚠ Leads no contactados</div>
+          <div class="hint"><strong>~14%</strong> nunca contactados (~96/mes). Cadencia muere en 1-2 intentos.</div>
+        </div>
+        <div class="kpi warn">
+          <div class="label">⚠ Higiene pipeline rota</div>
+          <div class="hint"><strong>88%</strong> estancado en "Cita agendada" · 0% de pérdidas con motivo. Loop de venta ciego (ventas viven en DMS, no CRM).</div>
+        </div>
+        <div class="kpi">
+          <div class="label">📅 Efecto fin de mes</div>
+          <div class="hint"><strong>~47%</strong> de los leads de la última semana agendan su cita el mes siguiente — el presupuesto del mes empieza a llenarse a fin del anterior.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      Datos en vivo de HubSpot · pipeline <strong>Ventas-Ford</strong> · portal 21339231 ·
+      cohorte = mes de ingreso CCT (no createdate) · cita efectiva = asistió=Sí ·
+      tasa cierre digital base 10% · margen referencia $5.000/unidad.
     </div>
   </section>
 
@@ -8611,6 +8743,121 @@ HTML = r"""<!doctype html>
   document.querySelector('.tab-btn[data-tab="embudo"]').addEventListener('click', ()=>{
     if(!_embudoInit){ embudoInitFilters(); _embudoInit=true; }
     renderEmbudo();
+  });
+
+  // ─────────────────── TAB DIGITAL · HubSpot ───────────────────
+  let _digInit = false;
+  let _digFunnelChart = null;
+  let _digModelsChart = null;
+  function renderDigital(){
+    const D = DATA.digital;
+    if(!D || !D.available){
+      document.getElementById('dig-source').textContent = 'HubSpot no disponible · ejecuta `python3 hubspot_pull.py` para refrescar';
+      document.getElementById('dig-k-leads').textContent = '—';
+      document.getElementById('dig-k-cont').textContent = '—';
+      document.getElementById('dig-k-agen').textContent = '—';
+      document.getElementById('dig-k-efec').textContent = '—';
+      document.getElementById('dig-k-noshow').textContent = '—';
+      document.getElementById('dig-k-vent').textContent = '—';
+      return;
+    }
+    const k = D.kpis || {};
+    document.getElementById('dig-k-leads').textContent = fmt(k.period_leads || 0);
+    document.getElementById('dig-k-cont').textContent  = fmt(k.period_cont  || 0);
+    document.getElementById('dig-k-cont-hint').textContent = (k.rate_cont||0) + '% contactabilidad · ' + ((k.period_leads||0) - (k.period_cont||0)) + ' no contactados';
+    document.getElementById('dig-k-agen').textContent  = fmt(k.period_agen  || 0);
+    document.getElementById('dig-k-agen-hint').textContent = (k.rate_agen||0) + '% del lead';
+    document.getElementById('dig-k-efec').textContent  = fmt(k.period_efec  || 0);
+    document.getElementById('dig-k-efec-hint').textContent = (k.rate_show||0) + '% show rate';
+    const noShowAbs = (k.period_agen || 0) - (k.period_efec || 0);
+    document.getElementById('dig-k-noshow').textContent = (k.rate_no_show||0) + '%';
+    document.getElementById('dig-k-noshow-hint').textContent = fmt(noShowAbs) + ' agendadas sin asistir';
+    document.getElementById('dig-k-vent').textContent  = fmt(k.period_vent  || 0);
+
+    // Anomaly markers según severidad
+    setAnomaly(document.getElementById('dig-cell-noshow'), (k.rate_no_show||0) > 50 ? -25 : ((k.rate_no_show||0) > 30 ? -12 : null), {
+      thresholds:{warn:10, bad:20}, labels:{ bad:'↓ Fuga #1', warn:'⚠ Alto', pos:'' }
+    });
+
+    if(D.updated_at){
+      const d = new Date(D.updated_at);
+      document.getElementById('dig-updated').textContent = 'Actualizado · ' + d.toLocaleString('es-EC', {dateStyle:'short', timeStyle:'short'});
+    }
+
+    // Funnel chart por mes
+    const months = D.months || [];
+    const labels = months.map(m => m.label);
+    if(_digFunnelChart) _digFunnelChart.destroy();
+    _digFunnelChart = new Chart(document.getElementById('dig-funnel-chart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Leads',       data: months.map(m=>m.leads), backgroundColor: 'rgba(100,116,139,.7)', borderRadius: 4 },
+          { label: 'Contactados', data: months.map(m=>m.cont),  backgroundColor: 'rgba(14,165,233,.85)',  borderRadius: 4 },
+          { label: 'Agendadas',   data: months.map(m=>m.agen),  backgroundColor: 'rgba(0,52,120,.9)',     borderRadius: 4 },
+          { label: 'Efectivas',   data: months.map(m=>m.efec),  backgroundColor: 'rgba(46,125,50,.9)',    borderRadius: 4 },
+          { label: 'Ventas CRM',  data: months.map(m=>m.vent),  backgroundColor: 'rgba(217,119,6,.95)',   borderRadius: 4 },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' }, datalabels: { display: false } },
+        scales: {
+          x: { stacked: false },
+          y: { beginAtZero: true, ticks: { precision: 0 } },
+        },
+      },
+    });
+
+    // Tabla por agencia
+    const ag = D.agencies || { rows: [], period: '' };
+    document.getElementById('dig-ag-period').textContent = 'cohorte ingreso · ' + (ag.period || '—');
+    const tbody = document.querySelector('#dig-tbl-agency tbody');
+    tbody.innerHTML = (ag.rows || []).map(r => {
+      const showColor = r.show_rate >= 40 ? 'var(--c-good-tx)' : r.show_rate >= 30 ? 'var(--c-warn-tx)' : 'var(--c-bad-tx)';
+      const barPct = Math.max(0, Math.min(100, r.show_rate));
+      const barColor = r.show_rate >= 40 ? 'var(--c-good)' : r.show_rate >= 30 ? 'var(--c-warn)' : 'var(--c-bad)';
+      return `<tr>
+        <td class="left">${r.agency}</td>
+        <td>${fmt(r.leads)}</td>
+        <td>${fmt(r.agen)}</td>
+        <td>${fmt(r.efec)}</td>
+        <td style="color:${showColor}; font-weight:700">${r.show_rate}%</td>
+        <td><div style="height:8px; background:var(--c-slate-100); border-radius:4px; overflow:hidden">
+          <div style="height:100%; width:${barPct}%; background:${barColor}; border-radius:4px"></div>
+        </div></td>
+      </tr>`;
+    }).join('');
+
+    // Top modelos
+    const mod = D.models || { rows: [], period: '' };
+    document.getElementById('dig-mod-period').textContent = 'cohorte ingreso · ' + (mod.period || '—');
+    const modLabels = (mod.rows || []).map(r => r.model);
+    const modData = (mod.rows || []).map(r => r.leads);
+    if(_digModelsChart) _digModelsChart.destroy();
+    _digModelsChart = new Chart(document.getElementById('dig-models-chart'), {
+      type: 'bar',
+      data: {
+        labels: modLabels,
+        datasets: [{
+          label: 'Leads',
+          data: modData,
+          backgroundColor: 'rgba(0,52,120,.9)',
+          borderRadius: 6,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', font: { weight: 'bold' } } },
+        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
+      },
+    });
+  }
+  document.querySelector('.tab-btn[data-tab="digital"]').addEventListener('click', ()=>{
+    if(!_digInit){ _digInit = true; }
+    renderDigital();
   });
 
   let compImpChart = null;

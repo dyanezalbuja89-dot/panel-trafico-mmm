@@ -1245,6 +1245,18 @@ def main():
     else:
         print(f"INFO: no data_xiy.json at {xiy_path}; tab Inversión quedará vacío")
 
+    # ─── Digital · HubSpot · pipeline Ventas-Ford ───
+    digital_path = ABRIL_BASE / "panel-trafico/digital.json"
+    if digital_path.exists():
+        try:
+            with open(digital_path, "r", encoding="utf-8") as f:
+                out["digital"] = json.load(f)
+            print(f"Merged digital snapshot from {digital_path.name}")
+        except Exception as e:
+            print(f"WARN: failed to load {digital_path}: {e}")
+    else:
+        print(f"INFO: no digital.json at {digital_path}; tab Seguimiento Digital quedará vacío")
+
     outpath = ABRIL_BASE / "panel-trafico/data.json"
     # ► Sanea NaN/Infinity antes de serializar. Python json.dump por default
     # escribe los tokens literales NaN/Infinity (no son JSON válido). El

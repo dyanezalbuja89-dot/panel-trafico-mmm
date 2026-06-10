@@ -1,0 +1,212 @@
+{
+  "available": true,
+  "updated_at": "2026-06-10T19:42:57.464460+00:00",
+  "portal": "21339231",
+  "pipeline": "Ventas-Ford",
+  "months": [
+    {
+      "label": "dic-25",
+      "year": 2025,
+      "month": 12,
+      "leads": 306,
+      "cont": 271,
+      "agen": 118,
+      "efec": 33,
+      "vent": 5
+    },
+    {
+      "label": "ene-26",
+      "year": 2026,
+      "month": 1,
+      "leads": 714,
+      "cont": 626,
+      "agen": 279,
+      "efec": 86,
+      "vent": 1
+    },
+    {
+      "label": "feb-26",
+      "year": 2026,
+      "month": 2,
+      "leads": 517,
+      "cont": 415,
+      "agen": 221,
+      "efec": 85,
+      "vent": 3
+    },
+    {
+      "label": "mar-26",
+      "year": 2026,
+      "month": 3,
+      "leads": 639,
+      "cont": 556,
+      "agen": 316,
+      "efec": 100,
+      "vent": 4
+    },
+    {
+      "label": "abr-26",
+      "year": 2026,
+      "month": 4,
+      "leads": 1008,
+      "cont": 871,
+      "agen": 319,
+      "efec": 120,
+      "vent": 2
+    },
+    {
+      "label": "may-26",
+      "year": 2026,
+      "month": 5,
+      "leads": 1029,
+      "cont": 849,
+      "agen": 349,
+      "efec": 106,
+      "vent": 4
+    },
+    {
+      "label": "jun-26",
+      "year": 2026,
+      "month": 6,
+      "leads": 510,
+      "cont": 383,
+      "agen": 158,
+      "efec": 33,
+      "vent": 0
+    }
+  ],
+  "agencies": {
+    "period": "may-26",
+    "rows": [
+      {
+        "agency": "CJA",
+        "agency_full": "Orgu Carlos Julio Arosemena",
+        "leads": 363,
+        "agen": 120,
+        "efec": 33,
+        "vent": 0,
+        "show_rate": 27.5
+      },
+      {
+        "agency": "La Y",
+        "agency_full": "Orgu La Y",
+        "leads": 258,
+        "agen": 80,
+        "efec": 24,
+        "vent": 0,
+        "show_rate": 30.0
+      },
+      {
+        "agency": "Orellana",
+        "agency_full": "Orgu Orellana",
+        "leads": 249,
+        "agen": 87,
+        "efec": 29,
+        "vent": 0,
+        "show_rate": 33.3
+      },
+      {
+        "agency": "Tumbaco",
+        "agency_full": "Orgu Tumbaco",
+        "leads": 110,
+        "agen": 34,
+        "efec": 10,
+        "vent": 2,
+        "show_rate": 29.4
+      },
+      {
+        "agency": "Manta",
+        "agency_full": "Orgu Manta",
+        "leads": 23,
+        "agen": 11,
+        "efec": 3,
+        "vent": 1,
+        "show_rate": 27.3
+      },
+      {
+        "agency": "Machala",
+        "agency_full": "Orgu Machala",
+        "leads": 16,
+        "agen": 8,
+        "efec": 2,
+        "vent": 1,
+        "show_rate": 25.0
+      },
+      {
+        "agency": "Portoviejo",
+        "agency_full": "Orgu Portoviejo",
+        "leads": 10,
+        "agen": 9,
+        "efec": 5,
+        "vent": 0,
+        "show_rate": 55.6
+      }
+    ]
+  },
+  "models": {
+    "period": "may-26",
+    "rows": [
+      {
+        "model": "Ranger XL",
+        "leads": 450
+      },
+      {
+        "model": "Escape ST LINE",
+        "leads": 342
+      },
+      {
+        "model": "Explorer Active",
+        "leads": 136
+      },
+      {
+        "model": "Territory Titanium",
+        "leads": 37
+      },
+      {
+        "model": "Explorer",
+        "leads": 8
+      },
+      {
+        "model": "Everest Active",
+        "leads": 8
+      },
+      {
+        "model": "Ranger XLT",
+        "leads": 7
+      },
+      {
+        "model": "Territory",
+        "leads": 6
+      },
+      {
+        "model": "Ranger",
+        "leads": 6
+      },
+      {
+        "model": "F150 Lariat",
+        "leads": 5
+      },
+      {
+        "model": "F150 XLT",
+        "leads": 5
+      },
+      {
+        "model": "Escape",
+        "leads": 4
+      }
+    ]
+  },
+  "kpis": {
+    "period_leads": 4723,
+    "period_cont": 3971,
+    "period_agen": 1760,
+    "period_efec": 563,
+    "period_vent": 19,
+    "rate_cont": 84.1,
+    "rate_agen": 37.3,
+    "rate_show": 32.0,
+    "rate_no_show": 68.0,
+    "rate_close": 3.4,
+    "rate_lead_to_sale": 0.4
+  }
+}
