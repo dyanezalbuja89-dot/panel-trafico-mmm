@@ -2168,6 +2168,10 @@ HTML = r"""<!doctype html>
     <svg class="tab-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
     <span class="tab-label">Análisis General</span>
   </button>
+  <button class="tab-btn" data-tab="digital" title="Seguimiento Digital · HubSpot">
+    <svg class="tab-icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><polyline points="7 14 12 9 16 13 21 8"/></svg>
+    <span class="tab-label">Seguimiento Digital</span>
+  </button>
 
   <div class="sidebar-section-label">Ventas</div>
   <button class="tab-btn" data-tab="conv" title="Conversión">
@@ -2177,10 +2181,6 @@ HTML = r"""<!doctype html>
   <button class="tab-btn" data-tab="embudo" title="Embudo">
     <svg class="tab-icon" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
     <span class="tab-label">Embudo</span>
-  </button>
-  <button class="tab-btn" data-tab="digital" title="Seguimiento Digital · HubSpot">
-    <svg class="tab-icon" viewBox="0 0 24 24"><path d="M3 3v18h18"/><polyline points="7 14 12 9 16 13 21 8"/></svg>
-    <span class="tab-label">Seguimiento Digital</span>
   </button>
 
   <div class="sidebar-section-label">Operación</div>
@@ -2217,11 +2217,11 @@ HTML = r"""<!doctype html>
           <option value="brand">🏷️ Reporte Marcas</option>
           <option value="comp">🔁 Comparativo</option>
           <option value="otros">📑 Análisis General</option>
+          <option value="digital">📡 Seguimiento Digital</option>
         </optgroup>
         <optgroup label="Ventas">
           <option value="conv">🎯 Conversión</option>
           <option value="embudo">🪜 Embudo</option>
-          <option value="digital">📡 Seguimiento Digital</option>
         </optgroup>
         <optgroup label="Operación">
           <option value="inv">📦 Inventario</option>
@@ -3614,12 +3614,26 @@ HTML = r"""<!doctype html>
 
   <!-- ======================= TAB DIGITAL · SEGUIMIENTO HUBSPOT ======================= -->
   <section id="tab-digital" class="tab-panel">
+    <!-- Password gate -->
+    <div id="dig-gate" class="pw-gate">
+      <div class="icon">🔒</div>
+      <h2>Acceso restringido</h2>
+      <p>Ingresa la contraseña para ver el seguimiento digital del CRM.</p>
+      <input type="password" id="dig-pw" placeholder="Contraseña" autocomplete="off">
+      <button id="dig-pw-btn" type="button">Acceder</button>
+      <div class="err" id="dig-pw-err"></div>
+    </div>
+
+    <div id="dig-content" style="display:none">
     <div class="otros-header theme-digital">
       <div>
         <h2>📡 Seguimiento Digital · HubSpot</h2>
         <div class="sub" id="dig-source">Pipeline Ventas-Ford · datos en vivo del CRM (portal 21339231)</div>
       </div>
-      <div style="font-size:11px; color:rgba(255,255,255,.7)" id="dig-updated">—</div>
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end">
+        <div style="font-size:11px; color:rgba(255,255,255,.7)" id="dig-updated">—</div>
+        <button id="dig-logout" type="button" class="logout-btn">Cerrar sesión</button>
+      </div>
     </div>
 
     <!-- KPI hero · totales del período -->
@@ -3735,6 +3749,7 @@ HTML = r"""<!doctype html>
       cohorte = mes de ingreso CCT (no createdate) · cita efectiva = asistió=Sí ·
       tasa cierre digital base 10% · margen referencia $5.000/unidad.
     </div>
+    </div><!-- /dig-content -->
   </section>
 
   <!-- ======================= TAB EMBUDO ======================= -->
@@ -7080,6 +7095,8 @@ HTML = r"""<!doctype html>
   //                  OTROS TAB (password gated)
   // =========================================================
   const OTROS_HASH = 'e3887ed7533583c89c72aa19a6bcc0f38c5370374af828009770eb85f142a30c';
+  // Hash de 'Maresa2026*' — usado para gate del tab Seguimiento Digital
+  const DIGITAL_HASH = 'd2737b671e3f8dc12873154ca1f9f546750ae259480eb7b41234b1e2669f610d';
   // SHA-256 de la contraseña. Cambiar al re-build si quieres otra.
 
   async function sha256(text){
@@ -8855,9 +8872,34 @@ HTML = r"""<!doctype html>
       },
     });
   }
-  document.querySelector('.tab-btn[data-tab="digital"]').addEventListener('click', ()=>{
-    if(!_digInit){ _digInit = true; }
+  // Gate de password (independiente de otros — clave Maresa2026*)
+  function digitalUnlocked(){ return localStorage.getItem('digital_unlocked')==='1'; }
+  function digShowGate(){
+    document.getElementById('dig-gate').style.display='block';
+    document.getElementById('dig-content').style.display='none';
+  }
+  function digShowContent(){
+    document.getElementById('dig-gate').style.display='none';
+    document.getElementById('dig-content').style.display='block';
     renderDigital();
+  }
+  async function digTryUnlock(){
+    const pw = document.getElementById('dig-pw').value;
+    const err = document.getElementById('dig-pw-err');
+    err.textContent = '';
+    const h = await sha256Hex(pw);
+    if(h === DIGITAL_HASH){
+      localStorage.setItem('digital_unlocked','1');
+      digShowContent();
+    } else { err.textContent = 'Contraseña incorrecta'; }
+  }
+  document.getElementById('dig-pw-btn').addEventListener('click', digTryUnlock);
+  document.getElementById('dig-pw').addEventListener('keydown', e=>{ if(e.key==='Enter') digTryUnlock(); });
+  document.getElementById('dig-logout').addEventListener('click', ()=>{
+    localStorage.removeItem('digital_unlocked'); digShowGate();
+  });
+  document.querySelector('.tab-btn[data-tab="digital"]').addEventListener('click', ()=>{
+    if(digitalUnlocked()) digShowContent(); else digShowGate();
   });
 
   let compImpChart = null;
