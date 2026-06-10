@@ -8887,7 +8887,8 @@ HTML = r"""<!doctype html>
     const pw = document.getElementById('dig-pw').value;
     const err = document.getElementById('dig-pw-err');
     err.textContent = '';
-    const h = await sha256Hex(pw);
+    if(!pw){ err.textContent = 'Ingresa la contraseña'; return; }
+    const h = await sha256(pw);
     if(h === DIGITAL_HASH){
       localStorage.setItem('digital_unlocked','1');
       digShowContent();
