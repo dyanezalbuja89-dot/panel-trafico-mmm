@@ -1945,6 +1945,34 @@ HTML = r"""<!doctype html>
   }
 
   /* ─── HEATMAP CRUCE · rediseño UX ─── */
+  /* Chips de filtro arriba */
+  .hm-filters{
+    display:flex; flex-wrap:wrap; gap:6px;
+    margin-bottom:12px;
+  }
+  .hm-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--c-surface);
+    border:1px solid var(--c-border);
+    color:var(--c-muted);
+    padding:6px 12px;
+    border-radius:var(--r-full);
+    font:inherit; font-size:11px; font-weight:600;
+    letter-spacing:.02em;
+    cursor:pointer;
+    transition:all .15s ease;
+    -webkit-user-select:none; user-select:none;
+  }
+  .hm-chip:hover{border-color:var(--c-border-strong); color:var(--c-fg)}
+  .hm-chip.active{
+    background:var(--c-ford-700); color:#fff;
+    border-color:var(--c-ford-700);
+  }
+  .hm-chip-dot{
+    display:inline-block; width:8px; height:8px;
+    border-radius:50%;
+  }
+
   #an-tbl-cruce-heat{border-collapse:separate; border-spacing:3px; width:100%}
   #an-tbl-cruce-heat .hm-rhead{
     background:linear-gradient(180deg, var(--c-ford-800), var(--c-ford-700));
@@ -2032,6 +2060,117 @@ HTML = r"""<!doctype html>
     font-weight:800;
   }
   #an-tbl-cruce-heat .hm-c-total .hm-num{font-size:19px}
+
+  /* Delta vs mes anterior (badge sutil arriba derecha) */
+  #an-tbl-cruce-heat .hm-delta{
+    position:absolute; top:3px; right:5px;
+    font-size:9px; font-weight:700;
+    letter-spacing:-.01em;
+    opacity:.7;
+  }
+  #an-tbl-cruce-heat .hm-delta.up::before{content:'▲'; margin-right:1px; font-size:7px}
+  #an-tbl-cruce-heat .hm-delta.dn::before{content:'▼'; margin-right:1px; font-size:7px}
+  #an-tbl-cruce-heat .hm-delta.up{color:#16a34a}
+  #an-tbl-cruce-heat .hm-delta.dn{color:#dc2626}
+  html[data-theme="dark"] #an-tbl-cruce-heat .hm-delta.up{color:#86efac}
+  html[data-theme="dark"] #an-tbl-cruce-heat .hm-delta.dn{color:#fca5a5}
+
+  /* Badge ★ para outliers > 150% (más prominente que el delta) */
+  #an-tbl-cruce-heat .hm-star{
+    position:absolute; top:3px; left:5px;
+    font-size:11px; line-height:1;
+    color:#facc15; text-shadow:0 0 2px rgba(0,0,0,.3);
+  }
+
+  /* Mini bullet bar debajo del % (real vs meta visual) */
+  #an-tbl-cruce-heat .hm-bullet{
+    height:3px; background:rgba(0,0,0,.08); border-radius:2px;
+    margin:5px auto 0; max-width:56px; position:relative; overflow:visible;
+  }
+  #an-tbl-cruce-heat .hm-bullet-fill{
+    position:absolute; left:0; top:0; bottom:0; border-radius:2px;
+    background:currentColor;
+  }
+  /* Línea de meta sobre la barra */
+  #an-tbl-cruce-heat .hm-bullet-meta{
+    position:absolute; top:-1px; bottom:-1px; width:2px;
+    background:currentColor; opacity:.55;
+  }
+  html[data-theme="dark"] #an-tbl-cruce-heat .hm-bullet{background:rgba(255,255,255,.15)}
+
+  /* Progress bar en header del mes en curso */
+  #an-tbl-cruce-heat .hm-progress{
+    height:3px; background:rgba(0,52,120,.15); border-radius:2px;
+    margin-top:4px; overflow:hidden;
+  }
+  #an-tbl-cruce-heat .hm-progress-fill{
+    height:100%; background:var(--c-primary);
+    border-radius:2px; transition:width .5s ease;
+  }
+
+  /* Sub-fila de drill-down (oculta por default) */
+  #an-tbl-cruce-heat tr.hm-drill-row{display:none}
+  #an-tbl-cruce-heat tr.hm-drill-row.open{display:table-row; animation:hmDrillIn .25s ease-out}
+  @keyframes hmDrillIn{
+    from{opacity:0; transform:translateY(-4px)}
+    to{opacity:1; transform:translateY(0)}
+  }
+  #an-tbl-cruce-heat tr.hm-drill-row > td{
+    background:var(--c-slate-50);
+    border-radius:8px;
+    padding:14px 16px !important;
+  }
+  html[data-theme="dark"] #an-tbl-cruce-heat tr.hm-drill-row > td{background:var(--c-slate-100)}
+  .hm-drill-content{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+    gap:10px;
+    font-size:11.5px;
+  }
+  .hm-drill-card{
+    background:var(--c-surface);
+    border:1px solid var(--c-border);
+    border-left:3px solid var(--c-primary);
+    border-radius:6px;
+    padding:8px 10px;
+    line-height:1.45;
+  }
+  .hm-drill-card.crit{border-left-color:#dc2626}
+  .hm-drill-card.bad{border-left-color:#ea580c}
+  .hm-drill-card.warn{border-left-color:#d97706}
+  .hm-drill-card.ok{border-left-color:#16a34a}
+  .hm-drill-card.over{border-left-color:#15803d}
+  .hm-drill-card.cur{border-left-color:#6366f1}
+  .hm-drill-card.na{border-left-color:var(--c-muted); opacity:.65}
+  .hm-drill-card h4{
+    margin:0 0 4px; font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.04em;
+    color:var(--c-muted); display:flex; justify-content:space-between;
+  }
+  .hm-drill-card h4 .pct{color:var(--c-fg); font-size:14px; letter-spacing:-.01em}
+  .hm-drill-card .row{
+    display:flex; justify-content:space-between;
+    border-top:1px dashed var(--c-slate-100);
+    padding:3px 0;
+    font-variant-numeric:tabular-nums;
+  }
+  .hm-drill-card .row:first-of-type{border-top:0}
+  .hm-drill-card .row .lbl{color:var(--c-muted); font-size:10.5px}
+  .hm-drill-card .row .val{font-weight:600; color:var(--c-fg)}
+  .hm-drill-diag{
+    margin-top:6px; padding-top:6px;
+    border-top:1px solid var(--c-slate-100);
+    font-size:10.5px; line-height:1.45;
+    color:var(--c-muted); font-style:italic;
+  }
+  /* Indicador visual de "click para expandir" */
+  #an-tbl-cruce-heat .hm-c{cursor:pointer}
+  #an-tbl-cruce-heat .hm-c.open{
+    box-shadow:0 0 0 2px var(--c-primary);
+  }
+
+  /* Filtros de chip: ocultar filas que no contienen estado seleccionado */
+  #an-tbl-cruce-heat tbody tr.hm-filtered{display:none}
 
   /* Mobile compacto */
   @media(max-width:768px){
@@ -4175,8 +4314,23 @@ HTML = r"""<!doctype html>
       <!-- CRUCE TRÁFICO × INVENTARIO × RESERVAS -->
       <div class="ford-section">
         <h3>📊 Cruce tráfico × inventario × reservas <span class="sub">¿La caída de tráfico está justificada por reservas pre-mes con inventario que las respalde?</span></h3>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
-          Cada celda muestra el <strong>% de cumplimiento de tráfico</strong> (real / meta). El <strong>color</strong> codifica el estado en 5 niveles: <span style="background:#fecaca;color:#7f1d1d;padding:1px 6px;border-radius:4px;font-weight:700">crítico &lt;50%</span> <span style="background:#fde0d8;color:#9a3412;padding:1px 6px;border-radius:4px;font-weight:700">bajo 50-70%</span> <span style="background:#fef3c7;color:#854d09;padding:1px 6px;border-radius:4px;font-weight:700">alerta 70-90%</span> <span style="background:#d1fae5;color:#14532d;padding:1px 6px;border-radius:4px;font-weight:700">ok 90-120%</span> <span style="background:#86efac;color:#052e16;padding:1px 6px;border-radius:4px;font-weight:700">sobre meta &gt;120%</span>. La última columna muestra la <strong>tendencia</strong>. Hover/tap en celda para detalle.
+        <div style="font-size:12px;color:var(--c-muted);margin-bottom:10px">
+          Cada celda muestra el <strong>% cumplimiento de tráfico</strong>. <strong>Tap en la celda</strong> para ver detalle completo del modelo en todos los meses.
+          <span style="display:inline-flex;flex-wrap:wrap;gap:6px;margin-left:8px;vertical-align:middle">
+            <span style="background:#fecaca;color:#7f1d1d;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">crítico &lt;50%</span>
+            <span style="background:#fde0d8;color:#9a3412;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">bajo 50-70%</span>
+            <span style="background:#fef3c7;color:#854d09;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">alerta 70-90%</span>
+            <span style="background:#d1fae5;color:#14532d;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">ok 90-120%</span>
+            <span style="background:#86efac;color:#052e16;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">sobre meta &gt;120%</span>
+          </span>
+        </div>
+        <!-- Filtros rápidos por estado -->
+        <div class="hm-filters" id="hm-filter-chips">
+          <button class="hm-chip active" data-filter="all" type="button">Todos</button>
+          <button class="hm-chip" data-filter="crit" type="button"><span class="hm-chip-dot" style="background:#dc2626"></span> Críticos</button>
+          <button class="hm-chip" data-filter="bad" type="button"><span class="hm-chip-dot" style="background:#ea580c"></span> Bajos</button>
+          <button class="hm-chip" data-filter="warn" type="button"><span class="hm-chip-dot" style="background:#d97706"></span> En alerta</button>
+          <button class="hm-chip" data-filter="over" type="button"><span class="hm-chip-dot" style="background:#16a34a"></span> Sobre meta ★</button>
         </div>
         <!-- Heatmap mes × modelo -->
         <div style="overflow-x:auto;margin-bottom:14px">
@@ -9955,16 +10109,20 @@ HTML = r"""<!doctype html>
     const heatHead = document.querySelector('#an-tbl-cruce-heat thead');
     const heatBody = document.querySelector('#an-tbl-cruce-heat tbody');
 
-    // Headers con contexto: días lab. y estado (cerrado / en curso)
+    // Headers con contexto: días lab. + barra de progreso si está en curso
     const headerCells = monthKeys.map((k, i) => {
-      const c = (DATA.months_config || []).find(x => x.key === k);
       const fm = FORD_MONTHS[k] || {};
       const isCurrent = mc[k]?.is_current;
       const label = monthLabels[i].toUpperCase();
-      const ctx = isCurrent
-        ? `<span class="hm-h-ctx hm-h-ctx-cur">${fm.days_trans || '—'}/${fm.days_lab || '—'} d</span>`
-        : `<span class="hm-h-ctx">${fm.days_lab || '—'} d</span>`;
-      return `<th class="hm-mhead">${label}<br>${ctx}</th>`;
+      let ctx, progress = '';
+      if(isCurrent){
+        const pctMes = (fm.days_lab > 0) ? Math.round(100 * fm.days_trans / fm.days_lab) : 0;
+        ctx = `<span class="hm-h-ctx hm-h-ctx-cur">${fm.days_trans || '—'}/${fm.days_lab || '—'} d</span>`;
+        progress = `<div class="hm-progress"><div class="hm-progress-fill" style="width:${pctMes}%"></div></div>`;
+      } else {
+        ctx = `<span class="hm-h-ctx">${fm.days_lab || '—'} d</span>`;
+      }
+      return `<th class="hm-mhead">${label}<br>${ctx}${progress}</th>`;
     }).join('');
     heatHead.innerHTML = `<tr>
       <th class="hm-rhead">Modelo</th>
@@ -9982,15 +10140,27 @@ HTML = r"""<!doctype html>
       return 'over';
     }
 
-    function cellHtml(r, prevR, isTotal){
-      if(!r) return `<td class="hm-c hm-c-na"></td>`;
+    function cellHtml(r, prevR, isTotal, modelo, monthIdx){
+      if(!r) return `<td class="hm-c hm-c-na" data-level="na"></td>`;
       const diag = diagnose(r, prevR);
       const cumplT = r.cumpl;
       const isCurrent = mc[r.mk]?.is_current;
       const lvl = isCurrent ? 'cur' : level(cumplT);
-      // Tooltip
-      const cumplV = (r.metaVentas > 0) ? Math.round(100*r.ventas/r.metaVentas) : null;
-      const tip = `${r.lbl}\nTráfico: ${r.trafico} / ${r.meta || '—'} (${r.cumpl ?? '—'}%)\nVentas: ${r.ventas} / ${r.metaVentas || '—'} (${cumplV != null ? cumplV+'%' : '—'})\nStock inicio → cierre: ${r.disp_som ?? '—'} → ${r.disp_eom ?? '—'}\nReservas: ${r.reserv_som ?? '—'}\n→ ${diag.detail}`;
+
+      // Delta vs mes anterior (solo si ambos tienen cumpl válido)
+      let deltaHtml = '';
+      if(!isCurrent && prevR && prevR.cumpl != null && cumplT != null){
+        const delta = cumplT - prevR.cumpl;
+        if(Math.abs(delta) >= 5){
+          const sign = delta > 0 ? 'up' : 'dn';
+          const abs = Math.abs(delta);
+          deltaHtml = `<span class="hm-delta ${sign}">${abs}</span>`;
+        }
+      }
+
+      // Badge ★ para outliers extremos (> 150%)
+      const starHtml = (cumplT != null && cumplT > 150) ? `<span class="hm-star" title="Outlier · más del 150% de meta">★</span>` : '';
+
       // Número grande: solo % cumplimiento. Si no hay cumpl pero hay actividad, mostrar volumen.
       let bigNum, bigSub;
       if(cumplT != null){
@@ -10006,9 +10176,25 @@ HTML = r"""<!doctype html>
         bigNum = `—`;
         bigSub = '';
       }
-      return `<td class="hm-c hm-c-${lvl}${isTotal?' hm-c-total':''}" title="${tip.replace(/"/g,'&quot;')}">
+
+      // Bullet bar mini: posición de proyección/real vs meta (escala 0-150% para acomodar overshoot moderado)
+      let bulletHtml = '';
+      if(cumplT != null && !isCurrent){
+        const scaleMax = 150;
+        const fillPct = Math.min(100, (cumplT / scaleMax) * 100);
+        const metaPct = (100 / scaleMax) * 100;
+        bulletHtml = `<div class="hm-bullet">
+          <div class="hm-bullet-fill" style="width:${fillPct}%"></div>
+          <div class="hm-bullet-meta" style="left:calc(${metaPct}% - 1px)"></div>
+        </div>`;
+      }
+
+      const dataAttrs = `data-level="${lvl}" data-model="${modelo || 'TOTAL'}" data-month-idx="${monthIdx}" data-mk="${r.mk}"`;
+      return `<td class="hm-c hm-c-${lvl}${isTotal?' hm-c-total':''}" ${dataAttrs}>
+        ${starHtml}${deltaHtml}
         <div class="hm-num">${bigNum}</div>
         ${bigSub}
+        ${bulletHtml}
       </td>`;
     }
 
@@ -10073,19 +10259,96 @@ HTML = r"""<!doctype html>
       return r;
     });
 
-    heatBody.innerHTML = modelOrder.map(modelo => {
+    // Construye drill-down content para una fila (sub-card por mes)
+    function drillRowHtml(rows, modelo){
+      const cards = rows.map((r, i) => {
+        if(!r) return `<div class="hm-drill-card na">
+          <h4>${monthLabels[i]} <span class="pct">—</span></h4>
+          <div class="hm-drill-diag">Sin datos</div>
+        </div>`;
+        const prev = i > 0 ? rows[i-1] : null;
+        const diag = diagnose(r, prev);
+        const isCurrent = mc[r.mk]?.is_current;
+        const lvl = isCurrent ? 'cur' : level(r.cumpl);
+        const cumplV = (r.metaVentas > 0) ? Math.round(100*r.ventas/r.metaVentas) : null;
+        const pctTxt = isCurrent ? '⟳' : (r.cumpl != null ? r.cumpl+'%' : '—');
+        return `<div class="hm-drill-card ${lvl}">
+          <h4>${monthLabels[i]} <span class="pct">${pctTxt}</span></h4>
+          <div class="row"><span class="lbl">Tráfico real</span><span class="val">${r.trafico ?? '—'}${r.meta ? ' / '+r.meta : ''}</span></div>
+          <div class="row"><span class="lbl">Ventas</span><span class="val">${r.ventas ?? '—'}${r.metaVentas ? ' / '+r.metaVentas : ''}${cumplV!=null ? ' ('+cumplV+'%)' : ''}</span></div>
+          <div class="row"><span class="lbl">Stock SOM → EOM</span><span class="val">${r.disp_som ?? '—'} → ${r.disp_eom ?? '—'}</span></div>
+          <div class="row"><span class="lbl">Reservas inicio</span><span class="val">${r.reserv_som ?? '—'}</span></div>
+          <div class="hm-drill-diag">${diag.detail}</div>
+        </div>`;
+      }).join('');
+      const colspan = monthKeys.length + 2;
+      return `<tr class="hm-drill-row" data-for-model="${modelo}">
+        <td colspan="${colspan}">
+          <div class="hm-drill-content">${cards}</div>
+        </td>
+      </tr>`;
+    }
+
+    const modelRowsHtml = modelOrder.map(modelo => {
       const rs = rowsByModel[modelo];
-      const cells = rs.map((r, i) => cellHtml(r, i>0 ? rs[i-1] : null, false)).join('');
-      return `<tr>
+      const cells = rs.map((r, i) => cellHtml(r, i>0 ? rs[i-1] : null, false, modelo, i)).join('');
+      const dataRow = `<tr class="hm-data-row" data-model="${modelo}">
         <td class="hm-rhead-cell"><strong>${modelo}</strong></td>
         ${cells}
         ${sparklineCell(rs)}
       </tr>`;
-    }).join('') + `<tr class="hm-total-row">
+      return dataRow + drillRowHtml(rs, modelo);
+    }).join('');
+
+    const totalCells = totalRows.map((r,i) => cellHtml(r, i>0 ? totalRows[i-1] : null, true, 'TOTAL', i)).join('');
+    const totalDrill = drillRowHtml(totalRows, 'TOTAL');
+    heatBody.innerHTML = modelRowsHtml + `<tr class="hm-data-row hm-total-row" data-model="TOTAL">
       <td class="hm-rhead-cell hm-total-name"><strong>TOTAL FORD</strong></td>
-      ${totalRows.map((r,i) => cellHtml(r, i>0 ? totalRows[i-1] : null, true)).join('')}
+      ${totalCells}
       ${sparklineCell(totalRows)}
-    </tr>`;
+    </tr>` + totalDrill;
+
+    // ─── Interactividad: click expande / colapsa drill-down ───
+    heatBody.querySelectorAll('.hm-c').forEach(cell => {
+      cell.addEventListener('click', () => {
+        const row = cell.closest('tr');
+        if(!row) return;
+        const model = row.dataset.model;
+        const drillRow = heatBody.querySelector(`tr.hm-drill-row[data-for-model="${model}"]`);
+        if(!drillRow) return;
+        const isOpen = drillRow.classList.contains('open');
+        // Cerrar todos
+        heatBody.querySelectorAll('tr.hm-drill-row.open').forEach(r => r.classList.remove('open'));
+        heatBody.querySelectorAll('.hm-c.open').forEach(c => c.classList.remove('open'));
+        if(!isOpen){
+          drillRow.classList.add('open');
+          cell.classList.add('open');
+          // Scroll suave al drill-down
+          requestAnimationFrame(() => {
+            drillRow.scrollIntoView({behavior:'smooth', block:'nearest'});
+          });
+        }
+      });
+    });
+
+    // ─── Filtros chips: mostrar solo filas con celdas del nivel ───
+    const filterChips = document.querySelectorAll('#hm-filter-chips .hm-chip');
+    filterChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        filterChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const filter = chip.dataset.filter;
+        heatBody.querySelectorAll('tr.hm-data-row').forEach(row => {
+          row.classList.remove('hm-filtered');
+          const drill = heatBody.querySelector(`tr.hm-drill-row[data-for-model="${row.dataset.model}"]`);
+          if(drill) drill.classList.remove('open');
+          if(filter === 'all') return;
+          const hasMatch = row.querySelectorAll(`.hm-c[data-level="${filter}"]`).length > 0;
+          if(!hasMatch) row.classList.add('hm-filtered');
+        });
+        heatBody.querySelectorAll('.hm-c.open').forEach(c => c.classList.remove('open'));
+      });
+    });
 
     // ====================== TABLA DETALLE ======================
     const filtroModelo = anstate.modelo || null;
