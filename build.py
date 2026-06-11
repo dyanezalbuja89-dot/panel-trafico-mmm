@@ -6431,25 +6431,62 @@ HTML = r"""<!doctype html>
     }));
   }
 
+  // ─── Normalización para Comparativo ───────────────────────
+  // Si un mes está en curso (cut_day < fin del mes) y el otro está cerrado,
+  // truncamos el cerrado al mismo día calendario usando daily.cum, y aplicamos
+  // el mismo factor de truncamiento al valor filtrado (asume distribución
+  // proporcional para filtros agencia/modelo).
+  function cpAcumAtDay(monthData, calendarDay, currFiltered){
+    if(!monthData || !monthData.daily || !monthData.daily.cum) return currFiltered;
+    if(calendarDay >= (monthData.cut_day || 99)) return currFiltered;
+    const cum = monthData.daily.cum;
+    const keys = Object.keys(cum).map(Number).sort((a,b)=>a-b);
+    if(!keys.length) return currFiltered;
+    let partial = 0, total = 0;
+    for(const k of keys){
+      if(k <= calendarDay) partial = cum[k];
+      total = cum[k];
+    }
+    if(total === 0) return currFiltered;
+    return Math.round(currFiltered * partial / total);
+  }
+
   function cpRenderKpis(){
     const A = cpGetData(cpstate.monthA);
     const B = cpGetData(cpstate.monthB);
-    const ka = cpAggregate(A) || {curr:0,vel:0};
-    const kb = cpAggregate(B) || {curr:0,vel:0};
+    const ka = cpAggregate(A) || {curr:0,vel:0,days_trans:0};
+    const kb = cpAggregate(B) || {curr:0,vel:0,days_trans:0};
     const cA = MONTHS_CONFIG.find(c=>c.key===cpstate.monthA)?.label || '?';
     const cB = MONTHS_CONFIG.find(c=>c.key===cpstate.monthB)?.label || '?';
+
+    // ─── NORMALIZACIÓN al menor cut_day ───
+    // Compara lo mismo con lo mismo: mes cerrado vs mes en curso → trunca el
+    // cerrado al día calendario actual del en curso.
+    const cutA = A?.cut_day || 31;
+    const cutB = B?.cut_day || 31;
+    const minCut = Math.min(cutA, cutB);
+    const truncated = (cutA !== cutB);
+    const kaCurrNorm = truncated ? cpAcumAtDay(A, minCut, ka.curr) : ka.curr;
+    const kbCurrNorm = truncated ? cpAcumAtDay(B, minCut, kb.curr) : kb.curr;
+
     document.getElementById('cp-kpi-a-lbl').textContent = cA;
     document.getElementById('cp-kpi-b-lbl').textContent = cB;
-    document.getElementById('cp-kpi-a').textContent = fmt(ka.curr);
-    document.getElementById('cp-kpi-b').textContent = fmt(kb.curr);
-    document.getElementById('cp-kpi-a-hint').textContent = (A?.cut_date||'')+' · '+ka.days_trans+' días lab.';
-    document.getElementById('cp-kpi-b-hint').textContent = (B?.cut_date||'')+' · '+kb.days_trans+' días lab.';
-    const delta = kb.curr - ka.curr;
-    const deltaPct = ka.curr>0 ? (100*delta/ka.curr) : null;
+    document.getElementById('cp-kpi-a').textContent = fmt(kaCurrNorm);
+    document.getElementById('cp-kpi-b').textContent = fmt(kbCurrNorm);
+    if(truncated){
+      const dayLbl = `al día ${minCut} de cada mes · normalizado`;
+      document.getElementById('cp-kpi-a-hint').textContent = `${dayLbl} · cierre real ${fmt(ka.curr)} en ${ka.days_trans} días`;
+      document.getElementById('cp-kpi-b-hint').textContent = `${dayLbl} · cierre real ${fmt(kb.curr)} en ${kb.days_trans} días`;
+    } else {
+      document.getElementById('cp-kpi-a-hint').textContent = (A?.cut_date||'')+' · '+ka.days_trans+' días lab.';
+      document.getElementById('cp-kpi-b-hint').textContent = (B?.cut_date||'')+' · '+kb.days_trans+' días lab.';
+    }
+    const delta = kbCurrNorm - kaCurrNorm;
+    const deltaPct = kaCurrNorm>0 ? (100*delta/kaCurrNorm) : null;
     const deltaEl = document.getElementById('cp-kpi-delta');
     deltaEl.textContent = (delta>0?'+':'')+delta;
     deltaEl.style.color = delta>0?'var(--pos)':delta<0?'var(--neg)':'var(--muted)';
-    document.getElementById('cp-kpi-delta-hint').textContent = deltaPct==null?'—' : ((delta>0?'+':'')+deltaPct.toFixed(1)+'% vs '+cA);
+    document.getElementById('cp-kpi-delta-hint').textContent = deltaPct==null?'—' : ((delta>0?'+':'')+deltaPct.toFixed(1)+`% vs ${cA}${truncated?' (al día '+minCut+')':''}`);
     document.getElementById('cp-kpi-vel').textContent = ka.vel.toFixed(1)+' → '+kb.vel.toFixed(1);
     const dvel = kb.vel - ka.vel;
     document.getElementById('cp-kpi-vel-hint').textContent = (dvel>0?'+':'')+dvel.toFixed(1)+' reg/día';
@@ -6464,10 +6501,13 @@ HTML = r"""<!doctype html>
     const A = cpGetData(cpstate.monthA);
     const B = cpGetData(cpstate.monthB);
     if(!A || !B){ document.getElementById('cp-top-up').innerHTML='<li style="color:var(--muted)">—</li>'; document.getElementById('cp-top-down').innerHTML='<li style="color:var(--muted)">—</li>'; return; }
+    // Normalización al menor cut_day para comparar igual con igual
+    const cutA = A?.cut_day || 31, cutB = B?.cut_day || 31;
+    const minCut = Math.min(cutA, cutB);
+    const norm = (md, v) => (md.cut_day || 31) > minCut ? cpAcumAtDay(md, minCut, v) : v;
     const movers = [];
     // by model
     cpModelOrder().filter(m=>!cpstate.modelo||cpstate.modelo===m).forEach(m=>{
-      const a = ((A.matrix_cnt||{})[m] && cpstate.agencia ? (A.matrix_cnt[m]||{})[cpstate.agencia] : null);
       let av, bv;
       if(cpstate.agencia){
         av = (A.matrix_cnt[m]||{})[cpstate.agencia]||0;
@@ -6476,6 +6516,7 @@ HTML = r"""<!doctype html>
         av = A.models?.[m]?.curr || 0;
         bv = B.models?.[m]?.curr || 0;
       }
+      av = norm(A, av); bv = norm(B, bv);
       if(av || bv) movers.push({type:'modelo', name:m, a:av, b:bv, delta:bv-av});
     });
     // by dealer (only if no agency filter, otherwise it's just one)
@@ -6489,6 +6530,7 @@ HTML = r"""<!doctype html>
           av = A.dealers?.[d]?.curr || 0;
           bv = B.dealers?.[d]?.curr || 0;
         }
+        av = norm(A, av); bv = norm(B, bv);
         if(av || bv) movers.push({type:'agencia', name:d, a:av, b:bv, delta:bv-av});
       });
     }
