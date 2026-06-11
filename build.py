@@ -2427,6 +2427,23 @@ HTML = r"""<!doctype html>
       </div>
     </div>
 
+    <!-- PROYECCIÓN POR AGENCIA -->
+    <div class="ford-section">
+      <h3>🔮 Proyección de cierre — por agencia <span class="sub">click fila para filtrar</span></h3>
+      <table class="ford" id="ff-proj-agency">
+        <thead><tr>
+          <th class="left sortable" data-k="agency">Agencia</th>
+          <th class="sortable" data-k="prev">Anterior</th>
+          <th class="sortable" data-k="curr">Actual</th>
+          <th class="sortable" data-k="delta">Δ</th>
+          <th class="sortable" data-k="meta">Meta</th>
+          <th class="sortable" data-k="proj">Proyección</th>
+          <th class="sortable" data-k="cumpl">Cumpl.Proy.</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
     <!-- PROYECCIÓN POR MODELO -->
     <div class="ford-section">
       <h3>🔮 Proyección de cierre — por modelo <span class="sub">click fila para filtrar</span></h3>
@@ -2454,23 +2471,6 @@ HTML = r"""<!doctype html>
     <div class="ford-section">
       <h3>🚗 Cumplimiento por modelo <span class="sub">todos los modelos Ford en grid compacto · click para filtrar</span></h3>
       <div id="ff-bullets-model" class="bullet-grid compact"></div>
-    </div>
-
-    <!-- PROYECCIÓN POR AGENCIA -->
-    <div class="ford-section">
-      <h3>🔮 Proyección de cierre — por agencia <span class="sub">click fila para filtrar</span></h3>
-      <table class="ford" id="ff-proj-agency">
-        <thead><tr>
-          <th class="left sortable" data-k="agency">Agencia</th>
-          <th class="sortable" data-k="prev">Anterior</th>
-          <th class="sortable" data-k="curr">Actual</th>
-          <th class="sortable" data-k="delta">Δ</th>
-          <th class="sortable" data-k="meta">Meta</th>
-          <th class="sortable" data-k="proj">Proyección</th>
-          <th class="sortable" data-k="cumpl">Cumpl.Proy.</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
     </div>
 
     <!-- HEAT MAP MODELO × AGENCIA -->
@@ -2671,6 +2671,19 @@ HTML = r"""<!doctype html>
         </div>
       </div>
 
+      <!-- PROYECCIÓN POR AGENCIA -->
+      <div class="ford-section">
+        <h3>🔮 Proyección de cierre — por agencia <span class="sub">click fila para filtrar</span></h3>
+        <table class="ford" id="br-proj-agency">
+          <thead><tr>
+            <th class="left">Agencia</th>
+            <th>Anterior</th><th>Actual</th><th>Δ</th>
+            <th>Meta</th><th>Proyección</th><th>Cumpl.Proy.</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
       <!-- PROYECCIÓN POR MODELO -->
       <div class="ford-section">
         <h3>🔮 Proyección de cierre — por modelo <span class="sub">click fila para filtrar</span></h3>
@@ -2694,19 +2707,6 @@ HTML = r"""<!doctype html>
       <div class="ford-section">
         <h3>🚗 Cumplimiento por modelo <span class="sub">modelos de la marca seleccionada · click para filtrar</span></h3>
         <div id="br-bullets-model" class="bullet-grid compact"></div>
-      </div>
-
-      <!-- PROYECCIÓN POR AGENCIA -->
-      <div class="ford-section">
-        <h3>🔮 Proyección de cierre — por agencia <span class="sub">click fila para filtrar</span></h3>
-        <table class="ford" id="br-proj-agency">
-          <thead><tr>
-            <th class="left">Agencia</th>
-            <th>Anterior</th><th>Actual</th><th>Δ</th>
-            <th>Meta</th><th>Proyección</th><th>Cumpl.Proy.</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
       </div>
 
       <!-- HEAT MAP MODELO × AGENCIA -->
