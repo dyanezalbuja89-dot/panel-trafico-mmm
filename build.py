@@ -2127,6 +2127,33 @@ HTML = r"""<!doctype html>
     gap:10px;
     font-size:11.5px;
   }
+  /* Card de un solo mes: ancho mayor, más respiración */
+  .hm-drill-card.single{
+    max-width:480px;
+    margin:0 auto;
+    padding:14px 18px;
+    font-size:13px;
+    border-left-width:4px;
+  }
+  .hm-drill-card.single h4{
+    font-size:12px;
+    border-bottom:1px solid var(--c-slate-100);
+    padding-bottom:6px;
+    margin-bottom:8px;
+  }
+  .hm-drill-card.single h4 .pct{font-size:18px; font-weight:800}
+  .hm-drill-card.single .row{font-size:12.5px; padding:5px 0}
+  .hm-drill-card.single .row .lbl{font-size:11.5px}
+  .hm-drill-card.single .hm-drill-diag{
+    margin-top:10px; padding-top:10px;
+    font-size:11.5px; font-style:normal;
+    color:var(--c-fg); background:var(--c-slate-50);
+    padding:8px 10px; border-radius:6px;
+    border:1px solid var(--c-border);
+  }
+  html[data-theme="dark"] .hm-drill-card.single .hm-drill-diag{
+    background:var(--c-slate-100);
+  }
   .hm-drill-card{
     background:var(--c-surface);
     border:1px solid var(--c-border);
@@ -10259,33 +10286,32 @@ HTML = r"""<!doctype html>
       return r;
     });
 
-    // Construye drill-down content para una fila (sub-card por mes)
-    function drillRowHtml(rows, modelo){
-      const cards = rows.map((r, i) => {
-        if(!r) return `<div class="hm-drill-card na">
-          <h4>${monthLabels[i]} <span class="pct">—</span></h4>
-          <div class="hm-drill-diag">Sin datos</div>
-        </div>`;
-        const prev = i > 0 ? rows[i-1] : null;
-        const diag = diagnose(r, prev);
-        const isCurrent = mc[r.mk]?.is_current;
-        const lvl = isCurrent ? 'cur' : level(r.cumpl);
-        const cumplV = (r.metaVentas > 0) ? Math.round(100*r.ventas/r.metaVentas) : null;
-        const pctTxt = isCurrent ? '⟳' : (r.cumpl != null ? r.cumpl+'%' : '—');
-        return `<div class="hm-drill-card ${lvl}">
-          <h4>${monthLabels[i]} <span class="pct">${pctTxt}</span></h4>
-          <div class="row"><span class="lbl">Tráfico real</span><span class="val">${r.trafico ?? '—'}${r.meta ? ' / '+r.meta : ''}</span></div>
-          <div class="row"><span class="lbl">Ventas</span><span class="val">${r.ventas ?? '—'}${r.metaVentas ? ' / '+r.metaVentas : ''}${cumplV!=null ? ' ('+cumplV+'%)' : ''}</span></div>
-          <div class="row"><span class="lbl">Stock SOM → EOM</span><span class="val">${r.disp_som ?? '—'} → ${r.disp_eom ?? '—'}</span></div>
-          <div class="row"><span class="lbl">Reservas inicio</span><span class="val">${r.reserv_som ?? '—'}</span></div>
-          <div class="hm-drill-diag">${diag.detail}</div>
-        </div>`;
-      }).join('');
+    // Genera una sola card de detalle para un (modelo, mes) específico
+    function singleCardHtml(r, prev, monthIdx, modelo){
+      if(!r) return `<div class="hm-drill-card na">
+        <h4>${monthLabels[monthIdx]} · ${modelo} <span class="pct">—</span></h4>
+        <div class="hm-drill-diag">Sin datos</div>
+      </div>`;
+      const diag = diagnose(r, prev);
+      const isCurrent = mc[r.mk]?.is_current;
+      const lvl = isCurrent ? 'cur' : level(r.cumpl);
+      const cumplV = (r.metaVentas > 0) ? Math.round(100*r.ventas/r.metaVentas) : null;
+      const pctTxt = isCurrent ? '⟳ en curso' : (r.cumpl != null ? r.cumpl+'%' : '—');
+      return `<div class="hm-drill-card ${lvl} single">
+        <h4><span>${monthLabels[monthIdx]} · <strong>${modelo}</strong></span> <span class="pct">${pctTxt}</span></h4>
+        <div class="row"><span class="lbl">Tráfico real</span><span class="val">${r.trafico ?? '—'}${r.meta ? ' / '+r.meta : ''}</span></div>
+        <div class="row"><span class="lbl">Ventas</span><span class="val">${r.ventas ?? '—'}${r.metaVentas ? ' / '+r.metaVentas : ''}${cumplV!=null ? ' ('+cumplV+'%)' : ''}</span></div>
+        <div class="row"><span class="lbl">Stock SOM → EOM</span><span class="val">${r.disp_som ?? '—'} → ${r.disp_eom ?? '—'}</span></div>
+        <div class="row"><span class="lbl">Reservas inicio</span><span class="val">${r.reserv_som ?? '—'}</span></div>
+        <div class="hm-drill-diag">${diag.detail}</div>
+      </div>`;
+    }
+
+    // Sub-fila vacía por modelo · se popula on-demand al hacer click
+    function emptyDrillRow(modelo){
       const colspan = monthKeys.length + 2;
       return `<tr class="hm-drill-row" data-for-model="${modelo}">
-        <td colspan="${colspan}">
-          <div class="hm-drill-content">${cards}</div>
-        </td>
+        <td colspan="${colspan}"><div class="hm-drill-content"></div></td>
       </tr>`;
     }
 
@@ -10297,37 +10323,50 @@ HTML = r"""<!doctype html>
         ${cells}
         ${sparklineCell(rs)}
       </tr>`;
-      return dataRow + drillRowHtml(rs, modelo);
+      return dataRow + emptyDrillRow(modelo);
     }).join('');
 
     const totalCells = totalRows.map((r,i) => cellHtml(r, i>0 ? totalRows[i-1] : null, true, 'TOTAL', i)).join('');
-    const totalDrill = drillRowHtml(totalRows, 'TOTAL');
     heatBody.innerHTML = modelRowsHtml + `<tr class="hm-data-row hm-total-row" data-model="TOTAL">
       <td class="hm-rhead-cell hm-total-name"><strong>TOTAL FORD</strong></td>
       ${totalCells}
       ${sparklineCell(totalRows)}
-    </tr>` + totalDrill;
+    </tr>` + emptyDrillRow('TOTAL');
 
-    // ─── Interactividad: click expande / colapsa drill-down ───
+    // ─── Interactividad: click solo muestra el mes tapado ───
     heatBody.querySelectorAll('.hm-c').forEach(cell => {
       cell.addEventListener('click', () => {
         const row = cell.closest('tr');
         if(!row) return;
         const model = row.dataset.model;
+        const monthIdx = parseInt(cell.dataset.monthIdx);
+        if(isNaN(monthIdx)) return;
         const drillRow = heatBody.querySelector(`tr.hm-drill-row[data-for-model="${model}"]`);
         if(!drillRow) return;
-        const isOpen = drillRow.classList.contains('open');
-        // Cerrar todos
-        heatBody.querySelectorAll('tr.hm-drill-row.open').forEach(r => r.classList.remove('open'));
+        const container = drillRow.querySelector('.hm-drill-content');
+        const alreadyOpen = drillRow.classList.contains('open') && cell.classList.contains('open');
+
+        // Cerrar todos los drill-downs y limpiar selección
+        heatBody.querySelectorAll('tr.hm-drill-row.open').forEach(r => {
+          r.classList.remove('open');
+          const c = r.querySelector('.hm-drill-content');
+          if(c) c.innerHTML = '';
+        });
         heatBody.querySelectorAll('.hm-c.open').forEach(c => c.classList.remove('open'));
-        if(!isOpen){
-          drillRow.classList.add('open');
-          cell.classList.add('open');
-          // Scroll suave al drill-down
-          requestAnimationFrame(() => {
-            drillRow.scrollIntoView({behavior:'smooth', block:'nearest'});
-          });
-        }
+
+        if(alreadyOpen) return; // toggle: re-tap en la misma celda cierra
+
+        // Obtener row data del modelo en ese mes
+        const rows = model === 'TOTAL' ? totalRows : (rowsByModel[model] || []);
+        const r = rows[monthIdx];
+        const prev = monthIdx > 0 ? rows[monthIdx - 1] : null;
+
+        container.innerHTML = singleCardHtml(r, prev, monthIdx, model === 'TOTAL' ? 'TOTAL FORD' : model);
+        drillRow.classList.add('open');
+        cell.classList.add('open');
+        requestAnimationFrame(() => {
+          drillRow.scrollIntoView({behavior:'smooth', block:'nearest'});
+        });
       });
     });
 
