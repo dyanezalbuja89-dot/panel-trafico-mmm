@@ -1937,18 +1937,111 @@
     #tab-conv .stat-hero .lbl{font-size:9px}
   }
 
-  /* Otros — heatmap del cruce: celdas más pequeñas en mobile */
+  /* ─── HEATMAP CRUCE · rediseño UX ─── */
+  #an-tbl-cruce-heat{border-collapse:separate; border-spacing:3px; width:100%}
+  #an-tbl-cruce-heat .hm-rhead{
+    background:linear-gradient(180deg, var(--c-ford-800), var(--c-ford-700));
+    color:#fff; font-weight:700; font-size:11px; letter-spacing:.04em;
+    padding:10px 8px; text-align:left; border-radius:8px;
+  }
+  #an-tbl-cruce-heat .hm-mhead{
+    background:var(--c-surface); color:var(--c-fg);
+    font-weight:700; font-size:11px; letter-spacing:.04em;
+    text-transform:uppercase;
+    padding:8px 6px; text-align:center; border-radius:8px;
+    border:1px solid var(--c-border);
+  }
+  #an-tbl-cruce-heat .hm-h-ctx{
+    display:inline-block; margin-top:2px;
+    font-size:9px; font-weight:600; color:var(--c-muted);
+    letter-spacing:.02em; text-transform:lowercase;
+  }
+  #an-tbl-cruce-heat .hm-h-ctx-cur{
+    color:#fff; background:var(--c-primary);
+    padding:1px 6px; border-radius:var(--r-full);
+  }
+  /* Celdas de modelo (primera columna) */
+  #an-tbl-cruce-heat .hm-rhead-cell{
+    background:var(--c-surface); color:var(--c-fg);
+    padding:10px 12px; font-size:12px; font-weight:700;
+    letter-spacing:.02em; border-radius:8px; border:1px solid var(--c-border);
+    white-space:nowrap;
+  }
+  /* Celda de datos */
+  #an-tbl-cruce-heat .hm-c{
+    text-align:center; padding:10px 4px;
+    border-radius:8px; transition:transform .15s ease, box-shadow .15s ease;
+    cursor:default; min-width:80px;
+    font-variant-numeric:tabular-nums;
+    position:relative;
+  }
+  #an-tbl-cruce-heat .hm-c:hover{
+    transform:translateY(-1px); box-shadow:0 4px 12px rgba(15,23,42,.10);
+  }
+  #an-tbl-cruce-heat .hm-num{
+    font-size:18px; font-weight:800; line-height:1; letter-spacing:-.025em;
+  }
+  #an-tbl-cruce-heat .hm-pct{font-size:11px; font-weight:600; opacity:.6; margin-left:1px}
+  #an-tbl-cruce-heat .hm-sub{
+    display:block; font-size:9px; font-weight:600; opacity:.75;
+    margin-top:3px; letter-spacing:.04em; text-transform:uppercase;
+  }
+  #an-tbl-cruce-heat .hm-cur-icon{
+    display:inline-block; font-size:14px; opacity:.6; animation:hm-spin 2.5s linear infinite;
+  }
+  @keyframes hm-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){.hm-cur-icon{animation:none}}
+  /* 5 niveles de color (light) */
+  #an-tbl-cruce-heat .hm-c-crit{background:#fecaca; color:#7f1d1d}
+  #an-tbl-cruce-heat .hm-c-bad {background:#fde0d8; color:#9a3412}
+  #an-tbl-cruce-heat .hm-c-warn{background:#fef3c7; color:#854d09}
+  #an-tbl-cruce-heat .hm-c-ok  {background:#d1fae5; color:#14532d}
+  #an-tbl-cruce-heat .hm-c-over{background:#86efac; color:#052e16}
+  #an-tbl-cruce-heat .hm-c-cur {background:#e0e7ff; color:#3730a3}
+  #an-tbl-cruce-heat .hm-c-na  {background:var(--c-slate-50); color:var(--c-muted)}
+  /* Dark mode */
+  html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-crit{background:#7f1d1d; color:#fecaca}
+  html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-bad {background:#7c2d12; color:#fed7aa}
+  html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-warn{background:#78350f; color:#fde68a}
+  html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-ok  {background:#14532d; color:#a7f3d0}
+  html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-over{background:#052e16; color:#6ee7b7}
+  html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-cur {background:#1e1b4b; color:#a5b4fc}
+  /* Sparkline cell */
+  #an-tbl-cruce-heat .hm-c-spark{
+    background:transparent; padding:4px 6px; min-width:90px;
+  }
+  #an-tbl-cruce-heat .hm-c-spark svg{display:block; margin:0 auto}
+  /* Total Ford — fila destacada */
+  #an-tbl-cruce-heat .hm-total-row{
+    margin-top:4px;
+  }
+  #an-tbl-cruce-heat .hm-total-name{
+    background:linear-gradient(180deg, var(--c-ford-700), var(--c-ford-800)) !important;
+    color:#fff !important;
+    font-weight:800 !important;
+  }
+  #an-tbl-cruce-heat .hm-c-total{
+    box-shadow:inset 0 2px 0 0 var(--c-ford-700);
+    font-weight:800;
+  }
+  #an-tbl-cruce-heat .hm-c-total .hm-num{font-size:19px}
+
+  /* Mobile compacto */
   @media(max-width:768px){
-    #an-tbl-cruce-heat th,#an-tbl-cruce-heat td{padding:5px 3px !important;min-width:60px !important}
-    #an-tbl-cruce-heat td>div:first-child{font-size:14px !important}
-    #an-tbl-cruce-heat td>div:nth-child(2){font-size:13px !important}
-    #an-tbl-cruce-heat td>div:nth-child(3){font-size:8px !important}
+    #an-tbl-cruce-heat{border-spacing:2px}
+    #an-tbl-cruce-heat .hm-c{min-width:54px; padding:6px 3px}
+    #an-tbl-cruce-heat .hm-num{font-size:14px}
+    #an-tbl-cruce-heat .hm-sub{font-size:8px}
+    #an-tbl-cruce-heat .hm-rhead-cell{padding:6px 8px; font-size:11px}
+    #an-tbl-cruce-heat .hm-mhead{font-size:10px; padding:6px 3px}
+    #an-tbl-cruce-heat .hm-h-ctx{font-size:8px}
+    #an-tbl-cruce-heat .hm-c-spark{min-width:70px}
+    #an-tbl-cruce-heat .hm-c-spark svg{width:64px; height:24px}
   }
   @media(max-width:480px){
-    #an-tbl-cruce-heat th,#an-tbl-cruce-heat td{padding:4px 2px !important;min-width:50px !important}
-    #an-tbl-cruce-heat td>div:first-child{font-size:12px !important}
-    #an-tbl-cruce-heat td>div:nth-child(2){font-size:11px !important}
-    #an-tbl-cruce-heat td>div:nth-child(3){display:none !important}
+    #an-tbl-cruce-heat .hm-c{min-width:42px; padding:5px 2px}
+    #an-tbl-cruce-heat .hm-num{font-size:12px}
+    #an-tbl-cruce-heat .hm-sub{display:none}
   }
 
   /* Tiempo de espera — leyenda más compacta en mobile */
@@ -4076,7 +4169,7 @@
       <div class="ford-section">
         <h3>📊 Cruce tráfico × inventario × reservas <span class="sub">¿La caída de tráfico está justificada por reservas pre-mes con inventario que las respalde?</span></h3>
         <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
-          El número grande de cada celda es el <strong>% cumplimiento de tráfico</strong> (tráfico real / meta de tráfico). El <strong>color del fondo</strong> indica si ese cumplimiento es bueno o malo en contexto — considera ventas reales, stock disponible y reservas. <strong>Pasa el mouse</strong> sobre la celda para ver todos los números.
+          Cada celda muestra el <strong>% de cumplimiento de tráfico</strong> (real / meta). El <strong>color</strong> codifica el estado en 5 niveles: <span style="background:#fecaca;color:#7f1d1d;padding:1px 6px;border-radius:4px;font-weight:700">crítico &lt;50%</span> <span style="background:#fde0d8;color:#9a3412;padding:1px 6px;border-radius:4px;font-weight:700">bajo 50-70%</span> <span style="background:#fef3c7;color:#854d09;padding:1px 6px;border-radius:4px;font-weight:700">alerta 70-90%</span> <span style="background:#d1fae5;color:#14532d;padding:1px 6px;border-radius:4px;font-weight:700">ok 90-120%</span> <span style="background:#86efac;color:#052e16;padding:1px 6px;border-radius:4px;font-weight:700">sobre meta &gt;120%</span>. La última columna muestra la <strong>tendencia</strong>. Hover/tap en celda para detalle.
         </div>
         <!-- Heatmap mes × modelo -->
         <div style="overflow-x:auto;margin-bottom:14px">
@@ -9849,53 +9942,142 @@
               detail:`Tráfico ${r.trafico}/${r.meta} (${cumplT}%) sin explicación operativa`};
     }
 
-    // ====================== HEATMAP MES × MODELO ======================
+    // ====================== HEATMAP MES × MODELO (rediseño UX) ======================
+    // 1 métrica por celda · color en 5 niveles · sparkline trailing · headers con contexto
     const modelOrder = ['TERRITORY','ESCAPE','EVEREST','EXPLORER','EXPEDITION','BRONCO','F-150','RANGER'];
     const heatHead = document.querySelector('#an-tbl-cruce-heat thead');
     const heatBody = document.querySelector('#an-tbl-cruce-heat tbody');
-    heatHead.innerHTML = `<tr><th style="background:var(--ford-2);min-width:110px">Modelo</th>${monthLabels.map(l => `<th style="background:var(--ford-2);min-width:90px">${l}</th>`).join('')}</tr>`;
 
-    function cellHtml(r, prevR){
-      if(!r) return `<td style="background:#f9fafb;color:#d1d5db;text-align:center;border:2px solid #fff">·</td>`;
+    // Headers con contexto: días lab. y estado (cerrado / en curso)
+    const headerCells = monthKeys.map((k, i) => {
+      const c = (DATA.months_config || []).find(x => x.key === k);
+      const fm = FORD_MONTHS[k] || {};
+      const isCurrent = mc[k]?.is_current;
+      const label = monthLabels[i].toUpperCase();
+      const ctx = isCurrent
+        ? `<span class="hm-h-ctx hm-h-ctx-cur">${fm.days_trans || '—'}/${fm.days_lab || '—'} d</span>`
+        : `<span class="hm-h-ctx">${fm.days_lab || '—'} d</span>`;
+      return `<th class="hm-mhead">${label}<br>${ctx}</th>`;
+    }).join('');
+    heatHead.innerHTML = `<tr>
+      <th class="hm-rhead">Modelo</th>
+      ${headerCells}
+      <th class="hm-rhead" style="min-width:90px">Tendencia</th>
+    </tr>`;
+
+    // 5 niveles de color (tokens semánticos)
+    function level(cumpl){
+      if(cumpl == null) return 'na';
+      if(cumpl < 50)  return 'crit';
+      if(cumpl < 70)  return 'bad';
+      if(cumpl < 90)  return 'warn';
+      if(cumpl <= 120)return 'ok';
+      return 'over';
+    }
+
+    function cellHtml(r, prevR, isTotal){
+      if(!r) return `<td class="hm-c hm-c-na"></td>`;
       const diag = diagnose(r, prevR);
-      const BG = {green:'#c8e6c9', yellow:'#fff59d', orange:'#ffcc80', red:'#ffcdd2', gray:'#eceff1'};
-      const FG = {green:'#1b5e20', yellow:'#7a5601', orange:'#bf5300', red:'#b71c1c', gray:'#546e7a'};
-      const bg = BG[diag.cls] || '#fff';
-      const fg = FG[diag.cls] || '#666';
-      // Tooltip compacto, solo lo esencial
+      const cumplT = r.cumpl;
+      const isCurrent = mc[r.mk]?.is_current;
+      const lvl = isCurrent ? 'cur' : level(cumplT);
+      // Tooltip
       const cumplV = (r.metaVentas > 0) ? Math.round(100*r.ventas/r.metaVentas) : null;
-      const tip = `${r.lbl}\nTráfico: ${r.trafico} / ${r.meta || '—'} (${r.cumpl ?? '—'}%)\nVentas: ${r.ventas} / ${r.metaVentas || '—'} (${cumplV != null ? cumplV+'%' : '—'})\nStock inicio → cierre: ${r.disp_som ?? '—'} → ${r.disp_eom ?? '—'}\nReservas activas inicio: ${r.reserv_som ?? '—'}\n→ ${diag.detail}`;
-      // bigNum: si hay cumpl tráfico, mostrar %; si no, mostrar volumen absoluto cuando hubo actividad
-      const bigNum = diag.cumpl != null ? diag.cumpl + '%'
-                   : diag.altNum != null ? diag.altNum
-                   : '—';
-      const bigUnit = (diag.cumpl == null && diag.altUnit) ? `<span style="font-size:11px;font-weight:600;opacity:.7;margin-left:2px">${diag.altUnit}</span>` : '';
-      return `<td title="${tip.replace(/"/g,'&quot;')}" style="background:${bg};color:${fg};text-align:center;padding:10px 6px;border:2px solid #fff;min-width:90px">
-        <div style="font-size:18px;line-height:1;margin-bottom:3px">${diag.emoji}</div>
-        <div style="font-size:17px;font-weight:800;line-height:1">${bigNum}${bigUnit}</div>
-        <div style="font-size:10px;font-weight:500;letter-spacing:.3px;margin-top:3px;opacity:.8">${diag.sub}</div>
+      const tip = `${r.lbl}\nTráfico: ${r.trafico} / ${r.meta || '—'} (${r.cumpl ?? '—'}%)\nVentas: ${r.ventas} / ${r.metaVentas || '—'} (${cumplV != null ? cumplV+'%' : '—'})\nStock inicio → cierre: ${r.disp_som ?? '—'} → ${r.disp_eom ?? '—'}\nReservas: ${r.reserv_som ?? '—'}\n→ ${diag.detail}`;
+      // Número grande: solo % cumplimiento. Si no hay cumpl pero hay actividad, mostrar volumen.
+      let bigNum, bigSub;
+      if(cumplT != null){
+        bigNum = `${cumplT}<span class="hm-pct">%</span>`;
+        bigSub = '';
+      } else if(diag.altNum != null){
+        bigNum = `${diag.altNum}`;
+        bigSub = `<span class="hm-sub">${diag.altUnit}</span>`;
+      } else if(isCurrent){
+        bigNum = `<span class="hm-cur-icon">⟳</span>`;
+        bigSub = `<span class="hm-sub">en curso</span>`;
+      } else {
+        bigNum = `—`;
+        bigSub = '';
+      }
+      return `<td class="hm-c hm-c-${lvl}${isTotal?' hm-c-total':''}" title="${tip.replace(/"/g,'&quot;')}">
+        <div class="hm-num">${bigNum}</div>
+        ${bigSub}
       </td>`;
     }
 
-    // Filtro de agencia: si está activo, todas las filas se calculan con ese filtro.
+    // Sparkline SVG: línea por trayectoria de cumplimiento mensual
+    function sparklineCell(rows){
+      const pts = rows.map(r => r && r.cumpl != null ? r.cumpl : null);
+      // Si todos null, devuelve placeholder
+      const valid = pts.filter(v => v != null);
+      if(valid.length < 2) return `<td class="hm-c hm-c-spark"><span style="color:#cbd5e1">—</span></td>`;
+      const w = 80, h = 30, padX = 4, padY = 4;
+      const min = Math.min(...valid, 0);
+      const max = Math.max(...valid, 100);
+      const range = (max - min) || 1;
+      const stepX = (w - 2*padX) / Math.max(1, pts.length - 1);
+      const last = pts[pts.length-1];
+      const lastColor = last == null ? 'var(--c-muted)'
+                      : last < 50  ? 'var(--c-bad)'
+                      : last < 70  ? 'var(--c-bad)'
+                      : last < 90  ? 'var(--c-warn)'
+                      : last <= 120? 'var(--c-good)'
+                      : 'var(--c-emerald-600)';
+      // Build path (skip nulls)
+      let d = '';
+      let lastValid = null;
+      pts.forEach((v, i) => {
+        if(v == null) return;
+        const x = padX + i*stepX;
+        const y = h - padY - ((v - min)/range)*(h - 2*padY);
+        d += (lastValid == null ? 'M' : 'L') + ` ${x.toFixed(1)} ${y.toFixed(1)} `;
+        lastValid = i;
+      });
+      // Last point
+      const lastIdx = pts.findLastIndex(v => v != null);
+      const lastVal = pts[lastIdx];
+      const lastX = padX + lastIdx*stepX;
+      const lastY = h - padY - ((lastVal - min)/range)*(h - 2*padY);
+      // Reference line at 100%
+      const ref100 = (100 >= min && 100 <= max)
+        ? `<line x1="${padX}" x2="${w-padX}" y1="${(h - padY - ((100 - min)/range)*(h - 2*padY)).toFixed(1)}" y2="${(h - padY - ((100 - min)/range)*(h - 2*padY)).toFixed(1)}" stroke="var(--c-border-strong)" stroke-width="0.8" stroke-dasharray="2 2" />`
+        : '';
+      return `<td class="hm-c hm-c-spark">
+        <svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" preserveAspectRatio="none" aria-label="Tendencia cumplimiento">
+          ${ref100}
+          <path d="${d}" fill="none" stroke="${lastColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2.4" fill="${lastColor}" stroke="var(--c-surface)" stroke-width="1.4" />
+        </svg>
+      </td>`;
+    }
+
     const filtroAgencia = anstate.agencia || null;
-    // Por cada modelo, calcular fila para cada mes
     const rowsByModel = {};
     modelOrder.forEach(modelo => {
-      rowsByModel[modelo] = monthKeys.map(mk => calcRow(mk, modelo, filtroAgencia));
+      rowsByModel[modelo] = monthKeys.map(mk => {
+        const r = calcRow(mk, modelo, filtroAgencia);
+        if(r) r.mk = mk;  // attach mk for cellHtml lookup
+        return r;
+      });
     });
-    const totalRows = monthKeys.map(mk => calcRow(mk, null, filtroAgencia));
+    const totalRows = monthKeys.map(mk => {
+      const r = calcRow(mk, null, filtroAgencia);
+      if(r) r.mk = mk;
+      return r;
+    });
 
     heatBody.innerHTML = modelOrder.map(modelo => {
       const rs = rowsByModel[modelo];
-      const cells = rs.map((r, i) => cellHtml(r, i>0 ? rs[i-1] : null)).join('');
+      const cells = rs.map((r, i) => cellHtml(r, i>0 ? rs[i-1] : null, false)).join('');
       return `<tr>
-        <td class="left"><strong>${modelo}</strong></td>
+        <td class="hm-rhead-cell"><strong>${modelo}</strong></td>
         ${cells}
+        ${sparklineCell(rs)}
       </tr>`;
-    }).join('') + `<tr class="total">
-      <td><strong>TOTAL FORD</strong></td>
-      ${totalRows.map((r,i) => cellHtml(r, i>0 ? totalRows[i-1] : null)).join('')}
+    }).join('') + `<tr class="hm-total-row">
+      <td class="hm-rhead-cell hm-total-name"><strong>TOTAL FORD</strong></td>
+      ${totalRows.map((r,i) => cellHtml(r, i>0 ? totalRows[i-1] : null, true)).join('')}
+      ${sparklineCell(totalRows)}
     </tr>`;
 
     // ====================== TABLA DETALLE ======================
