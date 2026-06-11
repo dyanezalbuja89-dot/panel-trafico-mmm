@@ -4661,18 +4661,12 @@ HTML = r"""<!doctype html>
     });
     const days_lab = FORD.days_lab, days_trans = FORD.days_trans;
     const vel = days_trans? curr/days_trans : 0;
-    const projLinear = Math.round(vel * days_lab);
-    // ─── Forecast conservador ───
-    // Al inicio del mes (days_trans < 10), la extrapolación lineal sobrestima
-    // sistemáticamente porque hay picos de arranque. Cap a 150% del cierre
-    // anterior para evitar proyecciones irreales (e.g. 256% sobre meta).
-    let proj = projLinear;
-    if(days_trans < 10 && prev > 0){
-      const cap = Math.round(prev * 1.5);
-      proj = Math.min(projLinear, cap);
-    }
+    // Proyección LINEAL pura: velocity × días laborables totales del mes.
+    // No aplicamos cap porque prev del corte actual NO es el cierre del mes
+    // anterior — es solo el corte intermedio inmediatamente previo.
+    const proj = Math.round(vel * days_lab);
     const cumpl = meta>0? Math.round(100*proj/meta) : null;
-    return {curr, prev, delta:curr-prev, meta, days_lab, days_trans, velocity:vel, projection:proj, projection_linear:projLinear, cumpl_proj:cumpl};
+    return {curr, prev, delta:curr-prev, meta, days_lab, days_trans, velocity:vel, projection:proj, cumpl_proj:cumpl};
   }
 
   // ----- FILTER SUMMARY CHIPS -----
@@ -4751,10 +4745,7 @@ HTML = r"""<!doctype html>
     }
     document.getElementById('hs-vel-v').textContent = k.velocity.toFixed(1);
     document.getElementById('hs-proj-v').textContent = fmt(k.projection);
-    const isCapped = k.projection_linear && k.projection_linear !== k.projection;
-    document.getElementById('hs-proj-d').textContent = isCapped
-      ? `A ${k.days_lab} días · cap conservador · lineal: ${fmt(k.projection_linear)}`
-      : `A ${k.days_lab} días lab. (lineal)`;
+    document.getElementById('hs-proj-d').textContent = `A ${k.days_lab} días lab. · velocidad ${k.velocity.toFixed(1)}/día`;
 
     // Avance del mes (días laborables)
     const pctMes = k.days_lab>0 ? Math.round(100*k.days_trans/k.days_lab) : 0;
@@ -5657,15 +5648,11 @@ HTML = r"""<!doctype html>
       });
     });
     const vel = B.days_trans? curr/B.days_trans : 0;
-    const projLinear = Math.round(vel * B.days_lab);
-    // Forecast conservador: cap a 150% del cierre anterior cuando days_trans < 10
-    let proj = projLinear;
-    if(B.days_trans < 10 && prev > 0){
-      proj = Math.min(projLinear, Math.round(prev * 1.5));
-    }
+    // Proyección lineal pura: velocity × días laborables totales del mes
+    const proj = Math.round(vel * B.days_lab);
     const cumpl = meta>0? Math.round(100*proj/meta) : null;
     return {curr, prev, delta:curr-prev, meta, days_lab:B.days_lab, days_trans:B.days_trans,
-            velocity:vel, projection:proj, projection_linear:projLinear, cumpl_proj:cumpl};
+            velocity:vel, projection:proj, cumpl_proj:cumpl};
   }
 
   function brFilterBadge(){
@@ -5717,10 +5704,7 @@ HTML = r"""<!doctype html>
     document.getElementById('br-hs-delta-d').textContent = 'vs '+(B.prev_date||'corte anterior');
     document.getElementById('br-hs-vel').textContent = k.velocity.toFixed(1);
     document.getElementById('br-hs-proj').textContent = fmt(k.projection);
-    const brIsCapped = k.projection_linear && k.projection_linear !== k.projection;
-    document.getElementById('br-hs-proj-d').textContent = brIsCapped
-      ? `A ${k.days_lab} días · cap conservador · lineal: ${fmt(k.projection_linear)}`
-      : `A ${k.days_lab} días lab.`;
+    document.getElementById('br-hs-proj-d').textContent = `A ${k.days_lab} días lab. · velocidad ${k.velocity.toFixed(1)}/día`;
 
     // Avance del mes (días laborables)
     const pctMes = k.days_lab>0 ? Math.round(100*k.days_trans/k.days_lab) : 0;
