@@ -396,13 +396,22 @@
     header.topbar h1::before{display:none}
     header.topbar .sub{font-size:10px}
     header.topbar .topbar-actions{gap:var(--sp-1)}
-    /* Filter bar COLAPSABLE en mobile */
+    /* Filter bar COLAPSABLE en mobile + STICKY al hacer scroll */
     .filter-bar{
       grid-template-columns:1fr 1fr;
       padding:var(--sp-2);
       gap:var(--sp-2);
       margin-bottom:var(--sp-3);
+      position:sticky;
+      top:0;
+      z-index:30;
+      background:var(--c-surface);
+      backdrop-filter:saturate(180%) blur(8px);
+      -webkit-backdrop-filter:saturate(180%) blur(8px);
+      box-shadow:0 4px 12px rgba(15,23,42,.04);
     }
+    /* Cuando está colapsado (solo botón), no necesita shadow ni borde */
+    .filter-bar.mobile-collapsed{box-shadow:none}
     .filter-bar.mobile-collapsed > *:not(.filter-toggle){display:none}
     .filter-bar.mobile-collapsed{
       grid-template-columns:1fr;
@@ -1404,6 +1413,64 @@
     .skeleton, .chart-wrap-skeleton::after{animation:none}
   }
 
+  /* ─── PRINT · exportar pestaña activa a PDF ─── */
+  @media print{
+    /* Oculta el chrome */
+    nav.tabs, header.topbar .topbar-actions, .mobile-tab-select,
+    #mobile-menu-btn, .filter-bar, .filter-toggle,
+    .anomaly-badge, .skeleton, .chart-wrap-skeleton::after{
+      display:none !important;
+    }
+    /* Layout en una sola columna a página completa */
+    .app-shell{
+      display:block !important;
+      grid-template-columns:none !important;
+    }
+    header.topbar{
+      position:static !important;
+      box-shadow:none !important;
+      background:#fff !important;
+      color:#000 !important;
+      border-bottom:2px solid #003478 !important;
+      padding:8px 16px !important;
+    }
+    header.topbar h1, header.topbar .sub{color:#000 !important}
+    main{
+      padding:12px !important;
+      max-width:none !important;
+      box-shadow:none !important;
+    }
+    /* Sólo la pestaña activa imprime */
+    .tab-panel{display:none !important}
+    .tab-panel.active{display:block !important}
+    /* Cards y sections sin sombras ni hover */
+    .bento-cell, .kpi, .card-big, .stat-hero .card-big,
+    .ford-section, .otros-header{
+      box-shadow:none !important;
+      transform:none !important;
+      break-inside:avoid;
+      page-break-inside:avoid;
+    }
+    /* Bento grid simplificado para A4 */
+    .bento-grid{
+      grid-template-columns:repeat(3, 1fr) !important;
+      grid-auto-rows:auto !important;
+      gap:8px !important;
+    }
+    .bento-cell.hero{grid-column:span 3 !important; grid-row:auto !important}
+    .bento-cell.span-2, .bento-cell.span-3{grid-column:span 3 !important}
+    /* Tablas: no romper filas a media página */
+    table.ford, table.analysis{break-inside:auto}
+    table.ford tr, table.analysis tr{break-inside:avoid; break-after:auto}
+    table.ford thead, table.analysis thead{display:table-header-group}
+    /* Tipografía en negro para impresión */
+    body, .bento-cell, .kpi, .card-big{color:#000 !important; background:#fff !important}
+    .bento-cell, .kpi, .card-big, .ford-section{border:1px solid #ddd !important}
+    /* Footer + page break */
+    .footer-note{font-size:9px !important; color:#666 !important; margin-top:12px !important}
+    @page{margin:1cm; size:A4 landscape}
+  }
+
   /* ─── BENTO GRID (Apple-style modular layout) ─── */
   .bento-grid{
     display:grid;
@@ -2230,6 +2297,9 @@
       <div class="h-value" id="topbar-hero-value">—</div>
       <div class="h-hint" id="topbar-hero-hint">mes actual</div>
     </div>
+    <button class="theme-toggle" id="export-pdf-btn" title="Exportar a PDF / Imprimir" aria-label="Exportar PDF" type="button" onclick="window.print()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    </button>
     <button class="theme-toggle" id="theme-toggle" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema">
       <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -4070,6 +4140,39 @@
 (function(){
   const DATA = JSON.parse(document.getElementById('data').textContent);
 
+  // ─── URL STATE · filtros compartibles via query params ─────────
+  // Lee/escribe state en la URL sin reload para que las vistas sean
+  // compartibles (e.g. enviar por WhatsApp un link con tab=ford&agencia=CJA).
+  const URLState = {
+    get(key){
+      const p = new URLSearchParams(window.location.search);
+      const v = p.get(key);
+      return v == null ? '' : decodeURIComponent(v);
+    },
+    set(key, value){
+      const p = new URLSearchParams(window.location.search);
+      if(value == null || value === '' || value === false){
+        p.delete(key);
+      } else {
+        p.set(key, encodeURIComponent(String(value)));
+      }
+      const qs = p.toString();
+      const newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+      window.history.replaceState(null, '', newUrl);
+    },
+    setMany(obj){
+      const p = new URLSearchParams(window.location.search);
+      for(const k in obj){
+        const v = obj[k];
+        if(v == null || v === '' || v === false) p.delete(k);
+        else p.set(k, encodeURIComponent(String(v)));
+      }
+      const qs = p.toString();
+      window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
+    },
+  };
+  window._URLState = URLState; // expuesto para debug
+
   // ─── COUNT-UP ANIMATION (auto, vía MutationObserver) ─────────
   // Anima cualquier elemento con clase .bento-value, .kpi .num, .num
   // cuando su textContent cambia a un número. Sin tocar el resto del JS.
@@ -4415,10 +4518,20 @@
       document.getElementById('tab-'+tab).classList.add('active');
       setTopbarSub(tab);
       showSkeletonsForTab('tab-'+tab);
+      URLState.set('tab', tab === 'ford' ? '' : tab);  // ford = default, no ensucia URL
     });
   });
   // Initial subtitle (matches initial active tab)
   setTopbarSub(document.querySelector('.tab-btn.active')?.dataset.tab || 'ford');
+
+  // ─── Aplica URL state al inicio: navegar al tab si viene ?tab=X ───
+  (function applyInitialURLState(){
+    const urlTab = URLState.get('tab');
+    if(urlTab){
+      const btn = document.querySelector('.tab-btn[data-tab="'+urlTab+'"]');
+      if(btn) setTimeout(() => btn.click(), 100);
+    }
+  })();
 
   // ─────────── MODAL DE DETALLE (tap-to-show en mobile) ───────────
   // En desktop el atributo title="" muestra tooltip nativo al hover.
@@ -4541,9 +4654,18 @@
     });
     const days_lab = FORD.days_lab, days_trans = FORD.days_trans;
     const vel = days_trans? curr/days_trans : 0;
-    const proj = Math.round(vel * days_lab);
+    const projLinear = Math.round(vel * days_lab);
+    // ─── Forecast conservador ───
+    // Al inicio del mes (days_trans < 10), la extrapolación lineal sobrestima
+    // sistemáticamente porque hay picos de arranque. Cap a 150% del cierre
+    // anterior para evitar proyecciones irreales (e.g. 256% sobre meta).
+    let proj = projLinear;
+    if(days_trans < 10 && prev > 0){
+      const cap = Math.round(prev * 1.5);
+      proj = Math.min(projLinear, cap);
+    }
     const cumpl = meta>0? Math.round(100*proj/meta) : null;
-    return {curr, prev, delta:curr-prev, meta, days_lab, days_trans, velocity:vel, projection:proj, cumpl_proj:cumpl};
+    return {curr, prev, delta:curr-prev, meta, days_lab, days_trans, velocity:vel, projection:proj, projection_linear:projLinear, cumpl_proj:cumpl};
   }
 
   // ----- FILTER SUMMARY CHIPS -----
@@ -4622,7 +4744,10 @@
     }
     document.getElementById('hs-vel-v').textContent = k.velocity.toFixed(1);
     document.getElementById('hs-proj-v').textContent = fmt(k.projection);
-    document.getElementById('hs-proj-d').textContent = 'A '+k.days_lab+' días lab. (lineal)';
+    const isCapped = k.projection_linear && k.projection_linear !== k.projection;
+    document.getElementById('hs-proj-d').textContent = isCapped
+      ? `A ${k.days_lab} días · cap conservador · lineal: ${fmt(k.projection_linear)}`
+      : `A ${k.days_lab} días lab. (lineal)`;
 
     // Avance del mes (días laborables)
     const pctMes = k.days_lab>0 ? Math.round(100*k.days_trans/k.days_lab) : 0;
@@ -5459,7 +5584,26 @@
     ffRenderChannels();
     ffRenderAction();
     ffRenderPace();
+    // Sync URL state al finalizar render (los handlers no necesitan saber de URL)
+    URLState.setMany({
+      mes: currentMonthFF !== (DATA.default_month_key || '') ? currentMonthFF : '',
+      zona: fstate.zona,
+      agencia: fstate.agencia,
+      modelo: fstate.modelo,
+    });
   }
+
+  // ─── Aplica filtros Ford desde URL antes del primer render ───
+  (function applyURLToFord(){
+    const m = URLState.get('mes');
+    if(m && FORD_MONTHS[m]){
+      currentMonthFF = m;
+      FORD = FORD_MONTHS[m];
+    }
+    const z = URLState.get('zona'); if(z) fstate.zona = z;
+    const a = URLState.get('agencia'); if(a) fstate.agencia = a;
+    const mo = URLState.get('modelo'); if(mo) fstate.modelo = mo;
+  })();
   ffRenderAll();
 
   // =========================================================
@@ -5506,10 +5650,15 @@
       });
     });
     const vel = B.days_trans? curr/B.days_trans : 0;
-    const proj = Math.round(vel * B.days_lab);
+    const projLinear = Math.round(vel * B.days_lab);
+    // Forecast conservador: cap a 150% del cierre anterior cuando days_trans < 10
+    let proj = projLinear;
+    if(B.days_trans < 10 && prev > 0){
+      proj = Math.min(projLinear, Math.round(prev * 1.5));
+    }
     const cumpl = meta>0? Math.round(100*proj/meta) : null;
     return {curr, prev, delta:curr-prev, meta, days_lab:B.days_lab, days_trans:B.days_trans,
-            velocity:vel, projection:proj, cumpl_proj:cumpl};
+            velocity:vel, projection:proj, projection_linear:projLinear, cumpl_proj:cumpl};
   }
 
   function brFilterBadge(){
@@ -5561,7 +5710,10 @@
     document.getElementById('br-hs-delta-d').textContent = 'vs '+(B.prev_date||'corte anterior');
     document.getElementById('br-hs-vel').textContent = k.velocity.toFixed(1);
     document.getElementById('br-hs-proj').textContent = fmt(k.projection);
-    document.getElementById('br-hs-proj-d').textContent = 'A '+k.days_lab+' días lab.';
+    const brIsCapped = k.projection_linear && k.projection_linear !== k.projection;
+    document.getElementById('br-hs-proj-d').textContent = brIsCapped
+      ? `A ${k.days_lab} días · cap conservador · lineal: ${fmt(k.projection_linear)}`
+      : `A ${k.days_lab} días lab.`;
 
     // Avance del mes (días laborables)
     const pctMes = k.days_lab>0 ? Math.round(100*k.days_trans/k.days_lab) : 0;
@@ -6121,7 +6273,25 @@
     brRenderChannels();
     brRenderAction();
     brRenderPace();
+    // Sync URL state (Brand)
+    URLState.setMany({
+      marca: bstate.brand,
+      bagencia: bstate.agencia,
+      bmodelo: bstate.modelo,
+    });
   }
+
+  // ─── Aplica filtros Brand desde URL antes del primer render ───
+  (function applyURLToBrand(){
+    const ma = URLState.get('marca');
+    if(ma && BRANDS_DATA[ma]){
+      bstate.brand = ma;
+      const sel = document.getElementById('br-marca');
+      if(sel) sel.value = ma;
+    }
+    const a = URLState.get('bagencia'); if(a) bstate.agencia = a;
+    const m = URLState.get('bmodelo'); if(m) bstate.modelo = m;
+  })();
 
   // Month change (Brand)
   const brMonthEl = document.getElementById('br-month');
