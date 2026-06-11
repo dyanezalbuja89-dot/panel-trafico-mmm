@@ -2405,6 +2405,28 @@ HTML = r"""<!doctype html>
       </div>
     </div>
 
+    <!-- BULLET CHARTS — cumplimiento por sucursal -->
+    <div class="ford-section">
+      <h3>🎯 Cumplimiento por sucursal <span class="sub">7 sucursales en una sola vista · meta vs proyección · click para filtrar</span></h3>
+      <div id="ff-bullets-agency" class="bullet-grid"></div>
+      <div style="display:flex; gap:var(--sp-4); align-items:center; margin-top:var(--sp-3); font-size:var(--t-caption); color:var(--c-muted); flex-wrap:wrap">
+        <span style="display:flex; align-items:center; gap:6px">
+          <span style="display:inline-block;width:14px;height:8px;background:var(--c-primary);border-radius:2px"></span> Proyección
+        </span>
+        <span style="display:flex; align-items:center; gap:6px">
+          <span style="display:inline-block;width:3px;height:14px;background:var(--c-slate-900);border-radius:1px"></span> Meta
+        </span>
+        <span style="display:flex; align-items:center; gap:6px">
+          <span style="display:inline-flex;border-radius:2px;overflow:hidden">
+            <span style="width:14px;height:8px;background:var(--c-red-100)"></span>
+            <span style="width:6px;height:8px;background:var(--c-amber-100)"></span>
+            <span style="width:10px;height:8px;background:var(--c-emerald-100)"></span>
+          </span>
+          Bandas: &lt;50% riesgo · 50-70% alerta · ≥70% sano
+        </span>
+      </div>
+    </div>
+
     <!-- PROYECCIÓN POR MODELO -->
     <div class="ford-section">
       <h3>🔮 Proyección de cierre — por modelo <span class="sub">click fila para filtrar</span></h3>
@@ -2426,28 +2448,6 @@ HTML = r"""<!doctype html>
     <div class="ford-section">
       <h3>📡 Distribución por canal <span class="sub">Tráfico + share · respeta filtros activos</span></h3>
       <div style="position:relative;height:240px"><canvas id="ff-chart-channels"></canvas></div>
-    </div>
-
-    <!-- BULLET CHARTS — cumplimiento por sucursal -->
-    <div class="ford-section">
-      <h3>🎯 Cumplimiento por sucursal <span class="sub">7 sucursales en una sola vista · meta vs proyección · click para filtrar</span></h3>
-      <div id="ff-bullets-agency" class="bullet-grid"></div>
-      <div style="display:flex; gap:var(--sp-4); align-items:center; margin-top:var(--sp-3); font-size:var(--t-caption); color:var(--c-muted); flex-wrap:wrap">
-        <span style="display:flex; align-items:center; gap:6px">
-          <span style="display:inline-block;width:14px;height:8px;background:var(--c-primary);border-radius:2px"></span> Proyección
-        </span>
-        <span style="display:flex; align-items:center; gap:6px">
-          <span style="display:inline-block;width:3px;height:14px;background:var(--c-slate-900);border-radius:1px"></span> Meta
-        </span>
-        <span style="display:flex; align-items:center; gap:6px">
-          <span style="display:inline-flex;border-radius:2px;overflow:hidden">
-            <span style="width:14px;height:8px;background:var(--c-red-100)"></span>
-            <span style="width:6px;height:8px;background:var(--c-amber-100)"></span>
-            <span style="width:10px;height:8px;background:var(--c-emerald-100)"></span>
-          </span>
-          Bandas: &lt;50% riesgo · 50-70% alerta · ≥70% sano
-        </span>
-      </div>
     </div>
 
     <!-- BULLET CHARTS — cumplimiento por modelo -->
@@ -2649,25 +2649,6 @@ HTML = r"""<!doctype html>
         </div>
       </div>
 
-      <!-- PROYECCIÓN POR MODELO -->
-      <div class="ford-section">
-        <h3>🔮 Proyección de cierre — por modelo <span class="sub">click fila para filtrar</span></h3>
-        <table class="ford" id="br-proj-model">
-          <thead><tr>
-            <th class="left">Modelo</th>
-            <th>Anterior</th><th>Actual</th><th>Δ</th>
-            <th>Meta</th><th>Proyección</th><th>Cumpl.Proy.</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-
-      <!-- DISTRIBUCIÓN POR CANAL -->
-      <div class="ford-section">
-        <h3>📡 Distribución por canal <span class="sub">Tráfico + share · respeta filtros activos</span></h3>
-        <div style="position:relative;height:240px"><canvas id="br-chart-channels"></canvas></div>
-      </div>
-
       <!-- BULLET CHARTS — cumplimiento por sucursal -->
       <div class="ford-section">
         <h3>🎯 Cumplimiento por sucursal <span class="sub">sucursales de la marca seleccionada · meta vs proyección · click para filtrar</span></h3>
@@ -2688,6 +2669,25 @@ HTML = r"""<!doctype html>
             Bandas: &lt;50% riesgo · 50-70% alerta · ≥70% sano
           </span>
         </div>
+      </div>
+
+      <!-- PROYECCIÓN POR MODELO -->
+      <div class="ford-section">
+        <h3>🔮 Proyección de cierre — por modelo <span class="sub">click fila para filtrar</span></h3>
+        <table class="ford" id="br-proj-model">
+          <thead><tr>
+            <th class="left">Modelo</th>
+            <th>Anterior</th><th>Actual</th><th>Δ</th>
+            <th>Meta</th><th>Proyección</th><th>Cumpl.Proy.</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- DISTRIBUCIÓN POR CANAL -->
+      <div class="ford-section">
+        <h3>📡 Distribución por canal <span class="sub">Tráfico + share · respeta filtros activos</span></h3>
+        <div style="position:relative;height:240px"><canvas id="br-chart-channels"></canvas></div>
       </div>
 
       <!-- BULLET CHARTS — cumplimiento por modelo -->
