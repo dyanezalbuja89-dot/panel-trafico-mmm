@@ -2444,6 +2444,12 @@ HTML = r"""<!doctype html>
       </table>
     </div>
 
+    <!-- BULLET CHARTS — cumplimiento por modelo -->
+    <div class="ford-section">
+      <h3>🚗 Cumplimiento por modelo <span class="sub">todos los modelos Ford en grid compacto · click para filtrar</span></h3>
+      <div id="ff-bullets-model" class="bullet-grid compact"></div>
+    </div>
+
     <!-- PROYECCIÓN POR MODELO -->
     <div class="ford-section">
       <h3>🔮 Proyección de cierre — por modelo <span class="sub">click fila para filtrar</span></h3>
@@ -2461,18 +2467,6 @@ HTML = r"""<!doctype html>
       </table>
     </div>
 
-    <!-- DISTRIBUCIÓN POR CANAL -->
-    <div class="ford-section">
-      <h3>📡 Distribución por canal <span class="sub">Tráfico + share · respeta filtros activos</span></h3>
-      <div style="position:relative;height:240px"><canvas id="ff-chart-channels"></canvas></div>
-    </div>
-
-    <!-- BULLET CHARTS — cumplimiento por modelo -->
-    <div class="ford-section">
-      <h3>🚗 Cumplimiento por modelo <span class="sub">todos los modelos Ford en grid compacto · click para filtrar</span></h3>
-      <div id="ff-bullets-model" class="bullet-grid compact"></div>
-    </div>
-
     <!-- HEAT MAP MODELO × AGENCIA -->
     <div class="ford-section">
       <h3>⚠ Cumplimiento al ritmo del día — modelo × agencia <span class="sub">% del día · pequeño: avance del mes (cnt / meta total) · click celda = filtro</span></h3>
@@ -2483,6 +2477,12 @@ HTML = r"""<!doctype html>
       </table>
       </div>
       <div class="legend">🟢 ≥100% al ritmo &nbsp;|&nbsp; 🟡 ≥70% &nbsp;|&nbsp; 🔴 &lt;70% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta, con tráfico. <em>Hover para ver ambos valores.</em></div>
+    </div>
+
+    <!-- DISTRIBUCIÓN POR CANAL -->
+    <div class="ford-section">
+      <h3>📡 Distribución por canal <span class="sub">Tráfico + share · respeta filtros activos</span></h3>
+      <div style="position:relative;height:240px"><canvas id="ff-chart-channels"></canvas></div>
     </div>
 
     <!-- ACCIÓN INMEDIATA -->
@@ -2684,6 +2684,12 @@ HTML = r"""<!doctype html>
         </table>
       </div>
 
+      <!-- BULLET CHARTS — cumplimiento por modelo -->
+      <div class="ford-section">
+        <h3>🚗 Cumplimiento por modelo <span class="sub">modelos de la marca seleccionada · click para filtrar</span></h3>
+        <div id="br-bullets-model" class="bullet-grid compact"></div>
+      </div>
+
       <!-- PROYECCIÓN POR MODELO -->
       <div class="ford-section">
         <h3>🔮 Proyección de cierre — por modelo <span class="sub">click fila para filtrar</span></h3>
@@ -2697,18 +2703,6 @@ HTML = r"""<!doctype html>
         </table>
       </div>
 
-      <!-- DISTRIBUCIÓN POR CANAL -->
-      <div class="ford-section">
-        <h3>📡 Distribución por canal <span class="sub">Tráfico + share · respeta filtros activos</span></h3>
-        <div style="position:relative;height:240px"><canvas id="br-chart-channels"></canvas></div>
-      </div>
-
-      <!-- BULLET CHARTS — cumplimiento por modelo -->
-      <div class="ford-section">
-        <h3>🚗 Cumplimiento por modelo <span class="sub">modelos de la marca seleccionada · click para filtrar</span></h3>
-        <div id="br-bullets-model" class="bullet-grid compact"></div>
-      </div>
-
       <!-- HEAT MAP MODELO × AGENCIA -->
       <div class="ford-section">
         <h3>⚠ Cumplimiento al ritmo del día — modelo × agencia <span class="sub">% del día · pequeño: avance del mes (cnt / meta total) · click celda = filtro</span></h3>
@@ -2719,6 +2713,12 @@ HTML = r"""<!doctype html>
         </table>
         </div>
         <div class="legend">🟢 ≥100% al ritmo &nbsp;|&nbsp; 🟡 ≥70% &nbsp;|&nbsp; 🔴 &lt;70% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta, con tráfico. <em>Hover para ver ambos valores.</em></div>
+      </div>
+
+      <!-- DISTRIBUCIÓN POR CANAL -->
+      <div class="ford-section">
+        <h3>📡 Distribución por canal <span class="sub">Tráfico + share · respeta filtros activos</span></h3>
+        <div style="position:relative;height:240px"><canvas id="br-chart-channels"></canvas></div>
       </div>
 
       <!-- ACCIÓN INMEDIATA -->
