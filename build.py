@@ -1247,6 +1247,199 @@ HTML = r"""<!doctype html>
   .otros-header.theme-digital{background:linear-gradient(135deg, #ff7a1a 0%, var(--c-ford-700) 100%)}
   .otros-header.theme-digital::before{background:#ffb86c}
 
+  /* ─── DIGITAL TAB · UX components ─── */
+  /* Chips selector de período */
+  .dig-period-chips{
+    display:flex; flex-wrap:wrap; gap:6px;
+    margin-top:var(--sp-3); margin-bottom:var(--sp-3);
+  }
+  .dig-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--c-surface);
+    border:1px solid var(--c-border);
+    color:var(--c-muted);
+    padding:7px 14px;
+    border-radius:var(--r-full);
+    font:inherit; font-size:12px; font-weight:600;
+    letter-spacing:.02em;
+    cursor:pointer;
+    transition:all .15s ease;
+    -webkit-user-select:none; user-select:none;
+  }
+  .dig-chip:hover{border-color:var(--c-border-strong); color:var(--c-fg)}
+  .dig-chip.active{
+    background:var(--c-ford-700); color:#fff;
+    border-color:var(--c-ford-700);
+  }
+
+  /* Freshness badge */
+  #dig-fresh-badge.fresh{background:rgba(34,197,94,.25); color:#dcfce7}
+  #dig-fresh-badge.stale{background:rgba(217,119,6,.35); color:#fef3c7}
+  #dig-fresh-badge.old{background:rgba(220,38,38,.4); color:#fecaca}
+
+  /* Delta vs prev mes (en hero cards) */
+  .dig-delta{
+    display:inline-flex; align-items:center; gap:2px;
+    font-size:11px; font-weight:700;
+    padding:2px 6px; border-radius:var(--r);
+    margin-top:4px;
+    font-variant-numeric:tabular-nums;
+  }
+  .dig-delta.up{background:var(--c-good-bg); color:var(--c-good-tx)}
+  .dig-delta.dn{background:var(--c-bad-bg); color:var(--c-bad-tx)}
+  .dig-delta.flat{background:var(--c-slate-100); color:var(--c-muted)}
+  .dig-delta::before{font-size:9px}
+  .dig-delta.up::before{content:'▲'}
+  .dig-delta.dn::before{content:'▼'}
+  .dig-delta.flat::before{content:'—'}
+
+  /* Funnel viz triangular */
+  .dig-funnel-viz{
+    display:flex; flex-direction:column; gap:8px;
+    padding:var(--sp-3) 0;
+    max-width:780px; margin:0 auto;
+  }
+  .dig-funnel-stage{
+    position:relative;
+    background:var(--c-surface);
+    border:1px solid var(--c-border);
+    border-radius:10px;
+    padding:14px 18px;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .dig-funnel-stage:hover{transform:translateY(-1px); box-shadow:var(--shadow-sm)}
+  .dig-funnel-stage .dfs-head{
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-bottom:8px; gap:12px; flex-wrap:wrap;
+  }
+  .dig-funnel-stage .dfs-name{
+    font-size:13px; font-weight:700; color:var(--c-fg);
+    letter-spacing:-.01em;
+  }
+  .dig-funnel-stage .dfs-val{
+    font-size:24px; font-weight:800; color:var(--c-primary);
+    font-variant-numeric:tabular-nums; letter-spacing:-.025em;
+  }
+  .dig-funnel-stage .dfs-pct{
+    font-size:11px; font-weight:600; color:var(--c-muted);
+    margin-left:6px;
+  }
+  .dig-funnel-stage .dfs-bar{
+    height:8px; background:var(--c-slate-100); border-radius:4px; overflow:hidden;
+    position:relative;
+  }
+  .dig-funnel-stage .dfs-fill{
+    height:100%; background:linear-gradient(90deg, var(--c-primary), var(--c-primary-2));
+    border-radius:4px; transition:width .5s ease;
+  }
+  .dig-funnel-arrow{
+    display:flex; justify-content:center; align-items:center;
+    padding:2px 0;
+    color:var(--c-muted); font-size:11px; font-weight:600;
+    gap:6px;
+  }
+  .dig-funnel-arrow svg{width:14px; height:14px; opacity:.6}
+  .dig-funnel-arrow .drop{color:var(--c-bad-tx); font-weight:700}
+
+  /* Models list */
+  .dig-models-list{
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .dig-model-row{
+    display:grid; grid-template-columns:24px 1fr auto; gap:12px;
+    align-items:center;
+    padding:10px 14px;
+    background:var(--c-surface);
+    border:1px solid var(--c-border);
+    border-radius:8px;
+    transition:transform .15s ease;
+  }
+  .dig-model-row:hover{transform:translateX(2px); border-color:var(--c-border-strong)}
+  .dig-model-row .dmr-rank{
+    font-size:11px; font-weight:800; color:var(--c-muted);
+    font-variant-numeric:tabular-nums;
+  }
+  .dig-model-row.top-3 .dmr-rank{color:var(--c-amber-600); font-size:13px}
+  .dig-model-row .dmr-body{
+    display:flex; flex-direction:column; gap:4px; min-width:0;
+  }
+  .dig-model-row .dmr-name{
+    font-size:13px; font-weight:700; color:var(--c-fg);
+    letter-spacing:-.005em;
+  }
+  .dig-model-row .dmr-bar{
+    height:5px; background:var(--c-slate-100); border-radius:3px; overflow:hidden;
+  }
+  .dig-model-row .dmr-fill{
+    height:100%; border-radius:3px;
+    background:linear-gradient(90deg, var(--c-primary), var(--c-emerald-600));
+    transition:width .5s ease;
+  }
+  .dig-model-row .dmr-stats{
+    display:flex; flex-direction:column; align-items:flex-end; gap:2px;
+    font-variant-numeric:tabular-nums;
+  }
+  .dig-model-row .dmr-leads{
+    font-size:16px; font-weight:800; color:var(--c-fg);
+    line-height:1; letter-spacing:-.02em;
+  }
+  .dig-model-row .dmr-share{
+    font-size:10px; font-weight:600; color:var(--c-muted);
+  }
+
+  /* Findings grid (cards dinámicas) */
+  .dig-findings-grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+    gap:var(--sp-3);
+  }
+  .dig-finding{
+    background:var(--c-surface);
+    border:1px solid var(--c-border);
+    border-left:4px solid var(--c-muted);
+    border-radius:10px;
+    padding:14px 16px;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .dig-finding:hover{transform:translateY(-1px); box-shadow:var(--shadow-sm)}
+  .dig-finding.bad{border-left-color:var(--c-bad)}
+  .dig-finding.warn{border-left-color:var(--c-warn)}
+  .dig-finding.ok{border-left-color:var(--c-good)}
+  .dig-finding.info{border-left-color:var(--c-primary)}
+  .dig-finding .df-icon{font-size:16px; line-height:1; margin-bottom:6px}
+  .dig-finding .df-label{
+    font-size:11px; font-weight:700; color:var(--c-muted);
+    text-transform:uppercase; letter-spacing:.06em;
+    margin-bottom:4px;
+  }
+  .dig-finding .df-headline{
+    font-size:18px; font-weight:800; color:var(--c-fg);
+    line-height:1.2; letter-spacing:-.02em; margin-bottom:6px;
+    font-variant-numeric:tabular-nums;
+  }
+  .dig-finding .df-headline strong{color:var(--c-primary)}
+  .dig-finding.bad .df-headline strong{color:var(--c-bad-tx)}
+  .dig-finding.warn .df-headline strong{color:var(--c-warn-tx)}
+  .dig-finding.ok .df-headline strong{color:var(--c-good-tx)}
+  .dig-finding .df-detail{
+    font-size:12px; color:var(--c-muted); line-height:1.5;
+  }
+  .dig-finding .df-trend{
+    margin-top:8px; padding-top:8px;
+    border-top:1px dashed var(--c-slate-100);
+    font-size:11px; color:var(--c-muted);
+    display:flex; align-items:center; gap:6px;
+  }
+
+  /* Mobile compactos */
+  @media (max-width:540px){
+    .dig-funnel-stage{padding:10px 12px}
+    .dig-funnel-stage .dfs-val{font-size:20px}
+    .dig-model-row{grid-template-columns:20px 1fr auto; padding:8px 10px; gap:8px}
+    .dig-model-row .dmr-leads{font-size:14px}
+    .dig-finding{padding:10px 12px}
+    .dig-finding .df-headline{font-size:15px}
+  }
+
   /* Big stat card — refactored to Bento look */
   .stat-hero{
     display:grid;
@@ -3960,22 +4153,30 @@ HTML = r"""<!doctype html>
         <div class="sub" id="dig-source">Pipeline Ventas-Ford · datos en vivo del CRM (portal 21339231)</div>
       </div>
       <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end">
-        <div style="font-size:11px; color:rgba(255,255,255,.7)" id="dig-updated">—</div>
+        <div id="dig-fresh-badge" style="font-size:10.5px; padding:3px 9px; border-radius:var(--r-full); background:rgba(255,255,255,.18); color:#fff; font-weight:600; letter-spacing:.03em; display:none">—</div>
+        <div style="font-size:11px; color:rgba(255,255,255,.75)" id="dig-updated">—</div>
         <button id="dig-logout" type="button" class="logout-btn">Cerrar sesión</button>
       </div>
     </div>
 
-    <!-- KPI hero · totales del período -->
-    <div class="bento-grid" id="dig-hero" style="margin-top:var(--sp-4)">
-      <div class="bento-cell">
+    <!-- Selector de período -->
+    <div class="dig-period-chips" id="dig-period-chips">
+      <button class="dig-chip active" data-period="all" type="button">Últimos 7 meses</button>
+      <button class="dig-chip" data-period="last" type="button"><span id="dig-chip-last">—</span></button>
+      <button class="dig-chip" data-period="prev" type="button"><span id="dig-chip-prev">—</span></button>
+    </div>
+
+    <!-- KPI hero · 6 cards con sparkline + delta -->
+    <div class="bento-grid" id="dig-hero" style="margin-top:var(--sp-3)">
+      <div class="bento-cell" id="dig-cell-leads">
         <div class="bento-label">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 14 12 9 16 13 21 8"/></svg>
           Leads Recibidos
         </div>
         <div class="bento-value" id="dig-k-leads">—</div>
-        <div class="bento-hint" id="dig-k-leads-hint">7 meses · cohorte ingreso CCT</div>
+        <div class="bento-hint" id="dig-k-leads-hint">cohorte ingreso CCT</div>
       </div>
-      <div class="bento-cell accent">
+      <div class="bento-cell accent" id="dig-cell-cont">
         <div class="bento-label">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.95.37 1.88.7 2.76a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.32-1.32a2 2 0 0 1 2.11-.45c.88.33 1.81.57 2.76.7A2 2 0 0 1 22 16.92z"/></svg>
           Contactados
@@ -3983,7 +4184,7 @@ HTML = r"""<!doctype html>
         <div class="bento-value" id="dig-k-cont">—</div>
         <div class="bento-hint" id="dig-k-cont-hint">tasa contactabilidad</div>
       </div>
-      <div class="bento-cell">
+      <div class="bento-cell" id="dig-cell-agen">
         <div class="bento-label">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           Citas Agendadas
@@ -3991,7 +4192,7 @@ HTML = r"""<!doctype html>
         <div class="bento-value" id="dig-k-agen">—</div>
         <div class="bento-hint" id="dig-k-agen-hint">deals con fecha de cita</div>
       </div>
-      <div class="bento-cell">
+      <div class="bento-cell" id="dig-cell-efec">
         <div class="bento-label">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           Citas Efectivas
@@ -4005,9 +4206,9 @@ HTML = r"""<!doctype html>
           No-Show
         </div>
         <div class="bento-value" id="dig-k-noshow">—</div>
-        <div class="bento-hint" id="dig-k-noshow-hint">agendadas que no asistieron</div>
+        <div class="bento-hint" id="dig-k-noshow-hint">agendadas sin asistir</div>
       </div>
-      <div class="bento-cell">
+      <div class="bento-cell" id="dig-cell-vent">
         <div class="bento-label">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 12l-4-4-4 4"/><path d="M12 16V8"/></svg>
           Ventas CRM
@@ -4017,18 +4218,21 @@ HTML = r"""<!doctype html>
       </div>
     </div>
 
-    <!-- Funnel mensual (barra apilada por etapa) -->
+    <!-- Funnel triangular con drop-off rates -->
     <div class="ford-section">
-      <h3>📊 Embudo mensual por cohorte de ingreso <span class="sub">leads → contactados → agendadas → efectivas · últimos 7 meses</span></h3>
-      <div style="position:relative;height:360px"><canvas id="dig-funnel-chart"></canvas></div>
-      <div class="legend" style="margin-top:8px; font-size:11px; color:var(--c-muted); text-align:center">
-        Cada barra agrupa por <strong>mes de ingreso del lead al CCT</strong>. Cada etapa es subconjunto de la anterior.
-      </div>
+      <h3>🔻 Embudo de conversión <span class="sub" id="dig-funnel-sub">% de pérdida entre cada etapa · período seleccionado</span></h3>
+      <div id="dig-funnel-viz" class="dig-funnel-viz"></div>
     </div>
 
-    <!-- Tabla por agencia -->
+    <!-- Evolución mensual (barra grouped) -->
     <div class="ford-section">
-      <h3>🏢 No-show por agencia <span class="sub" id="dig-ag-period">cohorte ingreso · mes anterior</span></h3>
+      <h3>📊 Evolución mensual <span class="sub">cohorte de ingreso · últimos 7 meses</span></h3>
+      <div style="position:relative;height:300px"><canvas id="dig-funnel-chart"></canvas></div>
+    </div>
+
+    <!-- Tabla por agencia con bullet -->
+    <div class="ford-section">
+      <h3>🏢 No-show por agencia <span class="sub" id="dig-ag-period">cohorte ingreso · período seleccionado</span></h3>
       <div style="overflow-x:auto">
         <table class="ford" id="dig-tbl-agency">
           <thead><tr>
@@ -4037,40 +4241,23 @@ HTML = r"""<!doctype html>
             <th>Agendadas</th>
             <th>Efectivas</th>
             <th>Show rate</th>
-            <th>Tendencia</th>
+            <th style="min-width:120px">vs promedio</th>
           </tr></thead>
           <tbody></tbody>
         </table>
       </div>
     </div>
 
-    <!-- Top modelos de interés -->
+    <!-- Top modelos con share -->
     <div class="ford-section">
-      <h3>🚗 Top modelos de interés <span class="sub" id="dig-mod-period">cohorte ingreso · mes anterior</span></h3>
-      <div style="position:relative;height:280px"><canvas id="dig-models-chart"></canvas></div>
+      <h3>🚗 Top modelos de interés <span class="sub" id="dig-mod-period">cohorte ingreso · período seleccionado</span></h3>
+      <div id="dig-models-list" class="dig-models-list"></div>
     </div>
 
-    <!-- Hallazgos / insights estáticos del knowledge base -->
+    <!-- Hallazgos dinámicos -->
     <div class="ford-section">
-      <h3>🎯 Hallazgos del periodo <span class="sub">desperdicios confirmados · base dic-25 a may-26</span></h3>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:var(--sp-3)">
-        <div class="kpi bad">
-          <div class="label">⚠ No-show ~62%</div>
-          <div class="hint">Fuga #1 del embudo. Foco: CJA-Guayaquil (peor show-rate + mayor volumen) y modelos Ranger XL / Everest / Escape ST LINE</div>
-        </div>
-        <div class="kpi warn">
-          <div class="label">⚠ Leads no contactados</div>
-          <div class="hint"><strong>~14%</strong> nunca contactados (~96/mes). Cadencia muere en 1-2 intentos.</div>
-        </div>
-        <div class="kpi warn">
-          <div class="label">⚠ Higiene pipeline rota</div>
-          <div class="hint"><strong>88%</strong> estancado en "Cita agendada" · 0% de pérdidas con motivo. Loop de venta ciego (ventas viven en DMS, no CRM).</div>
-        </div>
-        <div class="kpi">
-          <div class="label">📅 Efecto fin de mes</div>
-          <div class="hint"><strong>~47%</strong> de los leads de la última semana agendan su cita el mes siguiente — el presupuesto del mes empieza a llenarse a fin del anterior.</div>
-        </div>
-      </div>
+      <h3>🎯 Hallazgos del periodo <span class="sub" id="dig-findings-sub">comparativa vs baseline dic-25 / may-26</span></h3>
+      <div id="dig-findings-grid" class="dig-findings-grid"></div>
     </div>
 
     <div class="footer-note">
@@ -9235,50 +9422,153 @@ HTML = r"""<!doctype html>
   // ─────────────────── TAB DIGITAL · HubSpot ───────────────────
   let _digInit = false;
   let _digFunnelChart = null;
-  let _digModelsChart = null;
+  // Estado de período seleccionado · 'all' | 'last' | 'prev'
+  let _digPeriod = 'all';
+
+  function _digAggregateForPeriod(D, period){
+    const months = D.months || [];
+    if(!months.length) return {leads:0, cont:0, agen:0, efec:0, vent:0, period_label:''};
+    let pick;
+    if(period === 'last') pick = [months[months.length-1]];
+    else if(period === 'prev') pick = months.length >= 2 ? [months[months.length-2]] : [months[0]];
+    else pick = months;
+    const sum = (k) => pick.reduce((a,m) => a + (m[k]||0), 0);
+    const leads = sum('leads'), cont = sum('cont'), agen = sum('agen'), efec = sum('efec'), vent = sum('vent');
+    const rate_cont    = leads ? Math.round(1000*cont/leads)/10 : 0;
+    const rate_agen    = leads ? Math.round(1000*agen/leads)/10 : 0;
+    const rate_show    = agen  ? Math.round(1000*efec/agen)/10  : 0;
+    const rate_no_show = agen  ? Math.round(1000*(agen-efec)/agen)/10 : 0;
+    const rate_close   = efec  ? Math.round(1000*vent/efec)/10  : 0;
+    const period_label = pick.length === 1 ? pick[0].label : (months[0].label + ' → ' + months[months.length-1].label);
+    return {leads, cont, agen, efec, vent, rate_cont, rate_agen, rate_show, rate_no_show, rate_close, period_label};
+  }
+
+  function _digFreshness(updatedAt){
+    if(!updatedAt) return {cls:'', txt:''};
+    const ageMs = Date.now() - new Date(updatedAt).getTime();
+    const h = ageMs / (1000*60*60);
+    if(h < 6)  return {cls:'fresh', txt:'● fresca'};
+    if(h < 24) return {cls:'fresh', txt:'● <24h'};
+    if(h < 72) return {cls:'stale', txt:'⚠ ' + Math.round(h) + 'h'};
+    return {cls:'old', txt:'⚠ ' + Math.round(h/24) + ' días'};
+  }
+
   function renderDigital(){
     const D = DATA.digital;
     if(!D || !D.available){
       document.getElementById('dig-source').textContent = 'HubSpot no disponible · ejecuta `python3 hubspot_pull.py` para refrescar';
-      document.getElementById('dig-k-leads').textContent = '—';
-      document.getElementById('dig-k-cont').textContent = '—';
-      document.getElementById('dig-k-agen').textContent = '—';
-      document.getElementById('dig-k-efec').textContent = '—';
-      document.getElementById('dig-k-noshow').textContent = '—';
-      document.getElementById('dig-k-vent').textContent = '—';
+      ['dig-k-leads','dig-k-cont','dig-k-agen','dig-k-efec','dig-k-noshow','dig-k-vent'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.textContent = '—';
+      });
       return;
     }
-    const k = D.kpis || {};
-    document.getElementById('dig-k-leads').textContent = fmt(k.period_leads || 0);
-    document.getElementById('dig-k-cont').textContent  = fmt(k.period_cont  || 0);
-    document.getElementById('dig-k-cont-hint').textContent = (k.rate_cont||0) + '% contactabilidad · ' + ((k.period_leads||0) - (k.period_cont||0)) + ' no contactados';
-    document.getElementById('dig-k-agen').textContent  = fmt(k.period_agen  || 0);
-    document.getElementById('dig-k-agen-hint').textContent = (k.rate_agen||0) + '% del lead';
-    document.getElementById('dig-k-efec').textContent  = fmt(k.period_efec  || 0);
-    document.getElementById('dig-k-efec-hint').textContent = (k.rate_show||0) + '% show rate';
-    const noShowAbs = (k.period_agen || 0) - (k.period_efec || 0);
-    document.getElementById('dig-k-noshow').textContent = (k.rate_no_show||0) + '%';
-    document.getElementById('dig-k-noshow-hint').textContent = fmt(noShowAbs) + ' agendadas sin asistir';
-    document.getElementById('dig-k-vent').textContent  = fmt(k.period_vent  || 0);
+    const months = D.months || [];
+    const lastM = months.length ? months[months.length-1] : null;
+    const prevM = months.length >= 2 ? months[months.length-2] : null;
 
-    // Anomaly markers según severidad
-    setAnomaly(document.getElementById('dig-cell-noshow'), (k.rate_no_show||0) > 50 ? -25 : ((k.rate_no_show||0) > 30 ? -12 : null), {
-      thresholds:{warn:10, bad:20}, labels:{ bad:'↓ Fuga #1', warn:'⚠ Alto', pos:'' }
-    });
+    // Labels de chips dinámicos
+    if(lastM) document.getElementById('dig-chip-last').textContent = lastM.label + ' (actual)';
+    if(prevM) document.getElementById('dig-chip-prev').textContent = prevM.label;
 
+    // Freshness
+    const fb = document.getElementById('dig-fresh-badge');
     if(D.updated_at){
+      const fresh = _digFreshness(D.updated_at);
+      fb.style.display = 'inline-block';
+      fb.className = fresh.cls;
+      fb.textContent = fresh.txt;
       const d = new Date(D.updated_at);
       document.getElementById('dig-updated').textContent = 'Actualizado · ' + d.toLocaleString('es-EC', {dateStyle:'short', timeStyle:'short'});
     }
 
-    // Funnel chart por mes
-    const months = D.months || [];
-    const labels = months.map(m => m.label);
+    // Agregado del período seleccionado
+    const k = _digAggregateForPeriod(D, _digPeriod);
+    const prevK = months.length >= 2 ? (_digPeriod === 'last' ? _digAggregateForPeriod(D, 'prev') : null) : null;
+
+    function deltaHtml(curr, prev){
+      if(prev == null || prev === 0) return '';
+      const d = curr - prev;
+      const pct = Math.round(100*d/prev);
+      if(Math.abs(pct) < 1) return '<span class="dig-delta flat">0%</span>';
+      const cls = d > 0 ? 'up' : 'dn';
+      const sign = d > 0 ? '+' : '';
+      return `<span class="dig-delta ${cls}">${sign}${pct}%</span>`;
+    }
+
+    // KPI values + hints + deltas
+    document.getElementById('dig-k-leads').innerHTML = fmt(k.leads) + (prevK ? ' '+deltaHtml(k.leads, prevK.leads) : '');
+    document.getElementById('dig-k-leads-hint').textContent = (_digPeriod === 'all' ? '7 meses' : k.period_label) + ' · cohorte ingreso';
+    document.getElementById('dig-k-cont').innerHTML = fmt(k.cont) + (prevK ? ' '+deltaHtml(k.cont, prevK.cont) : '');
+    document.getElementById('dig-k-cont-hint').textContent = k.rate_cont + '% contactabilidad · ' + (k.leads - k.cont) + ' no contactados';
+    document.getElementById('dig-k-agen').innerHTML = fmt(k.agen) + (prevK ? ' '+deltaHtml(k.agen, prevK.agen) : '');
+    document.getElementById('dig-k-agen-hint').textContent = k.rate_agen + '% del lead';
+    document.getElementById('dig-k-efec').innerHTML = fmt(k.efec) + (prevK ? ' '+deltaHtml(k.efec, prevK.efec) : '');
+    document.getElementById('dig-k-efec-hint').textContent = k.rate_show + '% show rate';
+    document.getElementById('dig-k-noshow').textContent = k.rate_no_show + '%';
+    document.getElementById('dig-k-noshow-hint').textContent = (k.agen - k.efec) + ' agendadas sin asistir';
+    document.getElementById('dig-k-vent').innerHTML = fmt(k.vent) + (prevK ? ' '+deltaHtml(k.vent, prevK.vent) : '');
+
+    // Sparklines en cards de hero (trayectoria mensual de cada métrica)
+    if(months.length >= 2 && typeof drawSparkline === 'function'){
+      drawSparkline(document.getElementById('dig-cell-leads'), months.map(m=>m.leads));
+      drawSparkline(document.getElementById('dig-cell-cont'),  months.map(m=>m.cont), {color:'var(--c-primary)'});
+      drawSparkline(document.getElementById('dig-cell-agen'),  months.map(m=>m.agen));
+      drawSparkline(document.getElementById('dig-cell-efec'),  months.map(m=>m.efec), {color:'var(--c-good)'});
+      // No-show rate por mes
+      drawSparkline(document.getElementById('dig-cell-noshow'), months.map(m => m.agen ? Math.round(100*(m.agen-m.efec)/m.agen) : 0), {color:'var(--c-bad)'});
+      drawSparkline(document.getElementById('dig-cell-vent'),  months.map(m=>m.vent), {color:'var(--c-amber-600)'});
+    }
+
+    // Anomaly markers
+    if(typeof setAnomaly === 'function'){
+      setAnomaly(document.getElementById('dig-cell-noshow'),
+        k.rate_no_show > 60 ? -25 : (k.rate_no_show > 40 ? -12 : null),
+        {thresholds:{warn:10, bad:20}, labels:{bad:'↓ Fuga #1', warn:'⚠ Alto', pos:''}});
+      setAnomaly(document.getElementById('dig-cell-cont'),
+        k.rate_cont < 80 ? -15 : (k.rate_cont >= 95 ? 25 : null),
+        {thresholds:{warn:10, bad:20}, labels:{bad:'↓ Bajo', warn:'⚠ Caer', pos:'↑ Excelente'}});
+      setAnomaly(document.getElementById('dig-cell-efec'),
+        k.rate_show < 30 ? -25 : (k.rate_show < 40 ? -12 : (k.rate_show >= 50 ? 25 : null)),
+        {thresholds:{warn:10, bad:20}, labels:{bad:'↓ Bajo', warn:'⚠ Alerta', pos:'↑ Bueno'}});
+    }
+
+    // ─── Funnel triangular con drop-off ───
+    const funnelViz = document.getElementById('dig-funnel-viz');
+    document.getElementById('dig-funnel-sub').textContent = '% de pérdida entre cada etapa · ' + k.period_label;
+    const stages = [
+      {name:'Leads recibidos',     val:k.leads, pct:100},
+      {name:'Contactados',         val:k.cont,  pct:k.leads?100*k.cont/k.leads:0},
+      {name:'Citas agendadas',     val:k.agen,  pct:k.leads?100*k.agen/k.leads:0},
+      {name:'Citas efectivas',     val:k.efec,  pct:k.leads?100*k.efec/k.leads:0},
+      {name:'Ventas CRM',          val:k.vent,  pct:k.leads?100*k.vent/k.leads:0},
+    ];
+    funnelViz.innerHTML = stages.map((s, i) => {
+      const next = stages[i+1];
+      const stageHtml = `<div class="dig-funnel-stage">
+        <div class="dfs-head">
+          <span class="dfs-name">${s.name}</span>
+          <span><span class="dfs-val">${fmt(s.val)}</span><span class="dfs-pct">${s.pct.toFixed(1)}% del lead</span></span>
+        </div>
+        <div class="dfs-bar"><div class="dfs-fill" style="width:${Math.max(2, s.pct)}%"></div></div>
+      </div>`;
+      let arrowHtml = '';
+      if(next){
+        const conv = s.val ? 100*next.val/s.val : 0;
+        const drop = 100 - conv;
+        arrowHtml = `<div class="dig-funnel-arrow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          <span>convierte <strong>${conv.toFixed(1)}%</strong> · <span class="drop">${drop.toFixed(1)}% se pierde</span></span>
+        </div>`;
+      }
+      return stageHtml + arrowHtml;
+    }).join('');
+
+    // ─── Evolución mensual chart (bar grouped) ───
     if(_digFunnelChart) _digFunnelChart.destroy();
     _digFunnelChart = new Chart(document.getElementById('dig-funnel-chart'), {
       type: 'bar',
       data: {
-        labels,
+        labels: months.map(m => m.label),
         datasets: [
           { label: 'Leads',       data: months.map(m=>m.leads), backgroundColor: 'rgba(100,116,139,.7)', borderRadius: 4 },
           { label: 'Contactados', data: months.map(m=>m.cont),  backgroundColor: 'rgba(14,165,233,.85)',  borderRadius: 4 },
@@ -9290,56 +9580,127 @@ HTML = r"""<!doctype html>
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { position: 'top' }, datalabels: { display: false } },
-        scales: {
-          x: { stacked: false },
-          y: { beginAtZero: true, ticks: { precision: 0 } },
-        },
+        scales: { x: { stacked: false }, y: { beginAtZero: true, ticks: { precision: 0 } } },
       },
     });
 
-    // Tabla por agencia
+    // ─── Tabla agencia mejorada (bullet + comparativa vs promedio) ───
     const ag = D.agencies || { rows: [], period: '' };
     document.getElementById('dig-ag-period').textContent = 'cohorte ingreso · ' + (ag.period || '—');
     const tbody = document.querySelector('#dig-tbl-agency tbody');
+    const avgShow = ag.rows && ag.rows.length ? (ag.rows.reduce((a,r)=>a+r.show_rate,0) / ag.rows.length) : 0;
     tbody.innerHTML = (ag.rows || []).map(r => {
       const showColor = r.show_rate >= 40 ? 'var(--c-good-tx)' : r.show_rate >= 30 ? 'var(--c-warn-tx)' : 'var(--c-bad-tx)';
-      const barPct = Math.max(0, Math.min(100, r.show_rate));
       const barColor = r.show_rate >= 40 ? 'var(--c-good)' : r.show_rate >= 30 ? 'var(--c-warn)' : 'var(--c-bad)';
+      const barPct = Math.max(2, Math.min(100, r.show_rate * 1.5));
+      const vsAvg = r.show_rate - avgShow;
+      const vsAvgTxt = (vsAvg > 0 ? '+' : '') + vsAvg.toFixed(1) + ' pp';
+      const vsAvgCls = vsAvg > 3 ? 'dig-delta up' : (vsAvg < -3 ? 'dig-delta dn' : 'dig-delta flat');
+      const badge = r.show_rate < 25 ? `<span style="display:inline-block;margin-left:6px;padding:1px 6px;background:var(--c-bad-bg);color:var(--c-bad-tx);font-size:9px;font-weight:700;letter-spacing:.03em;border-radius:var(--r-sm);text-transform:uppercase">⚠ Crítico</span>` : '';
       return `<tr>
-        <td class="left">${r.agency}</td>
-        <td>${fmt(r.leads)}</td>
-        <td>${fmt(r.agen)}</td>
-        <td>${fmt(r.efec)}</td>
-        <td style="color:${showColor}; font-weight:700">${r.show_rate}%</td>
-        <td><div style="height:8px; background:var(--c-slate-100); border-radius:4px; overflow:hidden">
-          <div style="height:100%; width:${barPct}%; background:${barColor}; border-radius:4px"></div>
-        </div></td>
+        <td class="left"><strong>${r.agency}</strong>${badge}</td>
+        <td style="font-variant-numeric:tabular-nums">${fmt(r.leads)}</td>
+        <td style="font-variant-numeric:tabular-nums">${fmt(r.agen)}</td>
+        <td style="font-variant-numeric:tabular-nums">${fmt(r.efec)}</td>
+        <td style="color:${showColor}; font-weight:800; font-variant-numeric:tabular-nums">${r.show_rate}%</td>
+        <td>
+          <div style="display:flex; align-items:center; gap:8px">
+            <div style="flex:1; height:6px; background:var(--c-slate-100); border-radius:3px; overflow:hidden; position:relative">
+              <div style="position:absolute; left:calc(${Math.min(100, avgShow*1.5)}% - 1px); top:-2px; bottom:-2px; width:2px; background:var(--c-slate-900); opacity:.4" title="Promedio ${avgShow.toFixed(1)}%"></div>
+              <div style="height:100%; width:${barPct}%; background:${barColor}; border-radius:3px"></div>
+            </div>
+            <span class="${vsAvgCls}" style="margin:0">${vsAvgTxt}</span>
+          </div>
+        </td>
       </tr>`;
     }).join('');
 
-    // Top modelos
+    // ─── Top modelos (lista ranking) ───
     const mod = D.models || { rows: [], period: '' };
     document.getElementById('dig-mod-period').textContent = 'cohorte ingreso · ' + (mod.period || '—');
-    const modLabels = (mod.rows || []).map(r => r.model);
-    const modData = (mod.rows || []).map(r => r.leads);
-    if(_digModelsChart) _digModelsChart.destroy();
-    _digModelsChart = new Chart(document.getElementById('dig-models-chart'), {
-      type: 'bar',
-      data: {
-        labels: modLabels,
-        datasets: [{
-          label: 'Leads',
-          data: modData,
-          backgroundColor: 'rgba(0,52,120,.9)',
-          borderRadius: 6,
-        }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        indexAxis: 'y',
-        plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'end', font: { weight: 'bold' } } },
-        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
-      },
+    const totalLeads = (mod.rows || []).reduce((a,r) => a + (r.leads || 0), 0);
+    const maxLeads = (mod.rows || []).reduce((a,r) => Math.max(a, r.leads || 0), 0);
+    const list = document.getElementById('dig-models-list');
+    list.innerHTML = (mod.rows || []).slice(0, 12).map((r, i) => {
+      const share = totalLeads ? (100*r.leads/totalLeads).toFixed(1) : '0';
+      const fillPct = maxLeads ? (100*r.leads/maxLeads) : 0;
+      const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#'+(i+1);
+      const topCls = i < 3 ? ' top-3' : '';
+      return `<div class="dig-model-row${topCls}">
+        <div class="dmr-rank">${rankIcon}</div>
+        <div class="dmr-body">
+          <div class="dmr-name">${r.model}</div>
+          <div class="dmr-bar"><div class="dmr-fill" style="width:${fillPct}%"></div></div>
+        </div>
+        <div class="dmr-stats">
+          <div class="dmr-leads">${fmt(r.leads)}</div>
+          <div class="dmr-share">${share}% del total</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // ─── Hallazgos dinámicos (calculados vs baseline) ───
+    const findings = [];
+    // Baseline knowledge base: no-show 62%, contactab 85%, estancados 88%, fin de mes 47%
+    const noShowBaseline = 62;
+    const contBaseline = 85;
+    if(k.rate_no_show > 65){
+      findings.push({cls:'bad', icon:'🔴', label:'NO-SHOW FUERA DE CONTROL',
+        head:`<strong>${k.rate_no_show}%</strong> de las citas no asisten`,
+        detail:`${k.agen - k.efec} de ${k.agen} agendadas no se presentaron. Empeoró ${(k.rate_no_show - noShowBaseline).toFixed(1)} pp vs baseline ${noShowBaseline}%.`,
+        trend:'Fuga #1 confirmada · CJA-Guayaquil sigue siendo el más débil'});
+    } else if(k.rate_no_show > 55){
+      findings.push({cls:'warn', icon:'⚠️', label:'NO-SHOW ALTO',
+        head:`<strong>${k.rate_no_show}%</strong> de las citas no asisten`,
+        detail:`${k.agen - k.efec} agendadas no se presentaron. Cerca del baseline (62%) — sin mejora estructural.`,
+        trend:'Modelos de mayor pérdida: Ranger XL · Everest · Escape ST LINE'});
+    } else {
+      findings.push({cls:'ok', icon:'✓', label:'NO-SHOW EN CONTROL',
+        head:`<strong>${k.rate_no_show}%</strong> de las citas no asisten`,
+        detail:`Mejor que el baseline de ${noShowBaseline}%. ${fmt(k.efec)} citas efectivas sobre ${fmt(k.agen)} agendadas.`,
+        trend:'Mantener cadencia de confirmación 24h previas'});
+    }
+    if(k.rate_cont < 80){
+      findings.push({cls:'bad', icon:'📞', label:'CONTACTABILIDAD BAJA',
+        head:`<strong>${(100-k.rate_cont).toFixed(1)}%</strong> nunca fueron contactados`,
+        detail:`${k.leads - k.cont} de ${k.leads} leads sin contacto. Empeoró vs baseline ${contBaseline}%.`,
+        trend:'Cadencia muere en 1-2 intentos · revisar scoring de leads'});
+    } else if(k.rate_cont < contBaseline){
+      findings.push({cls:'warn', icon:'📞', label:'CONTACTABILIDAD MEDIA',
+        head:`<strong>${k.rate_cont}%</strong> contactados`,
+        detail:`${k.leads - k.cont} leads sin contacto (${(100-k.rate_cont).toFixed(1)}%). Bajo baseline ${contBaseline}%.`,
+        trend:'Optimizar canales · WhatsApp + email + call'});
+    } else {
+      findings.push({cls:'ok', icon:'📞', label:'CONTACTABILIDAD OK',
+        head:`<strong>${k.rate_cont}%</strong> contactados`,
+        detail:`Solo ${k.leads - k.cont} leads sin contacto. Sobre baseline ${contBaseline}%.`,
+        trend:'Mantener · ampliar a leads enfriados'});
+    }
+    findings.push({cls:'info', icon:'💰', label:'IMPACTO COMERCIAL',
+      head:`<strong>${fmt(Math.round(k.efec * 0.1))} ventas</strong> esperadas`,
+      detail:`Con ${fmt(k.efec)} efectivas × 10% de cierre = ~$${fmt(Math.round(k.efec * 0.1 * 5000))} USD margen estimado.`,
+      trend:'CRM dice ' + k.vent + ' ventas — gap con DMS por completar registro'});
+    findings.push({cls:'info', icon:'📅', label:'EFECTO FIN DE MES',
+      head:`<strong>~47%</strong> de leads última semana agendan al mes siguiente`,
+      detail:'El presupuesto de un mes empieza a llenarse a fin del anterior. El mes en curso siempre se ve subestimado al inicio.',
+      trend:'Ajustar lectura · mes más reciente subestimado por madurez de cohorte'});
+
+    document.getElementById('dig-findings-grid').innerHTML = findings.map(f => `<div class="dig-finding ${f.cls}">
+      <div class="df-icon">${f.icon}</div>
+      <div class="df-label">${f.label}</div>
+      <div class="df-headline">${f.head}</div>
+      <div class="df-detail">${f.detail}</div>
+      <div class="df-trend">↳ ${f.trend}</div>
+    </div>`).join('');
+
+    // Bind chips
+    document.querySelectorAll('#dig-period-chips .dig-chip').forEach(chip => {
+      chip.onclick = () => {
+        document.querySelectorAll('#dig-period-chips .dig-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        _digPeriod = chip.dataset.period;
+        renderDigital();
+      };
     });
   }
   // Gate de password (independiente de otros — clave Maresa2026*)
