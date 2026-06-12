@@ -3555,7 +3555,13 @@
 
     <!-- RESERVAS POR CONCESIONARIO × MODELO -->
     <div class="ford-section" style="margin-top:18px">
-      <h3>🏬 Reservas por concesionario × modelo <span class="sub">¿Dónde está concentrada la cola y de qué modelo?</span></h3>
+      <h3>🏬 Reservas por concesionario × modelo <span class="sub">Asignadas + no asignadas · ¿dónde está concentrada la demanda?</span></h3>
+      <div class="hm-filters" id="inv-cola-view-chips" style="margin-bottom:10px">
+        <button class="hm-chip active" data-view="total" type="button">Total</button>
+        <button class="hm-chip" data-view="asig" type="button"><span class="hm-chip-dot" style="background:#2e7d32"></span> Asignadas</button>
+        <button class="hm-chip" data-view="noasig" type="button"><span class="hm-chip-dot" style="background:#f57f17"></span> No asignadas</button>
+        <button class="hm-chip" data-view="split" type="button">Split (✓+◷)</button>
+      </div>
       <div style="overflow-x:auto">
         <table class="analysis" id="inv-tbl-cola-agencia">
           <thead></thead>
@@ -11296,6 +11302,7 @@
   }
 
   // Matriz reservas en cola: filas = agencias, columnas = modelos
+  let _invColaView = 'total';  // total | asig | noasig | split
   function renderInvColaPorAgencia(){
     if(!INV) return;
     const bd = INV.brands?.[invstate.marca];
@@ -11305,65 +11312,127 @@
       head.innerHTML = ''; tbody.innerHTML = '<tr><td>Sin datos.</td></tr>';
       return;
     }
-    const brandKey = invstate.marca === 'FORD' ? 'FORD' :
-                     invstate.marca === 'DONGFENG_ORGU' ? 'DONGFENG' :
-                     invstate.marca === 'CHERY_ORGU' ? 'CHERY' :
-                     invstate.marca === 'MAZDA_ORGU' ? 'MAZDA' : 'RAM';
-    const cola = (INV.cola_detail||[]).filter(c => c.marca === brandKey);
-    if(cola.length === 0){
+
+    // Construir 2 matrices: asig (con chasis) + noasig (sin chasis), basadas en
+    // res_agencias / cola_agencias por modelo (no en cola_detail flat).
+    const asigMtx = {};   // {agencia: {modelo: n}}
+    const noasigMtx = {}; // {agencia: {modelo: n}}
+    const modelTotAsig = {}, modelTotNoasig = {};
+    const agencySet = new Set();
+    const modelos = [];
+
+    Object.entries(bd.modelos).forEach(([m, d]) => {
+      const ra = d.res_agencias || {};
+      const ca = d.cola_agencias || {};
+      const totA = Object.values(ra).reduce((s,v)=>s+v,0);
+      const totN = Object.values(ca).reduce((s,v)=>s+v,0);
+      if(totA === 0 && totN === 0) return;
+      modelos.push(m);
+      modelTotAsig[m] = totA;
+      modelTotNoasig[m] = totN;
+      Object.entries(ra).forEach(([a,v]) => {
+        agencySet.add(a);
+        asigMtx[a] = asigMtx[a] || {}; asigMtx[a][m] = (asigMtx[a][m]||0) + v;
+      });
+      Object.entries(ca).forEach(([a,v]) => {
+        agencySet.add(a);
+        noasigMtx[a] = noasigMtx[a] || {}; noasigMtx[a][m] = (noasigMtx[a][m]||0) + v;
+      });
+    });
+
+    if(modelos.length === 0){
       head.innerHTML = '';
-      tbody.innerHTML = '<tr><td style="text-align:center;color:var(--muted);padding:14px">Sin reservas en cola para esta marca.</td></tr>';
+      tbody.innerHTML = '<tr><td style="text-align:center;color:var(--muted);padding:14px">Sin reservas para esta marca.</td></tr>';
       return;
     }
 
-    // Modelos visibles: solo los que tienen al menos 1 reserva, ordenados por cola desc
-    const modelTot = {};
-    cola.forEach(c => { modelTot[c.modelo] = (modelTot[c.modelo]||0) + 1; });
-    const modelos = Object.keys(modelTot).sort((a,b) => modelTot[b] - modelTot[a]);
-    // Agencias visibles: las del panel + cualquier otra que aparezca en cola
-    const agencySet = new Set();
-    cola.forEach(c => agencySet.add(c.agencia));
+    // Ordenar modelos por total desc
+    modelos.sort((a,b) => (modelTotAsig[b]+modelTotNoasig[b]) - (modelTotAsig[a]+modelTotNoasig[a]));
+
+    // Agencias visibles: panel + otras aparecidas
     const agencies = INV_AGENCIES.filter(a => agencySet.has(a))
       .concat([...agencySet].filter(a => !INV_AGENCIES.includes(a)).sort());
 
-    // Construir matriz
-    const mtx = {};
-    agencies.forEach(a => { mtx[a] = {}; modelos.forEach(m => { mtx[a][m] = 0; }); });
-    cola.forEach(c => {
-      if(mtx[c.agencia] && mtx[c.agencia][c.modelo] !== undefined){
-        mtx[c.agencia][c.modelo]++;
-      }
-    });
-
-    // Calcular totales por agencia, por modelo, gran total
-    const rowTot = {}; let grand = 0;
+    // Totales por agencia (suma asig+noasig)
+    const rowTotA = {}, rowTotN = {};
     agencies.forEach(a => {
-      rowTot[a] = modelos.reduce((s,m) => s + mtx[a][m], 0);
-      grand += rowTot[a];
+      rowTotA[a] = modelos.reduce((s,m) => s + ((asigMtx[a]||{})[m]||0), 0);
+      rowTotN[a] = modelos.reduce((s,m) => s + ((noasigMtx[a]||{})[m]||0), 0);
     });
+    // Ordenar agencias por total combinado desc
+    agencies.sort((a,b) => (rowTotA[b]+rowTotN[b]) - (rowTotA[a]+rowTotN[a]));
 
-    // Ordenar agencias por total desc (más reservas arriba)
-    agencies.sort((a,b) => rowTot[b] - rowTot[a]);
+    const grandA = agencies.reduce((s,a)=>s+rowTotA[a],0);
+    const grandN = agencies.reduce((s,a)=>s+rowTotN[a],0);
 
-    // Filas = modelos · columnas = agencias
+    function valCell(av, nv){
+      const view = _invColaView;
+      const tot = av + nv;
+      if(view === 'asig'){
+        return av === 0 ? `<td class="num" style="color:#d1d5db">·</td>`
+                        : `<td class="num" style="font-weight:600;color:#14532d">${av}</td>`;
+      }
+      if(view === 'noasig'){
+        return nv === 0 ? `<td class="num" style="color:#d1d5db">·</td>`
+                        : `<td class="num" style="font-weight:600;color:#7c2d12">${nv}</td>`;
+      }
+      if(view === 'split'){
+        if(tot === 0) return `<td class="num" style="color:#d1d5db">·</td>`;
+        const aPart = av > 0 ? `<span style="color:#14532d;font-weight:700">${av}</span>` : '';
+        const nPart = nv > 0 ? `<span style="color:#7c2d12;font-weight:700">${nv}</span>` : '';
+        const sep = (av>0 && nv>0) ? '<span style="color:var(--c-muted);margin:0 2px">+</span>' : '';
+        return `<td class="num" style="white-space:nowrap">${aPart}${sep}${nPart}</td>`;
+      }
+      // total
+      return tot === 0 ? `<td class="num" style="color:#d1d5db">·</td>`
+                      : `<td class="num" style="font-weight:600">${tot}</td>`;
+    }
+
+    function rowTotCell(av, nv){
+      const view = _invColaView;
+      const tot = av + nv;
+      if(view === 'asig')  return `<td class="num" style="font-weight:700;background:#f3f5fa">${av}</td>`;
+      if(view === 'noasig')return `<td class="num" style="font-weight:700;background:#f3f5fa">${nv}</td>`;
+      if(view === 'split') return `<td class="num" style="font-weight:700;background:#f3f5fa;white-space:nowrap"><span style="color:#14532d">${av}</span>+<span style="color:#7c2d12">${nv}</span></td>`;
+      return `<td class="num" style="font-weight:700;background:#f3f5fa">${tot}</td>`;
+    }
+
     head.innerHTML = `<tr><th>Modelo</th>${agencies.map(a => `<th class="num">${a}</th>`).join('')}<th class="num">Total</th></tr>`;
     tbody.innerHTML = modelos.map(m => {
-      const cells = agencies.map(a => {
-        const v = mtx[a][m];
-        return v === 0
-          ? `<td class="num" style="color:#d1d5db">·</td>`
-          : `<td class="num" style="font-weight:600">${v}</td>`;
-      }).join('');
+      const cells = agencies.map(a => valCell((asigMtx[a]||{})[m]||0, (noasigMtx[a]||{})[m]||0)).join('');
       return `<tr>
         <td class="left"><strong>${m}</strong></td>
         ${cells}
-        <td class="num" style="font-weight:700;background:#f3f5fa">${modelTot[m]}</td>
+        ${rowTotCell(modelTotAsig[m]||0, modelTotNoasig[m]||0)}
       </tr>`;
     }).join('') + `<tr class="total">
       <td><strong>TOTAL</strong></td>
-      ${agencies.map(a => `<td class="num">${rowTot[a]}</td>`).join('')}
-      <td class="num"><strong>${grand}</strong></td>
+      ${agencies.map(a => {
+        const av = rowTotA[a], nv = rowTotN[a];
+        const view = _invColaView;
+        let v;
+        if(view === 'asig') v = av;
+        else if(view === 'noasig') v = nv;
+        else if(view === 'split') v = `<span style="color:#14532d">${av}</span>+<span style="color:#7c2d12">${nv}</span>`;
+        else v = av+nv;
+        return `<td class="num">${v}</td>`;
+      }).join('')}
+      <td class="num"><strong>${_invColaView==='asig'?grandA: _invColaView==='noasig'?grandN: _invColaView==='split'?`<span style=\"color:#14532d\">${grandA}</span>+<span style=\"color:#7c2d12\">${grandN}</span>`: grandA+grandN}</strong></td>
     </tr>`;
+
+    // Bind chips toggle
+    const chipsWrap = document.getElementById('inv-cola-view-chips');
+    if(chipsWrap && !chipsWrap._bound){
+      chipsWrap._bound = true;
+      chipsWrap.querySelectorAll('.hm-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          chipsWrap.querySelectorAll('.hm-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          _invColaView = chip.dataset.view;
+          renderInvColaPorAgencia();
+        });
+      });
+    }
   }
 
   // Tiempo de espera del cliente (reserva → factura).
