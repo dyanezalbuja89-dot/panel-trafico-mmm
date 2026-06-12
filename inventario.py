@@ -273,14 +273,19 @@ def load_inventario(path=None, today=None, months_config=None):
     #   Formato viejo: DISPONIBLE / RESERVADO / FACTURADO / CONSIGNACIÓN
     #   Formato nuevo: SIN HN ASIGNADA (engloba DISPONIBLE y RESERVADO) / FACTURADO / CONSIGNACIÓN
     # Derivamos STATUS_CALC unificando ambos. Para SIN HN ASIGNADA:
-    #   - Con FECHA_DE_RESERVA real (>2020) → RESERVADO
-    #   - Sin FECHA_DE_RESERVA real          → DISPONIBLE
+    #   - Con CLIENTE_RESERVA poblado O FECHA_DE_RESERVA real → RESERVADO (chasis ya asignado a cliente)
+    #   - Sin CLIENTE_RESERVA y sin fecha                     → DISPONIBLE
+    # IMPORTANTE: "Reservas con chasis asignado" = chasis físico ya conocido (puede estar en tránsito)
+    # con cliente identificado, listo para facturar cuando llegue / cuando el cliente pague.
     _f_res_calc = pd.to_datetime(df['FECHA_DE_RESERVA'], errors='coerce')
     _has_real_reservation = _f_res_calc.notna() & (_f_res_calc.dt.year > 2020)
+    _cliente_res = df['CLIENTE_RESERVA'].astype(str).str.strip() if 'CLIENTE_RESERVA' in df.columns else pd.Series(['']*len(df))
+    _has_cliente_res = (_cliente_res != '') & (_cliente_res.str.lower() != 'nan') & (_cliente_res.str.lower() != 'none')
+    _is_reserved = _has_real_reservation | _has_cliente_res
     def _derive_status(row_idx):
         s = df['STATUS_H'].iloc[row_idx]
         if s == 'SIN HN ASIGNADA':
-            return 'RESERVADO' if _has_real_reservation.iloc[row_idx] else 'DISPONIBLE'
+            return 'RESERVADO' if _is_reserved.iloc[row_idx] else 'DISPONIBLE'
         return s
     df['STATUS_CALC'] = [_derive_status(i) for i in range(len(df))]
     # Usar STATUS_CALC como source of truth en el resto del módulo
@@ -400,8 +405,8 @@ def load_inventario(path=None, today=None, months_config=None):
     rc['FECHA'] = pd.to_datetime(rc['FECHA DE RESERVA'], errors='coerce')
     rc['aging'] = (today - rc['FECHA']).dt.days
     # Detección 'sin VIN': formato viejo tenía columna 'SIN VIN' con flag textual.
-    # Formato nuevo (22/05/2026+) eliminó esa columna; se infiere desde
-    # 'CHASIS ASIGANDO' (con typo del archivo): si está vacío → sin VIN.
+    # Formato nuevo (12/06/2026+): columna 'CHASIS ASIGANDO' contiene literal "SIN VIN"
+    # (texto, no vacío) cuando no hay chasis. También maneja: vacío, NaN.
     if 'SIN VIN' in rc.columns:
         rc['SIN_VIN'] = rc['SIN VIN'].astype(str).str.upper().str.contains('SIN VIN', na=False)
     else:
@@ -410,10 +415,16 @@ def load_inventario(path=None, today=None, months_config=None):
             if c in rc.columns:
                 chasis_col = c; break
         if chasis_col:
-            ch = rc[chasis_col].astype(str).str.strip()
-            rc['SIN_VIN'] = ch.isin(['', 'nan', 'NaN', 'None']) | ch.isna()
+            ch = rc[chasis_col].astype(str).str.strip().str.upper()
+            # SIN VIN si: vacío, NaN, o literal 'SIN VIN' / 'NO ASIGNADO' / similares
+            rc['SIN_VIN'] = (
+                ch.isin(['', 'NAN', 'NONE', 'NULL']) |
+                ch.str.contains('SIN VIN', na=False) |
+                ch.str.contains('NO ASIGN', na=False) |
+                rc[chasis_col].isna()
+            )
         else:
-            rc['SIN_VIN'] = False  # fallback conservador
+            rc['SIN_VIN'] = True  # sin columna chasis → asumir todas sin VIN (más conservador para RES-COLA)
     # Filtro: solo reservas con todos los campos clave llenos (cliente real).
     # Las reservas sin agencia o sin modelo normalizado se descartan — corresponden a
     # registros incompletos del Excel que el negocio no considera clientes confirmados.

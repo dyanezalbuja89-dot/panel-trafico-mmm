@@ -3435,8 +3435,8 @@ HTML = r"""<!doctype html>
     <!-- HERO KPIs -->
     <div class="stat-hero stat-hero-4" style="margin-top:14px">
       <div class="card-big"><div class="lbl">Disponible total</div><div class="val" id="inv-k-disp">—</div><div class="hint" id="inv-k-disp-hint"></div></div>
-      <div class="card-big"><div class="lbl">Reservado (con VIN)</div><div class="val" id="inv-k-res">—</div><div class="hint">Stock comprometido</div></div>
-      <div class="card-big"><div class="lbl">Reservas en cola</div><div class="val" id="inv-k-cola">—</div><div class="hint" id="inv-k-cola-hint">Demanda diferida</div></div>
+      <div class="card-big"><div class="lbl">Reservas con chasis asignado</div><div class="val" id="inv-k-res">—</div><div class="hint" id="inv-k-res-hint">Chasis ya identificado · listos para facturar</div></div>
+      <div class="card-big"><div class="lbl">Reservas sin chasis asignado</div><div class="val" id="inv-k-cola">—</div><div class="hint" id="inv-k-cola-hint">Cliente reservó · esperando llegada</div></div>
       <div class="card-big"><div class="lbl">Pipeline (USA + Nac)</div><div class="val" id="inv-k-pipe">—</div><div class="hint">Próximas llegadas</div></div>
     </div>
 
@@ -10975,8 +10975,9 @@ HTML = r"""<!doctype html>
     document.getElementById('inv-k-disp').textContent = fmt(disp);
     document.getElementById('inv-k-disp-hint').textContent = `Stock listo · snapshot ${INV.snapshot_date}`;
     document.getElementById('inv-k-res').textContent = fmt(res);
+    document.getElementById('inv-k-res-hint').textContent = `Chasis asignado (incl. tránsito) · ${fmt(res)} unidades comprometidas`;
     document.getElementById('inv-k-cola').textContent = fmt(cola);
-    document.getElementById('inv-k-cola-hint').textContent = `${colaSinVin} sin VIN asignado (esperando llegada)`;
+    document.getElementById('inv-k-cola-hint').textContent = `Cliente reservó · esperando producción/llegada (${colaSinVin} sin chasis)`;
     document.getElementById('inv-k-pipe').textContent = fmt(pipe);
   }
 
