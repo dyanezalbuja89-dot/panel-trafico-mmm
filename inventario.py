@@ -268,6 +268,12 @@ def load_inventario(path=None, today=None, months_config=None):
     df['MODELO'] = df.apply(lambda r: normalize_familia(r['familia'], r['marca_up']), axis=1)
     df['VERSION'] = df.apply(lambda r: normalize_version(r['familia'], r['marca_up']), axis=1)
     df['AGENCIA'] = df['UBICACIÓN FÍSICA SISCAL'].apply(loc_to_agency)
+    # Para RESERVAS: la agencia útil es donde el cliente reservó (no donde está
+    # físicamente el chasis, que muchas veces está en tránsito sin UBICACIÓN).
+    if 'AGENCIA_DE_RESERVA' in df.columns:
+        df['AGENCIA_RES'] = df['AGENCIA_DE_RESERVA'].apply(res_agency_norm)
+    else:
+        df['AGENCIA_RES'] = df['AGENCIA']
     df['STATUS_H'] = df['STATUS HOMOLOGADO'].astype(str).str.strip().str.upper()
     # COMPATIBILIDAD entre formatos:
     #   Formato viejo: DISPONIBLE / RESERVADO / FACTURADO / CONSIGNACIÓN
@@ -483,9 +489,13 @@ def load_inventario(path=None, today=None, months_config=None):
             disp_total = int(disp.shape[0])
 
             # Reservado (stock con VIN ya asignado a cliente — no facturado aún)
+            # Usa AGENCIA_RES (donde reservó cliente) — refleja demanda real por agencia
+            # incluso si el chasis aún está en tránsito sin UBICACIÓN FÍSICA.
+            # Reservas sin AGENCIA_DE_RESERVA o con Administrativo van a bucket
+            # "Sin asignar" para que la suma cuadre con res_total.
             res_v = mdf[mdf['STATUS_H']=='RESERVADO']
-            res_by_ag = res_v.groupby('AGENCIA').size().to_dict()
-            res_agencias = {a: int(c) for a, c in res_by_ag.items() if a not in ('Tránsito','Otros','Entregado')}
+            res_by_ag = res_v['AGENCIA_RES'].fillna('Sin asignar').replace({'Administrativo':'Sin asignar','Tránsito':'Sin asignar','Otros':'Sin asignar','Entregado':'Sin asignar'}).value_counts().to_dict()
+            res_agencias = {a: int(c) for a, c in res_by_ag.items()}
             res_total = int(res_v.shape[0])
 
             # Reservas en cola (RES-COLA — pueden tener VIN o no)
