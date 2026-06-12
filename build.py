@@ -2096,6 +2096,73 @@ HTML = r"""<!doctype html>
     color:var(--c-fg); font-size:13px; letter-spacing:-.01em;
   }
 
+  /* Resumen reservas asignadas vs no asignadas */
+  .inv-res-summary{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:var(--sp-3);
+    margin-bottom:var(--sp-3);
+  }
+  .inv-res-card{
+    display:flex; align-items:center; gap:14px;
+    background:var(--c-surface);
+    border:1px solid var(--c-border);
+    border-left-width:4px;
+    border-radius:12px;
+    padding:14px 16px;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .inv-res-card:hover{transform:translateY(-1px); box-shadow:var(--shadow-sm)}
+  .inv-res-asig{border-left-color:#2e7d32}
+  .inv-res-noasig{border-left-color:#f57f17}
+  .inv-res-total{border-left-color:var(--c-primary)}
+  .inv-res-icon{
+    flex-shrink:0;
+    width:42px; height:42px;
+    border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; font-weight:800;
+  }
+  .inv-res-asig .inv-res-icon{background:#dcfce7; color:#14532d}
+  .inv-res-noasig .inv-res-icon{background:#fed7aa; color:#7c2d12}
+  .inv-res-total .inv-res-icon{background:var(--c-primary-bg); color:var(--c-primary)}
+  .inv-res-body{flex:1; min-width:0}
+  .inv-res-lbl{
+    font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.06em;
+    color:var(--c-muted);
+    margin-bottom:2px;
+  }
+  .inv-res-val{
+    font-size:30px; font-weight:800;
+    color:var(--c-fg);
+    line-height:1; letter-spacing:-.025em;
+    font-variant-numeric:tabular-nums;
+  }
+  .inv-res-hint{
+    font-size:11px; color:var(--c-muted);
+    margin-top:4px; line-height:1.4;
+  }
+  .inv-res-bar{
+    display:flex;
+    height:10px;
+    background:var(--c-slate-100);
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .inv-res-bar-asig{
+    background:linear-gradient(90deg, #2e7d32, #66bb6a);
+    transition:width .5s ease;
+  }
+  .inv-res-bar-noasig{
+    background:linear-gradient(90deg, #f57f17, #ffb74d);
+    transition:width .5s ease;
+  }
+  @media (max-width:768px){
+    .inv-res-summary{grid-template-columns:1fr}
+    .inv-res-val{font-size:24px}
+  }
+
   /* Stat-hero con 4 columnas — alineado a Bento */
   .stat-hero-4{
     display:grid;
@@ -3501,6 +3568,41 @@ HTML = r"""<!doctype html>
           <thead></thead>
           <tbody></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- RESUMEN RESERVAS · ASIGNADAS vs NO ASIGNADAS -->
+    <div class="ford-section" style="margin-top:18px">
+      <h3>📦 Total reservas <span class="sub">Asignadas (chasis identificado) vs no asignadas (esperando)</span></h3>
+      <div class="inv-res-summary">
+        <div class="inv-res-card inv-res-asig">
+          <div class="inv-res-icon">✓</div>
+          <div class="inv-res-body">
+            <div class="inv-res-lbl">Asignadas</div>
+            <div class="inv-res-val" id="inv-res-asig-val">—</div>
+            <div class="inv-res-hint">Chasis identificado · listas para facturar</div>
+          </div>
+        </div>
+        <div class="inv-res-card inv-res-noasig">
+          <div class="inv-res-icon">◷</div>
+          <div class="inv-res-body">
+            <div class="inv-res-lbl">No asignadas</div>
+            <div class="inv-res-val" id="inv-res-noasig-val">—</div>
+            <div class="inv-res-hint">Cliente reservó · esperando producción/llegada</div>
+          </div>
+        </div>
+        <div class="inv-res-card inv-res-total">
+          <div class="inv-res-icon">Σ</div>
+          <div class="inv-res-body">
+            <div class="inv-res-lbl">Total reservas</div>
+            <div class="inv-res-val" id="inv-res-total-val">—</div>
+            <div class="inv-res-hint"><span id="inv-res-mix">—</span> asignadas</div>
+          </div>
+        </div>
+      </div>
+      <div class="inv-res-bar">
+        <div class="inv-res-bar-asig" id="inv-res-bar-asig" style="width:0%"></div>
+        <div class="inv-res-bar-noasig" id="inv-res-bar-noasig" style="width:0%"></div>
       </div>
     </div>
 
@@ -10992,6 +11094,22 @@ HTML = r"""<!doctype html>
     document.getElementById('inv-k-res-hint').textContent = `Chasis asignado (incl. tránsito) · ${fmt(res)} unidades comprometidas`;
     document.getElementById('inv-k-cola').textContent = fmt(cola);
     document.getElementById('inv-k-cola-hint').textContent = `Cliente reservó · esperando producción/llegada (${colaSinVin} sin chasis)`;
+    // Resumen reservas asignadas / no asignadas
+    const totalRes = res + cola;
+    const asigPct = totalRes > 0 ? Math.round(100*res/totalRes) : 0;
+    const noAsigPct = totalRes > 0 ? (100 - asigPct) : 0;
+    const elA = document.getElementById('inv-res-asig-val');
+    const elN = document.getElementById('inv-res-noasig-val');
+    const elT = document.getElementById('inv-res-total-val');
+    const elMix = document.getElementById('inv-res-mix');
+    if(elA){ elA.textContent = fmt(res); }
+    if(elN){ elN.textContent = fmt(cola); }
+    if(elT){ elT.textContent = fmt(totalRes); }
+    if(elMix){ elMix.textContent = totalRes > 0 ? asigPct + '% ' : '— '; }
+    const bA = document.getElementById('inv-res-bar-asig');
+    const bN = document.getElementById('inv-res-bar-noasig');
+    if(bA) bA.style.width = asigPct + '%';
+    if(bN) bN.style.width = noAsigPct + '%';
     document.getElementById('inv-k-pipe').textContent = fmt(pipe);
   }
 
