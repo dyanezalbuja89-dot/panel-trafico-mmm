@@ -2081,6 +2081,20 @@ HTML = r"""<!doctype html>
   .version-card .vc-bar{grid-column:1/-1;height:4px;background:#eef0f3;border-radius:2px;overflow:hidden;margin-top:2px;margin-bottom:8px}
   .version-card .vc-bar .fill{height:100%;background:linear-gradient(90deg,var(--ford-2),var(--ford));border-radius:2px}
   .version-card .vc-empty{color:var(--muted);font-size:12px;text-align:center;padding:20px}
+  /* Buckets dentro de version-card: con chasis vs sin chasis */
+  .version-card .vc-bucket{margin-top:10px; padding-top:8px; border-top:1px dashed var(--c-slate-100)}
+  .version-card .vc-bucket:first-of-type{margin-top:6px; border-top:0; padding-top:0}
+  .version-card .vc-bucket-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:4px 0 6px 8px; margin-bottom:6px;
+    font-size:11px; color:var(--c-fg);
+    letter-spacing:.02em;
+  }
+  .version-card .vc-bucket-head strong{font-weight:700}
+  .version-card .vc-bucket-total{
+    font-weight:800; font-variant-numeric:tabular-nums;
+    color:var(--c-fg); font-size:13px; letter-spacing:-.01em;
+  }
 
   /* Stat-hero con 4 columnas — alineado a Bento */
   .stat-hero-4{
@@ -11122,41 +11136,51 @@ HTML = r"""<!doctype html>
     const bd = INV.brands?.[invstate.marca];
     if(!bd){ wrap.innerHTML = '<div class="vc-empty">Sin datos para esta marca.</div>'; return; }
 
-    // Todos los modelos con al menos 1 reserva en cola
+    // Modelos con cualquier tipo de reserva (con chasis o sin chasis)
     const all = Object.entries(bd.modelos)
-      .filter(([m, d]) => d.cola_total > 0)
-      .sort((a,b) => b[1].cola_total - a[1].cola_total);
+      .filter(([m, d]) => (d.cola_total > 0) || (d.res_total > 0))
+      .sort((a,b) => ((b[1].cola_total||0) + (b[1].res_total||0)) - ((a[1].cola_total||0) + (a[1].res_total||0)));
 
     if(all.length === 0){
-      wrap.innerHTML = '<div class="vc-empty">No hay reservas en cola para esta marca.</div>';
+      wrap.innerHTML = '<div class="vc-empty">No hay reservas para esta marca.</div>';
       return;
     }
 
-    wrap.innerHTML = all.map(([modelo, d])=>{
-      let vers = Object.entries(d.cola_versions||{}).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-      // Fallback: si no hay versiones desglosadas, usar el modelo como única "versión"
-      if(vers.length === 0) vers = [[modelo, d.cola_total]];
-      const total = d.cola_total;
+    function buildBucket(label, color, versions, total, fallbackName){
+      let vers = Object.entries(versions||{}).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+      if(vers.length === 0 && total > 0) vers = [[fallbackName, total]];
+      if(!vers.length) return '';
       const max = vers[0][1];
       const rows = vers.map(([ver, count])=>{
         const pct = total>0 ? Math.round(100*count/total) : 0;
         const w = Math.round(100*count/max);
-        return `
-          <div class="vc-row">
-            <div class="label">${ver}</div>
-            <div class="count">${count}</div>
-            <div class="pct">${pct}%</div>
-            <div class="vc-bar"><div class="fill" style="width:${w}%"></div></div>
-          </div>`;
-      }).join('');
-      return `
-        <div class="version-card">
-          <div class="vc-head">
-            <div class="name">${modelo}</div>
-            <div><span class="total-lbl">Total cola</span><span class="total">${total}</span></div>
-          </div>
-          ${rows}
+        return `<div class="vc-row">
+          <div class="label">${ver}</div>
+          <div class="count">${count}</div>
+          <div class="pct">${pct}%</div>
+          <div class="vc-bar"><div class="fill" style="width:${w}%;background:${color}"></div></div>
         </div>`;
+      }).join('');
+      return `<div class="vc-bucket">
+        <div class="vc-bucket-head" style="border-left:3px solid ${color}"><strong>${label}</strong><span class="vc-bucket-total">${total}</span></div>
+        ${rows}
+      </div>`;
+    }
+
+    wrap.innerHTML = all.map(([modelo, d])=>{
+      const totalCon = d.res_total || 0;
+      const totalSin = d.cola_total || 0;
+      const totalAll = totalCon + totalSin;
+      const conHtml = buildBucket('✓ Con chasis asignado', '#2e7d32', d.res_versions, totalCon, modelo);
+      const sinHtml = buildBucket('◷ Sin chasis (esperando)', '#f57f17', d.cola_versions, totalSin, modelo);
+      return `<div class="version-card">
+        <div class="vc-head">
+          <div class="name">${modelo}</div>
+          <div><span class="total-lbl">Total reservas</span><span class="total">${totalAll}</span></div>
+        </div>
+        ${conHtml}
+        ${sinHtml}
+      </div>`;
     }).join('');
   }
 

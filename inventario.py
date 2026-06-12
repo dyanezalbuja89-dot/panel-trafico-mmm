@@ -495,10 +495,12 @@ def load_inventario(path=None, today=None, months_config=None):
             cola_agencias = {a: int(c) for a, c in cola_by_ag.items()}
             cola_total = int(len(mrc))
             cola_sinvin = int(len(mrc_sinvin))
-            # Desglose por versión: clave = nombre tal cual en RES-COLA, value = count
-            # Útil para modelos con múltiples versiones (F-150 XLT/Lariat/Platinium/Raptor, etc.)
+            # Desglose por versión SIN chasis (RES-COLA): nombre tal cual en hoja
             cola_versions_raw = mrc['MODELO_RAW'].astype(str).str.strip().value_counts().to_dict() if 'MODELO_RAW' in mrc.columns else {}
             cola_versions = {str(k).strip(): int(v) for k, v in cola_versions_raw.items() if str(k).strip().lower() not in ('nan','')}
+            # Desglose por versión CON chasis (DATOS · STATUS_H=RESERVADO): clave = familia oficial
+            res_versions_raw = res_v.dropna(subset=['VERSION']).groupby('VERSION').size().to_dict() if len(res_v) else {}
+            res_versions = {str(k).strip(): int(v) for k, v in res_versions_raw.items() if str(k).strip().lower() not in ('nan','')}
 
             # Aging de reservas (todas las de RES-COLA con fecha)
             aging_30 = int(((mrc['aging']>=0) & (mrc['aging']<=30)).sum())
@@ -626,7 +628,8 @@ def load_inventario(path=None, today=None, months_config=None):
                 'cola_total': cola_total,
                 'cola_sin_vin': cola_sinvin,
                 'cola_agencias': cola_agencias,
-                'cola_versions': cola_versions,  # desglose por versión específica
+                'cola_versions': cola_versions,  # desglose por versión SIN chasis (RES-COLA)
+                'res_versions':  res_versions,   # desglose por versión CON chasis (DATOS)
                 'cola_aging': {
                     '0_30': aging_30, '31_60': aging_60,
                     '61_90': aging_90, '90_plus': aging_old,
