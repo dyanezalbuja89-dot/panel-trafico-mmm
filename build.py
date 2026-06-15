@@ -2194,11 +2194,20 @@ HTML = r"""<!doctype html>
     .kpi-row,.kpi-row-3,.kpi-row-4,.kpi-row-5{grid-template-columns:1fr 1fr}
   }
 
+  /* Inventario — KPI cards compactas (override del default 140px tall) */
+  #tab-inv .kpi-grid-inv{grid-auto-rows:78px}
+  #tab-inv .kpi-grid-inv .kpi{
+    border-radius:12px;
+    padding:var(--sp-3) var(--sp-4);
+    gap:var(--sp-1);
+  }
+  #tab-inv .kpi-grid-inv .kpi .num{font-size:22px}
+  #tab-inv .kpi-grid-inv .kpi .label{font-size:9px;letter-spacing:.06em}
   /* Inventario responsive */
   @media(max-width:768px){
     #tab-inv .stat-hero{grid-template-columns:1fr 1fr !important}
-    #tab-inv .kpi-grid-inv{grid-template-columns:repeat(3,1fr) !important}
-    #tab-inv .kpi .num{font-size:20px}
+    #tab-inv .kpi-grid-inv{grid-template-columns:repeat(3,1fr) !important;grid-auto-rows:68px}
+    #tab-inv .kpi-grid-inv .kpi .num{font-size:18px}
   }
   @media(max-width:480px){
     #tab-inv .kpi-grid-inv{grid-template-columns:repeat(2,1fr) !important}

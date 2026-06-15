@@ -267,7 +267,35 @@ def load_inventario(path=None, today=None, months_config=None):
     df['marca_up'] = df['marca'].astype(str).str.strip().str.upper()
     df['MODELO'] = df.apply(lambda r: normalize_familia(r['familia'], r['marca_up']), axis=1)
     df['VERSION'] = df.apply(lambda r: normalize_version(r['familia'], r['marca_up']), axis=1)
-    df['AGENCIA'] = df['UBICACIÓN FÍSICA SISCAL'].apply(loc_to_agency)
+    # AGENCIA física: prioriza UBICACIÓN FÍSICA SISCAL; si está vacía
+    # (común en stock importado aún sin sucursal final asignada),
+    # cae a BODEGA LOGICA con misma normalización. BODEGA LOGICA usa
+    # formato "1001 VEHICULOS CARLOS JULIO AROSEMENA" — mapeable por
+    # mismas keywords del LOCATION_TO_AGENCY.
+    def _loc_or_bodega(row):
+        loc = row.get('UBICACIÓN FÍSICA SISCAL')
+        # Solo aplica si UBICACIÓN no es blanco — string vacío hace que
+        # loc_to_agency devuelva 'Otros' por default, lo cual oculta el
+        # fallback a BODEGA LOGICA que es donde vive 90% del stock importado.
+        if isinstance(loc, str) and loc.strip():
+            ag = loc_to_agency(loc)
+            if ag not in (None, 'Otros'):
+                return ag
+        b = row.get('BODEGA LOGICA')
+        if not isinstance(b, str):
+            return None
+        bu = b.upper()
+        if 'TRANSITO IMPORTAC' in bu: return 'Tránsito'
+        if 'CARLOS JULIO' in bu: return 'CJA'
+        if 'ORELLANA' in bu: return 'Orellana'
+        if 'LA Y' in bu: return 'La Y'
+        if 'TUMBACO' in bu: return 'Tumbaco'
+        if 'MANTA' in bu: return 'Manta'
+        if 'MACHALA' in bu: return 'Machala'
+        if 'PORTOVIEJO' in bu: return 'Portoviejo'
+        if 'BODEGA ORGU' in bu or 'CENTRO DE DISTRIB' in bu: return 'Tránsito'
+        return None
+    df['AGENCIA'] = df.apply(_loc_or_bodega, axis=1)
     # Para RESERVAS: la agencia útil es donde el cliente reservó (no donde está
     # físicamente el chasis, que muchas veces está en tránsito sin UBICACIÓN).
     if 'AGENCIA_DE_RESERVA' in df.columns:
@@ -482,10 +510,13 @@ def load_inventario(path=None, today=None, months_config=None):
             mpr = sub_proc[sub_proc['MODELO']==m] if len(sub_proc) else pd.DataFrame()
 
             # Disponible (stock listo en bodegas, status DISPONIBLE)
+            # Stock disponible: chasis listos para venta. Si UBICACIÓN FÍSICA
+            # no estuvo poblada, AGENCIA cayó al fallback BODEGA LOGICA. Lo no
+            # mapeado va a "Sin asignar" para que la suma siempre cuadre con disp_total.
             disp = mdf[mdf['STATUS_H']=='DISPONIBLE']
-            disp_by_ag = disp.groupby('AGENCIA').size().to_dict()
+            disp_by_ag = disp['AGENCIA'].fillna('Sin asignar').replace({'Otros':'Sin asignar','Entregado':'Sin asignar'}).value_counts().to_dict()
             disp_transito = int(disp_by_ag.get('Tránsito', 0))
-            disp_agencias = {a: int(c) for a, c in disp_by_ag.items() if a not in ('Tránsito','Otros','Entregado')}
+            disp_agencias = {a: int(c) for a, c in disp_by_ag.items() if a != 'Tránsito'}
             disp_total = int(disp.shape[0])
 
             # Reservado (stock con VIN ya asignado a cliente — no facturado aún)
