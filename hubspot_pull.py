@@ -128,10 +128,13 @@ def fetch_monthly_funnel(months):
         cont  = _count('contacts', [_between('fecha_y_hora_de_ingreso___cc', s, e), _eq('contactabilidad', 'Contactado')])
         agen  = _count('deals',    [PIPE_FILTER, _between('fecha_de_la_cita', s, e)])
         efec  = _count('deals',    [PIPE_FILTER, _between('fecha_de_la_cita', s, e), _eq('asistio_a_la_cita', 'Si')])
+        nos  = _count('deals',    [PIPE_FILTER, _between('fecha_de_la_cita', s, e), _eq('asistio_a_la_cita', 'No')])
+        tope = _count('contacts', [_between('fecha_y_hora_de_ingreso___cc', s, e), _eq('numero_de_llamada', '12º Llamada')])
         vent  = _count('deals',    [PIPE_FILTER, _eq('dealstage', 'closedwon'), _between('closedate', s, e)])
         out.append({
             'label': label, 'year': y, 'month': m_idx + 1,
             'leads': leads, 'cont': cont, 'agen': agen, 'efec': efec, 'vent': vent,
+            'tope': tope, 'nos': nos,
         })
         print(f'  {label}: leads={leads} cont={cont} agen={agen} efec={efec} vent={vent}', flush=True)
     return out

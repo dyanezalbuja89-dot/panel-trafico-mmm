@@ -1,7 +1,7 @@
 """Assembles index.html by inlining data.json. Both tabs are now dynamic."""
 from pathlib import Path
 
-BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Abril/panel-trafico")
+BASE = Path(__file__).resolve().parent
 data_json = (BASE / "data.json").read_text(encoding="utf-8").strip()
 safe_data = data_json.replace("</script>", "<\\/script>")
 
@@ -4266,6 +4266,7 @@ HTML = r"""<!doctype html>
   </section>
 
   <!-- ======================= TAB DIGITAL · SEGUIMIENTO HUBSPOT ======================= -->
+  <!-- ======================= TAB DIGITAL · SEGUIMIENTO HUBSPOT ======================= -->
   <section id="tab-digital" class="tab-panel">
     <!-- Password gate -->
     <div id="dig-gate" class="pw-gate">
@@ -4278,121 +4279,216 @@ HTML = r"""<!doctype html>
     </div>
 
     <div id="dig-content" style="display:none">
-    <div class="otros-header theme-digital">
-      <div>
-        <h2>📡 Seguimiento Digital · HubSpot</h2>
-        <div class="sub" id="dig-source">Pipeline Ventas-Ford · datos en vivo del CRM (portal 21339231)</div>
-      </div>
-      <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end">
-        <div id="dig-fresh-badge" style="font-size:10.5px; padding:3px 9px; border-radius:var(--r-full); background:rgba(255,255,255,.18); color:#fff; font-weight:600; letter-spacing:.03em; display:none">—</div>
-        <div style="font-size:11px; color:rgba(255,255,255,.75)" id="dig-updated">—</div>
-        <button id="dig-logout" type="button" class="logout-btn">Cerrar sesión</button>
-      </div>
-    </div>
+    <!-- =================== SECCIÓN: CONTROL CC · 2026 =================== -->
+    <style>
+      /* ── CC Control 2026 · estilos ── */
+      .cc-section-title {
+        font-size: 16px; font-weight: 800; color: var(--c-text, #0f172a);
+        margin: 0 0 2px; display: flex; align-items: center; gap: 8px;
+      }
+      .cc-section-sub { font-size: 11px; color: var(--c-muted, #64748b); font-weight: 400; }
+      #dig-cc-section * { font-variant-numeric: tabular-nums; }
 
-    <!-- Selector de período -->
-    <div class="dig-period-chips" id="dig-period-chips">
-      <button class="dig-chip active" data-period="all" type="button">Últimos 7 meses</button>
-      <button class="dig-chip" data-period="last" type="button"><span id="dig-chip-last">—</span></button>
-      <button class="dig-chip" data-period="prev" type="button"><span id="dig-chip-prev">—</span></button>
-    </div>
+      /* ── Funnels lado a lado ── */
+      .cc26-funnels-wrap {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px;
+      }
+      @media (max-width: 700px) { .cc26-funnels-wrap { grid-template-columns: 1fr; } }
+      .cc26-funnel-card {
+        background: var(--c-surface, #fff);
+        border: 1px solid var(--c-border, #e2e8f0);
+        border-radius: 14px; padding: 20px 20px 16px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.05);
+        display: flex; flex-direction: column; gap: 0;
+      }
+      .cc26-funnel-header {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+      }
+      .cc26-funnel-title {
+        font-size: 11px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .07em; color: var(--c-muted, #64748b);
+      }
+      /* Select estilo */
+      .cc26-select {
+        font-size: 11px; padding: 4px 8px; border-radius: 6px;
+        border: 1px solid var(--c-border, #e2e8f0);
+        background: var(--c-bg, #f8fafc); color: var(--c-text, #0f172a);
+        cursor: pointer; font-family: inherit;
+      }
+      /* Dropdown de checkboxes */
+      .cc26-cb-wrap { position: relative; display: inline-block; }
+      .cc26-cb-trigger {
+        font-size: 11px; padding: 4px 10px; border-radius: 6px;
+        border: 1px solid var(--c-border, #e2e8f0);
+        background: var(--c-bg, #f8fafc); color: var(--c-text, #0f172a);
+        cursor: pointer; font-family: inherit; white-space: nowrap;
+      }
+      .cc26-cb-panel {
+        display: none; position: absolute; top: calc(100% + 4px); right: 0;
+        background: #fff; border: 1px solid var(--c-border, #e2e8f0);
+        border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.12);
+        padding: 8px 12px; z-index: 100; min-width: 130px;
+      }
+      .cc26-cb-panel.open { display: block; }
+      .cc26-cb-panel label {
+        display: flex; align-items: center; gap: 8px;
+        font-size: 11px; color: var(--c-text, #0f172a);
+        padding: 4px 0; cursor: pointer; white-space: nowrap;
+      }
+      /* Etapas del embudo vertical */
+      .cc26-stage {
+        display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px;
+      }
+      .cc26-stage-name {
+        font-size: 10px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .05em; color: var(--c-muted, #64748b); margin-bottom: 2px;
+      }
+      .cc26-stage-bar-wrap {
+        height: 28px; background: #f1f5f9; border-radius: 6px; overflow: hidden;
+        position: relative;
+      }
+      .cc26-stage-bar {
+        height: 100%; border-radius: 6px;
+        display: flex; align-items: center; justify-content: flex-end;
+        padding-right: 8px; transition: width .35s ease; min-width: 4px;
+      }
+      @media (prefers-reduced-motion: reduce) { .cc26-stage-bar { transition: none; } }
+      .cc26-stage-bar span {
+        font-size: 10px; font-weight: 700; color: #fff;
+        white-space: nowrap;
+      }
+      /* Flecha de conversión entre etapas */
+      .cc26-conv {
+        font-size: 10px; color: var(--c-muted, #64748b);
+        padding: 2px 0 2px 8px; line-height: 1.4;
+      }
+      .cc26-conv-red { color: #991b1b; font-weight: 700; }
+      /* Chips debajo del embudo */
+      .cc26-chips {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;
+      }
+      .cc26-chip {
+        border-radius: 8px; padding: 10px 12px;
+        display: flex; flex-direction: column; gap: 2px;
+      }
+      .cc26-chip.amber { background: #fffbeb; border: 1px solid #fde68a; }
+      .cc26-chip.red   { background: #fff1f2; border: 1px solid #fecaca; }
+      .cc26-chip-pct {
+        font-size: 22px; font-weight: 900; line-height: 1; letter-spacing: -.02em;
+      }
+      .cc26-chip.amber .cc26-chip-pct { color: #92400e; }
+      .cc26-chip.red   .cc26-chip-pct { color: #991b1b; }
+      .cc26-chip-label { font-size: 10px; font-weight: 700; }
+      .cc26-chip.amber .cc26-chip-label { color: #92400e; }
+      .cc26-chip.red   .cc26-chip-label { color: #991b1b; }
 
-    <!-- KPI hero · 6 cards con sparkline + delta -->
-    <div class="bento-grid" id="dig-hero" style="margin-top:var(--sp-3)">
-      <div class="bento-cell" id="dig-cell-leads">
-        <div class="bento-label">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 14 12 9 16 13 21 8"/></svg>
-          Leads Recibidos
-        </div>
-        <div class="bento-value" id="dig-k-leads">—</div>
-        <div class="bento-hint" id="dig-k-leads-hint">cohorte ingreso CCT</div>
-      </div>
-      <div class="bento-cell accent" id="dig-cell-cont">
-        <div class="bento-label">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.95.37 1.88.7 2.76a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.32-1.32a2 2 0 0 1 2.11-.45c.88.33 1.81.57 2.76.7A2 2 0 0 1 22 16.92z"/></svg>
-          Contactados
-        </div>
-        <div class="bento-value" id="dig-k-cont">—</div>
-        <div class="bento-hint" id="dig-k-cont-hint">tasa contactabilidad</div>
-      </div>
-      <div class="bento-cell" id="dig-cell-agen">
-        <div class="bento-label">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          Citas Agendadas
-        </div>
-        <div class="bento-value" id="dig-k-agen">—</div>
-        <div class="bento-hint" id="dig-k-agen-hint">deals con fecha de cita</div>
-      </div>
-      <div class="bento-cell" id="dig-cell-efec">
-        <div class="bento-label">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          Citas Efectivas
-        </div>
-        <div class="bento-value" id="dig-k-efec">—</div>
-        <div class="bento-hint" id="dig-k-efec-hint">asistió = Sí</div>
-      </div>
-      <div class="bento-cell" id="dig-cell-noshow">
-        <div class="bento-label">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-          No-Show
-        </div>
-        <div class="bento-value" id="dig-k-noshow">—</div>
-        <div class="bento-hint" id="dig-k-noshow-hint">agendadas sin asistir</div>
-      </div>
-      <div class="bento-cell" id="dig-cell-vent">
-        <div class="bento-label">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 12l-4-4-4 4"/><path d="M12 16V8"/></svg>
-          Ventas CRM
-        </div>
-        <div class="bento-value" id="dig-k-vent">—</div>
-        <div class="bento-hint">closedwon · sub-registrado vs DMS</div>
-      </div>
-    </div>
+      /* ── Tabla mensual ── */
+      .cc26-table-wrap { overflow-x: auto; margin-bottom: 12px; }
+      .cc26-table {
+        width: 100%; border-collapse: collapse; font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+      .cc26-table th {
+        font-size: 10px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .05em; color: var(--c-muted, #64748b);
+        padding: 6px 10px; border-bottom: 1.5px solid var(--c-border, #e2e8f0);
+        text-align: right; white-space: nowrap;
+      }
+      .cc26-table th:first-child { text-align: left; }
+      .cc26-table td {
+        padding: 6px 10px; border-bottom: 1px solid var(--c-border, #f1f5f9);
+        text-align: right; white-space: nowrap;
+      }
+      .cc26-table td:first-child { text-align: left; font-weight: 600; font-size: 11px; }
+      .cc26-table tr:last-child td { border-bottom: none; }
+      .cc26-table tr:hover td { background: var(--c-bg, #f8fafc); }
+      /* Semáforo */
+      .cc26-ok   { color: #166534; font-weight: 700; }
+      .cc26-warn { color: #92400e; font-weight: 700; }
+      .cc26-bad  { color: #991b1b; font-weight: 700; }
+      /* Nota al pie */
+      .cc26-footnote {
+        font-size: 10px; color: var(--c-muted, #94a3b8);
+        line-height: 1.5; padding: 8px 2px; margin-top: 4px;
+      }
+    </style>
 
-    <!-- Funnel triangular con drop-off rates -->
-    <div class="ford-section">
-      <h3>🔻 Embudo de conversión <span class="sub" id="dig-funnel-sub">% de pérdida entre cada etapa · período seleccionado</span></h3>
-      <div id="dig-funnel-viz" class="dig-funnel-viz"></div>
-    </div>
+    <div class="ford-section" id="dig-cc-section">
+      <div style="margin-bottom: 16px">
+        <div class="cc-section-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6a6 6 0 1 0 6 6"/><path d="M12 10a2 2 0 1 0 2 2"/><path d="M20 2l2 2-10 10"/></svg>
+          Control CC · 2026
+        </div>
+        <div class="cc-section-sub">snapshot jun-2026 · datos estáticos verificados · solo 2026</div>
+      </div>
 
-    <!-- Evolución mensual (barra grouped) -->
-    <div class="ford-section">
-      <h3>📊 Evolución mensual <span class="sub">cohorte de ingreso · últimos 7 meses</span></h3>
-      <div style="position:relative;height:300px"><canvas id="dig-funnel-chart"></canvas></div>
-    </div>
+      <!-- ── DOS EMBUDOS LADO A LADO ── -->
+      <div class="cc26-funnels-wrap">
 
-    <!-- Tabla por agencia con bullet -->
-    <div class="ford-section">
-      <h3>🏢 No-show por agencia <span class="sub" id="dig-ag-period">cohorte ingreso · período seleccionado</span></h3>
-      <div style="overflow-x:auto">
-        <table class="ford" id="dig-tbl-agency">
-          <thead><tr>
-            <th class="left">Agencia</th>
-            <th>Leads</th>
-            <th>Agendadas</th>
-            <th>Efectivas</th>
-            <th>Show rate</th>
-            <th style="min-width:120px">vs promedio</th>
-          </tr></thead>
-          <tbody></tbody>
+        <!-- EMBUDO IZQUIERDO: select simple periodo -->
+        <div class="cc26-funnel-card">
+          <div class="cc26-funnel-header">
+            <div class="cc26-funnel-title">Periodo acumulado</div>
+            <select id="cc26-sel-periodo" class="cc26-select">
+              <option value="Total">Total (ene–jun·26)</option>
+              <option value="Q1·26">Q1·26 (ene–mar)</option>
+              <option value="Q2·26">Q2·26 (abr–jun)</option>
+            </select>
+          </div>
+          <div id="cc26-funnel-left"></div>
+        </div>
+
+        <!-- EMBUDO DERECHO: dropdown de checkboxes por mes -->
+        <div class="cc26-funnel-card">
+          <div class="cc26-funnel-header">
+            <div class="cc26-funnel-title">Mes(es) seleccionados</div>
+            <div class="cc26-cb-wrap">
+              <button type="button" id="cc26-cb-trigger" class="cc26-cb-trigger">may·26 ▾</button>
+              <div id="cc26-cb-panel" class="cc26-cb-panel">
+                <label><input type="checkbox" value="ene·26"> ene·26</label>
+                <label><input type="checkbox" value="feb·26"> feb·26</label>
+                <label><input type="checkbox" value="mar·26"> mar·26</label>
+                <label><input type="checkbox" value="abr·26"> abr·26</label>
+                <label><input type="checkbox" value="may·26" checked> may·26</label>
+                <label><input type="checkbox" value="jun·26"> jun·26</label>
+              </div>
+            </div>
+          </div>
+          <div id="cc26-funnel-right"></div>
+        </div>
+
+      </div><!-- /cc26-funnels-wrap -->
+
+      <!-- ── TABLA MENSUAL 2026 ── -->
+      <div class="cc26-table-wrap">
+        <table class="cc26-table" id="cc26-tabla-mensual">
+          <thead>
+            <tr>
+              <th>Métrica</th>
+              <th>ene·26</th>
+              <th>feb·26</th>
+              <th>mar·26</th>
+              <th>abr·26</th>
+              <th>may·26</th>
+              <th>jun·26*</th>
+            </tr>
+          </thead>
+          <tbody id="cc26-tabla-body"></tbody>
         </table>
       </div>
-    </div>
 
-    <!-- Top modelos con share -->
-    <div class="ford-section">
-      <h3>🚗 Top modelos de interés <span class="sub" id="dig-mod-period">cohorte ingreso · período seleccionado</span></h3>
-      <div id="dig-models-list" class="dig-models-list"></div>
-    </div>
+      <!-- ── NOTA AL PIE ── -->
+      <div class="cc26-footnote">
+        Leads y contactados = leads que ingresaron en el periodo · citas y efectivas = citas con fecha en el periodo · % Tope-12 = leads que llegaron a las 12 llamadas · jun·26 parcial · datos a jun-2026.
+      </div>
 
-    <!-- Hallazgos dinámicos -->
-    <div class="ford-section">
-      <h3>🎯 Hallazgos del periodo <span class="sub" id="dig-findings-sub">comparativa vs baseline dic-25 / may-26</span></h3>
-      <div id="dig-findings-grid" class="dig-findings-grid"></div>
     </div>
+    <!-- /CONTROL CC 2026 -->
 
     <div class="footer-note">
-      Datos en vivo de HubSpot · pipeline <strong>Ventas-Ford</strong> · portal 21339231 ·
+      Datos en vivo de HubSpot · actualizado <span id="dig-footer-updated">—</span> ·
+      pipeline <strong>Ventas-Ford</strong> · portal 21339231 ·
       cohorte = mes de ingreso CCT (no createdate) · cita efectiva = asistió=Sí ·
       tasa cierre digital base 10% · margen referencia $5.000/unidad.
     </div>
@@ -9553,287 +9649,328 @@ HTML = r"""<!doctype html>
   // ─────────────────── TAB DIGITAL · HubSpot ───────────────────
   let _digInit = false;
   let _digFunnelChart = null;
-  // Estado de período seleccionado · 'all' | 'last' | 'prev'
-  let _digPeriod = 'all';
-
-  function _digAggregateForPeriod(D, period){
-    const months = D.months || [];
-    if(!months.length) return {leads:0, cont:0, agen:0, efec:0, vent:0, period_label:''};
-    let pick;
-    if(period === 'last') pick = [months[months.length-1]];
-    else if(period === 'prev') pick = months.length >= 2 ? [months[months.length-2]] : [months[0]];
-    else pick = months;
-    const sum = (k) => pick.reduce((a,m) => a + (m[k]||0), 0);
-    const leads = sum('leads'), cont = sum('cont'), agen = sum('agen'), efec = sum('efec'), vent = sum('vent');
-    const rate_cont    = leads ? Math.round(1000*cont/leads)/10 : 0;
-    const rate_agen    = leads ? Math.round(1000*agen/leads)/10 : 0;
-    const rate_show    = agen  ? Math.round(1000*efec/agen)/10  : 0;
-    const rate_no_show = agen  ? Math.round(1000*(agen-efec)/agen)/10 : 0;
-    const rate_close   = efec  ? Math.round(1000*vent/efec)/10  : 0;
-    const period_label = pick.length === 1 ? pick[0].label : (months[0].label + ' → ' + months[months.length-1].label);
-    return {leads, cont, agen, efec, vent, rate_cont, rate_agen, rate_show, rate_no_show, rate_close, period_label};
-  }
-
-  function _digFreshness(updatedAt){
-    if(!updatedAt) return {cls:'', txt:''};
-    const ageMs = Date.now() - new Date(updatedAt).getTime();
-    const h = ageMs / (1000*60*60);
-    if(h < 6)  return {cls:'fresh', txt:'● fresca'};
-    if(h < 24) return {cls:'fresh', txt:'● <24h'};
-    if(h < 72) return {cls:'stale', txt:'⚠ ' + Math.round(h) + 'h'};
-    return {cls:'old', txt:'⚠ ' + Math.round(h/24) + ' días'};
-  }
-
+  let _digModelsChart = null;
   function renderDigital(){
-    const D = DATA.digital;
-    if(!D || !D.available){
-      document.getElementById('dig-source').textContent = 'HubSpot no disponible · ejecuta `python3 hubspot_pull.py` para refrescar';
-      ['dig-k-leads','dig-k-cont','dig-k-agen','dig-k-efec','dig-k-noshow','dig-k-vent'].forEach(id => {
-        const el = document.getElementById(id); if(el) el.textContent = '—';
-      });
-      return;
-    }
-    const months = D.months || [];
-    const lastM = months.length ? months[months.length-1] : null;
-    const prevM = months.length >= 2 ? months[months.length-2] : null;
-
-    // Labels de chips dinámicos
-    if(lastM) document.getElementById('dig-chip-last').textContent = lastM.label + ' (actual)';
-    if(prevM) document.getElementById('dig-chip-prev').textContent = prevM.label;
-
-    // Freshness
-    const fb = document.getElementById('dig-fresh-badge');
-    if(D.updated_at){
-      const fresh = _digFreshness(D.updated_at);
-      fb.style.display = 'inline-block';
-      fb.className = fresh.cls;
-      fb.textContent = fresh.txt;
-      const d = new Date(D.updated_at);
-      document.getElementById('dig-updated').textContent = 'Actualizado · ' + d.toLocaleString('es-EC', {dateStyle:'short', timeStyle:'short'});
-    }
-
-    // Agregado del período seleccionado
-    const k = _digAggregateForPeriod(D, _digPeriod);
-    const prevK = months.length >= 2 ? (_digPeriod === 'last' ? _digAggregateForPeriod(D, 'prev') : null) : null;
-
-    function deltaHtml(curr, prev){
-      if(prev == null || prev === 0) return '';
-      const d = curr - prev;
-      const pct = Math.round(100*d/prev);
-      if(Math.abs(pct) < 1) return '<span class="dig-delta flat">0%</span>';
-      const cls = d > 0 ? 'up' : 'dn';
-      const sign = d > 0 ? '+' : '';
-      return `<span class="dig-delta ${cls}">${sign}${pct}%</span>`;
-    }
-
-    // KPI values + hints + deltas
-    document.getElementById('dig-k-leads').innerHTML = fmt(k.leads) + (prevK ? ' '+deltaHtml(k.leads, prevK.leads) : '');
-    document.getElementById('dig-k-leads-hint').textContent = (_digPeriod === 'all' ? '7 meses' : k.period_label) + ' · cohorte ingreso';
-    document.getElementById('dig-k-cont').innerHTML = fmt(k.cont) + (prevK ? ' '+deltaHtml(k.cont, prevK.cont) : '');
-    document.getElementById('dig-k-cont-hint').textContent = k.rate_cont + '% contactabilidad · ' + (k.leads - k.cont) + ' no contactados';
-    document.getElementById('dig-k-agen').innerHTML = fmt(k.agen) + (prevK ? ' '+deltaHtml(k.agen, prevK.agen) : '');
-    document.getElementById('dig-k-agen-hint').textContent = k.rate_agen + '% del lead';
-    document.getElementById('dig-k-efec').innerHTML = fmt(k.efec) + (prevK ? ' '+deltaHtml(k.efec, prevK.efec) : '');
-    document.getElementById('dig-k-efec-hint').textContent = k.rate_show + '% show rate';
-    document.getElementById('dig-k-noshow').textContent = k.rate_no_show + '%';
-    document.getElementById('dig-k-noshow-hint').textContent = (k.agen - k.efec) + ' agendadas sin asistir';
-    document.getElementById('dig-k-vent').innerHTML = fmt(k.vent) + (prevK ? ' '+deltaHtml(k.vent, prevK.vent) : '');
-
-    // Sparklines en cards de hero (trayectoria mensual de cada métrica)
-    if(months.length >= 2 && typeof drawSparkline === 'function'){
-      drawSparkline(document.getElementById('dig-cell-leads'), months.map(m=>m.leads));
-      drawSparkline(document.getElementById('dig-cell-cont'),  months.map(m=>m.cont), {color:'var(--c-primary)'});
-      drawSparkline(document.getElementById('dig-cell-agen'),  months.map(m=>m.agen));
-      drawSparkline(document.getElementById('dig-cell-efec'),  months.map(m=>m.efec), {color:'var(--c-good)'});
-      // No-show rate por mes
-      drawSparkline(document.getElementById('dig-cell-noshow'), months.map(m => m.agen ? Math.round(100*(m.agen-m.efec)/m.agen) : 0), {color:'var(--c-bad)'});
-      drawSparkline(document.getElementById('dig-cell-vent'),  months.map(m=>m.vent), {color:'var(--c-amber-600)'});
-    }
-
-    // Anomaly markers
-    if(typeof setAnomaly === 'function'){
-      setAnomaly(document.getElementById('dig-cell-noshow'),
-        k.rate_no_show > 60 ? -25 : (k.rate_no_show > 40 ? -12 : null),
-        {thresholds:{warn:10, bad:20}, labels:{bad:'↓ Fuga #1', warn:'⚠ Alto', pos:''}});
-      setAnomaly(document.getElementById('dig-cell-cont'),
-        k.rate_cont < 80 ? -15 : (k.rate_cont >= 95 ? 25 : null),
-        {thresholds:{warn:10, bad:20}, labels:{bad:'↓ Bajo', warn:'⚠ Caer', pos:'↑ Excelente'}});
-      setAnomaly(document.getElementById('dig-cell-efec'),
-        k.rate_show < 30 ? -25 : (k.rate_show < 40 ? -12 : (k.rate_show >= 50 ? 25 : null)),
-        {thresholds:{warn:10, bad:20}, labels:{bad:'↓ Bajo', warn:'⚠ Alerta', pos:'↑ Bueno'}});
-    }
-
-    // ─── Funnel triangular con drop-off ───
-    const funnelViz = document.getElementById('dig-funnel-viz');
-    document.getElementById('dig-funnel-sub').textContent = '% de pérdida entre cada etapa · ' + k.period_label;
-    const stages = [
-      {name:'Leads recibidos',     val:k.leads, pct:100},
-      {name:'Contactados',         val:k.cont,  pct:k.leads?100*k.cont/k.leads:0},
-      {name:'Citas agendadas',     val:k.agen,  pct:k.leads?100*k.agen/k.leads:0},
-      {name:'Citas efectivas',     val:k.efec,  pct:k.leads?100*k.efec/k.leads:0},
-      {name:'Ventas CRM',          val:k.vent,  pct:k.leads?100*k.vent/k.leads:0},
-    ];
-    funnelViz.innerHTML = stages.map((s, i) => {
-      const next = stages[i+1];
-      const stageHtml = `<div class="dig-funnel-stage">
-        <div class="dfs-head">
-          <span class="dfs-name">${s.name}</span>
-          <span><span class="dfs-val">${fmt(s.val)}</span><span class="dfs-pct">${s.pct.toFixed(1)}% del lead</span></span>
-        </div>
-        <div class="dfs-bar"><div class="dfs-fill" style="width:${Math.max(2, s.pct)}%"></div></div>
-      </div>`;
-      let arrowHtml = '';
-      if(next){
-        const conv = s.val ? 100*next.val/s.val : 0;
-        const drop = 100 - conv;
-        arrowHtml = `<div class="dig-funnel-arrow">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          <span>convierte <strong>${conv.toFixed(1)}%</strong> · <span class="drop">${drop.toFixed(1)}% se pierde</span></span>
-        </div>`;
-      }
-      return stageHtml + arrowHtml;
-    }).join('');
-
-    // ─── Evolución mensual chart (bar grouped) ───
-    if(_digFunnelChart) _digFunnelChart.destroy();
-    _digFunnelChart = new Chart(document.getElementById('dig-funnel-chart'), {
-      type: 'bar',
-      data: {
-        labels: months.map(m => m.label),
-        datasets: [
-          { label: 'Leads',       data: months.map(m=>m.leads), backgroundColor: 'rgba(100,116,139,.7)', borderRadius: 4 },
-          { label: 'Contactados', data: months.map(m=>m.cont),  backgroundColor: 'rgba(14,165,233,.85)',  borderRadius: 4 },
-          { label: 'Agendadas',   data: months.map(m=>m.agen),  backgroundColor: 'rgba(0,52,120,.9)',     borderRadius: 4 },
-          { label: 'Efectivas',   data: months.map(m=>m.efec),  backgroundColor: 'rgba(46,125,50,.9)',    borderRadius: 4 },
-          { label: 'Ventas CRM',  data: months.map(m=>m.vent),  backgroundColor: 'rgba(217,119,6,.95)',   borderRadius: 4 },
-        ],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'top' }, datalabels: { display: false } },
-        scales: { x: { stacked: false }, y: { beginAtZero: true, ticks: { precision: 0 } } },
-      },
-    });
-
-    // ─── Tabla agencia mejorada (bullet + comparativa vs promedio) ───
-    const ag = D.agencies || { rows: [], period: '' };
-    document.getElementById('dig-ag-period').textContent = 'cohorte ingreso · ' + (ag.period || '—');
-    const tbody = document.querySelector('#dig-tbl-agency tbody');
-    const avgShow = ag.rows && ag.rows.length ? (ag.rows.reduce((a,r)=>a+r.show_rate,0) / ag.rows.length) : 0;
-    tbody.innerHTML = (ag.rows || []).map(r => {
-      const showColor = r.show_rate >= 40 ? 'var(--c-good-tx)' : r.show_rate >= 30 ? 'var(--c-warn-tx)' : 'var(--c-bad-tx)';
-      const barColor = r.show_rate >= 40 ? 'var(--c-good)' : r.show_rate >= 30 ? 'var(--c-warn)' : 'var(--c-bad)';
-      const barPct = Math.max(2, Math.min(100, r.show_rate * 1.5));
-      const vsAvg = r.show_rate - avgShow;
-      const vsAvgTxt = (vsAvg > 0 ? '+' : '') + vsAvg.toFixed(1) + ' pp';
-      const vsAvgCls = vsAvg > 3 ? 'dig-delta up' : (vsAvg < -3 ? 'dig-delta dn' : 'dig-delta flat');
-      const badge = r.show_rate < 25 ? `<span style="display:inline-block;margin-left:6px;padding:1px 6px;background:var(--c-bad-bg);color:var(--c-bad-tx);font-size:9px;font-weight:700;letter-spacing:.03em;border-radius:var(--r-sm);text-transform:uppercase">⚠ Crítico</span>` : '';
-      return `<tr>
-        <td class="left"><strong>${r.agency}</strong>${badge}</td>
-        <td style="font-variant-numeric:tabular-nums">${fmt(r.leads)}</td>
-        <td style="font-variant-numeric:tabular-nums">${fmt(r.agen)}</td>
-        <td style="font-variant-numeric:tabular-nums">${fmt(r.efec)}</td>
-        <td style="color:${showColor}; font-weight:800; font-variant-numeric:tabular-nums">${r.show_rate}%</td>
-        <td>
-          <div style="display:flex; align-items:center; gap:8px">
-            <div style="flex:1; height:6px; background:var(--c-slate-100); border-radius:3px; overflow:hidden; position:relative">
-              <div style="position:absolute; left:calc(${Math.min(100, avgShow*1.5)}% - 1px); top:-2px; bottom:-2px; width:2px; background:var(--c-slate-900); opacity:.4" title="Promedio ${avgShow.toFixed(1)}%"></div>
-              <div style="height:100%; width:${barPct}%; background:${barColor}; border-radius:3px"></div>
-            </div>
-            <span class="${vsAvgCls}" style="margin:0">${vsAvgTxt}</span>
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
-
-    // ─── Top modelos (lista ranking) ───
-    const mod = D.models || { rows: [], period: '' };
-    document.getElementById('dig-mod-period').textContent = 'cohorte ingreso · ' + (mod.period || '—');
-    const totalLeads = (mod.rows || []).reduce((a,r) => a + (r.leads || 0), 0);
-    const maxLeads = (mod.rows || []).reduce((a,r) => Math.max(a, r.leads || 0), 0);
-    const list = document.getElementById('dig-models-list');
-    list.innerHTML = (mod.rows || []).slice(0, 12).map((r, i) => {
-      const share = totalLeads ? (100*r.leads/totalLeads).toFixed(1) : '0';
-      const fillPct = maxLeads ? (100*r.leads/maxLeads) : 0;
-      const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#'+(i+1);
-      const topCls = i < 3 ? ' top-3' : '';
-      return `<div class="dig-model-row${topCls}">
-        <div class="dmr-rank">${rankIcon}</div>
-        <div class="dmr-body">
-          <div class="dmr-name">${r.model}</div>
-          <div class="dmr-bar"><div class="dmr-fill" style="width:${fillPct}%"></div></div>
-        </div>
-        <div class="dmr-stats">
-          <div class="dmr-leads">${fmt(r.leads)}</div>
-          <div class="dmr-share">${share}% del total</div>
-        </div>
-      </div>`;
-    }).join('');
-
-    // ─── Hallazgos dinámicos (calculados vs baseline) ───
-    const findings = [];
-    // Baseline knowledge base: no-show 62%, contactab 85%, estancados 88%, fin de mes 47%
-    const noShowBaseline = 62;
-    const contBaseline = 85;
-    if(k.rate_no_show > 65){
-      findings.push({cls:'bad', icon:'🔴', label:'NO-SHOW FUERA DE CONTROL',
-        head:`<strong>${k.rate_no_show}%</strong> de las citas no asisten`,
-        detail:`${k.agen - k.efec} de ${k.agen} agendadas no se presentaron. Empeoró ${(k.rate_no_show - noShowBaseline).toFixed(1)} pp vs baseline ${noShowBaseline}%.`,
-        trend:'Fuga #1 confirmada · CJA-Guayaquil sigue siendo el más débil'});
-    } else if(k.rate_no_show > 55){
-      findings.push({cls:'warn', icon:'⚠️', label:'NO-SHOW ALTO',
-        head:`<strong>${k.rate_no_show}%</strong> de las citas no asisten`,
-        detail:`${k.agen - k.efec} agendadas no se presentaron. Cerca del baseline (62%) — sin mejora estructural.`,
-        trend:'Modelos de mayor pérdida: Ranger XL · Everest · Escape ST LINE'});
-    } else {
-      findings.push({cls:'ok', icon:'✓', label:'NO-SHOW EN CONTROL',
-        head:`<strong>${k.rate_no_show}%</strong> de las citas no asisten`,
-        detail:`Mejor que el baseline de ${noShowBaseline}%. ${fmt(k.efec)} citas efectivas sobre ${fmt(k.agen)} agendadas.`,
-        trend:'Mantener cadencia de confirmación 24h previas'});
-    }
-    if(k.rate_cont < 80){
-      findings.push({cls:'bad', icon:'📞', label:'CONTACTABILIDAD BAJA',
-        head:`<strong>${(100-k.rate_cont).toFixed(1)}%</strong> nunca fueron contactados`,
-        detail:`${k.leads - k.cont} de ${k.leads} leads sin contacto. Empeoró vs baseline ${contBaseline}%.`,
-        trend:'Cadencia muere en 1-2 intentos · revisar scoring de leads'});
-    } else if(k.rate_cont < contBaseline){
-      findings.push({cls:'warn', icon:'📞', label:'CONTACTABILIDAD MEDIA',
-        head:`<strong>${k.rate_cont}%</strong> contactados`,
-        detail:`${k.leads - k.cont} leads sin contacto (${(100-k.rate_cont).toFixed(1)}%). Bajo baseline ${contBaseline}%.`,
-        trend:'Optimizar canales · WhatsApp + email + call'});
-    } else {
-      findings.push({cls:'ok', icon:'📞', label:'CONTACTABILIDAD OK',
-        head:`<strong>${k.rate_cont}%</strong> contactados`,
-        detail:`Solo ${k.leads - k.cont} leads sin contacto. Sobre baseline ${contBaseline}%.`,
-        trend:'Mantener · ampliar a leads enfriados'});
-    }
-    findings.push({cls:'info', icon:'💰', label:'IMPACTO COMERCIAL',
-      head:`<strong>${fmt(Math.round(k.efec * 0.1))} ventas</strong> esperadas`,
-      detail:`Con ${fmt(k.efec)} efectivas × 10% de cierre = ~$${fmt(Math.round(k.efec * 0.1 * 5000))} USD margen estimado.`,
-      trend:'CRM dice ' + k.vent + ' ventas — gap con DMS por completar registro'});
-    findings.push({cls:'info', icon:'📅', label:'EFECTO FIN DE MES',
-      head:`<strong>~47%</strong> de leads última semana agendan al mes siguiente`,
-      detail:'El presupuesto de un mes empieza a llenarse a fin del anterior. El mes en curso siempre se ve subestimado al inicio.',
-      trend:'Ajustar lectura · mes más reciente subestimado por madurez de cohorte'});
-
-    document.getElementById('dig-findings-grid').innerHTML = findings.map(f => `<div class="dig-finding ${f.cls}">
-      <div class="df-icon">${f.icon}</div>
-      <div class="df-label">${f.label}</div>
-      <div class="df-headline">${f.head}</div>
-      <div class="df-detail">${f.detail}</div>
-      <div class="df-trend">↳ ${f.trend}</div>
-    </div>`).join('');
-
-    // Bind chips
-    document.querySelectorAll('#dig-period-chips .dig-chip').forEach(chip => {
-      chip.onclick = () => {
-        document.querySelectorAll('#dig-period-chips .dig-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        _digPeriod = chip.dataset.period;
-        renderDigital();
-      };
-    });
+    renderCCEfficiency();
   }
+  // ─────────────────── CONTROL CC · 2026 ───────────────────
+
+  // Datos del Control CC 2026. FUENTE VIVA: DATA.digital.months (salida de
+  // fetch_monthly_funnel en hubspot_pull.py). Si el pull fallo o no hay meses
+  // 2026 embebidos, cae a _CC26_M_FALLBACK (foto estatica verificada jun-2026).
+
+  // --- Respaldo estatico (snapshot jun-2026) ---
+  const _CC26_M_FALLBACK = {
+    'ene·26': { leads:714,  cont:624, tope:180, cita:262, efec:86,  nos:176 },
+    'feb·26': { leads:508,  cont:409, tope:109, cita:178, efec:85,  nos:93  },
+    'mar·26': { leads:637,  cont:556, tope:189, cita:312, efec:100, nos:212 },
+    'abr·26': { leads:1007, cont:876, tope:262, cita:318, efec:120, nos:198 },
+    'may·26': { leads:1034, cont:861, tope:298, cita:326, efec:106, nos:220 },
+    'jun·26': { leads:624,  cont:449, tope:64,  cita:85,  efec:46,  nos:39  }
+  };
+
+  // --- Construye M vivo desde data.json embebido ---
+  const _CC26_MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  function _cc26BuildLiveM(){
+    const out = {};
+    const months = (window.DATA && DATA.digital && DATA.digital.months) || [];
+    for (const m of months) {
+      if (Number(m.year) !== 2026) continue;
+      const idx = Number(m.month) - 1;
+      if (idx < 0 || idx > 11) continue;
+      if (m.tope == null || m.nos == null) continue;
+      const label = _CC26_MES[idx] + '·26';
+      const efec = Number(m.efec) || 0;
+      const nos  = Number(m.nos)  || 0;
+      out[label] = {
+        leads: Number(m.leads) || 0,
+        cont:  Number(m.cont)  || 0,
+        tope:  Number(m.tope)  || 0,
+        cita:  efec + nos,           // cita = efectivas + no-show (NO usar agen)
+        efec:  efec,
+        nos:   nos
+      };
+    }
+    return out;
+  }
+  const _CC26_liveM = _cc26BuildLiveM();
+  const _CC26_M = (_CC26_liveM && Object.keys(_CC26_liveM).length) ? _CC26_liveM : _CC26_M_FALLBACK;
+
+  // --- order: meses 2026 presentes en M, en orden cronologico ---
+  const _CC26_ORDER = _CC26_MES
+    .map(mm => mm + '·26')
+    .filter(lbl => _CC26_M[lbl]);
+
+  // --- Q: trimestres construidos dinamicamente; solo los que tienen >=1 mes con dato ---
+  const _CC26_Q = (function(){
+    const present = new Set(_CC26_ORDER);
+    const groups = {
+      'Q1·26': ['ene·26','feb·26','mar·26'],
+      'Q2·26': ['abr·26','may·26','jun·26'],
+      'Q3·26': ['jul·26','ago·26','sep·26'],
+      'Q4·26': ['oct·26','nov·26','dic·26']
+    };
+    const Q = { 'Total': _CC26_ORDER.slice() };
+    for (const [name, months] of Object.entries(groups)) {
+      const got = months.filter(mm => present.has(mm));
+      if (got.length) Q[name] = got;
+    }
+    return Q;
+  })();
+
+  // Suma los meses seleccionados
+  function _cc26Agg(months) {
+    let leads=0, cont=0, tope=0, cita=0, efec=0, nos=0;
+    for (const m of months) {
+      const d = _CC26_M[m]; if (!d) continue;
+      leads += d.leads; cont += d.cont; tope += d.tope;
+      cita  += d.cita;  efec += d.efec; nos  += d.nos;
+    }
+    return { leads, cont, tope, cita, efec, nos };
+  }
+
+  // Formatea miles con punto
+  function _cc26Fmt(n) {
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+  // Porcentaje entero
+  function _cc26Pct(num, den) { return den > 0 ? Math.round(100 * num / den) : 0; }
+
+  // Render de un embudo vertical en un contenedor dado
+  function _cc26RenderFunnel(elId, months) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    const s = _cc26Agg(months);
+
+    const VERDE      = '#1D9E75';
+    const VERDE_OSC  = '#0F6E56';
+    const base       = Math.max(s.leads, 1);
+
+    // % conversiones
+    const pCont  = _cc26Pct(s.cont, s.leads);
+    const pCita  = _cc26Pct(s.cita, s.cont);
+    const pEfec  = _cc26Pct(s.efec, s.cita);
+    const pNos   = _cc26Pct(s.nos,  s.cita);
+    const pTope  = _cc26Pct(s.tope, s.leads);
+
+    function stage(name, val, widthPct, color) {
+      const w = Math.max(widthPct, 2);
+      return `<div class="cc26-stage">
+        <div class="cc26-stage-name">${name}</div>
+        <div class="cc26-stage-bar-wrap">
+          <div class="cc26-stage-bar" style="width:${w}%;background:${color}">
+            <span>${_cc26Fmt(val)}</span>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    function conv(txt, redTxt) {
+      return `<div class="cc26-conv">&#8595; ${txt}${redTxt ? ' &nbsp;<span class="cc26-conv-red">· ' + redTxt + '</span>' : ''}</div>`;
+    }
+
+    function chips(tPct, nPct) {
+      return `<div class="cc26-chips">
+        <div class="cc26-chip amber">
+          <div class="cc26-chip-pct">${tPct}%</div>
+          <div class="cc26-chip-label">Tope-12</div>
+        </div>
+        <div class="cc26-chip red">
+          <div class="cc26-chip-pct">${nPct}%</div>
+          <div class="cc26-chip-label">No-show</div>
+        </div>
+      </div>`;
+    }
+
+    el.innerHTML =
+      stage('Leads recibidos', s.leads, 100, VERDE)
+      + conv(pCont + '% · contactamos')
+      + stage('Contactados', s.cont, _cc26Pct(s.cont, s.leads), VERDE)
+      + conv(pCita + '% · agendan cita')
+      + stage('Citas agendadas', s.cita, _cc26Pct(s.cita, s.leads), VERDE)
+      + conv(pEfec + '% · asisten', pNos + '% no-show')
+      + stage('Citas efectivas', s.efec, _cc26Pct(s.efec, s.leads), VERDE_OSC)
+      + chips(pTope, pNos);
+  }
+
+  // Render de la tabla mensual con semáforos
+  function _cc26RenderTabla() {
+    const tbody = document.getElementById('cc26-tabla-body');
+    if (!tbody) return;
+
+    const cols = _CC26_ORDER;
+    const D = cols.map(m => _CC26_M[m]);
+
+    // Semáforo % Contacto: >=85 ok, 75-84 warn, <75 bad
+    function semCont(v) {
+      if (v >= 85) return `<span class="cc26-ok">${v}% ✓</span>`;
+      if (v >= 75) return `<span class="cc26-warn">${v}% ⚠</span>`;
+      return `<span class="cc26-bad">${v}% ✗</span>`;
+    }
+    // Semáforo % Tope-12: <=15 ok, 16-28 warn, >=29 bad
+    function semTope(v) {
+      if (v <= 15) return `<span class="cc26-ok">${v}% ✓</span>`;
+      if (v <= 28) return `<span class="cc26-warn">${v}% ⚠</span>`;
+      return `<span class="cc26-bad">${v}% ✗</span>`;
+    }
+    // Semáforo % No-show: <=35 ok, 36-50 warn, >50 bad
+    function semNos(v) {
+      if (v <= 35) return `<span class="cc26-ok">${v}% ✓</span>`;
+      if (v <= 50) return `<span class="cc26-warn">${v}% ⚠</span>`;
+      return `<span class="cc26-bad">${v}% ✗</span>`;
+    }
+
+    const rows = [
+      {
+        label: 'Leads (ingreso)',
+        vals: D.map(d => _cc26Fmt(d.leads))
+      },
+      {
+        label: 'Contactados',
+        vals: D.map(d => _cc26Fmt(d.cont))
+      },
+      {
+        label: '% Contacto',
+        vals: D.map(d => semCont(_cc26Pct(d.cont, d.leads)))
+      },
+      {
+        label: '% Tope-12',
+        vals: D.map(d => semTope(_cc26Pct(d.tope, d.leads)))
+      },
+      {
+        label: 'Citas agendadas',
+        vals: D.map(d => _cc26Fmt(d.cita))
+      },
+      {
+        label: 'Citas efectivas',
+        vals: D.map(d => _cc26Fmt(d.efec))
+      },
+      {
+        label: '% No-show',
+        vals: D.map(d => semNos(_cc26Pct(d.nos, d.cita)))
+      }
+    ];
+
+    tbody.innerHTML = rows.map(r =>
+      `<tr><td>${r.label}</td>${r.vals.map(v => `<td>${v}</td>`).join('')}</tr>`
+    ).join('');
+  }
+
+  // Rellena el <select> de periodos SOLO con trimestres presentes en _CC26_Q.
+  function _cc26PopulatePeriodo() {
+    const sel = document.getElementById('cc26-sel-periodo');
+    if (!sel) return;
+    const span = (lbls) => lbls.length ? (lbls[0].slice(0,3) + '–' + lbls[lbls.length-1].slice(0,3)) : '';
+    const desc = { 'Total': 'Total', 'Q1·26': 'Q1·26', 'Q2·26': 'Q2·26', 'Q3·26': 'Q3·26', 'Q4·26': 'Q4·26' };
+    const order = ['Total','Q1·26','Q2·26','Q3·26','Q4·26'].filter(k => _CC26_Q[k]);
+    const prev = sel.value;
+    sel.innerHTML = order.map(k => {
+      const lbls = _CC26_Q[k] || [];
+      return `<option value="${k}">${desc[k]} (${span(lbls)})</option>`;
+    }).join('');
+    if (order.includes(prev)) sel.value = prev;
+  }
+
+  // Rellena el panel de checkboxes SOLO con los meses presentes en _CC26_M.
+  function _cc26PopulateMonths(defaultMonth) {
+    const panel = document.getElementById('cc26-cb-panel');
+    if (!panel) return;
+    panel.innerHTML = _CC26_ORDER.map(m =>
+      `<label><input type="checkbox" value="${m}"${m === defaultMonth ? ' checked' : ''}> ${m}</label>`
+    ).join('');
+  }
+
+  // Sincroniza el <thead> de la tabla mensual con los meses presentes (col list).
+  function _cc26SyncTablaHead() {
+    const table = document.getElementById('cc26-tabla-mensual');
+    if (!table) return;
+    const tr = table.querySelector('thead tr');
+    if (!tr) return;
+    const last = _CC26_ORDER[_CC26_ORDER.length - 1];
+    tr.innerHTML = '<th>Métrica</th>' + _CC26_ORDER.map(m =>
+      `<th>${m === last ? m + '*' : m}</th>`
+    ).join('');
+  }
+
+  // Actualiza el label del botón de checkboxes
+  function _cc26UpdateCbLabel(selectedSet) {
+    const btn = document.getElementById('cc26-cb-trigger');
+    if (!btn) return;
+    const arr = _CC26_ORDER.filter(m => selectedSet.has(m));
+    if (arr.length === 0) btn.textContent = '— selecciona ▾';
+    else if (arr.length === 1) btn.textContent = arr[0] + ' ▾';
+    else btn.textContent = arr.length + ' meses ▾';
+  }
+
+  // ---- Render principal CC 2026 ----
+  function renderCCEfficiency() {
+    // Si no hay ningun mes (ni vivo ni fallback) no hay nada que pintar.
+    if (!_CC26_ORDER.length) return;
+
+    // Rellena filtros y cabecera de tabla SOLO con meses/trimestres presentes.
+    _cc26PopulatePeriodo();
+    _cc26SyncTablaHead();
+
+    // Render tabla (estática, sin filtro)
+    _cc26RenderTabla();
+
+    // Estado inicial
+    const selPeriodo = document.getElementById('cc26-sel-periodo');
+    if (!selPeriodo) return;
+
+    // Render inicial embudo izquierdo
+    _cc26RenderFunnel('cc26-funnel-left', _CC26_Q[selPeriodo.value] || _CC26_Q['Total']);
+
+    // Estado checkboxes: default = ultimo mes presente
+    const defaultMonth = _CC26_ORDER[_CC26_ORDER.length - 1];
+    _cc26PopulateMonths(defaultMonth);
+    const selectedMonths = new Set([defaultMonth]);
+    _cc26UpdateCbLabel(selectedMonths);
+
+    // Render inicial embudo derecho
+    _cc26RenderFunnel('cc26-funnel-right', _CC26_ORDER.filter(m => selectedMonths.has(m)));
+
+    // Listener select periodo (izquierdo) — clonar para evitar duplicados
+    const freshSel = selPeriodo.cloneNode(true);
+    selPeriodo.replaceWith(freshSel);
+    freshSel.addEventListener('change', () => {
+      _cc26RenderFunnel('cc26-funnel-left', _CC26_Q[freshSel.value] || _CC26_Q['Total']);
+    });
+
+    // Dropdown checkboxes (derecho)
+    const trigger = document.getElementById('cc26-cb-trigger');
+    const panel   = document.getElementById('cc26-cb-panel');
+    if (trigger && panel) {
+      // Clonar trigger para evitar listeners duplicados si renderCCEfficiency se llama más de una vez
+      const freshTrigger = trigger.cloneNode(true);
+      trigger.replaceWith(freshTrigger);
+
+      freshTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        panel.classList.toggle('open');
+      });
+
+      // Cerrar panel al clic fuera
+      document.addEventListener('click', function _cc26Outside(e) {
+        if (!panel.contains(e.target) && e.target !== freshTrigger) {
+          panel.classList.remove('open');
+        }
+      }, { passive: true });
+
+      // Checkboxes dentro del panel
+      panel.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) selectedMonths.add(cb.value);
+          else selectedMonths.delete(cb.value);
+          _cc26UpdateCbLabel(selectedMonths);
+          const arr = _CC26_ORDER.filter(m => selectedMonths.has(m));
+          const fallbackMonth = _CC26_ORDER[_CC26_ORDER.length - 1];
+          _cc26RenderFunnel('cc26-funnel-right', arr.length > 0 ? arr : (fallbackMonth ? [fallbackMonth] : []));
+        });
+      });
+    }
+  }
+
   // Gate de password (independiente de otros — clave Maresa2026*)
   function digitalUnlocked(){ return localStorage.getItem('digital_unlocked')==='1'; }
   function digShowGate(){
