@@ -56,9 +56,11 @@ else
   fail "Diverged. Local y remote tienen commits distintos. Resolver con 'git pull --rebase' o 'git rebase origin/main' manual."
 fi
 
-# 2. Integridad pre-build: tabs críticas existen
-echo "→ Verificando integridad pre-build de build.py..."
-CRITICAL_TABS=(
+# 2. Integridad pre-build: archivos críticos completos
+echo "→ Verificando integridad pre-build..."
+
+# 2a. build.py: tabs HTML
+BUILD_PY_MARKERS=(
   "tab-digital"
   "TAB DIGITAL · HubSpot"
   "tab-inv"
@@ -66,17 +68,44 @@ CRITICAL_TABS=(
   "tab-embudo"
   "tab-xiy"
 )
-missing=0
-for marker in "${CRITICAL_TABS[@]}"; do
-  if ! grep -q "$marker" build.py; then
-    warn "build.py no contiene '$marker'"
-    missing=$((missing+1))
+# 2b. inventario.py: funciones de carga + normalización (si las borran, refresh_inv_only revienta)
+INVENTARIO_PY_MARKERS=(
+  "def load_inventario"
+  "def loc_to_agency"
+  "def res_agency_norm"
+  "def normalize_familia"
+  "DEFAULT_INVENTORY_PATH"
+  "LOCATION_TO_AGENCY"
+)
+# 2c. aggregate.py: pipeline principal (si lo rompen, data.json sale incompleto)
+AGGREGATE_PY_MARKERS=(
+  "MONTHS_CONFIG"
+  "def main()"
+  "def load_raw"
+  "junio_2026"
+  "ford_months"
+  "brands_months"
+)
+
+check_markers() {
+  local file="$1"; shift
+  local missing=0
+  [ -f "$file" ] || { warn "$file no existe — skipping"; return 0; }
+  for marker in "$@"; do
+    if ! grep -qF "$marker" "$file"; then
+      warn "$file no contiene '$marker'"
+      missing=$((missing+1))
+    fi
+  done
+  if [ $missing -gt 0 ]; then
+    fail "$missing marker(s) ausente(s) en $file. Revisar antes de rebuild."
   fi
-done
-if [ $missing -gt 0 ]; then
-  fail "$missing tab(s) crítica(s) ausente(s) en build.py. Revisar antes de rebuild — no quieras emitir un index.html con tabs borradas."
-fi
-ok "build.py tiene todas las tabs críticas"
+  ok "$file íntegro ($# markers verificados)"
+}
+
+check_markers build.py        "${BUILD_PY_MARKERS[@]}"
+check_markers inventario.py   "${INVENTARIO_PY_MARKERS[@]}"
+check_markers aggregate.py    "${AGGREGATE_PY_MARKERS[@]}"
 
 if [ "$check_only" = true ]; then
   ok "Check OK — no se ejecutó build."
@@ -89,12 +118,28 @@ python3 build.py 2>&1 | tail -3
 
 # 4. Post-build: index.html mantiene las tabs
 echo "→ Verificando integridad post-build de index.html..."
-for marker in "${CRITICAL_TABS[@]}"; do
-  if ! grep -q "$marker" index.html; then
+for marker in "${BUILD_PY_MARKERS[@]}"; do
+  if ! grep -qF "$marker" index.html; then
     fail "index.html post-build NO contiene '$marker'. Build emitió artefacto incompleto — NO commit/push."
   fi
 done
 ok "index.html post-build OK"
+
+# 4b. data.json: top-level keys requeridas (smoke test que no quedó vacío)
+echo "→ Verificando data.json..."
+DATA_JSON_KEYS=(
+  "ford_months"
+  "brands_months"
+  "inventario"
+  "default_month_key"
+  "months_config"
+)
+for k in "${DATA_JSON_KEYS[@]}"; do
+  if ! grep -qF "\"$k\"" data.json; then
+    fail "data.json NO contiene clave '$k'. Aggregate falló parcial — no pushear."
+  fi
+done
+ok "data.json íntegro"
 
 # 5. Deploy + commit (solo si --deploy)
 if [ "$deploy" = true ]; then
