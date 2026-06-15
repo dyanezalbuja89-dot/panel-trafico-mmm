@@ -4269,7 +4269,7 @@ HTML = r"""<!doctype html>
   <!-- ======================= TAB DIGITAL · SEGUIMIENTO HUBSPOT ======================= -->
   <section id="tab-digital" class="tab-panel">
     <!-- Password gate -->
-    <div id="dig-gate" class="pw-gate">
+    <div id="dig-gate" class="pw-gate" style="display:none">
       <div class="icon">🔒</div>
       <h2>Acceso restringido</h2>
       <p>Ingresa la contraseña para ver el seguimiento digital del CRM.</p>
@@ -4278,7 +4278,7 @@ HTML = r"""<!doctype html>
       <div class="err" id="dig-pw-err"></div>
     </div>
 
-    <div id="dig-content" style="display:none">
+    <div id="dig-content">
     <!-- =================== SECCIÓN: CONTROL CC · 2026 =================== -->
     <style>
       /* ── CC Control 2026 · estilos ── */
@@ -10265,7 +10265,7 @@ HTML = r"""<!doctype html>
   }
 
   // Gate de password (independiente de otros — clave Maresa2026*)
-  function digitalUnlocked(){ return localStorage.getItem('digital_unlocked')==='1'; }
+  function digitalUnlocked(){ return true; /* gate removido por pedido del usuario: tab publica */ }
   function digShowGate(){
     document.getElementById('dig-gate').style.display='block';
     document.getElementById('dig-content').style.display='none';
