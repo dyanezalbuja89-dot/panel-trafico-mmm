@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-06-11T15:28:45.362031+00:00",
+  "updated_at": "2026-06-15T19:27:14.538635+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -8,71 +8,85 @@
       "label": "dic-25",
       "year": 2025,
       "month": 12,
-      "leads": 306,
-      "cont": 271,
+      "leads": 301,
+      "cont": 266,
       "agen": 118,
-      "efec": 33,
-      "vent": 5
+      "efec": 34,
+      "vent": 5,
+      "tope": 100,
+      "nos": 83
     },
     {
       "label": "ene-26",
       "year": 2026,
       "month": 1,
-      "leads": 714,
-      "cont": 626,
+      "leads": 708,
+      "cont": 621,
       "agen": 279,
       "efec": 86,
-      "vent": 1
+      "vent": 1,
+      "tope": 247,
+      "nos": 177
     },
     {
       "label": "feb-26",
       "year": 2026,
       "month": 2,
-      "leads": 517,
-      "cont": 415,
+      "leads": 514,
+      "cont": 412,
       "agen": 221,
       "efec": 85,
-      "vent": 3
+      "vent": 3,
+      "tope": 147,
+      "nos": 94
     },
     {
       "label": "mar-26",
       "year": 2026,
       "month": 3,
-      "leads": 639,
-      "cont": 556,
+      "leads": 629,
+      "cont": 548,
       "agen": 316,
       "efec": 100,
-      "vent": 4
+      "vent": 4,
+      "tope": 187,
+      "nos": 211
     },
     {
       "label": "abr-26",
       "year": 2026,
       "month": 4,
-      "leads": 1008,
-      "cont": 872,
+      "leads": 995,
+      "cont": 865,
       "agen": 319,
       "efec": 120,
-      "vent": 2
+      "vent": 2,
+      "tope": 261,
+      "nos": 198
     },
     {
       "label": "may-26",
       "year": 2026,
       "month": 5,
-      "leads": 1029,
-      "cont": 850,
-      "agen": 349,
+      "leads": 1020,
+      "cont": 851,
+      "agen": 346,
       "efec": 106,
-      "vent": 4
+      "vent": 4,
+      "tope": 293,
+      "nos": 235
     },
     {
       "label": "jun-26",
       "year": 2026,
       "month": 6,
-      "leads": 537,
-      "cont": 407,
-      "agen": 174,
-      "efec": 36,
-      "vent": 0
+      "leads": 718,
+      "cont": 542,
+      "agen": 239,
+      "efec": 56,
+      "vent": 0,
+      "tope": 93,
+      "nos": 126
     }
   ],
   "agencies": {
@@ -81,7 +95,7 @@
       {
         "agency": "CJA",
         "agency_full": "Orgu Carlos Julio Arosemena",
-        "leads": 362,
+        "leads": 359,
         "agen": 120,
         "efec": 33,
         "vent": 0,
@@ -90,29 +104,29 @@
       {
         "agency": "La Y",
         "agency_full": "Orgu La Y",
-        "leads": 258,
-        "agen": 80,
+        "leads": 257,
+        "agen": 79,
         "efec": 24,
         "vent": 0,
-        "show_rate": 30.0
+        "show_rate": 30.4
       },
       {
         "agency": "Orellana",
         "agency_full": "Orgu Orellana",
-        "leads": 249,
-        "agen": 87,
+        "leads": 247,
+        "agen": 86,
         "efec": 29,
         "vent": 0,
-        "show_rate": 33.3
+        "show_rate": 33.7
       },
       {
         "agency": "Tumbaco",
         "agency_full": "Orgu Tumbaco",
-        "leads": 110,
-        "agen": 34,
+        "leads": 107,
+        "agen": 33,
         "efec": 10,
         "vent": 2,
-        "show_rate": 29.4
+        "show_rate": 30.3
       },
       {
         "agency": "Manta",
@@ -148,26 +162,22 @@
     "rows": [
       {
         "model": "Ranger XL",
-        "leads": 451
+        "leads": 449
       },
       {
         "model": "Escape ST LINE",
-        "leads": 342
+        "leads": 341
       },
       {
         "model": "Explorer Active",
-        "leads": 136
+        "leads": 135
       },
       {
         "model": "Territory Titanium",
-        "leads": 37
+        "leads": 34
       },
       {
         "model": "Explorer",
-        "leads": 8
-      },
-      {
-        "model": "Everest Active",
         "leads": 8
       },
       {
@@ -180,6 +190,10 @@
       },
       {
         "model": "Ranger",
+        "leads": 6
+      },
+      {
+        "model": "Everest Active",
         "leads": 6
       },
       {
@@ -197,16 +211,16 @@
     ]
   },
   "kpis": {
-    "period_leads": 4750,
-    "period_cont": 3997,
-    "period_agen": 1776,
-    "period_efec": 566,
+    "period_leads": 4885,
+    "period_cont": 4105,
+    "period_agen": 1838,
+    "period_efec": 587,
     "period_vent": 19,
-    "rate_cont": 84.1,
-    "rate_agen": 37.4,
+    "rate_cont": 84.0,
+    "rate_agen": 37.6,
     "rate_show": 31.9,
     "rate_no_show": 68.1,
-    "rate_close": 3.4,
+    "rate_close": 3.2,
     "rate_lead_to_sale": 0.4
   }
 }
