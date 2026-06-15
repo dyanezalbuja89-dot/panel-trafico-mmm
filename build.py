@@ -10102,14 +10102,17 @@ HTML = r"""<!doctype html>
       "Posponer":                        [26,31,20,21,16,13,10,9,7,4,4,56],
       "Errores operativos":              [26,15,8,10,4,5,3,2,3,3,1,14]
     },
+    // No-show: cruce por LLAMADAS DE REACTIVACIÓN (numero_de_llamada_reactivacion),
+    // no por llamadas de gestión. 4 buckets: 1ª, 2ª, 3ª, Sin react. Foto jun-2026.
     no_show: {
-      "Cita agendada (atascado)": [324,230,94,78,51,38,27,24,27,20,12,76],
-      "Perdido":                  [16,9,7,5,5,4,2,0,2,7,0,7],
-      "Reagendar":                [0,0,0,1,0,0,0,0,0,0,1,0],
-      "Cita Efectiva (error)":    [1,0,0,0,0,0,0,0,0,0,0,0]
+      "Cita agendada (atascado)": [317,131,394,159],
+      "Perdido":                  [20,6,20,11],
+      "Reagendar":                [0,0,2,0],
+      "Cita Efectiva (error)":    [0,0,1,0]
     }
   };
   const _DESP_LLAM_LBL = ["1ª","2ª","3ª","4ª","5ª","6ª","7ª","8ª","9ª","10ª","11ª","12ª"];
+  const _DESP_REACT_LBL = ["1ª","2ª","3ª","Sin react."];
 
   function _despData(){
     const live = (window.DATA && DATA.digital && DATA.digital.cc_desperdicio) || null;
@@ -10155,26 +10158,31 @@ HTML = r"""<!doctype html>
     }).join('') + '</tbody></table>';
   }
 
-  // Detalle: distribución de nº de llamada (1ª…12ª) del estatus seleccionado.
-  // counts = array de 12 (índices 0–11). % = dentro de ese estatus.
-  function _despDrill(label, counts, color) {
+  // Detalle: distribución de llamadas del estatus seleccionado.
+  // counts = array (índices 0–n); labels = etiquetas de cada bucket;
+  // titlePrefix = encabezado ("Llamadas de" o "Llamadas de reactivación de").
+  // % = dentro de ese estatus.
+  function _despDrill(label, counts, color, labels, titlePrefix) {
+    labels = labels || _DESP_LLAM_LBL;
+    titlePrefix = titlePrefix || 'Llamadas de';
     if (!counts) {
       return `<div class="desp-drill"><div class="desp-drill-empty">Sin cruce de llamadas para este estatus.</div></div>`;
     }
     const sum = counts.reduce((a, n) => a + n, 0);
     const max = counts.reduce((a, n) => Math.max(a, n), 1);
+    const last = labels.length - 1;
     const bars = counts.map((n, i) => {
       const w = Math.max(Math.round(100 * n / max), n > 0 ? 2 : 0);
       const pct = _cc26Pct(n, sum);
-      const top = (i === 11 && n === max && n > 0) ? ' top' : '';
+      const top = (i === last && n === max && n > 0) ? ' top' : '';
       return `<div class="desp-bar-row">
-        <div class="desp-bar-lbl">${_DESP_LLAM_LBL[i]}</div>
+        <div class="desp-bar-lbl">${labels[i]}</div>
         <div class="desp-bar-track"><div class="desp-bar-fill${top}" style="width:${w}%;background:${color}"></div></div>
         <div class="desp-bar-val">${_cc26Fmt(n)}<span class="desp-pct">${pct}%</span></div>
       </div>`;
     }).join('');
     return `<div class="desp-drill">
-      <div class="desp-drill-title">Llamadas de <b>${label}</b> (${_cc26Fmt(sum)}):</div>
+      <div class="desp-drill-title">${titlePrefix} <b>${label}</b> (${_cc26Fmt(sum)}):</div>
       <div class="desp-bars">${bars}</div>
     </div>`;
   }
@@ -10182,7 +10190,7 @@ HTML = r"""<!doctype html>
   // Cablea el drill de una tarjeta: clic en fila de estatus → detalle de llamadas.
   // hostCard: nodo de la tarjeta; bodyId: id del contenedor del detalle;
   // cruce: mapa label→counts; color de las barras. Auto-selecciona la 1ª fila.
-  function _despWireDrill(hostCard, bodyId, cruce, color) {
+  function _despWireDrill(hostCard, bodyId, cruce, color, labels, titlePrefix) {
     if (!hostCard) return;
     const body = hostCard.querySelector('#' + bodyId);
     const rows = hostCard.querySelectorAll('tr.clk');
@@ -10191,7 +10199,7 @@ HTML = r"""<!doctype html>
       rows.forEach(x => x.classList.remove('active'));
       tr.classList.add('active');
       const label = decodeURIComponent(tr.dataset.key || '');
-      body.innerHTML = _despDrill(label, cruce[label] || null, color);
+      body.innerHTML = _despDrill(label, cruce[label] || null, color, labels, titlePrefix);
     };
     rows.forEach(tr => tr.addEventListener('click', () => pick(tr)));
     pick(rows[0]);  // default: auto-selecciona el primer estatus
@@ -10238,14 +10246,12 @@ HTML = r"""<!doctype html>
     const ns = D.no_show || { total:0, by_estatus:[] };
     const nsAtasc = (ns.by_estatus || []).find(r => /Cita agendada/i.test(r[0]));
     const nsAtascPct = _cc26Pct(nsAtasc ? nsAtasc[1] : 0, ns.total);
-    const nsReag = (ns.by_estatus || []).find(r => /Reagendar/i.test(r[0]));
-    const nsReagN = nsReag ? nsReag[1] : 0;
     const card3 = `<div class="desp-card desp-slate" id="desp-card-ns">
       <div class="desp-card-head">
         <div class="desp-card-name">No-show</div>
         <div class="desp-card-total">${_cc26Fmt(ns.total)}</div>
       </div>
-      <div class="desp-tagline"><b>${nsAtascPct}%</b> atascados en Cita agendada (cementerio) · solo <b>${_cc26Fmt(nsReagN)} reagendados</b> · <b>clic en una etapa</b> para ver sus llamadas</div>
+      <div class="desp-tagline"><b>${nsAtascPct}%</b> atascados en Cita agendada · <b>84%</b> recibió llamadas de reactivación y aun así no volvió · <b>clic en una etapa</b> para ver sus llamadas</div>
       ${_despTable(ns.by_estatus || [], ns.total, false, 'no_show')}
       <div id="desp-ns-drill"></div>
     </div>`;
@@ -10254,8 +10260,8 @@ HTML = r"""<!doctype html>
 
     // Drill estatus → llamadas: clic en una fila de estatus muestra su
     // distribución de nº de llamada. Cada tarjeta usa su propio cruce y color.
-    _despWireDrill(document.getElementById('desp-card-c'),  'desp-c-drill',  _DESP_CRUCE.contactados, AMBER);
-    _despWireDrill(document.getElementById('desp-card-ns'), 'desp-ns-drill', _DESP_CRUCE.no_show,     SLATE);
+    _despWireDrill(document.getElementById('desp-card-c'),  'desp-c-drill',  _DESP_CRUCE.contactados, AMBER, _DESP_LLAM_LBL,  'Llamadas de');
+    _despWireDrill(document.getElementById('desp-card-ns'), 'desp-ns-drill', _DESP_CRUCE.no_show,     SLATE, _DESP_REACT_LBL, 'Llamadas de reactivación de');
   }
 
   // Gate de password (independiente de otros — clave Maresa2026*)
