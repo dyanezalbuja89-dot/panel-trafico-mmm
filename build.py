@@ -4483,6 +4483,84 @@ HTML = r"""<!doctype html>
         Leads y contactados = leads que ingresaron en el periodo · citas y efectivas = citas con fecha en el periodo · % Tope-12 = leads que llegaron a las 12 llamadas · jun·26 parcial · datos a jun-2026.
       </div>
 
+      <!-- ============== DESPERDICIO POR FASE ============== -->
+      <style>
+        .desp-wrap { margin-top: 26px; }
+        .desp-cards {
+          display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+        }
+        @media (max-width: 900px) { .desp-cards { grid-template-columns: 1fr; } }
+        .desp-card {
+          background: var(--c-surface, #fff);
+          border: 1px solid var(--c-border, #e2e8f0);
+          border-radius: 14px; padding: 16px 16px 14px;
+          box-shadow: 0 1px 4px rgba(0,0,0,.05);
+          display: flex; flex-direction: column;
+        }
+        .desp-card-head {
+          display: flex; align-items: baseline; justify-content: space-between;
+          gap: 8px; margin-bottom: 2px;
+        }
+        .desp-card-name {
+          font-size: 11px; font-weight: 800; text-transform: uppercase;
+          letter-spacing: .05em; color: var(--c-muted, #64748b);
+        }
+        .desp-card-total { font-size: 22px; font-weight: 900; letter-spacing: -.02em; line-height: 1; }
+        .desp-red   .desp-card-total { color: #991b1b; }
+        .desp-amber .desp-card-total { color: #b45309; }
+        .desp-slate .desp-card-total { color: #334155; }
+        .desp-tagline {
+          font-size: 11px; line-height: 1.45; color: var(--c-text, #0f172a);
+          margin: 6px 0 12px; font-weight: 500;
+        }
+        .desp-tagline b { font-weight: 800; }
+        .desp-red   .desp-tagline b { color: #991b1b; }
+        .desp-amber .desp-tagline b { color: #b45309; }
+        .desp-slate .desp-tagline b { color: #334155; }
+        /* barras horizontales (mini-distribución) */
+        .desp-bars { display: flex; flex-direction: column; gap: 5px; }
+        .desp-bar-row {
+          display: grid; grid-template-columns: 30px 1fr auto; align-items: center;
+          gap: 8px; font-size: 11px;
+        }
+        .desp-bar-lbl { color: var(--c-muted, #64748b); font-weight: 700; text-align: right; }
+        .desp-bar-track { height: 14px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+        .desp-bar-fill { height: 100%; border-radius: 4px; min-width: 2px; }
+        .desp-bar-val { color: var(--c-text, #0f172a); font-weight: 600; white-space: nowrap; }
+        .desp-bar-val .desp-pct { color: var(--c-muted, #94a3b8); font-weight: 600; margin-left: 4px; }
+        /* tabla estatus */
+        .desp-tbl { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+        .desp-tbl td { padding: 5px 4px; border-bottom: 1px solid var(--c-border, #f1f5f9); }
+        .desp-tbl tr:last-child td { border-bottom: none; }
+        .desp-tbl td:nth-child(2) { text-align: right; font-weight: 700; white-space: nowrap; }
+        .desp-tbl td:nth-child(3) { text-align: right; color: var(--c-muted, #94a3b8); white-space: nowrap; width: 38px; }
+        .desp-tbl-name { color: var(--c-text, #0f172a); }
+        .desp-tbl tr.dead .desp-tbl-name { color: #991b1b; font-weight: 600; }
+        .desp-tbl tr.live .desp-tbl-name { color: #166534; font-weight: 600; }
+        /* toggle */
+        .desp-toggle { display: inline-flex; gap: 0; margin: 4px 0 10px; }
+        .desp-toggle button {
+          font-size: 10px; font-weight: 700; padding: 3px 9px; cursor: pointer;
+          border: 1px solid var(--c-border, #e2e8f0); background: var(--c-bg, #f8fafc);
+          color: var(--c-muted, #64748b); font-family: inherit;
+        }
+        .desp-toggle button:first-child { border-radius: 6px 0 0 6px; }
+        .desp-toggle button:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+        .desp-toggle button.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+      </style>
+
+      <div class="desp-wrap">
+        <div style="margin-bottom: 12px">
+          <div class="cc-section-title" style="font-size:14px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            Desperdicio por fase
+          </div>
+          <div class="cc-section-sub">a dónde se va el esfuerzo del CC en la cohorte 2026 · contactos = cohorte de ingreso · no-show = citas con asistió=No</div>
+        </div>
+        <div class="desp-cards" id="desp-cards"></div>
+        <div class="cc26-footnote" id="desp-footnote">% calculado sobre el total de cada fase. Cohorte 2026 (ingreso ene–jun) · no-show = deals pipeline Ventas-Ford con cita 2026 y asistió=No.</div>
+      </div>
+
     </div>
     <!-- /CONTROL CC 2026 -->
 
@@ -9652,6 +9730,7 @@ HTML = r"""<!doctype html>
   let _digModelsChart = null;
   function renderDigital(){
     renderCCEfficiency();
+    renderDesperdicio();
   }
   // ─────────────────── CONTROL CC · 2026 ───────────────────
 
@@ -9966,6 +10045,135 @@ HTML = r"""<!doctype html>
           const arr = _CC26_ORDER.filter(m => selectedMonths.has(m));
           const fallbackMonth = _CC26_ORDER[_CC26_ORDER.length - 1];
           _cc26RenderFunnel('cc26-funnel-right', arr.length > 0 ? arr : (fallbackMonth ? [fallbackMonth] : []));
+        });
+      });
+    }
+  }
+
+  // ─────────────────── DESPERDICIO POR FASE ───────────────────
+  // FUENTE VIVA: DATA.digital.cc_desperdicio (salida de fetch_cc_desperdicio
+  // en hubspot_pull.py). Si falta / no disponible / vacío, cae a _DESP_FALLBACK
+  // (foto estática verificada jun-2026). Reutiliza _cc26Fmt y _cc26Pct.
+  const _DESP_FALLBACK = {
+    no_contactados: { total:707, by_llamada:[["12ª",550],["1ª",45],["6ª",30],["2ª",17],["3ª",15],["5ª",13],["9ª",11],["4ª",8],["10ª",8],["7ª",6],["8ª",2],["11ª",1]] },
+    contactados: { total:3828,
+      by_estatus:[["Contactado / seguimiento activo",1888],["Barreras técnicas / no contesta",911],["No interesado",393],["Sin recursos económicos",279],["Posponer",215],["Errores operativos",96]],
+      by_llamada:[["1ª",977],["2ª",745],["12ª",677],["3ª",383],["4ª",278],["5ª",197],["6ª",175],["7ª",125],["8ª",95],["9ª",70],["10ª",55],["11ª",47]] },
+    no_show: { total:1062, by_estatus:[["Cita agendada (atascado)",1002],["Perdido",57],["Reagendar",2],["Cita Efectiva (error)",1]] }
+  };
+
+  // Estatus del contactado que cuentan como "muerto" (lead perdido)
+  const _DESP_DEAD = new Set(["No interesado","Sin recursos económicos"]);
+  // Estatus del contactado que cuentan como "vivo" (seguimiento activo)
+  const _DESP_LIVE = new Set(["Contactado / seguimiento activo"]);
+
+  function _despData(){
+    const live = (window.DATA && DATA.digital && DATA.digital.cc_desperdicio) || null;
+    if (live && live.available !== false
+        && live.no_contactados && live.contactados && live.no_show
+        && (live.no_contactados.total || 0) > 0) {
+      return live;
+    }
+    return _DESP_FALLBACK;
+  }
+
+  // Mini-distribución de barras horizontales a partir de [[label, n], ...]
+  function _despBars(rows, total, color) {
+    const max = rows.reduce((a, r) => Math.max(a, r[1]), 1);
+    return '<div class="desp-bars">' + rows.map(r => {
+      const w = Math.max(Math.round(100 * r[1] / max), 2);
+      const pct = _cc26Pct(r[1], total);
+      return `<div class="desp-bar-row">
+        <div class="desp-bar-lbl">${r[0]}</div>
+        <div class="desp-bar-track"><div class="desp-bar-fill" style="width:${w}%;background:${color}"></div></div>
+        <div class="desp-bar-val">${_cc26Fmt(r[1])}<span class="desp-pct">${pct}%</span></div>
+      </div>`;
+    }).join('') + '</div>';
+  }
+
+  // Tabla estatus a partir de [[label, n], ...] con marcado vivo/muerto opcional
+  function _despTable(rows, total, mark) {
+    return '<table class="desp-tbl"><tbody>' + rows.map(r => {
+      const pct = _cc26Pct(r[1], total);
+      let cls = '';
+      if (mark) {
+        if (_DESP_DEAD.has(r[0])) cls = ' class="dead"';
+        else if (_DESP_LIVE.has(r[0])) cls = ' class="live"';
+      }
+      return `<tr${cls}><td class="desp-tbl-name">${r[0]}</td><td>${_cc26Fmt(r[1])}</td><td>${pct}%</td></tr>`;
+    }).join('') + '</tbody></table>';
+  }
+
+  function renderDesperdicio(){
+    const host = document.getElementById('desp-cards');
+    if (!host) return;
+    const D = _despData();
+
+    const RED = '#dc2626', AMBER = '#d97706', SLATE = '#64748b';
+
+    // ── Card 1: No contactados ──
+    const nc = D.no_contactados || { total:0, by_llamada:[] };
+    const ncTope = (nc.by_llamada || []).find(r => r[0] === '12ª');
+    const ncTopePct = _cc26Pct(ncTope ? ncTope[1] : 0, nc.total);
+    const ncLlamadas = Math.round((nc.total || 0) * 10.25);  // ~10.25 llamadas/lead promedio al tope
+    const card1 = `<div class="desp-card desp-red">
+      <div class="desp-card-head">
+        <div class="desp-card-name">No contactados</div>
+        <div class="desp-card-total">${_cc26Fmt(nc.total)}</div>
+      </div>
+      <div class="desp-tagline">~<b>${_cc26Fmt(ncLlamadas)} llamadas</b> en leads que nunca contestaron · <b>${ncTopePct}%</b> llegó al tope de 12</div>
+      ${_despBars(nc.by_llamada || [], nc.total, RED)}
+    </div>`;
+
+    // ── Card 2: Contactados (toggle estatus / nº llamada) ──
+    const c = D.contactados || { total:0, by_estatus:[], by_llamada:[] };
+    const cActivo = (c.by_estatus || []).find(r => _DESP_LIVE.has(r[0]));
+    const cActivoPct = _cc26Pct(cActivo ? cActivo[1] : 0, c.total);
+    let cDead = 0;
+    (c.by_estatus || []).forEach(r => { if (_DESP_DEAD.has(r[0])) cDead += r[1]; });
+    const card2 = `<div class="desp-card desp-amber">
+      <div class="desp-card-head">
+        <div class="desp-card-name">Contactados</div>
+        <div class="desp-card-total">${_cc26Fmt(c.total)}</div>
+      </div>
+      <div class="desp-tagline">solo <b>${cActivoPct}%</b> en seguimiento activo · <b>${_cc26Fmt(cDead)} ya muertos</b> (No interesado + Sin recursos)</div>
+      <div class="desp-toggle" id="desp-c-toggle">
+        <button type="button" data-view="estatus" class="active">por estatus</button>
+        <button type="button" data-view="llamada">por nº llamada</button>
+      </div>
+      <div id="desp-c-body">${_despTable(c.by_estatus || [], c.total, true)}</div>
+    </div>`;
+
+    // ── Card 3: No-show ──
+    const ns = D.no_show || { total:0, by_estatus:[] };
+    const nsAtasc = (ns.by_estatus || []).find(r => /Cita agendada/i.test(r[0]));
+    const nsAtascPct = _cc26Pct(nsAtasc ? nsAtasc[1] : 0, ns.total);
+    const nsReag = (ns.by_estatus || []).find(r => /Reagendar/i.test(r[0]));
+    const nsReagN = nsReag ? nsReag[1] : 0;
+    const card3 = `<div class="desp-card desp-slate">
+      <div class="desp-card-head">
+        <div class="desp-card-name">No-show</div>
+        <div class="desp-card-total">${_cc26Fmt(ns.total)}</div>
+      </div>
+      <div class="desp-tagline"><b>${nsAtascPct}%</b> atascados en Cita agendada (cementerio) · solo <b>${_cc26Fmt(nsReagN)} reagendados</b></div>
+      ${_despTable(ns.by_estatus || [], ns.total, false)}
+    </div>`;
+
+    host.innerHTML = card1 + card2 + card3;
+
+    // Toggle del card de contactados: estatus ↔ nº llamada
+    const tg = document.getElementById('desp-c-toggle');
+    const body = document.getElementById('desp-c-body');
+    if (tg && body) {
+      tg.querySelectorAll('button').forEach(b => {
+        b.addEventListener('click', () => {
+          tg.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+          b.classList.add('active');
+          if (b.dataset.view === 'llamada') {
+            body.innerHTML = _despBars(c.by_llamada || [], c.total, AMBER);
+          } else {
+            body.innerHTML = _despTable(c.by_estatus || [], c.total, true);
+          }
         });
       });
     }

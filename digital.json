@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-06-15T19:27:14.538635+00:00",
+  "updated_at": "2026-06-15T20:02:29.640354+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -20,8 +20,8 @@
       "label": "ene-26",
       "year": 2026,
       "month": 1,
-      "leads": 708,
-      "cont": 621,
+      "leads": 707,
+      "cont": 620,
       "agen": 279,
       "efec": 86,
       "vent": 1,
@@ -56,8 +56,8 @@
       "label": "abr-26",
       "year": 2026,
       "month": 4,
-      "leads": 995,
-      "cont": 865,
+      "leads": 993,
+      "cont": 863,
       "agen": 319,
       "efec": 120,
       "vent": 2,
@@ -68,25 +68,25 @@
       "label": "may-26",
       "year": 2026,
       "month": 5,
-      "leads": 1020,
-      "cont": 851,
+      "leads": 1016,
+      "cont": 847,
       "agen": 346,
       "efec": 106,
       "vent": 4,
-      "tope": 293,
+      "tope": 292,
       "nos": 235
     },
     {
       "label": "jun-26",
       "year": 2026,
       "month": 6,
-      "leads": 718,
-      "cont": 542,
-      "agen": 239,
+      "leads": 715,
+      "cont": 547,
+      "agen": 241,
       "efec": 56,
       "vent": 0,
-      "tope": 93,
-      "nos": 126
+      "tope": 94,
+      "nos": 147
     }
   ],
   "agencies": {
@@ -95,7 +95,7 @@
       {
         "agency": "CJA",
         "agency_full": "Orgu Carlos Julio Arosemena",
-        "leads": 359,
+        "leads": 358,
         "agen": 120,
         "efec": 33,
         "vent": 0,
@@ -104,7 +104,7 @@
       {
         "agency": "La Y",
         "agency_full": "Orgu La Y",
-        "leads": 257,
+        "leads": 255,
         "agen": 79,
         "efec": 24,
         "vent": 0,
@@ -113,7 +113,7 @@
       {
         "agency": "Orellana",
         "agency_full": "Orgu Orellana",
-        "leads": 247,
+        "leads": 246,
         "agen": 86,
         "efec": 29,
         "vent": 0,
@@ -162,11 +162,11 @@
     "rows": [
       {
         "model": "Ranger XL",
-        "leads": 449
+        "leads": 446
       },
       {
         "model": "Escape ST LINE",
-        "leads": 341
+        "leads": 340
       },
       {
         "model": "Explorer Active",
@@ -211,16 +211,172 @@
     ]
   },
   "kpis": {
-    "period_leads": 4885,
-    "period_cont": 4105,
-    "period_agen": 1838,
+    "period_leads": 4875,
+    "period_cont": 4103,
+    "period_agen": 1840,
     "period_efec": 587,
     "period_vent": 19,
-    "rate_cont": 84.0,
-    "rate_agen": 37.6,
+    "rate_cont": 84.2,
+    "rate_agen": 37.7,
     "rate_show": 31.9,
     "rate_no_show": 68.1,
     "rate_close": 3.2,
     "rate_lead_to_sale": 0.4
+  },
+  "cc_desperdicio": {
+    "available": true,
+    "no_contactados": {
+      "total": 701,
+      "by_llamada": [
+        [
+          "12ª",
+          550
+        ],
+        [
+          "1ª",
+          42
+        ],
+        [
+          "6ª",
+          29
+        ],
+        [
+          "3ª",
+          20
+        ],
+        [
+          "5ª",
+          13
+        ],
+        [
+          "2ª",
+          11
+        ],
+        [
+          "9ª",
+          11
+        ],
+        [
+          "4ª",
+          8
+        ],
+        [
+          "10ª",
+          8
+        ],
+        [
+          "7ª",
+          6
+        ],
+        [
+          "8ª",
+          2
+        ],
+        [
+          "11ª",
+          1
+        ]
+      ]
+    },
+    "contactados": {
+      "total": 3826,
+      "by_estatus": [
+        [
+          "Contactado / seguimiento activo",
+          1888
+        ],
+        [
+          "Barreras técnicas / no contesta",
+          910
+        ],
+        [
+          "No interesado",
+          393
+        ],
+        [
+          "Sin recursos económicos",
+          280
+        ],
+        [
+          "Posponer",
+          215
+        ],
+        [
+          "Errores operativos",
+          94
+        ]
+      ],
+      "by_llamada": [
+        [
+          "1ª",
+          976
+        ],
+        [
+          "2ª",
+          746
+        ],
+        [
+          "12ª",
+          677
+        ],
+        [
+          "3ª",
+          386
+        ],
+        [
+          "4ª",
+          279
+        ],
+        [
+          "5ª",
+          197
+        ],
+        [
+          "6ª",
+          174
+        ],
+        [
+          "7ª",
+          124
+        ],
+        [
+          "8ª",
+          95
+        ],
+        [
+          "9ª",
+          70
+        ],
+        [
+          "10ª",
+          55
+        ],
+        [
+          "11ª",
+          47
+        ]
+      ]
+    },
+    "no_show": {
+      "total": 1062,
+      "by_estatus": [
+        [
+          "Cita agendada (atascado)",
+          1002
+        ],
+        [
+          "Perdido",
+          57
+        ],
+        [
+          "Reagendar",
+          2
+        ],
+        [
+          "Cita Efectiva (error)",
+          1
+        ]
+      ]
+    }
   }
 }

@@ -16,9 +16,26 @@ Exporta:
 Uso: `python3 hubspot_pull.py` → escribe digital.json
 """
 from __future__ import annotations
-import os, sys, json, time, urllib.request, urllib.error
+import os, sys, json, time, ssl, urllib.request, urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Contexto SSL: en algunos entornos el cert.pem del sistema falta y urllib
+# revienta con CERTIFICATE_VERIFY_FAILED. Si certifi está disponible lo usamos
+# como CA bundle; si no, caemos al contexto por defecto (comportamiento previo).
+def _ssl_ctx():
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return None
+
+_SSL_CTX = _ssl_ctx()
+
+def _urlopen(req, timeout=30):
+    if _SSL_CTX is not None:
+        return urllib.request.urlopen(req, timeout=timeout, context=_SSL_CTX)
+    return urllib.request.urlopen(req, timeout=timeout)
 
 # Token: env > .env.local del proyecto Analista-HubSpot-PRO > inline fallback
 def _load_token():
@@ -82,13 +99,13 @@ def _search(obj, filter_groups, properties=None, limit=1):
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:
+        with _urlopen(req, timeout=30) as r:
             return json.loads(r.read())
     except urllib.error.HTTPError as e:
         # Rate-limit retry simple
         if e.code == 429:
             time.sleep(2)
-            with urllib.request.urlopen(req, timeout=30) as r:
+            with _urlopen(req, timeout=30) as r:
                 return json.loads(r.read())
         raise
 
@@ -187,7 +204,7 @@ def fetch_model_breakdown(months):
             data=json.dumps(body).encode('utf-8'),
             headers={'Authorization': f'Bearer {TOKEN}', 'Content-Type': 'application/json'},
         )
-        with urllib.request.urlopen(req, timeout=30) as r:
+        with _urlopen(req, timeout=30) as r:
             j = json.loads(r.read())
         for res in j.get('results', []):
             m = (res.get('properties', {}) or {}).get('modelo_de_interes') or '(sin modelo)'
@@ -222,6 +239,103 @@ def compute_kpis(funnel):
         'rate_lead_to_sale': round(100 * vent / leads, 1) if leads else 0,
     }
 
+# ─── Desperdicio por fase · cohorte 2026 ───
+# Tres distribuciones del "sangrado" del CC:
+#   - no_contactados: contactos cohorte 2026 (lead_enviado_cct=Si) con
+#     contactabilidad='No contactado', repartidos por nº de llamada.
+#   - contactados: contactos contactabilidad='Contactado', por estatus
+#     (resultado_de_llamada, etiquetas legibles) y por nº de llamada.
+#   - no_show: deals pipeline default con cita 2026 y asistio='No', por etapa.
+# Cohorte fija ene–jul 2026 (BETWEEN '2026-01-01' AND '2026-07-01').
+
+# Etiquetas legibles del enum numero_de_llamada. OJO: el valor interno del 9º
+# es '69º Llamada' (quirk de HubSpot), no '9º Llamada'.
+_NUM_LLAMADA = [(f'{i}º Llamada', f'{i}ª') for i in range(1, 13)]
+_NUM_LLAMADA[8] = ('69º Llamada', '9ª')  # índice 8 = 9ª llamada
+
+# resultado_de_llamada (valor interno) → etiqueta legible del panel
+_RES_LLAMADA = [
+    ('Contactado',                    'Contactado / seguimiento activo'),
+    ('Barreras técnicas/No contesta', 'Barreras técnicas / no contesta'),
+    ('No interesado',                 'No interesado'),
+    ('Sin recursos económicos',       'Sin recursos económicos'),
+    ('Posponer contacto',             'Posponer'),
+    ('Errores operativos',            'Errores operativos'),
+]
+
+# dealstage (GUID/interno) → etiqueta legible. Pipeline default = Ventas-Ford.
+_DEALSTAGE = [
+    ('23721767',     'Negocio Asignado'),
+    ('qualifiedtobuy','En gestión'),
+    ('23726667',     'Cita agendada (atascado)'),
+    ('958509219',    'Reagendar'),
+    ('23721774',     'Cita Efectiva (error)'),
+    ('77008301',     'Solicitud de crédito'),
+    ('23817118',     'Vehiculo Reservado'),
+    ('closedwon',    'Vendido'),
+    ('closedlost',   'Perdido'),
+]
+
+def fetch_cc_desperdicio(months):
+    """3 distribuciones del desperdicio (cohorte 2026). Reusa _count/_between/_eq.
+
+    Devuelve dict con no_contactados/contactados/no_show. Si algo falla,
+    devuelve {'available': False} sin romper el pull (igual que el resto).
+    """
+    try:
+        s = int(datetime(2026, 1, 1, tzinfo=timezone.utc).timestamp() * 1000)
+        e = int(datetime(2026, 7, 1, tzinfo=timezone.utc).timestamp() * 1000) - 1
+        ING = _between('fecha_y_hora_de_ingreso___cc', s, e)
+        ENV = _eq('lead_enviado_cct', 'Si')
+        CITA = _between('fecha_de_la_cita', s, e)
+
+        # --- No contactados ---
+        nc_base = [ING, ENV, _eq('contactabilidad', 'No contactado')]
+        nc_total = _count('contacts', nc_base)
+        nc_by = []
+        for val, lbl in _NUM_LLAMADA:
+            n = _count('contacts', nc_base + [_eq('numero_de_llamada', val)])
+            if n > 0:
+                nc_by.append([lbl, n])
+        nc_by.sort(key=lambda r: r[1], reverse=True)
+
+        # --- Contactados ---
+        c_base = [ING, ENV, _eq('contactabilidad', 'Contactado')]
+        c_total = _count('contacts', c_base)
+        c_est = []
+        for val, lbl in _RES_LLAMADA:
+            n = _count('contacts', c_base + [_eq('resultado_de_llamada', val)])
+            if n > 0:
+                c_est.append([lbl, n])
+        c_est.sort(key=lambda r: r[1], reverse=True)
+        c_by = []
+        for val, lbl in _NUM_LLAMADA:
+            n = _count('contacts', c_base + [_eq('numero_de_llamada', val)])
+            if n > 0:
+                c_by.append([lbl, n])
+        c_by.sort(key=lambda r: r[1], reverse=True)
+
+        # --- No-show (deals) ---
+        ns_base = [PIPE_FILTER, CITA, _eq('asistio_a_la_cita', 'No')]
+        ns_total = _count('deals', ns_base)
+        ns_est = []
+        for sid, lbl in _DEALSTAGE:
+            n = _count('deals', ns_base + [_eq('dealstage', sid)])
+            if n > 0:
+                ns_est.append([lbl, n])
+        ns_est.sort(key=lambda r: r[1], reverse=True)
+
+        print(f'  [desperdicio] no_cont={nc_total} cont={c_total} no_show={ns_total}', flush=True)
+        return {
+            'available': True,
+            'no_contactados': {'total': nc_total, 'by_llamada': nc_by},
+            'contactados':    {'total': c_total, 'by_estatus': c_est, 'by_llamada': c_by},
+            'no_show':        {'total': ns_total, 'by_estatus': ns_est},
+        }
+    except Exception as ex:
+        print(f'  [desperdicio] FALLO: {type(ex).__name__}: {ex}', file=sys.stderr, flush=True)
+        return {'available': False}
+
 def main(output_path='digital.json'):
     if not TOKEN:
         print('[ERROR] HUBSPOT_TOKEN no configurado. Generando snapshot vacío.', file=sys.stderr)
@@ -240,6 +354,8 @@ def main(output_path='digital.json'):
         print('[hubspot_pull] Fetch model breakdown...', flush=True)
         model = fetch_model_breakdown(months)
         kpis = compute_kpis(funnel)
+        print('[hubspot_pull] Fetch desperdicio por fase...', flush=True)
+        desperdicio = fetch_cc_desperdicio(months)
         snapshot = {
             'available': True,
             'updated_at': datetime.now(timezone.utc).isoformat(),
@@ -249,6 +365,7 @@ def main(output_path='digital.json'):
             'agencies': agency,
             'models': model,
             'kpis': kpis,
+            'cc_desperdicio': desperdicio,
         }
     out = Path(output_path)
     out.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False))
