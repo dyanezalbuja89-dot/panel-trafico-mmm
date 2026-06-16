@@ -10279,9 +10279,12 @@
       digShowContent();
     } else { err.textContent = 'Contraseña incorrecta'; }
   }
-  document.getElementById('dig-pw-btn').addEventListener('click', digTryUnlock);
-  document.getElementById('dig-pw').addEventListener('keydown', e=>{ if(e.key==='Enter') digTryUnlock(); });
-  document.getElementById('dig-logout').addEventListener('click', ()=>{
+  // ?. defensivo: el gate quedo removido (tab publica) y dig-logout ya no existe en el DOM.
+  // Sin el ?., getElementById('dig-logout') -> null -> .addEventListener lanzaba TypeError
+  // que ABORTABA el resto del script (el render on-load nunca corria => tab en blanco).
+  document.getElementById('dig-pw-btn')?.addEventListener('click', digTryUnlock);
+  document.getElementById('dig-pw')?.addEventListener('keydown', e=>{ if(e.key==='Enter') digTryUnlock(); });
+  document.getElementById('dig-logout')?.addEventListener('click', ()=>{
     localStorage.removeItem('digital_unlocked'); digShowGate();
   });
   document.querySelector('.tab-btn[data-tab="digital"]').addEventListener('click', ()=>{
