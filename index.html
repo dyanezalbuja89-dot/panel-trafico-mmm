@@ -4453,24 +4453,6 @@
 
       </div><!-- /cc26-funnels-wrap -->
 
-      <!-- ── TABLA MENSUAL 2026 ── -->
-      <div class="cc26-table-wrap">
-        <table class="cc26-table" id="cc26-tabla-mensual">
-          <thead>
-            <tr>
-              <th>Métrica</th>
-              <th>ene·26</th>
-              <th>feb·26</th>
-              <th>mar·26</th>
-              <th>abr·26</th>
-              <th>may·26</th>
-              <th>jun·26*</th>
-            </tr>
-          </thead>
-          <tbody id="cc26-tabla-body"></tbody>
-        </table>
-      </div>
-
       <!-- ── NOTA AL PIE ── -->
       <div class="cc26-footnote">
         Leads y contactados = leads que ingresaron en el periodo · citas y efectivas = citas con fecha en el periodo · % Tope-12 = leads que llegaron a las 12 llamadas · jun·26 parcial · datos a jun-2026.
@@ -9891,69 +9873,6 @@
       + chips(pTope, pNos);
   }
 
-  // Render de la tabla mensual con semáforos
-  function _cc26RenderTabla() {
-    const tbody = document.getElementById('cc26-tabla-body');
-    if (!tbody) return;
-
-    const cols = _CC26_ORDER;
-    const D = cols.map(m => _CC26_M[m]);
-
-    // Semáforo % Contacto: >=85 ok, 75-84 warn, <75 bad
-    function semCont(v) {
-      if (v >= 85) return `<span class="cc26-ok">${v}% ✓</span>`;
-      if (v >= 75) return `<span class="cc26-warn">${v}% ⚠</span>`;
-      return `<span class="cc26-bad">${v}% ✗</span>`;
-    }
-    // Semáforo % Tope-12: <=15 ok, 16-28 warn, >=29 bad
-    function semTope(v) {
-      if (v <= 15) return `<span class="cc26-ok">${v}% ✓</span>`;
-      if (v <= 28) return `<span class="cc26-warn">${v}% ⚠</span>`;
-      return `<span class="cc26-bad">${v}% ✗</span>`;
-    }
-    // Semáforo % No-show: <=35 ok, 36-50 warn, >50 bad
-    function semNos(v) {
-      if (v <= 35) return `<span class="cc26-ok">${v}% ✓</span>`;
-      if (v <= 50) return `<span class="cc26-warn">${v}% ⚠</span>`;
-      return `<span class="cc26-bad">${v}% ✗</span>`;
-    }
-
-    const rows = [
-      {
-        label: 'Leads (ingreso)',
-        vals: D.map(d => _cc26Fmt(d.leads))
-      },
-      {
-        label: 'Contactados',
-        vals: D.map(d => _cc26Fmt(d.cont))
-      },
-      {
-        label: '% Contacto',
-        vals: D.map(d => semCont(_cc26Pct(d.cont, d.leads)))
-      },
-      {
-        label: '% Tope-12',
-        vals: D.map(d => semTope(_cc26Pct(d.tope, d.leads)))
-      },
-      {
-        label: 'Citas agendadas',
-        vals: D.map(d => _cc26Fmt(d.cita))
-      },
-      {
-        label: 'Citas efectivas',
-        vals: D.map(d => _cc26Fmt(d.efec))
-      },
-      {
-        label: '% No-show',
-        vals: D.map(d => semNos(_cc26Pct(d.nos, d.cita)))
-      }
-    ];
-
-    tbody.innerHTML = rows.map(r =>
-      `<tr><td>${r.label}</td>${r.vals.map(v => `<td>${v}</td>`).join('')}</tr>`
-    ).join('');
-  }
-
   // Rellena el <select> de periodos SOLO con trimestres presentes en _CC26_Q.
   function _cc26PopulatePeriodo() {
     const sel = document.getElementById('cc26-sel-periodo');
@@ -9978,18 +9897,6 @@
     ).join('');
   }
 
-  // Sincroniza el <thead> de la tabla mensual con los meses presentes (col list).
-  function _cc26SyncTablaHead() {
-    const table = document.getElementById('cc26-tabla-mensual');
-    if (!table) return;
-    const tr = table.querySelector('thead tr');
-    if (!tr) return;
-    const last = _CC26_ORDER[_CC26_ORDER.length - 1];
-    tr.innerHTML = '<th>Métrica</th>' + _CC26_ORDER.map(m =>
-      `<th>${m === last ? m + '*' : m}</th>`
-    ).join('');
-  }
-
   // Actualiza el label del botón de checkboxes
   function _cc26UpdateCbLabel(selectedSet) {
     const btn = document.getElementById('cc26-cb-trigger');
@@ -10005,12 +9912,8 @@
     // Si no hay ningun mes (ni vivo ni fallback) no hay nada que pintar.
     if (!_CC26_ORDER.length) return;
 
-    // Rellena filtros y cabecera de tabla SOLO con meses/trimestres presentes.
+    // Rellena el filtro de periodo SOLO con meses/trimestres presentes.
     _cc26PopulatePeriodo();
-    _cc26SyncTablaHead();
-
-    // Render tabla (estática, sin filtro)
-    _cc26RenderTabla();
 
     // Estado inicial
     const selPeriodo = document.getElementById('cc26-sel-periodo');
