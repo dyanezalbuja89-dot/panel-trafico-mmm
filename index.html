@@ -10086,27 +10086,117 @@
   // Estatus del contactado que cuentan como "vivo" (seguimiento activo)
   const _DESP_LIVE = new Set(["Contactado / seguimiento activo"]);
 
-  // CRUCE estatus × nº de llamada (índices 0–11 = 1ª…12ª). Foto verificada jun-2026.
-  // El % del detalle se calcula sobre la suma del estatus seleccionado.
-  // Keyea por el MISMO label que usa cada fila de estatus de la tarjeta.
-  const _DESP_CRUCE = {
-    contactados: {
-      "Contactado / seguimiento activo": [671,434,201,143,102,62,55,41,33,24,16,109],
-      "Barreras técnicas / no contesta": [84,118,55,47,32,53,31,22,14,14,11,427],
-      "No interesado":                   [42,87,66,33,26,25,17,16,11,8,12,51],
-      "Sin recursos económicos":         [86,55,40,25,16,16,9,5,2,3,3,20],
-      "Posponer":                        [26,31,20,21,16,13,10,9,7,4,4,56],
-      "Errores operativos":              [26,15,8,10,4,5,3,2,3,3,1,14]
+  // CRUCE estatus × nº de llamada POR MES (índices 0–11 = 1ª…12ª en contactados;
+  // 0–3 = 1ª,2ª,3ª,Sin react. en no_show). Foto verificada por datos-hubspot 16-jun-2026.
+  // contactados = resultado_de_llamada × numero_de_llamada (ambos en CONTACT).
+  // no_show = dealstage × numero_de_llamada_reactivacion (esta vive en CONTACT;
+  // cross-object DEAL→CONTACT, enum solo 1º/2º/3º + Unassigned='Sin react.'). 'Unassigned'
+  // de contactados (resultado sin tipificar) se omite, como en by_estatus. Keyea por el
+  // MISMO label que cada fila de estatus. jun·26 sin madurar. Total = suma de meses.
+  const _DESP_CRUCE_M = {
+    'ene·26': {
+      contactados: {
+        "Contactado / seguimiento activo": [78,50,34,17,20,15,8,7,3,2,3,30],
+        "Barreras técnicas / no contesta": [17,13,3,3,10,14,8,2,2,3,0,95],
+        "No interesado":                   [10,19,11,6,7,6,5,6,1,1,1,13],
+        "Posponer":                        [2,1,3,10,7,5,3,2,1,1,0,27],
+        "Errores operativos":              [3,2,2,1,3,2,1,0,0,1,0,7],
+        "Sin recursos económicos":         [5,0,3,2,4,1,1,0,0,0,1,4]
+      },
+      no_show: {
+        "Cita agendada (atascado)": [36,23,83,9],
+        "Perdido":                  [10,2,11,2],
+        "Reagendar":                [0,0,1,0]
+      }
     },
-    // No-show: cruce por LLAMADAS DE REACTIVACIÓN (numero_de_llamada_reactivacion),
-    // no por llamadas de gestión. 4 buckets: 1ª, 2ª, 3ª, Sin react. Foto jun-2026.
-    no_show: {
-      "Cita agendada (atascado)": [317,131,394,159],
-      "Perdido":                  [20,6,20,11],
-      "Reagendar":                [0,0,2,0],
-      "Cita Efectiva (error)":    [0,0,1,0]
+    'feb·26': {
+      contactados: {
+        "Contactado / seguimiento activo": [88,47,27,24,12,9,10,7,5,3,4,23],
+        "Barreras técnicas / no contesta": [11,9,4,2,3,5,2,5,2,0,2,40],
+        "No interesado":                   [7,10,8,4,4,2,0,1,2,0,2,7],
+        "Posponer":                        [1,3,1,1,4,0,1,0,0,1,0,6],
+        "Errores operativos":              [3,1,1,3,0,1,0,0,0,0,1,2],
+        "Sin recursos económicos":         [3,3,3,4,0,1,2,0,0,0,0,2]
+      },
+      no_show: {
+        "Cita agendada (atascado)": [29,11,41,8],
+        "Perdido":                  [1,1,0,2],
+        "Reagendar":                [0,0,1,0]
+      }
+    },
+    'mar·26': {
+      contactados: {
+        "Contactado / seguimiento activo": [114,64,31,31,19,4,7,5,8,4,4,22],
+        "Barreras técnicas / no contesta": [25,20,9,7,5,6,4,0,2,1,2,81],
+        "No interesado":                   [3,17,8,5,8,5,3,3,1,1,5,13],
+        "Posponer":                        [1,4,0,1,1,0,1,2,1,0,0,3],
+        "Errores operativos":              [5,3,0,1,1,2,0,1,1,1,1,1],
+        "Sin recursos económicos":         [10,8,4,3,1,3,0,1,0,2,1,5]
+      },
+      no_show: {
+        "Cita agendada (atascado)": [74,35,70,21],
+        "Perdido":                  [7,1,2,1]
+      }
+    },
+    'abr·26': {
+      contactados: {
+        "Contactado / seguimiento activo": [145,109,45,37,19,15,15,6,7,7,1,19],
+        "Barreras técnicas / no contesta": [21,29,12,12,8,13,8,7,2,3,1,106],
+        "No interesado":                   [11,28,13,10,5,7,7,3,5,2,3,6],
+        "Posponer":                        [3,11,5,4,0,1,3,3,2,1,3,9],
+        "Sin recursos económicos":         [20,21,11,8,5,3,2,1,1,0,1,2],
+        "Errores operativos":              [3,7,1,2,0,0,0,1,1,1,0,3]
+      },
+      no_show: {
+        "Cita agendada (atascado)": [52,22,80,30],
+        "Perdido":                  [1,2,6,4],
+        "Cita Efectiva (error)":    [0,0,1,0]
+      }
+    },
+    'may·26': {
+      contactados: {
+        "Contactado / seguimiento activo": [153,110,36,41,22,16,11,9,8,6,3,18],
+        "Barreras técnicas / no contesta": [5,38,15,16,2,5,0,3,2,4,3,93],
+        "No interesado":                   [7,15,17,6,3,6,4,4,2,4,3,11],
+        "Sin recursos económicos":         [33,23,12,7,4,7,2,2,1,1,0,5],
+        "Posponer":                        [6,8,4,3,4,2,2,2,2,0,1,5],
+        "Errores operativos":              [11,2,3,2,0,0,0,0,1,1,0,1]
+      },
+      no_show: {
+        "Cita agendada (atascado)": [79,31,104,18],
+        "Perdido":                  [1,0,1,2]
+      }
+    },
+    'jun·26': {
+      contactados: {
+        "Contactado / seguimiento activo": [131,75,42,13,12,7,9,8,2,3,1,6],
+        "Barreras técnicas / no contesta": [7,15,8,15,6,7,6,10,3,5,3,36],
+        "Sin recursos económicos":         [23,6,9,2,3,4,2,2,0,0,0,2],
+        "Posponer":                        [13,4,4,5,1,5,1,0,1,1,0,6],
+        "No interesado":                   [5,4,11,2,1,1,0,0,0,0,0,3],
+        "Errores operativos":              [4,0,2,1,0,0,2,0,0,0,0,0]
+      },
+      no_show: {
+        "Cita agendada (atascado)": [54,8,16,72]
+      }
     }
   };
+  // Cruce para el periodo: un mes (directo) o 'Total' (merge element-wise de meses).
+  function _despCruceForPeriod(period) {
+    if (period && period !== 'Total' && _DESP_CRUCE_M[period]) return _DESP_CRUCE_M[period];
+    const merge = (kind) => {
+      const out = {};
+      _DESP_ORDER.forEach(m => {
+        const src = (_DESP_CRUCE_M[m] || {})[kind] || {};
+        Object.entries(src).forEach(([k, arr]) => {
+          if (!out[k]) out[k] = arr.slice();
+          else out[k] = out[k].map((v, i) => v + (arr[i] || 0));
+        });
+      });
+      return out;
+    };
+    return { contactados: merge('contactados'), no_show: merge('no_show') };
+  }
   const _DESP_LLAM_LBL = ["1ª","2ª","3ª","4ª","5ª","6ª","7ª","8ª","9ª","10ª","11ª","12ª"];
   const _DESP_REACT_LBL = ["1ª","2ª","3ª","Sin react."];
 
@@ -10188,6 +10278,11 @@
     sel.innerHTML = opts.map(k =>
       `<option value="${k}">${k === 'Total' ? 'Total (cohorte ene–jun·26)' : k}</option>`
     ).join('');
+  }
+  // Ordena filas [["1ª",n],...] por nº de llamada (1ª→12ª), no por cantidad.
+  function _despByCallOrder(rows) {
+    return (rows || []).slice().sort((a, b) =>
+      _DESP_LLAM_LBL.indexOf(a[0]) - _DESP_LLAM_LBL.indexOf(b[0]));
   }
 
   function _despData(){
@@ -10289,12 +10384,12 @@
     _despPopulatePeriodo();
     const sel = document.getElementById('desp-sel-periodo');
     const period = (sel && sel.value) || 'Total';
-    const isTotal = (period === 'Total');
     const D = _despForPeriod(period);
+    const cruce = _despCruceForPeriod(period);
 
     const RED = '#dc2626', AMBER = '#d97706', SLATE = '#64748b';
 
-    // ── Card 1: No contactados ──
+    // ── Card 1: No contactados (barras por nº de llamada, orden 1ª→12ª) ──
     const nc = D.no_contactados || { total:0, by_llamada:[] };
     const ncTope = (nc.by_llamada || []).find(r => r[0] === '12ª');
     const ncTopePct = _cc26Pct(ncTope ? ncTope[1] : 0, nc.total);
@@ -10305,53 +10400,51 @@
         <div class="desp-card-total">${_cc26Fmt(nc.total)}</div>
       </div>
       <div class="desp-tagline">~<b>${_cc26Fmt(ncLlamadas)} llamadas</b> en leads que nunca contestaron · <b>${ncTopePct}%</b> llegó al tope de 12</div>
-      ${_despBars(nc.by_llamada || [], nc.total, RED)}
+      ${_despBars(_despByCallOrder(nc.by_llamada), nc.total, RED)}
     </div>`;
 
-    // ── Card 2: Contactados (drill estatus → llamadas solo en vista Total) ──
+    // ── Card 2: Contactados (drill estatus → nº de llamada, por periodo) ──
     const c = D.contactados || { total:0, by_estatus:[] };
     const cActivo = (c.by_estatus || []).find(r => _DESP_LIVE.has(r[0]));
     const cActivoPct = _cc26Pct(cActivo ? cActivo[1] : 0, c.total);
     let cDead = 0;
     (c.by_estatus || []).forEach(r => { if (_DESP_DEAD.has(r[0])) cDead += r[1]; });
-    const c2hint = isTotal ? ' · <b>clic en un estatus</b> para ver sus llamadas' : '';
     const card2 = `<div class="desp-card desp-amber" id="desp-card-c">
       <div class="desp-card-head">
         <div class="desp-card-name">Contactados</div>
         <div class="desp-card-total">${_cc26Fmt(c.total)}</div>
       </div>
-      <div class="desp-tagline">solo <b>${cActivoPct}%</b> en seguimiento activo · <b>${_cc26Fmt(cDead)} ya muertos</b> (No interesado + Sin recursos)${c2hint}</div>
-      ${_despTable(c.by_estatus || [], c.total, true, isTotal ? 'contactados' : null)}
+      <div class="desp-tagline">solo <b>${cActivoPct}%</b> en seguimiento activo · <b>${_cc26Fmt(cDead)} ya muertos</b> (No interesado + Sin recursos) · <b>clic en un estatus</b> para ver sus llamadas</div>
+      ${_despTable(c.by_estatus || [], c.total, true, 'contactados')}
       <div id="desp-c-drill"></div>
     </div>`;
 
-    // ── Card 3: No-show ──
+    // ── Card 3: No-show (drill etapa → llamadas de reactivación, por periodo) ──
     const ns = D.no_show || { total:0, by_estatus:[] };
     const nsAtasc = (ns.by_estatus || []).find(r => /Cita agendada/i.test(r[0]));
     const nsAtascPct = _cc26Pct(nsAtasc ? nsAtasc[1] : 0, ns.total);
-    const c3hint = isTotal ? ' · <b>84%</b> recibió llamadas de reactivación y aun así no volvió · <b>clic en una etapa</b> para ver sus llamadas' : '';
+    // % que recibió ≥1 llamada de reactivación (1ª+2ª+3ª) sobre el cruce del periodo.
+    let nsReact = 0, nsAll = 0;
+    Object.values(cruce.no_show || {}).forEach(arr => {
+      nsReact += (arr[0] || 0) + (arr[1] || 0) + (arr[2] || 0);
+      nsAll += arr.reduce((a, b) => a + b, 0);
+    });
+    const nsReactPct = _cc26Pct(nsReact, nsAll);
     const card3 = `<div class="desp-card desp-slate" id="desp-card-ns">
       <div class="desp-card-head">
         <div class="desp-card-name">No-show</div>
         <div class="desp-card-total">${_cc26Fmt(ns.total)}</div>
       </div>
-      <div class="desp-tagline"><b>${nsAtascPct}%</b> atascados en Cita agendada${c3hint}</div>
-      ${_despTable(ns.by_estatus || [], ns.total, false, isTotal ? 'no_show' : null)}
+      <div class="desp-tagline"><b>${nsAtascPct}%</b> atascados en Cita agendada · <b>${nsReactPct}%</b> recibió llamadas de reactivación y aun así no volvió · <b>clic en una etapa</b> para ver sus llamadas</div>
+      ${_despTable(ns.by_estatus || [], ns.total, false, 'no_show')}
       <div id="desp-ns-drill"></div>
     </div>`;
 
     host.innerHTML = card1 + card2 + card3;
 
-    if (isTotal) {
-      // Drill estatus → llamadas (cruce estatico, cohorte completa): clic en una fila.
-      _despWireDrill(document.getElementById('desp-card-c'),  'desp-c-drill',  _DESP_CRUCE.contactados, AMBER, _DESP_LLAM_LBL,  'Llamadas de');
-      _despWireDrill(document.getElementById('desp-card-ns'), 'desp-ns-drill', _DESP_CRUCE.no_show,     SLATE, _DESP_REACT_LBL, 'Llamadas de reactivación de');
-    } else {
-      // Por-mes no hay cruce estatus×llamada (requiere cross-object DEAL→CONTACT); nota honesta.
-      const note = '<div class="desp-drill"><div class="desp-drill-empty">Detalle de llamadas por estatus: disponible en vista <b>Total</b> (cohorte completa).</div></div>';
-      const cd = document.getElementById('desp-c-drill'); if (cd) cd.innerHTML = note;
-      const nd = document.getElementById('desp-ns-drill'); if (nd) nd.innerHTML = note;
-    }
+    // Drill estatus/etapa → llamadas, con el cruce del PERIODO seleccionado (vivo por mes).
+    _despWireDrill(document.getElementById('desp-card-c'),  'desp-c-drill',  cruce.contactados, AMBER, _DESP_LLAM_LBL,  'Llamadas de');
+    _despWireDrill(document.getElementById('desp-card-ns'), 'desp-ns-drill', cruce.no_show,     SLATE, _DESP_REACT_LBL, 'Llamadas de reactivación de');
 
     // Listener del select (una sola vez): cambia el periodo y re-renderiza.
     if (sel && !sel._despWired) { sel.addEventListener('change', renderDesperdicio); sel._despWired = true; }
