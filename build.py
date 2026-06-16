@@ -5405,11 +5405,118 @@ HTML = r"""<!doctype html>
   // =========================================================
   //                   FORD TAB (dinámico)
   // =========================================================
-  // Populate month selector (Ford)
+  // === YTD aggregator — suma todos los meses para shape FORD/Brand ====================
+  // monthsMap: {key: monthObj} · keys: lista de mes-keys a sumar.
+  // Devuelve un objeto que mimica la shape de un mes individual:
+  //   total_curr/prev, days_lab/trans, models[m].{curr,prev,delta,meta},
+  //   dealers[d].{curr,prev,delta,meta,byModel,byChannel},
+  //   matrix_cnt, matrix_cnt_prev, matrix_meta,
+  //   dealer_model_channel, dealer_model_channel_prev,
+  //   model_order, dealer_order, zone_order, zones (del último mes — typicalmente todas idénticas).
+  // Campos de "día" (pace, daily, daily_breakdown) van vacíos — los charts dependientes manejan ese caso.
+  function buildYTD(monthsMap, keys){
+    const ms = keys.map(k=>monthsMap[k]).filter(Boolean);
+    if(!ms.length) return null;
+    const last = ms[ms.length-1];
+    const model_order = last.model_order || [];
+    const dealer_order = last.dealer_order || [];
+    const zone_order = last.zone_order || [];
+    const zones = last.zones || {};
+    // matrix_cnt / matrix_cnt_prev / matrix_meta — sum across months
+    const matrix_cnt = {}, matrix_cnt_prev = {}, matrix_meta = {};
+    model_order.forEach(m=>{
+      matrix_cnt[m] = {}; matrix_cnt_prev[m] = {}; matrix_meta[m] = {};
+      dealer_order.forEach(d=>{
+        let c=0, p=0, mt=0;
+        ms.forEach(mm=>{
+          c += (mm.matrix_cnt?.[m]||{})[d] || 0;
+          p += (mm.matrix_cnt_prev?.[m]||{})[d] || 0;
+          mt += (mm.matrix_meta?.[m]||{})[d] || 0;
+        });
+        matrix_cnt[m][d] = c;
+        matrix_cnt_prev[m][d] = p;
+        matrix_meta[m][d] = mt;
+      });
+    });
+    // dealer_model_channel / _prev — sum keep canals
+    const dmc = {}, dmcp = {};
+    const allDealers = [...dealer_order, 'Otros'];
+    allDealers.forEach(d=>{
+      dmc[d] = {}; dmcp[d] = {};
+      model_order.forEach(m=>{
+        const sumCh = (acc, src)=>{
+          const map = (src?.[d]||{})[m] || {};
+          Object.entries(map).forEach(([k,v])=>{ acc[k] = (acc[k]||0) + (v||0); });
+        };
+        const a = {}, b = {};
+        ms.forEach(mm=>{ sumCh(a, mm.dealer_model_channel); sumCh(b, mm.dealer_model_channel_prev); });
+        dmc[d][m] = a; dmcp[d][m] = b;
+      });
+    });
+    // models / dealers — sum
+    const models = {};
+    model_order.forEach(m=>{
+      let curr=0, prev=0, meta=0;
+      ms.forEach(mm=>{
+        curr += mm.models?.[m]?.curr || 0;
+        prev += mm.models?.[m]?.prev || 0;
+        meta += mm.models?.[m]?.meta || 0;
+      });
+      models[m] = {curr, prev, meta, delta: curr-prev};
+    });
+    const dealers = {};
+    [...dealer_order, 'Otros'].forEach(d=>{
+      let curr=0, prev=0, meta=0;
+      const byModel = {};
+      ms.forEach(mm=>{
+        curr += mm.dealers?.[d]?.curr || 0;
+        prev += mm.dealers?.[d]?.prev || 0;
+        meta += mm.dealers?.[d]?.meta || 0;
+        const bm = mm.dealers?.[d]?.byModel || {};
+        Object.entries(bm).forEach(([k,v])=>{ byModel[k] = (byModel[k]||0) + (v||0); });
+      });
+      dealers[d] = {curr, prev, meta, delta: curr-prev, byModel, byChannel:{}};
+    });
+    // totales / días
+    let total_curr=0, total_prev=0, days_lab=0, days_trans=0, meta_total=0;
+    ms.forEach(mm=>{
+      total_curr += mm.total_curr || 0;
+      total_prev += mm.total_prev || 0;
+      days_lab += mm.days_lab || 0;
+      days_trans += mm.days_trans || 0;
+      meta_total += mm.meta_total || 0;
+    });
+    const velocity = days_trans ? total_curr/days_trans : 0;
+    const projection_total = Math.round(velocity * days_lab);
+    return {
+      cut_date: 'YTD ' + (last.year || 2026),
+      prev_date: ms[0]?.cut_date || '',
+      total_curr, total_prev, delta_total: total_curr - total_prev,
+      days_lab, days_trans, avance_pct: days_lab ? Math.round(100*days_trans/days_lab) : 0,
+      velocity: Math.round(velocity*100)/100, projection_total,
+      meta_total,
+      dominant_channel: last.dominant_channel || '—',
+      channel_pct: last.channel_pct || 0,
+      models, dealers, zones,
+      matrix_pct: {}, matrix_cnt, matrix_meta,
+      matrix_cnt_prev,
+      dealer_model_channel: dmc, dealer_model_channel_prev: dmcp,
+      at_risk_models: [], at_risk_agencies: [],
+      movements: {},
+      daily: {}, daily_breakdown: {}, daily_dealer_channel: {},
+      pace: [],
+      month: 0, year: last.year || 2026, cut_day: 0,
+      month_label: 'YTD',
+      model_order, dealer_order, zone_order,
+    };
+  }
+
+  // Populate month selector (Ford) — incluye YTD al inicio
   (function initFFMonth(){
     const sel = document.getElementById('ff-month');
     if(!sel) return;
-    sel.innerHTML = MONTHS_CONFIG.map(c=>`<option value="${c.key}" ${c.key===currentMonthFF?'selected':''}>${c.label}</option>`).join('');
+    const ytdOpt = `<option value="ytd">YTD 2026 (acumulado)</option>`;
+    sel.innerHTML = ytdOpt + MONTHS_CONFIG.map(c=>`<option value="${c.key}" ${c.key===currentMonthFF?'selected':''}>${c.label}</option>`).join('');
   })();
   // Populate Ford filters
   fillSelect('ff-zona', FORD.zone_order);
@@ -6240,9 +6347,15 @@ HTML = r"""<!doctype html>
   if(ffMonthEl){
     ffMonthEl.addEventListener('change', e=>{
       const key = e.target.value;
-      if(!FORD_MONTHS[key]) return;
-      currentMonthFF = key;
-      FORD = FORD_MONTHS[key];
+      if(key === 'ytd'){
+        FORD = buildYTD(FORD_MONTHS, MONTHS_CONFIG.map(c=>c.key));
+        if(!FORD) return;
+        currentMonthFF = 'ytd';
+      } else {
+        if(!FORD_MONTHS[key]) return;
+        currentMonthFF = key;
+        FORD = FORD_MONTHS[key];
+      }
       // Reset filters porque dealer/model order podría cambiar entre meses
       fstate.zona = ''; fstate.agencia = ''; fstate.modelo = '';
       ['ff-zona','ff-agencia','ff-modelo'].forEach(id=>{
@@ -6463,11 +6576,12 @@ HTML = r"""<!doctype html>
   const BRAND_DISPLAY = DATA.brand_display || {};
   let BRANDS_DATA = DATA.brands || {};
 
-  // Populate month selector (Brand)
+  // Populate month selector (Brand) — incluye YTD al inicio
   (function initBRMonth(){
     const sel = document.getElementById('br-month');
     if(!sel) return;
-    sel.innerHTML = MONTHS_CONFIG.map(c=>`<option value="${c.key}" ${c.key===currentMonthBR?'selected':''}>${c.label}</option>`).join('');
+    const ytdOpt = `<option value="ytd">YTD 2026 (acumulado)</option>`;
+    sel.innerHTML = ytdOpt + MONTHS_CONFIG.map(c=>`<option value="${c.key}" ${c.key===currentMonthBR?'selected':''}>${c.label}</option>`).join('');
   })();
 
   // Populate brand selector
@@ -7142,9 +7256,23 @@ HTML = r"""<!doctype html>
   if(brMonthEl){
     brMonthEl.addEventListener('change', e=>{
       const key = e.target.value;
-      if(!BRANDS_MONTHS[key]) return;
-      currentMonthBR = key;
-      BRANDS_DATA = BRANDS_MONTHS[key];
+      if(key === 'ytd'){
+        // YTD para Brand: construir un BRANDS_DATA virtual con buildYTD por cada marca.
+        const ytdBrands = {};
+        const monthKeys = MONTHS_CONFIG.map(c=>c.key);
+        BRANDS.forEach(b=>{
+          const perMonthMap = {};
+          monthKeys.forEach(mk=>{ const v = (BRANDS_MONTHS[mk]||{})[b]; if(v) perMonthMap[mk] = v; });
+          const ytd = buildYTD(perMonthMap, Object.keys(perMonthMap));
+          if(ytd) ytdBrands[b] = ytd;
+        });
+        BRANDS_DATA = ytdBrands;
+        currentMonthBR = 'ytd';
+      } else {
+        if(!BRANDS_MONTHS[key]) return;
+        currentMonthBR = key;
+        BRANDS_DATA = BRANDS_MONTHS[key];
+      }
       // Reset sub-filters; brand selection persists
       bstate.agencia = ''; bstate.modelo = '';
       ['br-agencia','br-modelo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
