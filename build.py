@@ -5062,9 +5062,9 @@ HTML = r"""<!doctype html>
         </table>
       </div>
 
-      <!-- CRUCE TRÁFICO × INVENTARIO × RESERVAS -->
-      <div class="ford-section">
-        <h3>📊 Cruce tráfico × inventario × reservas <span class="sub">¿La caída de tráfico está justificada por reservas pre-mes con inventario que las respalde?</span></h3>
+      <!-- CRUCE TRÁFICO × INVENTARIO × RESERVAS (solo Ford) -->
+      <div class="ford-section" id="an-cruce-section">
+        <h3>📊 Cruce tráfico × inventario × reservas <span class="sub">¿La caída de tráfico está justificada por reservas pre-mes con inventario que las respalde? · sólo Ford</span></h3>
         <div style="font-size:12px;color:var(--c-muted);margin-bottom:10px">
           Cada celda muestra el <strong>% cumplimiento de tráfico</strong>. <strong>Tap en la celda</strong> para ver detalle completo del modelo en todos los meses.
           <span style="display:inline-flex;flex-wrap:wrap;gap:6px;margin-left:8px;vertical-align:middle">
@@ -12093,7 +12093,12 @@ HTML = r"""<!doctype html>
   }
   function anScopeModels(){ return anstate.modelo ? [anstate.modelo] : null; }
   function anScopeDealers(){ return anstate.agencia ? [anstate.agencia] : null; }
-  function anViewLabel(){ return anstate.view==='ytd' ? 'YTD 2026 (Ene-May)' : AN_MONTH_LBL[anstate.view]+' 2026'; }
+  function anViewLabel(){
+    if(anstate.view !== 'ytd') return AN_MONTH_LBL[anstate.view]+' 2026';
+    const lbls = AN_MONTHS_2026.map(mk=>AN_MONTH_LBL[mk]).filter(Boolean);
+    if(lbls.length < 2) return 'YTD 2026';
+    return 'YTD 2026 ('+lbls[0].slice(0,3)+'-'+lbls[lbls.length-1].slice(0,3)+')';
+  }
 
   function metaBarHtml(real, meta, pct){
     const ratio = meta>0 ? Math.min(1.5, real/meta) : 0;
@@ -12136,7 +12141,7 @@ HTML = r"""<!doctype html>
     const proRata = anHasInProgressMonth(months);
     document.getElementById('an-k1-hint').textContent = anViewLabel() + ' · ' + anCanalLabel() + (meta>0?` · ${curr}/${meta}`:'') + (proRata?' · meta al día':'');
     document.getElementById('an-k2').textContent = fmt(curr);
-    document.getElementById('an-k2-hint').textContent = 'Tráfico Ford · ' + anCanalLabel() + (anstate.modelo?` · ${anstate.modelo}`:'') + (anstate.agencia?` · ${anstate.agencia}`:'');
+    document.getElementById('an-k2-hint').textContent = 'Tráfico ' + anBrandLabel() + ' · ' + anCanalLabel() + (anstate.modelo?` · ${anstate.modelo}`:'') + (anstate.agencia?` · ${anstate.agencia}`:'');
     document.getElementById('an-k3').textContent = fmt(meta);
     const gapEl = document.getElementById('an-k3-hint');
     gapEl.textContent = meta>0 ? `gap ${fmtSigned(gap)}` : 'sin meta';
@@ -12327,6 +12332,15 @@ HTML = r"""<!doctype html>
   // Vista 2: tabla detalle con el modelo filtrado (o Ford total si no hay filtro).
   // Solo considera meses 2026 (oct-dic 2025 no tienen metas y distorsionan la lectura).
   function renderAnCruce(){
+    // Cruce solo disponible para Ford (no hay inventario.monthly_cross para brands ORGU).
+    // Para otras marcas, esconder la sección entera y avisar.
+    const section = document.getElementById('an-cruce-section');
+    if(anstate.marca !== 'FORD'){
+      if(section) section.style.display = 'none';
+      return;
+    } else if(section){
+      section.style.display = '';
+    }
     if(!DATA.inventario || !DATA.inventario.monthly_cross) return;
     const mc = DATA.inventario.monthly_cross['FORD'];
     if(!mc) return;
