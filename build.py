@@ -8859,23 +8859,58 @@ HTML = r"""<!doctype html>
   // Cada modelo tiene un chip toggle independiente — el filtro global "Modelo"
   // se respeta también (si seleccionas un modelo arriba, solo se muestra ese).
   let convChartModelos = null;
-  const CONV_MODELO_ORDER = ['TERRITORY','ESCAPE','EVEREST','EXPLORER','EXPEDITION','BRONCO','F-150','RANGER'];
-  const CONV_MODELO_COLORS = {
+  // Paleta de colores brand-aware. Ford tiene su asignación canónica;
+  // brands ORGU usan rotación palette.
+  const CONV_MODELO_COLORS_FORD = {
     'TERRITORY':  '#003478', 'F-150':      '#c62828',
     'RANGER':     '#2e7d32', 'EVEREST':    '#a36307',
     'ESCAPE':     '#ef6c00', 'EXPLORER':   '#1565c0',
     'EXPEDITION': '#6a1b9a', 'BRONCO':     '#455a64',
   };
-  // Estado: qué modelos están activos en el gráfico (toggle local al gráfico)
-  const convChartModelosOn = {};
-  CONV_MODELO_ORDER.forEach(m => convChartModelosOn[m] = true);
+  const _CONV_PALETTE = ['#003478','#c62828','#2e7d32','#ef6c00','#6a1b9a','#1565c0','#a36307','#455a64','#0288d1','#7b1fa2','#558b2f','#d84315'];
+  function convModelColorsForBrand(modelos){
+    if(convState.marca === 'FORD') return CONV_MODELO_COLORS_FORD;
+    const out = {};
+    modelos.forEach((m,i)=>{ out[m] = _CONV_PALETTE[i % _CONV_PALETTE.length]; });
+    return out;
+  }
+  // Lista de modelos derivada del clientes_flat de la marca activa.
+  function convModelosForBrand(){
+    const C = (DATA.conversion_data||{})[convState.marca];
+    if(!C || !C.clientes_flat) return [];
+    const set = new Set();
+    C.clientes_flat.forEach(c => { if(c.modelo && c.modelo !== 'Por definir') set.add(c.modelo); });
+    // Ford respeta su orden canónico; brands ORGU orden alfabético.
+    const FORD_ORDER = ['TERRITORY','ESCAPE','EVEREST','EXPLORER','EXPEDITION','BRONCO','F-150','RANGER'];
+    if(convState.marca === 'FORD'){
+      return FORD_ORDER.filter(m=>set.has(m)).concat([...set].filter(m=>!FORD_ORDER.includes(m)).sort());
+    }
+    return [...set].sort();
+  }
+  // Estado: qué modelos están activos en el gráfico (toggle local al gráfico).
+  // Se inicializa lazy y se reinicia al cambiar marca.
+  let convChartModelosOn = {};
+  let _convChartLastBrand = null;
+  function convChartEnsureModelosState(){
+    if(_convChartLastBrand === convState.marca) return;
+    _convChartLastBrand = convState.marca;
+    convChartModelosOn = {};
+    convModelosForBrand().forEach(m => convChartModelosOn[m] = true);
+  }
 
   function renderConvModelosChips(){
     const wrap = document.getElementById('conv-modelos-chips');
     if(!wrap) return;
-    wrap.innerHTML = CONV_MODELO_ORDER.map(m => {
+    convChartEnsureModelosState();
+    const modelos = convModelosForBrand();
+    const colors = convModelColorsForBrand(modelos);
+    if(!modelos.length){
+      wrap.innerHTML = '<div style="font-size:12px;color:var(--muted)">Sin modelos para ' + (DATA.brand_display?.[convState.marca] || convState.marca) + '</div>';
+      return;
+    }
+    wrap.innerHTML = modelos.map(m => {
       const on = convChartModelosOn[m];
-      const color = CONV_MODELO_COLORS[m];
+      const color = colors[m] || '#666';
       const bg = on ? color : '#fff';
       const fg = on ? '#fff' : color;
       const border = color;
@@ -8907,7 +8942,7 @@ HTML = r"""<!doctype html>
     wrap.querySelectorAll('.conv-model-chip-action').forEach(btn => {
       btn.addEventListener('click', () => {
         const v = btn.dataset.action === 'all';
-        CONV_MODELO_ORDER.forEach(m => convChartModelosOn[m] = v);
+        modelos.forEach(m => convChartModelosOn[m] = v);
         renderConvModelosChips();
         renderConvChartModelos();
       });
@@ -8943,8 +8978,11 @@ HTML = r"""<!doctype html>
       if(hint) hint.remove();
     }
 
-    // Asegurar que los chips estén renderizados (primera vez)
-    if(!document.querySelector('#conv-modelos-chips .conv-model-chip')){
+    // Asegurar que los chips estén renderizados. Si cambió la marca, forzar re-render
+    // para que los chips reflejen los modelos correctos de la marca activa.
+    const _brandChanged = _convChartLastBrand !== convState.marca;
+    convChartEnsureModelosState();
+    if(_brandChanged || !document.querySelector('#conv-modelos-chips .conv-model-chip')){
       renderConvModelosChips();
     }
 
@@ -8956,10 +8994,10 @@ HTML = r"""<!doctype html>
       return true;
     });
 
-    const meses  = ['2026-01','2026-02','2026-03','2026-04','2026-05'];
-    const labels = ['Enero','Febrero','Marzo','Abril','Mayo'];
-    const MODELO_ORDER = CONV_MODELO_ORDER;
-    const COLORS = CONV_MODELO_COLORS;
+    const meses  = ['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06'];
+    const labels = ['Enero','Febrero','Marzo','Abril','Mayo','Junio'];
+    const MODELO_ORDER = convModelosForBrand();
+    const COLORS = convModelColorsForBrand(MODELO_ORDER);
 
     // Selección: si filtro global tiene modelo, usar solo ese; sino, los chips activos
     let modelosToShow;
