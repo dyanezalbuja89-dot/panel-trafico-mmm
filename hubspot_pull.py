@@ -276,61 +276,100 @@ _DEALSTAGE = [
     ('closedlost',   'Perdido'),
 ]
 
-def fetch_cc_desperdicio(months):
-    """3 distribuciones del desperdicio (cohorte 2026). Reusa _count/_between/_eq.
+_MES_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
+             'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+# Meses 2026 con dato del CC para el desglose mensual del desperdicio (H1).
+# Extender al avanzar el año (jul=7, ...).
+_DESP_MONTHS_2026 = [1, 2, 3, 4, 5, 6]
 
-    Devuelve dict con no_contactados/contactados/no_show. Si algo falla,
-    devuelve {'available': False} sin romper el pull (igual que el resto).
+
+def _desp_window(s, e, incl_c_by=True):
+    """3 distribuciones del desperdicio para la ventana [s, e] (ms epoch).
+
+    incl_c_by: si False, omite contactados.by_llamada (no se muestra por-mes
+    en el panel) para ahorrar ~12 counts por ventana.
     """
-    try:
-        s = int(datetime(2026, 1, 1, tzinfo=timezone.utc).timestamp() * 1000)
-        e = int(datetime(2026, 7, 1, tzinfo=timezone.utc).timestamp() * 1000) - 1
-        ING = _between('fecha_y_hora_de_ingreso___cc', s, e)
-        ENV = _eq('lead_enviado_cct', 'Si')
-        CITA = _between('fecha_de_la_cita', s, e)
+    ING = _between('fecha_y_hora_de_ingreso___cc', s, e)
+    ENV = _eq('lead_enviado_cct', 'Si')
+    CITA = _between('fecha_de_la_cita', s, e)
 
-        # --- No contactados ---
-        nc_base = [ING, ENV, _eq('contactabilidad', 'No contactado')]
-        nc_total = _count('contacts', nc_base)
-        nc_by = []
-        for val, lbl in _NUM_LLAMADA:
-            n = _count('contacts', nc_base + [_eq('numero_de_llamada', val)])
-            if n > 0:
-                nc_by.append([lbl, n])
-        nc_by.sort(key=lambda r: r[1], reverse=True)
+    # --- No contactados ---
+    nc_base = [ING, ENV, _eq('contactabilidad', 'No contactado')]
+    nc_total = _count('contacts', nc_base)
+    nc_by = []
+    for val, lbl in _NUM_LLAMADA:
+        n = _count('contacts', nc_base + [_eq('numero_de_llamada', val)])
+        if n > 0:
+            nc_by.append([lbl, n])
+    nc_by.sort(key=lambda r: r[1], reverse=True)
 
-        # --- Contactados ---
-        c_base = [ING, ENV, _eq('contactabilidad', 'Contactado')]
-        c_total = _count('contacts', c_base)
-        c_est = []
-        for val, lbl in _RES_LLAMADA:
-            n = _count('contacts', c_base + [_eq('resultado_de_llamada', val)])
-            if n > 0:
-                c_est.append([lbl, n])
-        c_est.sort(key=lambda r: r[1], reverse=True)
-        c_by = []
+    # --- Contactados ---
+    c_base = [ING, ENV, _eq('contactabilidad', 'Contactado')]
+    c_total = _count('contacts', c_base)
+    c_est = []
+    for val, lbl in _RES_LLAMADA:
+        n = _count('contacts', c_base + [_eq('resultado_de_llamada', val)])
+        if n > 0:
+            c_est.append([lbl, n])
+    c_est.sort(key=lambda r: r[1], reverse=True)
+    c_by = []
+    if incl_c_by:
         for val, lbl in _NUM_LLAMADA:
             n = _count('contacts', c_base + [_eq('numero_de_llamada', val)])
             if n > 0:
                 c_by.append([lbl, n])
         c_by.sort(key=lambda r: r[1], reverse=True)
 
-        # --- No-show (deals) ---
-        ns_base = [PIPE_FILTER, CITA, _eq('asistio_a_la_cita', 'No')]
-        ns_total = _count('deals', ns_base)
-        ns_est = []
-        for sid, lbl in _DEALSTAGE:
-            n = _count('deals', ns_base + [_eq('dealstage', sid)])
-            if n > 0:
-                ns_est.append([lbl, n])
-        ns_est.sort(key=lambda r: r[1], reverse=True)
+    # --- No-show (deals) ---
+    ns_base = [PIPE_FILTER, CITA, _eq('asistio_a_la_cita', 'No')]
+    ns_total = _count('deals', ns_base)
+    ns_est = []
+    for sid, lbl in _DEALSTAGE:
+        n = _count('deals', ns_base + [_eq('dealstage', sid)])
+        if n > 0:
+            ns_est.append([lbl, n])
+    ns_est.sort(key=lambda r: r[1], reverse=True)
 
-        print(f'  [desperdicio] no_cont={nc_total} cont={c_total} no_show={ns_total}', flush=True)
+    cont = {'total': c_total, 'by_estatus': c_est}
+    if incl_c_by:
+        cont['by_llamada'] = c_by
+    return {
+        'no_contactados': {'total': nc_total, 'by_llamada': nc_by},
+        'contactados':    cont,
+        'no_show':        {'total': ns_total, 'by_estatus': ns_est},
+    }
+
+
+def fetch_cc_desperdicio(months):
+    """Desperdicio (cohorte 2026): agregado H1 + desglose por mes.
+
+    Devuelve dict con no_contactados/contactados/no_show (agregado, idéntico al
+    histórico) MÁS 'by_month' { 'ene·26': {...}, ... } para el filtro de mes del
+    panel. Si algo falla, devuelve {'available': False} sin romper el pull.
+    """
+    try:
+        full_s = int(datetime(2026, 1, 1, tzinfo=timezone.utc).timestamp() * 1000)
+        full_e = int(datetime(2026, 7, 1, tzinfo=timezone.utc).timestamp() * 1000) - 1
+        agg = _desp_window(full_s, full_e, incl_c_by=True)
+
+        by_month = {}
+        for m in _DESP_MONTHS_2026:
+            ms = int(datetime(2026, m, 1, tzinfo=timezone.utc).timestamp() * 1000)
+            ny, nm = (2026, m + 1) if m < 12 else (2027, 1)
+            me = int(datetime(ny, nm, 1, tzinfo=timezone.utc).timestamp() * 1000) - 1
+            label = _MES_ABBR[m - 1] + '·26'
+            by_month[label] = _desp_window(ms, me, incl_c_by=False)
+
+        print(f'  [desperdicio] no_cont={agg["no_contactados"]["total"]} '
+              f'cont={agg["contactados"]["total"]} '
+              f'no_show={agg["no_show"]["total"]} (+by_month {len(by_month)})',
+              flush=True)
         return {
             'available': True,
-            'no_contactados': {'total': nc_total, 'by_llamada': nc_by},
-            'contactados':    {'total': c_total, 'by_estatus': c_est, 'by_llamada': c_by},
-            'no_show':        {'total': ns_total, 'by_estatus': ns_est},
+            'no_contactados': agg['no_contactados'],
+            'contactados':    agg['contactados'],
+            'no_show':        agg['no_show'],
+            'by_month':       by_month,
         }
     except Exception as ex:
         print(f'  [desperdicio] FALLO: {type(ex).__name__}: {ex}', file=sys.stderr, flush=True)
