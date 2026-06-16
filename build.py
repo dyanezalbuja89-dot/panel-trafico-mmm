@@ -2867,6 +2867,13 @@ HTML = r"""<!doctype html>
       <label>Zona<select id="ff-zona"><option value="">Todas</option></select></label>
       <label>Agencia<select id="ff-agencia"><option value="">Todas</option></select></label>
       <label>Modelo<select id="ff-modelo"><option value="">Todos</option></select></label>
+      <label>Tipo canal
+        <select id="ff-canal">
+          <option value="marketing">Sólo marketing (~80%)</option>
+          <option value="asesor">Sólo asesor comercial (~20%)</option>
+          <option value="all">Todos los canales</option>
+        </select>
+      </label>
       <button class="reset" id="ff-reset" type="button">↺ Limpiar filtros Ford</button>
     </div>
 
@@ -3131,6 +3138,13 @@ HTML = r"""<!doctype html>
         <label style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:600">
           Modelo<select id="br-modelo" style="margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font:inherit;min-width:140px"><option value="">Todos</option></select>
         </label>
+        <label style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:600">
+          Tipo canal<select id="br-canal" style="margin-top:4px;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font:inherit;min-width:170px">
+            <option value="marketing">Sólo marketing (~80%)</option>
+            <option value="asesor">Sólo asesor comercial (~20%)</option>
+            <option value="all">Todos los canales</option>
+          </select>
+        </label>
         <button class="reset" id="br-reset" type="button">↺ Limpiar</button>
       </div>
     </div>
@@ -3356,6 +3370,13 @@ HTML = r"""<!doctype html>
       <label>Marca<select id="cp-marca"></select></label>
       <label>Agencia<select id="cp-agencia"><option value="">Todas</option></select></label>
       <label>Modelo<select id="cp-modelo"><option value="">Todos</option></select></label>
+      <label>Tipo canal
+        <select id="cp-canal">
+          <option value="marketing">Sólo marketing (~80%)</option>
+          <option value="asesor">Sólo asesor comercial (~20%)</option>
+          <option value="all">Todos los canales</option>
+        </select>
+      </label>
       <button class="reset" id="cp-reset" type="button">↺ Limpiar filtros</button>
     </div>
 
@@ -5395,8 +5416,58 @@ HTML = r"""<!doctype html>
   fillSelect('ff-agencia', [...FORD.dealer_order,'Otros']);
   fillSelect('ff-modelo', FORD.model_order);
 
-  const fstate = { zona:'', agencia:'', modelo:'',
+  const fstate = { zona:'', agencia:'', modelo:'', canal:'marketing',
                    sort:{proj_model:{k:'curr',dir:'desc'}, proj_agency:{k:'curr',dir:'desc'}, ranking:{k:'curr',dir:'desc'}} };
+
+  // === HELPERS CANAL para tabs Ford / Brand / Comp ====================
+  // El select "Tipo canal" en cada tab pone fstate.canal/bstate.canal/cpstate.canal
+  // a 'marketing' | 'asesor' | 'all'. Cuando = marketing, usamos matrix_cnt y
+  // matrix_cnt_prev precomputados (marketing-only). Cuando != marketing, sumamos
+  // on-the-fly desde dealer_model_channel(_prev) filtrado por canalSet.
+  const _CH_CATS = (DATA.channel_categories) || {
+    marketing: ['Showroom','Hubspot','Ferias y Eventos','Feria/Eventos','Ferias','Llamada In'],
+    asesor:    ['Recompra','Referido por Cliente','Referidos por empleado','Gestión Externa','Prospección','Empleado','Talleres','Redes Sociales Propias','Catálogo público'],
+    all:       []
+  };
+  function getCanalSet(canal){
+    if(canal === 'asesor')    return new Set(_CH_CATS.asesor);
+    if(canal === 'all')       return new Set([..._CH_CATS.marketing, ..._CH_CATS.asesor]);
+    return new Set(_CH_CATS.marketing);
+  }
+  // Devuelve count para [model][dealer] respetando canal. scope = FORD o B (brand).
+  function getCnt(scope, m, d, canal){
+    if(!scope) return 0;
+    if(canal === 'marketing' || !canal){
+      return (scope.matrix_cnt?.[m]||{})[d] || 0;
+    }
+    const dmc = scope.dealer_model_channel?.[d]?.[m] || {};
+    const set = getCanalSet(canal);
+    let n = 0;
+    Object.entries(dmc).forEach(([k,v])=>{ if(set.has(k)) n += v||0; });
+    return n;
+  }
+  function getCntPrev(scope, m, d, canal){
+    if(!scope) return 0;
+    if(canal === 'marketing' || !canal){
+      return (scope.matrix_cnt_prev?.[m]||{})[d] || 0;
+    }
+    const dmc = scope.dealer_model_channel_prev?.[d]?.[m] || {};
+    const set = getCanalSet(canal);
+    let n = 0;
+    Object.entries(dmc).forEach(([k,v])=>{ if(set.has(k)) n += v||0; });
+    return n;
+  }
+  // Meta escalada según canal (matrix_meta es marketing 80% por construcción).
+  // marketing = ×1.0  ·  asesor = ×0.25 (=20/80)  ·  all = ×1.25 (=100/80).
+  const _META_SPLIT = (DATA.meta_split) || {marketing_pct:0.80, asesor_pct:0.20};
+  const _CANAL_META_RATIO = {
+    marketing: 1.0,
+    asesor:    _META_SPLIT.asesor_pct / _META_SPLIT.marketing_pct,
+    all:       1.0 / _META_SPLIT.marketing_pct,
+  };
+  function scaleMetaByCanal(metaMkt, canal){
+    return (metaMkt||0) * (_CANAL_META_RATIO[canal] || 1.0);
+  }
 
   // Helper: which agencies are active given zona filter (and optional agencia filter)
   function activeDealers(){
@@ -5414,25 +5485,26 @@ HTML = r"""<!doctype html>
     const models = fstate.modelo? [fstate.modelo] : FORD.model_order;
     const noScopeFilter = !fstate.zona && !fstate.agencia;
     let curr=0, prev=0;
-    if(noScopeFilter){
+    if(noScopeFilter && fstate.canal === 'marketing'){
       models.forEach(m=>{
         curr += FORD.models[m]?.curr || 0;
         prev += FORD.models[m]?.prev || 0;
       });
     } else {
-      // Filtro de zona/agencia activo: sumar matrix_cnt y matrix_cnt_prev sobre dealers visibles
+      // Filtro de zona/agencia O canal != marketing activo: sumar getCnt sobre dealers visibles.
       dealers.forEach(d=>{
         models.forEach(m=>{
-          curr += (FORD.matrix_cnt[m]||{})[d]||0;
-          prev += (FORD.matrix_cnt_prev[m]||{})[d]||0;
+          curr += getCnt(FORD, m, d, fstate.canal);
+          prev += getCntPrev(FORD, m, d, fstate.canal);
         });
       });
     }
-    // Meta: siempre suma de matrix_meta sobre dealers atribuidos (Otros no tiene meta)
-    let meta=0;
+    // Meta: matrix_meta es la meta marketing (80%); la escalamos por canal.
+    let metaMkt=0;
     dealers.forEach(d=>{
-      models.forEach(m=>{ meta += (FORD.matrix_meta[m]||{})[d]||0; });
+      models.forEach(m=>{ metaMkt += (FORD.matrix_meta[m]||{})[d]||0; });
     });
+    const meta = scaleMetaByCanal(metaMkt, fstate.canal);
     const days_lab = FORD.days_lab, days_trans = FORD.days_trans;
     const vel = days_trans? curr/days_trans : 0;
     // Proyección LINEAL pura: velocity × días laborables totales del mes.
@@ -5613,8 +5685,8 @@ HTML = r"""<!doctype html>
         curr = FORD.models[m]?.curr || 0;
         prev = FORD.models[m]?.prev || 0;
       } else {
-        curr = dealers.reduce((s,d)=>s+((FORD.matrix_cnt[m]||{})[d]||0),0);
-        prev = dealers.reduce((s,d)=>s+((FORD.matrix_cnt_prev[m]||{})[d]||0),0);
+        curr = dealers.reduce((s,d)=>s+(getCnt(FORD, m, d, fstate.canal)),0);
+        prev = dealers.reduce((s,d)=>s+(getCntPrev(FORD, m, d, fstate.canal)),0);
       }
       return {model:m, prev, curr, delta:curr-prev};
     });
@@ -5678,7 +5750,7 @@ HTML = r"""<!doctype html>
     const rows = pool.map(d=>{
       let curr, meta;
       if(fstate.modelo){
-        curr = (FORD.matrix_cnt[fstate.modelo]||{})[d]||0;
+        curr = getCnt(FORD, fstate.modelo, d, fstate.canal);
         meta = (FORD.matrix_meta[fstate.modelo]||{})[d]||0;
       } else {
         curr = FORD.dealers[d].curr; meta = FORD.dealers[d].meta;
@@ -5712,7 +5784,7 @@ HTML = r"""<!doctype html>
     const dealers = activeDealers();
     const models = FORD.model_order.filter(includeModel);
     const rows = models.map(m=>{
-      const curr = dealers.reduce((s,d)=>s+((FORD.matrix_cnt[m]||{})[d]||0),0);
+      const curr = dealers.reduce((s,d)=>s+(getCnt(FORD, m, d, fstate.canal)),0);
       const meta = dealers.reduce((s,d)=>s+((FORD.matrix_meta[m]||{})[d]||0),0);
       const proj = Math.round((FORD.days_trans? curr/FORD.days_trans:0) * FORD.days_lab);
       const cumpl = meta>0? 100*proj/meta : null;
@@ -5743,7 +5815,7 @@ HTML = r"""<!doctype html>
     const rows = pool.map(d=>{
       let curr, meta;
       if(fstate.modelo){
-        curr = (FORD.matrix_cnt[fstate.modelo]||{})[d]||0;
+        curr = getCnt(FORD, fstate.modelo, d, fstate.canal);
         meta = (FORD.matrix_meta[fstate.modelo]||{})[d]||0;
       } else {
         curr = FORD.dealers[d].curr; meta = FORD.dealers[d].meta;
@@ -5788,7 +5860,7 @@ HTML = r"""<!doctype html>
     const models = FORD.model_order.filter(includeModel);
     const dealers = activeDealers();
     const rows = models.map(m=>{
-      const curr = dealers.reduce((s,d)=>s+((FORD.matrix_cnt[m]||{})[d]||0),0);
+      const curr = dealers.reduce((s,d)=>s+(getCnt(FORD, m, d, fstate.canal)),0);
       const meta = dealers.reduce((s,d)=>s+((FORD.matrix_meta[m]||{})[d]||0),0);
       const proj = Math.round((FORD.days_trans? curr/FORD.days_trans:0) * FORD.days_lab);
       const cumpl = meta>0? 100*proj/meta : null;
@@ -5829,7 +5901,7 @@ HTML = r"""<!doctype html>
     const rows = FORD.zone_order.map(z=>{
       const dealers = FORD.zones[z].dealers;
       let curr = 0;
-      dealers.forEach(d => models.forEach(m => curr += (FORD.matrix_cnt[m]||{})[d]||0));
+      dealers.forEach(d => models.forEach(m => curr += getCnt(FORD, m, d, fstate.canal)));
       return {z, curr};
     });
     const total = rows.reduce((a,b)=>a+b.curr,0) || 1;
@@ -5868,8 +5940,8 @@ HTML = r"""<!doctype html>
       const modelsToSum = fstate.modelo? [fstate.modelo]: FORD.model_order;
       zd.dealers.forEach(d=>{
         modelsToSum.forEach(m=>{
-          curr += (FORD.matrix_cnt[m]||{})[d]||0;
-          prev += (FORD.matrix_cnt_prev[m]||{})[d]||0;
+          curr += getCnt(FORD, m, d, fstate.canal);
+          prev += getCntPrev(FORD, m, d, fstate.canal);
         });
       });
       const active = fstate.zona===z;
@@ -5900,10 +5972,10 @@ HTML = r"""<!doctype html>
     const models = FORD.model_order.map(m=>{
       const curr = noScopeFilter
         ? FORD.models[m].curr
-        : activeDealers().reduce((s,d)=>s+((FORD.matrix_cnt[m]||{})[d]||0),0);
+        : activeDealers().reduce((s,d)=>s+(getCnt(FORD, m, d, fstate.canal)),0);
       const prev = noScopeFilter
         ? FORD.models[m].prev
-        : activeDealers().reduce((s,d)=>s+((FORD.matrix_cnt_prev[m]||{})[d]||0),0);
+        : activeDealers().reduce((s,d)=>s+(getCntPrev(FORD, m, d, fstate.canal)),0);
       const delta = curr - prev;
       const pct = totCurr>0? (100*curr/totCurr):0;
       return {model:m, curr, prev, delta, pct};
@@ -5934,11 +6006,11 @@ HTML = r"""<!doctype html>
     const rows = FORD.model_order.filter(includeModel).map(m=>{
       const curr = noScopeFilter
         ? FORD.models[m].curr
-        : activeDealers().reduce((s,d)=>s+((FORD.matrix_cnt[m]||{})[d]||0),0);
+        : activeDealers().reduce((s,d)=>s+(getCnt(FORD, m, d, fstate.canal)),0);
       const meta = activeDealers().reduce((s,d)=>s+((FORD.matrix_meta[m]||{})[d]||0),0);
       const prev = noScopeFilter
         ? FORD.models[m].prev
-        : activeDealers().reduce((s,d)=>s+((FORD.matrix_cnt_prev[m]||{})[d]||0),0);
+        : activeDealers().reduce((s,d)=>s+(getCntPrev(FORD, m, d, fstate.canal)),0);
       const delta = curr - prev;
       const vel = FORD.days_trans? curr/FORD.days_trans : 0;
       const proj = Math.round(vel * FORD.days_lab);
@@ -5998,8 +6070,8 @@ HTML = r"""<!doctype html>
     const tbody = document.querySelector('#ff-proj-agency tbody');
     const pool = fstate.zona? FORD.zones[fstate.zona].dealers : FORD.dealer_order;
     const rows = pool.map(d=>{
-      const curr = fstate.modelo ? ((FORD.matrix_cnt[fstate.modelo]||{})[d]||0) : FORD.dealers[d].curr;
-      const prev = fstate.modelo ? ((FORD.matrix_cnt_prev[fstate.modelo]||{})[d]||0) : FORD.dealers[d].prev;
+      const curr = fstate.modelo ? (getCnt(FORD, fstate.modelo, d, fstate.canal)) : FORD.dealers[d].curr;
+      const prev = fstate.modelo ? (getCntPrev(FORD, fstate.modelo, d, fstate.canal)) : FORD.dealers[d].prev;
       const meta = fstate.modelo ? ((FORD.matrix_meta[fstate.modelo]||{})[d]||0) : FORD.dealers[d].meta;
       const delta = curr - prev;
       const vel = FORD.days_trans? curr/FORD.days_trans : 0;
@@ -6059,7 +6131,7 @@ HTML = r"""<!doctype html>
     const tbody = document.querySelector('#ff-heatmap tbody');
     tbody.innerHTML = models.map(m=>{
       const cells = dealers.map(d=>{
-        const cnt = (FORD.matrix_cnt[m]||{})[d]||0;
+        const cnt = getCnt(FORD, m, d, fstate.canal);
         const meta = (FORD.matrix_meta[m]||{})[d]||0;
         if(meta===0 && cnt===0) return `<td class="cell dash" title="Sin tráfico ni meta">—</td>`;
         if(meta===0 && cnt>0)  return `<td class="cell grey" title="${cnt} registros, sin meta" data-model="${m}" data-dealer="${d}" style="cursor:pointer"><div class="cell-with-count"><span>N/A</span><span class="ct">${cnt} reg.</span></div></td>`;
@@ -6071,7 +6143,7 @@ HTML = r"""<!doctype html>
         return `<td class="cell ${cls}" title="${tip}" data-model="${m}" data-dealer="${d}" style="cursor:pointer"><div class="cell-with-count"><span>${pctAlDia.toFixed(0)}%</span><span class="ct">${cnt}/${meta}</span></div></td>`;
       }).join('');
       const vals = dealers.map(d=>{
-        const cnt=(FORD.matrix_cnt[m]||{})[d]||0, meta=(FORD.matrix_meta[m]||{})[d]||0;
+        const cnt=getCnt(FORD, m, d, fstate.canal), meta=(FORD.matrix_meta[m]||{})[d]||0;
         if(meta<=0) return null;
         const metaAlDia = meta*dayRatio;
         return metaAlDia>0 ? (cnt/metaAlDia*100) : null;
@@ -6101,7 +6173,7 @@ HTML = r"""<!doctype html>
     // Recompute proj/meta per model and per dealer with active dealers/models
     const riskModels = [];
     models.forEach(m=>{
-      const curr = dealers.reduce((s,d)=>s+((FORD.matrix_cnt[m]||{})[d]||0),0);
+      const curr = dealers.reduce((s,d)=>s+(getCnt(FORD, m, d, fstate.canal)),0);
       const meta = dealers.reduce((s,d)=>s+((FORD.matrix_meta[m]||{})[d]||0),0);
       const proj = Math.round((FORD.days_trans? curr/FORD.days_trans : 0) * FORD.days_lab);
       const cumpl = meta>0? Math.round(100*proj/meta) : null;
@@ -6110,7 +6182,7 @@ HTML = r"""<!doctype html>
     const riskAg = [];
     dealers.forEach(d=>{
       let curr=0, meta=0;
-      models.forEach(m=>{ curr += (FORD.matrix_cnt[m]||{})[d]||0; meta += (FORD.matrix_meta[m]||{})[d]||0; });
+      models.forEach(m=>{ curr += getCnt(FORD, m, d, fstate.canal); meta += (FORD.matrix_meta[m]||{})[d]||0; });
       const proj = Math.round((FORD.days_trans? curr/FORD.days_trans : 0) * FORD.days_lab);
       const cumpl = meta>0? Math.round(100*proj/meta) : null;
       if(meta>0 && cumpl<100) riskAg.push({d, proj, meta, cumpl, needed: Math.max(0, meta-proj)});
@@ -6203,9 +6275,15 @@ HTML = r"""<!doctype html>
       ffRenderAll();
     });
   });
+  // Canal select
+  const _ffCanalEl = document.getElementById('ff-canal');
+  if(_ffCanalEl){
+    _ffCanalEl.addEventListener('change', e=>{ fstate.canal = e.target.value; ffRenderAll(); });
+  }
   document.getElementById('ff-reset').addEventListener('click',()=>{
-    fstate.zona=''; fstate.agencia=''; fstate.modelo='';
+    fstate.zona=''; fstate.agencia=''; fstate.modelo=''; fstate.canal='marketing';
     ['ff-zona','ff-agencia','ff-modelo'].forEach(id=>document.getElementById(id).value='');
+    if(_ffCanalEl) _ffCanalEl.value='marketing';
     ffRenderAll();
   });
 
@@ -6315,7 +6393,7 @@ HTML = r"""<!doctype html>
       models.forEach(m=>{
         const ms = (dmc[d]||{})[m] || {};
         Object.entries(ms).forEach(([k,v])=>{
-          if(!FORD_TAB_MARKETING_CHANNELS.has(k)) return;
+          if(!getCanalSet(fstate.canal).has(k)) return;
           ch[k] = (ch[k]||0) + (v||0);
         });
       });
@@ -6413,14 +6491,15 @@ HTML = r"""<!doctype html>
     const B = brCurrent(); if(!B) return null;
     const dealers = brActiveDealers();
     const models = bstate.modelo? [bstate.modelo] : B.model_order;
-    let curr=0, meta=0, prev=0;
+    let curr=0, metaMkt=0, prev=0;
     dealers.forEach(d=>{
       models.forEach(m=>{
-        curr += (B.matrix_cnt[m]||{})[d]||0;
-        prev += (B.matrix_cnt_prev[m]||{})[d]||0;
-        meta += (B.matrix_meta[m]||{})[d]||0;
+        curr += getCnt(B, m, d, bstate.canal);
+        prev += getCntPrev(B, m, d, bstate.canal);
+        metaMkt += (B.matrix_meta[m]||{})[d]||0;
       });
     });
+    const meta = scaleMetaByCanal(metaMkt, bstate.canal);
     const vel = B.days_trans? curr/B.days_trans : 0;
     // Proyección lineal pura: velocity × días laborables totales del mes
     const proj = Math.round(vel * B.days_lab);
@@ -6575,8 +6654,8 @@ HTML = r"""<!doctype html>
     destroy('br-chart-agency');
     const models = bstate.modelo? [bstate.modelo] : B.model_order;
     const rows = B.dealer_order.map(d=>{
-      const curr = models.reduce((s,m)=>s+((B.matrix_cnt[m]||{})[d]||0),0);
-      const prev = models.reduce((s,m)=>s+((B.matrix_cnt_prev[m]||{})[d]||0),0);
+      const curr = models.reduce((s,m)=>s+(getCnt(B, m, d, bstate.canal)),0);
+      const prev = models.reduce((s,m)=>s+(getCntPrev(B, m, d, bstate.canal)),0);
       return {d, prev, curr};
     });
     const totalCurr = rows.reduce((a,b)=>a+b.curr,0) || 1;
@@ -6619,8 +6698,8 @@ HTML = r"""<!doctype html>
     const B = brCurrent(); if(!B) return;
     const totCurr = brAggregate().curr;
     const models = B.model_order.map(m=>{
-      const curr = brActiveDealers().reduce((s,d)=>s+((B.matrix_cnt[m]||{})[d]||0),0);
-      const prev = brActiveDealers().reduce((s,d)=>s+((B.matrix_cnt_prev[m]||{})[d]||0),0);
+      const curr = brActiveDealers().reduce((s,d)=>s+(getCnt(B, m, d, bstate.canal)),0);
+      const prev = brActiveDealers().reduce((s,d)=>s+(getCntPrev(B, m, d, bstate.canal)),0);
       return {model:m, curr, prev, delta:curr-prev, pct: totCurr>0?100*curr/totCurr:0};
     }).sort((a,b)=>b.curr-a.curr);
     const tbody = document.querySelector('#br-ranking tbody');
@@ -6644,8 +6723,8 @@ HTML = r"""<!doctype html>
   function brRenderProjModel(){
     const B = brCurrent(); if(!B) return;
     const rows = B.model_order.filter(brIncludeModel).map(m=>{
-      const curr = brActiveDealers().reduce((s,d)=>s+((B.matrix_cnt[m]||{})[d]||0),0);
-      const prev = brActiveDealers().reduce((s,d)=>s+((B.matrix_cnt_prev[m]||{})[d]||0),0);
+      const curr = brActiveDealers().reduce((s,d)=>s+(getCnt(B, m, d, bstate.canal)),0);
+      const prev = brActiveDealers().reduce((s,d)=>s+(getCntPrev(B, m, d, bstate.canal)),0);
       const meta = brActiveDealers().reduce((s,d)=>s+((B.matrix_meta[m]||{})[d]||0),0);
       const vel = B.days_trans? curr/B.days_trans : 0;
       const proj = Math.round(vel*B.days_lab);
@@ -6681,8 +6760,8 @@ HTML = r"""<!doctype html>
   function brRenderProjAgency(){
     const B = brCurrent(); if(!B) return;
     const rows = B.dealer_order.map(d=>{
-      const curr = bstate.modelo ? ((B.matrix_cnt[bstate.modelo]||{})[d]||0) : B.dealers[d].curr;
-      const prev = bstate.modelo ? ((B.matrix_cnt_prev[bstate.modelo]||{})[d]||0) : B.dealers[d].prev;
+      const curr = bstate.modelo ? (getCnt(B, bstate.modelo, d, bstate.canal)) : B.dealers[d].curr;
+      const prev = bstate.modelo ? (getCntPrev(B, bstate.modelo, d, bstate.canal)) : B.dealers[d].prev;
       const meta = bstate.modelo ? ((B.matrix_meta[bstate.modelo]||{})[d]||0) : B.dealers[d].meta;
       const vel = B.days_trans? curr/B.days_trans : 0;
       const proj = Math.round(vel*B.days_lab);
@@ -6725,7 +6804,7 @@ HTML = r"""<!doctype html>
     const tbody = document.querySelector('#br-heatmap tbody');
     tbody.innerHTML = models.map(m=>{
       const cells = dealers.map(d=>{
-        const cnt = (B.matrix_cnt[m]||{})[d]||0;
+        const cnt = getCnt(B, m, d, bstate.canal);
         const meta = (B.matrix_meta[m]||{})[d]||0;
         if(meta===0 && cnt===0) return `<td class="cell dash" title="Sin tráfico ni meta">—</td>`;
         if(meta===0 && cnt>0)  return `<td class="cell grey" title="${cnt} reg., sin meta" data-model="${m}" data-dealer="${d}" style="cursor:pointer"><div class="cell-with-count"><span>N/A</span><span class="ct">${cnt} reg.</span></div></td>`;
@@ -6737,7 +6816,7 @@ HTML = r"""<!doctype html>
         return `<td class="cell ${cls}" title="${tip}" data-model="${m}" data-dealer="${d}" style="cursor:pointer"><div class="cell-with-count"><span>${pctAlDia.toFixed(0)}%</span><span class="ct">${cnt}/${meta}</span></div></td>`;
       }).join('');
       const vals = dealers.map(d=>{
-        const cnt=(B.matrix_cnt[m]||{})[d]||0, meta=(B.matrix_meta[m]||{})[d]||0;
+        const cnt=getCnt(B, m, d, bstate.canal), meta=(B.matrix_meta[m]||{})[d]||0;
         if(meta<=0) return null;
         const metaAlDia = meta*dayRatio;
         return metaAlDia>0 ? (cnt/metaAlDia*100) : null;
@@ -6765,7 +6844,7 @@ HTML = r"""<!doctype html>
     const dealers = brActiveDealers();
     const riskModels = [];
     models.forEach(m=>{
-      const curr = dealers.reduce((s,d)=>s+((B.matrix_cnt[m]||{})[d]||0),0);
+      const curr = dealers.reduce((s,d)=>s+(getCnt(B, m, d, bstate.canal)),0);
       const meta = dealers.reduce((s,d)=>s+((B.matrix_meta[m]||{})[d]||0),0);
       const proj = Math.round((B.days_trans? curr/B.days_trans : 0)*B.days_lab);
       const cumpl = meta>0? Math.round(100*proj/meta) : null;
@@ -6774,7 +6853,7 @@ HTML = r"""<!doctype html>
     const riskAg = [];
     dealers.forEach(d=>{
       let curr=0, meta=0;
-      models.forEach(m=>{ curr += (B.matrix_cnt[m]||{})[d]||0; meta += (B.matrix_meta[m]||{})[d]||0; });
+      models.forEach(m=>{ curr += getCnt(B, m, d, bstate.canal); meta += (B.matrix_meta[m]||{})[d]||0; });
       const proj = Math.round((B.days_trans? curr/B.days_trans : 0)*B.days_lab);
       const cumpl = meta>0? Math.round(100*proj/meta) : null;
       if(meta>0 && cumpl<100) riskAg.push({d,proj,meta,cumpl,needed:Math.max(0,meta-proj)});
@@ -6807,8 +6886,8 @@ HTML = r"""<!doctype html>
     const dealers = brActiveDealers();
     const modelsList = (bstate.modelo? [bstate.modelo] : B.model_order);
     const items = modelsList.map(m=>{
-      const curr = dealers.reduce((s,d)=>s+((B.matrix_cnt[m]||{})[d]||0),0);
-      const prev = dealers.reduce((s,d)=>s+((B.matrix_cnt_prev[m]||{})[d]||0),0);
+      const curr = dealers.reduce((s,d)=>s+(getCnt(B, m, d, bstate.canal)),0);
+      const prev = dealers.reduce((s,d)=>s+(getCntPrev(B, m, d, bstate.canal)),0);
       return {model:m, prev, curr, delta:curr-prev};
     });
     const maxAbs = Math.max(1, ...items.map(m=>Math.abs(m.delta)));
@@ -6924,8 +7003,8 @@ HTML = r"""<!doctype html>
       models.forEach(m=>{
         const ms = (dmc[d]||{})[m] || {};
         Object.entries(ms).forEach(([k,v])=>{
-          // En la pestaña Reporte Marcas sólo mostramos canales marketing (consistente con KPIs).
-          if(!FORD_TAB_MARKETING_CHANNELS.has(k)) return;
+          // Filtro Tipo canal en tab Reporte Marcas.
+          if(!getCanalSet(bstate.canal).has(k)) return;
           ch[k] = (ch[k]||0) + (v||0);
         });
       });
@@ -6959,7 +7038,7 @@ HTML = r"""<!doctype html>
     const rows = B.dealer_order.map(d=>{
       let curr, meta;
       if(bstate.modelo){
-        curr = (B.matrix_cnt[bstate.modelo]||{})[d]||0;
+        curr = getCnt(B, bstate.modelo, d, bstate.canal);
         meta = (B.matrix_meta[bstate.modelo]||{})[d]||0;
       } else {
         curr = B.dealers[d].curr; meta = B.dealers[d].meta;
@@ -6991,7 +7070,7 @@ HTML = r"""<!doctype html>
     const B = brCurrent(); if(!B) return;
     const dealers = bstate.agencia? [bstate.agencia] : B.dealer_order;
     const rows = B.model_order.map(m=>{
-      const curr = dealers.reduce((s,d)=>s+((B.matrix_cnt[m]||{})[d]||0),0);
+      const curr = dealers.reduce((s,d)=>s+(getCnt(B, m, d, bstate.canal)),0);
       const meta = dealers.reduce((s,d)=>s+((B.matrix_meta[m]||{})[d]||0),0);
       const proj = Math.round((B.days_trans? curr/B.days_trans:0) * B.days_lab);
       const cumpl = meta>0? 100*proj/meta : null;
@@ -7086,10 +7165,15 @@ HTML = r"""<!doctype html>
       brRenderAll();
     });
   });
+  const _brCanalEl = document.getElementById('br-canal');
+  if(_brCanalEl){
+    _brCanalEl.addEventListener('change', e=>{ bstate.canal = e.target.value; brRenderAll(); });
+  }
   document.getElementById('br-reset').addEventListener('click',()=>{
-    bstate.agencia=''; bstate.modelo='';
+    bstate.agencia=''; bstate.modelo=''; bstate.canal='marketing';
     document.getElementById('br-agencia').value='';
     document.getElementById('br-modelo').value='';
+    if(_brCanalEl) _brCanalEl.value='marketing';
     brRenderAll();
   });
 
@@ -7104,6 +7188,7 @@ HTML = r"""<!doctype html>
     marca:  'FORD',
     agencia:'',
     modelo: '',
+    canal:  'marketing',
   };
   function cpstateInitB(){ return MONTHS_CONFIG[0]?.key || ''; }
 
@@ -7160,17 +7245,15 @@ HTML = r"""<!doctype html>
     let curr=0, meta=0;
     dealers.forEach(d=>{
       models.forEach(m=>{
-        curr += (monthData.matrix_cnt[m]||{})[d]||0;
+        curr += getCnt(monthData, m, d, cpstate.canal);
         meta += (monthData.matrix_meta[m]||{})[d]||0;
       });
     });
     // For Ford, include Otros if no agency filter
     if(cpstate.marca==='FORD' && !cpstate.agencia){
       models.forEach(m=>{
-        curr += ((monthData.matrix_cnt['Otros']||monthData.dealers?.['Otros']?.byModel)?.[m] ?? 0);
+        curr += getCnt(monthData, m, 'Otros', cpstate.canal);
       });
-      // Actually Ford doesn't have matrix_cnt['Otros']. Use dealers['Otros'].byModel.
-      // The above line is for safety; let's recompute properly:
     }
     // Correct Otros handling:
     if(cpstate.marca==='FORD' && !cpstate.agencia && monthData.dealers?.['Otros']){
@@ -7178,7 +7261,7 @@ HTML = r"""<!doctype html>
       // Reset and recompute (otros not in matrix_cnt)
       curr = 0;
       dealers.forEach(d=>{
-        models.forEach(m=>{ curr += (monthData.matrix_cnt[m]||{})[d]||0; });
+        models.forEach(m=>{ curr += getCnt(monthData, m, d, cpstate.canal); });
       });
       models.forEach(m=>{ curr += (otros.byModel||{})[m] || 0; });
     }
@@ -7284,8 +7367,8 @@ HTML = r"""<!doctype html>
     cpModelOrder().filter(m=>!cpstate.modelo||cpstate.modelo===m).forEach(m=>{
       let av, bv;
       if(cpstate.agencia){
-        av = (A.matrix_cnt[m]||{})[cpstate.agencia]||0;
-        bv = (B.matrix_cnt[m]||{})[cpstate.agencia]||0;
+        av = getCnt(A, m, cpstate.agencia, cpstate.canal);
+        bv = getCnt(B, m, cpstate.agencia, bstate.canal);
       } else {
         av = A.models?.[m]?.curr || 0;
         bv = B.models?.[m]?.curr || 0;
@@ -7298,8 +7381,8 @@ HTML = r"""<!doctype html>
       cpDealerOrder().forEach(d=>{
         let av, bv;
         if(cpstate.modelo){
-          av = (A.matrix_cnt[cpstate.modelo]||{})[d]||0;
-          bv = (B.matrix_cnt[cpstate.modelo]||{})[d]||0;
+          av = getCnt(A, cpstate.modelo, d, cpstate.canal);
+          bv = getCnt(B, cpstate.modelo, d, bstate.canal);
         } else {
           av = A.dealers?.[d]?.curr || 0;
           bv = B.dealers?.[d]?.curr || 0;
@@ -7328,8 +7411,8 @@ HTML = r"""<!doctype html>
     const rows = models.map(m=>{
       let av, bv;
       if(dealers){
-        av = (A.matrix_cnt[m]||{})[dealers[0]]||0;
-        bv = (B.matrix_cnt[m]||{})[dealers[0]]||0;
+        av = getCnt(A, m, dealers[0], cpstate.canal);
+        bv = getCnt(B, m, dealers[0], cpstate.canal);
       } else {
         av = A.models?.[m]?.curr || 0;
         bv = B.models?.[m]?.curr || 0;
@@ -7385,8 +7468,8 @@ HTML = r"""<!doctype html>
     const rows = dealers.map(d=>{
       let av, bv;
       if(cpstate.modelo){
-        av = (A.matrix_cnt[cpstate.modelo]||{})[d]||0;
-        bv = (B.matrix_cnt[cpstate.modelo]||{})[d]||0;
+        av = getCnt(A, cpstate.modelo, d, cpstate.canal);
+        bv = getCnt(B, cpstate.modelo, d, bstate.canal);
       } else {
         av = A.dealers?.[d]?.curr || 0;
         bv = B.dealers?.[d]?.curr || 0;
@@ -7441,8 +7524,8 @@ HTML = r"""<!doctype html>
         models.forEach(m=>{
           const ms = (dmc[d]||{})[m] || {};
           Object.entries(ms).forEach(([k,v])=>{
-            // Comparativo: sólo canales marketing (consistente con matrix_cnt en KPIs).
-            if(!FORD_TAB_MARKETING_CHANNELS.has(k)) return;
+            // Filtro Tipo canal en Comparativo.
+            if(!getCanalSet(cpstate.canal).has(k)) return;
             out[k] = (out[k]||0) + (v||0);
           });
         });
@@ -7505,8 +7588,8 @@ HTML = r"""<!doctype html>
     dealersFinal.forEach(d=>{
       const dch = ddc[d] || {};
       Object.entries(dch).forEach(([canal, dayMap])=>{
-        // Filtrar a canales marketing (consistente con chart "Por canal")
-        if(!FORD_TAB_MARKETING_CHANNELS.has(canal)) return;
+        // Filtrar por Tipo canal del tab Comparativo.
+        if(!getCanalSet(cpstate.canal).has(canal)) return;
         Object.entries(dayMap).forEach(([day, n])=>{
           out[canal] = out[canal] || {};
           out[canal][+day] = (out[canal][+day] || 0) + n;
@@ -7652,8 +7735,8 @@ HTML = r"""<!doctype html>
     tbody.innerHTML = models.map(m=>{
       let rowDelta = 0;
       const cells = dealers.map(d=>{
-        const av = (A.matrix_cnt[m]||{})[d]||0;
-        const bv = (B.matrix_cnt[m]||{})[d]||0;
+        const av = getCnt(A, m, d, cpstate.canal);
+        const bv = getCnt(B, m, d, bstate.canal);
         const delta = bv-av;
         rowDelta += delta;
         if(av===0 && bv===0) return `<td class="cell dash" title="Sin tráfico en ambos meses">—</td>`;
@@ -7683,7 +7766,7 @@ HTML = r"""<!doctype html>
     if(scopeKey === 'TOTAL'){
       let s = 0;
       filterAg.forEach(d=>{
-        filterMd.forEach(m=>{ s += (monthData.matrix_cnt[m]||{})[d]||0; });
+        filterMd.forEach(m=>{ s += getCnt(monthData, m, d, cpstate.canal); });
       });
       // Otros for Ford if no agency filter
       if(cpstate.marca==='FORD' && !cpstate.agencia && monthData.dealers?.['Otros']){
@@ -7694,13 +7777,13 @@ HTML = r"""<!doctype html>
     if(scopeKey.startsWith('AG:')){
       const d = scopeKey.slice(3);
       let s = 0;
-      filterMd.forEach(m=>{ s += (monthData.matrix_cnt[m]||{})[d]||0; });
+      filterMd.forEach(m=>{ s += getCnt(monthData, m, d, cpstate.canal); });
       return s;
     }
     // Model scope
     const m = scopeKey;
     let s = 0;
-    filterAg.forEach(d=>{ s += (monthData.matrix_cnt[m]||{})[d]||0; });
+    filterAg.forEach(d=>{ s += getCnt(monthData, m, d, cpstate.canal); });
     if(cpstate.marca==='FORD' && !cpstate.agencia && monthData.dealers?.['Otros']){
       s += (monthData.dealers['Otros'].byModel||{})[m] || 0;
     }
@@ -8053,9 +8136,14 @@ HTML = r"""<!doctype html>
   });
   document.getElementById('cp-agencia').addEventListener('change', e=>{ cpstate.agencia = e.target.value; cpRenderAll(); });
   document.getElementById('cp-modelo').addEventListener('change', e=>{ cpstate.modelo = e.target.value; cpRenderAll(); });
+  const _cpCanalEl = document.getElementById('cp-canal');
+  if(_cpCanalEl){
+    _cpCanalEl.addEventListener('change', e=>{ cpstate.canal = e.target.value; cpRenderAll(); });
+  }
   document.getElementById('cp-reset').addEventListener('click', ()=>{
-    cpstate.agencia=''; cpstate.modelo='';
+    cpstate.agencia=''; cpstate.modelo=''; cpstate.canal='marketing';
     document.getElementById('cp-agencia').value=''; document.getElementById('cp-modelo').value='';
+    if(_cpCanalEl) _cpCanalEl.value='marketing';
     cpRenderAll();
   });
 
