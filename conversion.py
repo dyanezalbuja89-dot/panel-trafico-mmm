@@ -549,9 +549,18 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     # (clientes pre-2026 que compraron en 2026 no son "leads generados en 2026").
     first_touch = {ck: ft for ck, ft in first_touch.items()
                    if pd.notna(ft.get('first_fecha')) and ft['first_fecha'].year >= 2026}
-    # Asignar zona a cada first_touch
+    # Asignar zona a cada first_touch — primero normalizar el sufijo de marca de la agencia.
+    import re as _re_agz
+    def _strip_brand_suffix_agz(a):
+        if not a: return a
+        m = _re_agz.match(r'^(.+?)\s*\([A-Za-z]+\)\s*$', a)
+        return m.group(1).strip() if m else a
     for ck, ft in first_touch.items():
-        ag = ft.get('first_agencia')
+        ag_raw = ft.get('first_agencia')
+        ag = _strip_brand_suffix_agz(ag_raw)
+        # Reescribimos también first_agencia para que las breakdowns posteriores
+        # (agencia_breakdown, agencia_mkt) usen el nombre limpio.
+        ft['first_agencia'] = ag if ag else ag_raw
         ft['first_zona'] = agencia_to_zona(ag) if ag in FORD_AGENCIES else 'Otra'
 
     # Total clientes únicos en tráfico (después de dedupe por client_key)
@@ -681,10 +690,22 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
                                   .groupby('client_key').size().to_dict()
 
     clientes_flat = []
+    # Normalización del sufijo de marca en agencia: 'La Y (DF)' → 'La Y', 'Machala (Chery)' → 'Machala'.
+    # Para Ford, las agencias ya vienen limpias ('CJA', 'Orellana', ...).
+    # Para brand ORGU, short_agency les agrega sufijo para evitar colisión cross-marca.
+    # En el panel queremos mostrar el nombre corto, sin sufijo de marca.
+    import re as _re
+    def _strip_brand_suffix(a):
+        if not a: return a
+        m = _re.match(r'^(.+?)\s*\([A-Za-z]+\)\s*$', a)
+        return m.group(1).strip() if m else a
     for ck, ft in first_touch.items():
-        ag = ft.get('first_agencia')
-        # Filtrar agencias no-Ford (Machala DF, La Y Chery, etc.)
-        if ag and ag not in FORD_AGENCIES and ag != 'Gestión Externa':
+        ag_raw = ft.get('first_agencia')
+        ag = _strip_brand_suffix(ag_raw)
+        # Filtrar solo cuando NO hay marca_filter (modo legacy Ford-only).
+        # Con marca_filter activo confiamos en que traffic ya está filtrado por marca,
+        # así que las agencias 'La Y', 'Machala', etc. son legítimas de esa marca.
+        if not marca_filter and ag and ag not in FORD_AGENCIES and ag != 'Gestión Externa':
             continue
         cerro = ck in matched_ck_set
         n_ventas = 0

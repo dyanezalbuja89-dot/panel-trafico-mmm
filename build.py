@@ -8618,18 +8618,41 @@ HTML = r"""<!doctype html>
     });
     const selMod = document.getElementById('conv-f-modelo');
     const selCan = document.getElementById('conv-f-canal');
+    const selAg  = document.getElementById('conv-f-agencia');
+    const selZo  = document.getElementById('conv-f-zona');
+    // Agencias y zonas también se sacan de los datos para que las brand-suffixes
+    // tipo 'La Y (DF)', 'Machala (Chery)' aparezcan correctamente.
+    const agencias = new Set(), zonas = new Set();
+    CONV.clientes_flat.forEach(c => {
+      if(c.agencia) agencias.add(c.agencia);
+      if(c.zona)    zonas.add(c.zona);
+    });
     // Repopulate cuando el usuario cambió la marca (convState._needRepopulate=true) o
     // en la primera inicialización (length === 1).
-    if(selMod && (selMod.options.length === 1 || convState._needRepopulate)){
+    const isFirstInit = (selMod && selMod.options.length === 1);
+    const needsRepop = isFirstInit || convState._needRepopulate;
+    if(selMod && needsRepop){
       selMod.innerHTML = '<option value="">Todos</option>';
       [...modelos].sort().forEach(m => {
         const o = document.createElement('option'); o.value=m; o.textContent=m; selMod.appendChild(o);
       });
     }
-    if(selCan && (selCan.options.length === 1 || convState._needRepopulate)){
+    if(selCan && needsRepop){
       selCan.innerHTML = '<option value="">Todos</option>';
       [...canales].sort().forEach(c => {
         const o = document.createElement('option'); o.value=c; o.textContent=c; selCan.appendChild(o);
+      });
+    }
+    if(selAg && needsRepop){
+      selAg.innerHTML = '<option value="">Todas</option>';
+      [...agencias].sort().forEach(a => {
+        const o = document.createElement('option'); o.value=a; o.textContent=a; selAg.appendChild(o);
+      });
+    }
+    if(selZo && needsRepop){
+      selZo.innerHTML = '<option value="">Todas</option>';
+      [...zonas].sort().forEach(z => {
+        const o = document.createElement('option'); o.value=z; o.textContent=z; selZo.appendChild(o);
       });
     }
     convState._needRepopulate = false;
