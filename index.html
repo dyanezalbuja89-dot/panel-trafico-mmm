@@ -4429,12 +4429,18 @@
     </style>
 
     <div class="ford-section" id="dig-cc-section">
-      <div style="margin-bottom: 16px">
-        <div class="cc-section-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6a6 6 0 1 0 6 6"/><path d="M12 10a2 2 0 1 0 2 2"/><path d="M20 2l2 2-10 10"/></svg>
-          Control CC · 2026
+      <div style="margin-bottom: 16px; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap">
+        <div>
+          <div class="cc-section-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6a6 6 0 1 0 6 6"/><path d="M12 10a2 2 0 1 0 2 2"/><path d="M20 2l2 2-10 10"/></svg>
+            Control CC · 2026
+          </div>
+          <div class="cc-section-sub">snapshot jun-2026 · datos estáticos verificados · solo 2026</div>
         </div>
-        <div class="cc-section-sub">snapshot jun-2026 · datos estáticos verificados · solo 2026</div>
+        <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
+          <div class="cc26-funnel-title">Agencia</div>
+          <select id="cc26-sel-agency" class="cc26-select" title="Filtra todo el Control CC (embudos + desperdicio) por agencia"></select>
+        </div>
       </div>
 
       <!-- ── DOS EMBUDOS LADO A LADO ── -->
@@ -4577,7 +4583,7 @@
             </div>
             <div class="cc-section-sub">a dónde se va el esfuerzo del CC en la cohorte 2026 · contactos = cohorte de ingreso · no-show = citas con asistió=No</div>
           </div>
-          <select id="desp-sel-periodo" class="cc26-select" style="margin-top:2px" title="Filtra el desperdicio por mes de la cohorte"></select>
+          <div id="desp-scope" class="cc26-funnel-title" style="text-align:right; white-space:nowrap" title="Filtro activo (se controla con 'Mes(es) seleccionados' y 'Agencia' arriba)"></div>
         </div>
         <div class="desp-cards" id="desp-cards"></div>
         <div class="cc26-footnote" id="desp-footnote">% calculado sobre el total de cada fase. Cohorte 2026 (ingreso ene–jun) · no-show = deals pipeline Ventas-Ford con cita 2026 y asistió=No.</div>
@@ -10014,11 +10020,71 @@
     return Q;
   })();
 
-  // Suma los meses seleccionados
+  // Embudo POR AGENCIA × mes (foto estatica verificada 16-jun-2026). Mismas defs que
+  // _CC26_M; cita = efec + nos. La suma de agencias ≈ total conocido ±1.5% (residuo
+  // de leads sin agencia asignada). 'Todas' usa _CC26_M (incluye ese residuo).
+  const _CC26_AG = {
+    'CJA': {
+      'ene·26':{leads:190,cont:161,tope:82,efec:20,nos:50}, 'feb·26':{leads:146,cont:120,tope:44,efec:28,nos:25}, 'mar·26':{leads:197,cont:172,tope:63,efec:26,nos:76}, 'abr·26':{leads:328,cont:274,tope:98,efec:31,nos:67}, 'may·26':{leads:357,cont:284,tope:124,efec:33,nos:86}, 'jun·26':{leads:264,cont:207,tope:33,efec:16,nos:67}
+    },
+    'Orellana': {
+      'ene·26':{leads:167,cont:148,tope:63,efec:22,nos:45}, 'feb·26':{leads:136,cont:109,tope:34,efec:25,nos:43}, 'mar·26':{leads:161,cont:132,tope:53,efec:22,nos:61}, 'abr·26':{leads:209,cont:181,tope:67,efec:30,nos:37}, 'may·26':{leads:249,cont:198,tope:78,efec:28,nos:57}, 'jun·26':{leads:189,cont:139,tope:41,efec:18,nos:41}
+    },
+    'La Y': {
+      'ene·26':{leads:157,cont:138,tope:37,efec:20,nos:46}, 'feb·26':{leads:121,cont:98,tope:38,efec:15,nos:14}, 'mar·26':{leads:149,cont:133,tope:29,efec:30,nos:42}, 'abr·26':{leads:251,cont:228,tope:52,efec:29,nos:51}, 'may·26':{leads:257,cont:225,tope:57,efec:24,nos:55}, 'jun·26':{leads:77,cont:63,tope:5,efec:11,nos:17}
+    },
+    'Tumbaco': {
+      'ene·26':{leads:122,cont:113,tope:37,efec:13,nos:19}, 'feb·26':{leads:59,cont:49,tope:13,efec:10,nos:9}, 'mar·26':{leads:76,cont:71,tope:21,efec:16,nos:16}, 'abr·26':{leads:143,cont:125,tope:30,efec:15,nos:22}, 'may·26':{leads:108,cont:101,tope:24,efec:10,nos:23}, 'jun·26':{leads:161,cont:122,tope:19,efec:14,nos:20}
+    },
+    'Manta': {
+      'ene·26':{leads:61,cont:51,tope:28,efec:7,nos:12}, 'feb·26':{leads:32,cont:23,tope:11,efec:4,nos:2}, 'mar·26':{leads:34,cont:29,tope:18,efec:3,nos:8}, 'abr·26':{leads:34,cont:31,tope:7,efec:8,nos:8}, 'may·26':{leads:23,cont:19,tope:9,efec:4,nos:6}, 'jun·26':{leads:23,cont:19,tope:5,efec:4,nos:3}
+    },
+    'Machala': {
+      'ene·26':{leads:10,cont:9,tope:3,efec:3,nos:2}, 'feb·26':{leads:7,cont:5,tope:0,efec:2,nos:1}, 'mar·26':{leads:10,cont:10,tope:2,efec:3,nos:4}, 'abr·26':{leads:21,cont:20,tope:4,efec:4,nos:7}, 'may·26':{leads:16,cont:14,tope:3,efec:2,nos:4}, 'jun·26':{leads:10,cont:8,tope:1,efec:4,nos:3}
+    },
+    'Portoviejo': {
+      'ene·26':{leads:5,cont:3,tope:2,efec:1,nos:3}, 'feb·26':{leads:5,cont:2,tope:1,efec:1,nos:0}, 'mar·26':{leads:2,cont:1,tope:1,efec:0,nos:4}, 'abr·26':{leads:10,cont:8,tope:3,efec:3,nos:5}, 'may·26':{leads:11,cont:10,tope:0,efec:5,nos:4}, 'jun·26':{leads:4,cont:4,tope:0,efec:0,nos:0}
+    }
+  };
+  const _CC26_AG_ORDER = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo'].filter(a => _CC26_AG[a]);
+
+  // Agencia activa (lee el dropdown; 'Todas' por defecto).
+  function _ccCurAgency() {
+    const s = document.getElementById('cc26-sel-agency');
+    return (s && s.value) || 'Todas';
+  }
+  // Meses marcados en el dropdown de casillas (el mismo que maneja el embudo derecho).
+  // Fallback: ultimo mes si no hay ninguno marcado.
+  function _ccCheckedMonths() {
+    const panel = document.getElementById('cc26-cb-panel');
+    const fb = _CC26_ORDER[_CC26_ORDER.length - 1];
+    if (!panel) return fb ? [fb] : [];
+    const arr = _CC26_ORDER.filter(m => {
+      const cb = panel.querySelector('input[value="' + m + '"]');
+      return cb && cb.checked;
+    });
+    return arr.length ? arr : (fb ? [fb] : []);
+  }
+  // Rellena el dropdown de agencia una sola vez: Todas + agencias presentes.
+  function _cc26PopulateAgency() {
+    const sel = document.getElementById('cc26-sel-agency');
+    if (!sel || sel.options.length) return;
+    const opts = ['Todas'].concat(_CC26_AG_ORDER);
+    sel.innerHTML = opts.map(a =>
+      `<option value="${a}">${a === 'Todas' ? 'Todas las agencias' : a}</option>`
+    ).join('');
+  }
+
+  // Suma los meses seleccionados, respetando la agencia activa.
+  // 'Todas' usa _CC26_M; una agencia usa _CC26_AG (cita = efec + nos).
   function _cc26Agg(months) {
+    const ag = _ccCurAgency();
     let leads=0, cont=0, tope=0, cita=0, efec=0, nos=0;
     for (const m of months) {
-      const d = _CC26_M[m]; if (!d) continue;
+      let d;
+      if (ag === 'Todas') { d = _CC26_M[m]; }
+      else { const a = _CC26_AG[ag] && _CC26_AG[ag][m]; d = a ? { leads:a.leads, cont:a.cont, tope:a.tope, efec:a.efec, nos:a.nos, cita:(a.efec + a.nos) } : null; }
+      if (!d) continue;
       leads += d.leads; cont += d.cont; tope += d.tope;
       cita  += d.cita;  efec += d.efec; nos  += d.nos;
     }
@@ -10183,7 +10249,24 @@
           const arr = _CC26_ORDER.filter(m => selectedMonths.has(m));
           const fallbackMonth = _CC26_ORDER[_CC26_ORDER.length - 1];
           _cc26RenderFunnel('cc26-funnel-right', arr.length > 0 ? arr : (fallbackMonth ? [fallbackMonth] : []));
+          // El mismo filtro de meses maneja el desperdicio.
+          renderDesperdicio();
         });
+      });
+    }
+
+    // Dropdown de AGENCIA (global): re-renderiza embudos + desperdicio al cambiar.
+    _cc26PopulateAgency();
+    const agSel = document.getElementById('cc26-sel-agency');
+    if (agSel) {
+      const freshAg = agSel.cloneNode(true);  // preserva opciones y valor; quita listeners viejos
+      agSel.replaceWith(freshAg);
+      freshAg.addEventListener('change', () => {
+        _cc26RenderFunnel('cc26-funnel-left', _CC26_Q[freshSel.value] || _CC26_Q['Total']);
+        const arr = _CC26_ORDER.filter(m => selectedMonths.has(m));
+        const fb = _CC26_ORDER[_CC26_ORDER.length - 1];
+        _cc26RenderFunnel('cc26-funnel-right', arr.length > 0 ? arr : (fb ? [fb] : []));
+        renderDesperdicio();
       });
     }
   }
@@ -10301,11 +10384,10 @@
     }
   };
   // Cruce para el periodo: un mes (directo) o 'Total' (merge element-wise de meses).
-  function _despCruceForPeriod(period) {
-    if (period && period !== 'Total' && _DESP_CRUCE_M[period]) return _DESP_CRUCE_M[period];
+  function _despCruceForMonths(months) {
     const merge = (kind) => {
       const out = {};
-      _DESP_ORDER.forEach(m => {
+      (months || []).forEach(m => {
         const src = (_DESP_CRUCE_M[m] || {})[kind] || {};
         Object.entries(src).forEach(([k, arr]) => {
           if (!out[k]) out[k] = arr.slice();
@@ -10363,6 +10445,69 @@
   const _DESP_MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const _DESP_ORDER = _DESP_MES.map(m => m + '·26').filter(l => _DESP_M[l]);
 
+  // Desperdicio POR AGENCIA × mes (foto estatica verificada 16-jun-2026, mismas defs).
+  // Para la vista por agencia, las tarjetas salen de aqui (no del cruce); por eso el
+  // DRILL estatus→llamadas se oculta cuando hay agencia (el cruce por-agencia seria otra
+  // foto y rompe el cuadre). 'Unassigned' omitido del by_estatus, como en el agregado.
+  const _DESP_AG = {
+    'CJA': {
+      'ene·26':{no_contactados:{total:29,by_llamada:[["12ª",29]]},contactados:{total:159,by_estatus:[["Contactado / seguimiento activo",72],["Barreras técnicas / no contesta",48],["No interesado",14],["Posponer",13],["Sin recursos económicos",8],["Errores operativos",4]]},no_show:{total:50,by_estatus:[["Cita agendada (atascado)",29],["Perdido",21]]}},
+      'feb·26':{no_contactados:{total:16,by_llamada:[["12ª",16]]},contactados:{total:120,by_estatus:[["Contactado / seguimiento activo",76],["Barreras técnicas / no contesta",25],["No interesado",9],["Sin recursos económicos",5],["Posponer",3],["Errores operativos",2]]},no_show:{total:25,by_estatus:[["Cita agendada (atascado)",22],["Perdido",3]]}},
+      'mar·26':{no_contactados:{total:24,by_llamada:[["12ª",22],["9ª",1],["1ª",1]]},contactados:{total:172,by_estatus:[["Contactado / seguimiento activo",86],["Barreras técnicas / no contesta",48],["No interesado",15],["Sin recursos económicos",10],["Posponer",5],["Errores operativos",4]]},no_show:{total:76,by_estatus:[["Cita agendada (atascado)",73],["Perdido",3]]}},
+      'abr·26':{no_contactados:{total:53,by_llamada:[["12ª",52],["3ª",1]]},contactados:{total:274,by_estatus:[["Contactado / seguimiento activo",126],["Barreras técnicas / no contesta",74],["No interesado",30],["Sin recursos económicos",20],["Posponer",10],["Errores operativos",9]]},no_show:{total:67,by_estatus:[["Cita agendada (atascado)",64],["Perdido",3]]}},
+      'may·26':{no_contactados:{total:72,by_llamada:[["12ª",71],["1ª",1]]},contactados:{total:284,by_estatus:[["Contactado / seguimiento activo",145],["Barreras técnicas / no contesta",62],["Sin recursos económicos",32],["No interesado",26],["Posponer",8],["Errores operativos",7]]},no_show:{total:86,by_estatus:[["Cita agendada (atascado)",84],["Perdido",2]]}},
+      'jun·26':{no_contactados:{total:56,by_llamada:[["12ª",11],["8ª",15],["3ª",12],["6ª",4],["1ª",3],["4ª",3],["10ª",3],["5ª",3],["9ª",1],["7ª",1]]},contactados:{total:207,by_estatus:[["Contactado / seguimiento activo",112],["Barreras técnicas / no contesta",46],["Sin recursos económicos",25],["Posponer",12],["No interesado",7],["Errores operativos",5]]},no_show:{total:67,by_estatus:[["Cita agendada (atascado)",67]]}}
+    },
+    'Orellana': {
+      'ene·26':{no_contactados:{total:19,by_llamada:[["12ª",17],["1ª",1],["11ª",1]]},contactados:{total:146,by_estatus:[["Contactado / seguimiento activo",62],["Barreras técnicas / no contesta",39],["No interesado",22],["Posponer",17],["Errores operativos",4],["Sin recursos económicos",2]]},no_show:{total:45,by_estatus:[["Cita agendada (atascado)",43],["Perdido",2]]}},
+      'feb·26':{no_contactados:{total:17,by_llamada:[["12ª",16],["4ª",1]]},contactados:{total:109,by_estatus:[["Contactado / seguimiento activo",67],["Barreras técnicas / no contesta",23],["Posponer",7],["No interesado",5],["Sin recursos económicos",4],["Errores operativos",3]]},no_show:{total:43,by_estatus:[["Cita agendada (atascado)",42],["Reagendar",1]]}},
+      'mar·26':{no_contactados:{total:29,by_llamada:[["12ª",28],["4ª",1]]},contactados:{total:131,by_estatus:[["Contactado / seguimiento activo",73],["Barreras técnicas / no contesta",27],["No interesado",12],["Sin recursos económicos",8],["Errores operativos",5],["Posponer",2]]},no_show:{total:61,by_estatus:[["Cita agendada (atascado)",55],["Perdido",6]]}},
+      'abr·26':{no_contactados:{total:28,by_llamada:[["12ª",26],["1ª",1],["10ª",1]]},contactados:{total:178,by_estatus:[["Contactado / seguimiento activo",76],["Barreras técnicas / no contesta",57],["Sin recursos económicos",15],["No interesado",12],["Posponer",9],["Errores operativos",6]]},no_show:{total:37,by_estatus:[["Cita agendada (atascado)",37]]}},
+      'may·26':{no_contactados:{total:51,by_llamada:[["12ª",51]]},contactados:{total:198,by_estatus:[["Contactado / seguimiento activo",97],["Barreras técnicas / no contesta",35],["Sin recursos económicos",21],["No interesado",17],["Posponer",13],["Errores operativos",7]]},no_show:{total:57,by_estatus:[["Cita agendada (atascado)",55],["Perdido",2]]}},
+      'jun·26':{no_contactados:{total:48,by_llamada:[["12ª",21],["3ª",8],["8ª",4],["10ª",3],["4ª",3],["5ª",2],["6ª",2],["1ª",1],["2ª",1],["7ª",1],["9ª",1],["11ª",1]]},contactados:{total:139,by_estatus:[["Contactado / seguimiento activo",72],["Barreras técnicas / no contesta",36],["Sin recursos económicos",13],["Posponer",13],["No interesado",5]]},no_show:{total:41,by_estatus:[["Cita agendada (atascado)",41]]}}
+    },
+    'La Y': {
+      'ene·26':{no_contactados:{total:19,by_llamada:[["12ª",15],["3ª",1],["4ª",1],["5ª",1],["7ª",1]]},contactados:{total:138,by_estatus:[["Contactado / seguimiento activo",65],["No interesado",26],["Barreras técnicas / no contesta",24],["Posponer",10],["Sin recursos económicos",7],["Errores operativos",6]]},no_show:{total:46,by_estatus:[["Cita agendada (atascado)",46]]}},
+      'feb·26':{no_contactados:{total:18,by_llamada:[["12ª",18]]},contactados:{total:98,by_estatus:[["Contactado / seguimiento activo",47],["No interesado",19],["Barreras técnicas / no contesta",21],["Posponer",4],["Sin recursos económicos",4],["Errores operativos",3]]},no_show:{total:14,by_estatus:[["Cita agendada (atascado)",14]]}},
+      'mar·26':{no_contactados:{total:16,by_llamada:[["12ª",14],["2ª",1],["6ª",1]]},contactados:{total:133,by_estatus:[["Contactado / seguimiento activo",63],["Barreras técnicas / no contesta",29],["No interesado",21],["Sin recursos económicos",11],["Errores operativos",5],["Posponer",3]]},no_show:{total:42,by_estatus:[["Cita agendada (atascado)",42]]}},
+      'abr·26':{no_contactados:{total:23,by_llamada:[["12ª",19],["1ª",1],["2ª",1],["4ª",1],["7ª",1]]},contactados:{total:228,by_estatus:[["Contactado / seguimiento activo",112],["Barreras técnicas / no contesta",47],["No interesado",33],["Sin recursos económicos",19],["Posponer",15],["Errores operativos",1]]},no_show:{total:51,by_estatus:[["Cita agendada (atascado)",51]]}},
+      'may·26':{no_contactados:{total:32,by_llamada:[["12ª",29],["4ª",2],["2ª",1]]},contactados:{total:225,by_estatus:[["Contactado / seguimiento activo",104],["Barreras técnicas / no contesta",54],["No interesado",27],["Sin recursos económicos",27],["Posponer",7],["Errores operativos",3]]},no_show:{total:55,by_estatus:[["Cita agendada (atascado)",55]]}},
+      'jun·26':{no_contactados:{total:14,by_llamada:[["12ª",3],["8ª",3],["3ª",2],["4ª",2],["7ª",2],["1ª",1],["9ª",1]]},contactados:{total:63,by_estatus:[["Contactado / seguimiento activo",39],["Barreras técnicas / no contesta",11],["Sin recursos económicos",8],["Posponer",2],["No interesado",2],["Errores operativos",1]]},no_show:{total:17,by_estatus:[["Cita agendada (atascado)",17]]}}
+    },
+    'Tumbaco': {
+      'ene·26':{no_contactados:{total:8,by_llamada:[["12ª",8]]},contactados:{total:112,by_estatus:[["Contactado / seguimiento activo",34],["Barreras técnicas / no contesta",33],["No interesado",19],["Posponer",17],["Errores operativos",6],["Sin recursos económicos",3]]},no_show:{total:19,by_estatus:[["Cita agendada (atascado)",19]]}},
+      'feb·26':{no_contactados:{total:9,by_llamada:[["12ª",9]]},contactados:{total:49,by_estatus:[["Contactado / seguimiento activo",30],["Barreras técnicas / no contesta",8],["No interesado",5],["Posponer",3],["Sin recursos económicos",2],["Errores operativos",1]]},no_show:{total:9,by_estatus:[["Cita agendada (atascado)",9]]}},
+      'mar·26':{no_contactados:{total:5,by_llamada:[["12ª",5]]},contactados:{total:71,by_estatus:[["Contactado / seguimiento activo",32],["Barreras técnicas / no contesta",24],["No interesado",11],["Posponer",2],["Sin recursos económicos",2]]},no_show:{total:16,by_estatus:[["Cita agendada (atascado)",16]]}},
+      'abr·26':{no_contactados:{total:18,by_llamada:[["12ª",18]]},contactados:{total:125,by_estatus:[["Contactado / seguimiento activo",61],["Barreras técnicas / no contesta",24],["No interesado",17],["Sin recursos económicos",12],["Posponer",7],["Errores operativos",2]]},no_show:{total:22,by_estatus:[["Cita agendada (atascado)",16],["Perdido",6]]}},
+      'may·26':{no_contactados:{total:7,by_llamada:[["12ª",7]]},contactados:{total:101,by_estatus:[["Contactado / seguimiento activo",45],["Barreras técnicas / no contesta",26],["Sin recursos económicos",11],["Posponer",9],["No interesado",7],["Errores operativos",3]]},no_show:{total:23,by_estatus:[["Cita agendada (atascado)",23]]}},
+      'jun·26':{no_contactados:{total:39,by_llamada:[["12ª",11],["3ª",9],["8ª",7],["1ª",4],["4ª",4],["6ª",1],["5ª",1],["9ª",1],["11ª",1]]},contactados:{total:122,by_estatus:[["Contactado / seguimiento activo",65],["Barreras técnicas / no contesta",21],["Posponer",14],["No interesado",13],["Sin recursos económicos",7],["Errores operativos",2]]},no_show:{total:20,by_estatus:[["Cita agendada (atascado)",19],["Cita Efectiva (error)",1]]}}
+    },
+    'Manta': {
+      'ene·26':{no_contactados:{total:10,by_llamada:[["12ª",10]]},contactados:{total:51,by_estatus:[["Contactado / seguimiento activo",23],["Barreras técnicas / no contesta",17],["Posponer",5],["No interesado",4],["Errores operativos",2]]},no_show:{total:12,by_estatus:[["Cita agendada (atascado)",10],["Reagendar",1],["Perdido",1]]}},
+      'feb·26':{no_contactados:{total:7,by_llamada:[["12ª",7]]},contactados:{total:23,by_estatus:[["Contactado / seguimiento activo",13],["Barreras técnicas / no contesta",4],["No interesado",3],["Errores operativos",2],["Sin recursos económicos",1]]},no_show:{total:2,by_estatus:[["Cita agendada (atascado)",2]]}},
+      'mar·26':{no_contactados:{total:5,by_llamada:[["12ª",5]]},contactados:{total:29,by_estatus:[["Barreras técnicas / no contesta",14],["Contactado / seguimiento activo",11],["No interesado",3]]},no_show:{total:8,by_estatus:[["Cita agendada (atascado)",7],["Perdido",1]]}},
+      'abr·26':{no_contactados:{total:3,by_llamada:[["12ª",3]]},contactados:{total:31,by_estatus:[["Contactado / seguimiento activo",15],["Barreras técnicas / no contesta",8],["No interesado",2],["Posponer",2],["Cita Efectiva (error)",1]]},no_show:{total:8,by_estatus:[["Cita agendada (atascado)",5],["Perdido",2],["Cita Efectiva (error)",1]]}},
+      'may·26':{no_contactados:{total:4,by_llamada:[["12ª",4]]},contactados:{total:19,by_estatus:[["Contactado / seguimiento activo",9],["No interesado",4],["Barreras técnicas / no contesta",2],["Posponer",2],["Sin recursos económicos",2]]},no_show:{total:6,by_estatus:[["Cita agendada (atascado)",6]]}},
+      'jun·26':{no_contactados:{total:4,by_llamada:[["10ª",2],["12ª",1],["4ª",1]]},contactados:{total:19,by_estatus:[["Contactado / seguimiento activo",11],["Barreras técnicas / no contesta",6],["No interesado",1],["Errores operativos",1]]},no_show:{total:3,by_estatus:[["Cita agendada (atascado)",3]]}}
+    },
+    'Machala': {
+      'ene·26':{no_contactados:{total:1,by_llamada:[["3ª",1]]},contactados:{total:9,by_estatus:[["Contactado / seguimiento activo",5],["Barreras técnicas / no contesta",4]]},no_show:{total:2,by_estatus:[["Cita agendada (atascado)",1],["Perdido",1]]}},
+      'feb·26':{no_contactados:{total:1,by_llamada:[["4ª",1]]},contactados:{total:5,by_estatus:[["Contactado / seguimiento activo",5]]},no_show:{total:1,by_estatus:[["Perdido",1]]}},
+      'mar·26':{no_contactados:{total:0,by_llamada:[]},contactados:{total:10,by_estatus:[["Contactado / seguimiento activo",8],["No interesado",1],["Barreras técnicas / no contesta",1]]},no_show:{total:4,by_estatus:[["Cita agendada (atascado)",3],["Perdido",1]]}},
+      'abr·26':{no_contactados:{total:1,by_llamada:[["12ª",1]]},contactados:{total:20,by_estatus:[["Contactado / seguimiento activo",9],["Barreras técnicas / no contesta",4],["No interesado",2],["Sin recursos económicos",2]]},no_show:{total:7,by_estatus:[["Cita agendada (atascado)",5],["Perdido",2]]}},
+      'may·26':{no_contactados:{total:2,by_llamada:[["12ª",2]]},contactados:{total:14,by_estatus:[["Contactado / seguimiento activo",8],["Barreras técnicas / no contesta",2],["No interesado",1]]},no_show:{total:4,by_estatus:[["Cita agendada (atascado)",4]]}},
+      'jun·26':{no_contactados:{total:2,by_llamada:[["3ª",1],["10ª",1]]},contactados:{total:8,by_estatus:[["Contactado / seguimiento activo",8]]},no_show:{total:3,by_estatus:[["Cita agendada (atascado)",3]]}}
+    },
+    'Portoviejo': {
+      'ene·26':{no_contactados:{total:2,by_llamada:[["12ª",2]]},contactados:{total:3,by_estatus:[["Contactado / seguimiento activo",2],["No interesado",1]]},no_show:{total:3,by_estatus:[["Cita agendada (atascado)",3]]}},
+      'feb·26':{no_contactados:{total:0,by_llamada:[]},contactados:{total:2,by_estatus:[["Contactado / seguimiento activo",2]]},no_show:{total:0,by_estatus:[]}},
+      'mar·26':{no_contactados:{total:1,by_llamada:[["12ª",1]]},contactados:{total:1,by_estatus:[]},no_show:{total:4,by_estatus:[["Cita agendada (atascado)",4]]}},
+      'abr·26':{no_contactados:{total:2,by_llamada:[["12ª",2]]},contactados:{total:8,by_estatus:[["Contactado / seguimiento activo",6],["Barreras técnicas / no contesta",2]]},no_show:{total:5,by_estatus:[["Cita agendada (atascado)",5]]}},
+      'may·26':{no_contactados:{total:1,by_llamada:[["1ª",1]]},contactados:{total:10,by_estatus:[["Contactado / seguimiento activo",7],["Barreras técnicas / no contesta",2]]},no_show:{total:4,by_estatus:[["Cita agendada (atascado)",4]]}},
+      'jun·26':{no_contactados:{total:0,by_llamada:[]},contactados:{total:4,by_estatus:[["Contactado / seguimiento activo",4]]},no_show:{total:0,by_estatus:[]}}
+    }
+  };
+
   // Suma una lista de objetos-periodo en uno solo (totales + buckets agregados).
   function _despMerge(list) {
     const sumBuckets = (arrs) => {
@@ -10377,14 +10522,18 @@
       no_show:        { total: list.reduce((s, d) => s + (d.no_show.total || 0), 0),        by_estatus: sumBuckets(list.map(d => d.no_show.by_estatus)) }
     };
   }
-  // Devuelve el objeto-desperdicio para el periodo: 'Total' (suma de meses) o un mes.
-  // FUENTE ÚNICA: contactados/no_show (total + by_estatus) se DERIVAN del cruce
-  // _DESP_CRUCE_M (sumando cada fila estatus×llamada). Así la tabla por estatus y su
-  // drill SIEMPRE cuadran: fila = total del drill, y total de la tarjeta = suma de filas.
-  // (Antes salían de _DESP_M, una foto distinta del cruce → desfase de ±2 en jun sin madurar.)
-  // no_contactados no tiene cruce; viene de _DESP_M (su by_llamada ya suma al total).
-  function _despForPeriod(period) {
-    const cruce = _despCruceForPeriod(period);
+  // Devuelve el objeto-desperdicio para los MESES (array) y la AGENCIA activos.
+  // - agency='Todas': contactados/no_show se DERIVAN del cruce _DESP_CRUCE_M (sumando
+  //   cada fila estatus×llamada) → tabla y drill SIEMPRE cuadran (fila = total del drill,
+  //   total tarjeta = suma de filas); no_contactados de _DESP_M.
+  // - agency=X: todo de _DESP_AG[X] (no hay cruce por agencia → el drill se oculta).
+  function _despForMonths(months, agency) {
+    const ms = (months && months.length) ? months : _DESP_ORDER.slice();
+    if (agency && agency !== 'Todas') {
+      const list = ms.map(m => (_DESP_AG[agency] || {})[m]).filter(Boolean);
+      return _despMerge(list);
+    }
+    const cruce = _despCruceForMonths(ms);
     const fromCruce = (obj) => {
       const rows = Object.entries(obj || {})
         .map(([k, arr]) => [k, arr.reduce((a, b) => a + b, 0)])
@@ -10392,23 +10541,13 @@
         .sort((a, b) => b[1] - a[1]);
       return { total: rows.reduce((s, r) => s + r[1], 0), by_estatus: rows };
     };
-    const ncList = (period && period !== 'Total' && _DESP_M[period])
-      ? [_DESP_M[period]] : _DESP_ORDER.map(l => _DESP_M[l]);
+    const ncList = ms.map(l => _DESP_M[l]).filter(Boolean);
     return {
       available: true,
       no_contactados: _despMerge(ncList).no_contactados,
       contactados: fromCruce(cruce.contactados),
       no_show: fromCruce(cruce.no_show)
     };
-  }
-  // Rellena el <select> de periodo una sola vez (Total + meses presentes).
-  function _despPopulatePeriodo() {
-    const sel = document.getElementById('desp-sel-periodo');
-    if (!sel || sel.options.length) return;
-    const opts = ['Total'].concat(_DESP_ORDER);
-    sel.innerHTML = opts.map(k =>
-      `<option value="${k}">${k === 'Total' ? 'Total (cohorte ene–jun·26)' : k}</option>`
-    ).join('');
   }
   // Ordena filas [["1ª",n],...] por nº de llamada (1ª→12ª), no por cantidad.
   function _despByCallOrder(rows) {
@@ -10511,12 +10650,20 @@
     const host = document.getElementById('desp-cards');
     if (!host) return;
 
-    // Filtro de periodo: 'Total' (suma cohorte) o un mes (ene·26…jun·26).
-    _despPopulatePeriodo();
-    const sel = document.getElementById('desp-sel-periodo');
-    const period = (sel && sel.value) || 'Total';
-    const D = _despForPeriod(period);
-    const cruce = _despCruceForPeriod(period);
+    // Filtros COMPARTIDOS: meses (casillas "Mes(es) seleccionados") + agencia (dropdown).
+    const months  = _ccCheckedMonths();
+    const agency  = _ccCurAgency();
+    const isTodas = (agency === 'Todas');
+    const D     = _despForMonths(months, agency);
+    const cruce = isTodas ? _despCruceForMonths(months) : null;
+
+    // Indicador del filtro activo (a la derecha del título del bloque).
+    const scope = document.getElementById('desp-scope');
+    if (scope) {
+      const mLbl = (months.length >= _DESP_ORDER.length) ? 'ene–jun·26'
+                 : (months.length === 1) ? months[0] : (months.length + ' meses');
+      scope.textContent = mLbl + ' · ' + agency;
+    }
 
     const RED = '#dc2626', AMBER = '#d97706', SLATE = '#64748b';
 
@@ -10534,51 +10681,59 @@
       ${_despBars(_despByCallOrder(nc.by_llamada), nc.total, RED)}
     </div>`;
 
-    // ── Card 2: Contactados (drill estatus → nº de llamada, por periodo) ──
+    // ── Card 2: Contactados (drill estatus → nº de llamada; solo en vista Todas) ──
     const c = D.contactados || { total:0, by_estatus:[] };
     const cActivo = (c.by_estatus || []).find(r => _DESP_LIVE.has(r[0]));
     const cActivoPct = _cc26Pct(cActivo ? cActivo[1] : 0, c.total);
     let cDead = 0;
     (c.by_estatus || []).forEach(r => { if (_DESP_DEAD.has(r[0])) cDead += r[1]; });
+    const c2hint = isTodas ? ' · <b>clic en un estatus</b> para ver sus llamadas' : '';
     const card2 = `<div class="desp-card desp-amber" id="desp-card-c">
       <div class="desp-card-head">
         <div class="desp-card-name">Contactados</div>
         <div class="desp-card-total">${_cc26Fmt(c.total)}</div>
       </div>
-      <div class="desp-tagline">solo <b>${cActivoPct}%</b> en seguimiento activo · <b>${_cc26Fmt(cDead)} ya muertos</b> (No interesado + Sin recursos) · <b>clic en un estatus</b> para ver sus llamadas</div>
-      ${_despTable(c.by_estatus || [], c.total, true, 'contactados')}
+      <div class="desp-tagline">solo <b>${cActivoPct}%</b> en seguimiento activo · <b>${_cc26Fmt(cDead)} ya muertos</b> (No interesado + Sin recursos)${c2hint}</div>
+      ${_despTable(c.by_estatus || [], c.total, true, isTodas ? 'contactados' : null)}
       <div id="desp-c-drill"></div>
     </div>`;
 
-    // ── Card 3: No-show (drill etapa → llamadas de reactivación, por periodo) ──
+    // ── Card 3: No-show (drill etapa → llamadas de reactivación; solo en vista Todas) ──
     const ns = D.no_show || { total:0, by_estatus:[] };
     const nsAtasc = (ns.by_estatus || []).find(r => /Cita agendada/i.test(r[0]));
     const nsAtascPct = _cc26Pct(nsAtasc ? nsAtasc[1] : 0, ns.total);
-    // % que recibió ≥1 llamada de reactivación (1ª+2ª+3ª) sobre el cruce del periodo.
-    let nsReact = 0, nsAll = 0;
-    Object.values(cruce.no_show || {}).forEach(arr => {
-      nsReact += (arr[0] || 0) + (arr[1] || 0) + (arr[2] || 0);
-      nsAll += arr.reduce((a, b) => a + b, 0);
-    });
-    const nsReactPct = _cc26Pct(nsReact, nsAll);
+    let c3hint = '';
+    if (isTodas) {
+      // % que recibió ≥1 llamada de reactivación (1ª+2ª+3ª) sobre el cruce del periodo.
+      let nsReact = 0, nsAll = 0;
+      Object.values(cruce.no_show || {}).forEach(arr => {
+        nsReact += (arr[0] || 0) + (arr[1] || 0) + (arr[2] || 0);
+        nsAll += arr.reduce((a, b) => a + b, 0);
+      });
+      c3hint = ` · <b>${_cc26Pct(nsReact, nsAll)}%</b> recibió llamadas de reactivación y aun así no volvió · <b>clic en una etapa</b> para ver sus llamadas`;
+    }
     const card3 = `<div class="desp-card desp-slate" id="desp-card-ns">
       <div class="desp-card-head">
         <div class="desp-card-name">No-show</div>
         <div class="desp-card-total">${_cc26Fmt(ns.total)}</div>
       </div>
-      <div class="desp-tagline"><b>${nsAtascPct}%</b> atascados en Cita agendada · <b>${nsReactPct}%</b> recibió llamadas de reactivación y aun así no volvió · <b>clic en una etapa</b> para ver sus llamadas</div>
-      ${_despTable(ns.by_estatus || [], ns.total, false, 'no_show')}
+      <div class="desp-tagline"><b>${nsAtascPct}%</b> atascados en Cita agendada${c3hint}</div>
+      ${_despTable(ns.by_estatus || [], ns.total, false, isTodas ? 'no_show' : null)}
       <div id="desp-ns-drill"></div>
     </div>`;
 
     host.innerHTML = card1 + card2 + card3;
 
-    // Drill estatus/etapa → llamadas, con el cruce del PERIODO seleccionado (vivo por mes).
-    _despWireDrill(document.getElementById('desp-card-c'),  'desp-c-drill',  cruce.contactados, AMBER, _DESP_LLAM_LBL,  'Llamadas de');
-    _despWireDrill(document.getElementById('desp-card-ns'), 'desp-ns-drill', cruce.no_show,     SLATE, _DESP_REACT_LBL, 'Llamadas de reactivación de');
-
-    // Listener del select (una sola vez): cambia el periodo y re-renderiza.
-    if (sel && !sel._despWired) { sel.addEventListener('change', renderDesperdicio); sel._despWired = true; }
+    if (isTodas) {
+      // Drill estatus/etapa → llamadas, con el cruce de los meses seleccionados (cuadra con la tabla).
+      _despWireDrill(document.getElementById('desp-card-c'),  'desp-c-drill',  cruce.contactados, AMBER, _DESP_LLAM_LBL,  'Llamadas de');
+      _despWireDrill(document.getElementById('desp-card-ns'), 'desp-ns-drill', cruce.no_show,     SLATE, _DESP_REACT_LBL, 'Llamadas de reactivación de');
+    } else {
+      // Por agencia no hay cruce estatus×llamada (sería otra foto y rompería el cuadre); nota.
+      const note = '<div class="desp-drill"><div class="desp-drill-empty">Detalle de llamadas por estatus: disponible en vista <b>Todas las agencias</b>.</div></div>';
+      const cd = document.getElementById('desp-c-drill'); if (cd) cd.innerHTML = note;
+      const nd = document.getElementById('desp-ns-drill'); if (nd) nd.innerHTML = note;
+    }
   }
 
   // Gate de password (independiente de otros — clave Maresa2026*)
