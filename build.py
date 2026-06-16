@@ -4489,16 +4489,17 @@ HTML = r"""<!doctype html>
 
       <!-- ── NOTA AL PIE ── -->
       <div class="cc26-footnote">
-        Leads y contactados = leads que ingresaron en el periodo · citas y efectivas = citas con fecha en el periodo · % Tope-12 = leads que llegaron a las 12 llamadas · jun·26 parcial · datos a jun-2026.
+        Leads y contactados = leads que ingresaron en el periodo · citas/confirmadas/efectivas = por fecha de cita · Citas confirmadas = cita_confirmada='Confirma' · No-show s/conf = confirmadas que no asistieron ÷ confirmadas · % Tope-12 = leads que llegaron a las 12 llamadas · jun·26 parcial · datos a jun-2026.
       </div>
 
       <!-- ============== DESPERDICIO POR FASE ============== -->
       <style>
         .desp-wrap { margin-top: 26px; }
         .desp-cards {
-          display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+          display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
         }
-        @media (max-width: 900px) { .desp-cards { grid-template-columns: 1fr; } }
+        @media (max-width: 1100px) { .desp-cards { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 560px) { .desp-cards { grid-template-columns: 1fr; } }
         .desp-card {
           background: var(--c-surface, #fff);
           border: 1px solid var(--c-border, #e2e8f0);
@@ -4518,6 +4519,7 @@ HTML = r"""<!doctype html>
         .desp-red   .desp-card-total { color: #991b1b; }
         .desp-amber .desp-card-total { color: #b45309; }
         .desp-slate .desp-card-total { color: #334155; }
+        .desp-blue  .desp-card-total { color: #1d4ed8; }
         .desp-tagline {
           font-size: 11px; line-height: 1.45; color: var(--c-text, #0f172a);
           margin: 6px 0 12px; font-weight: 500;
@@ -4526,6 +4528,7 @@ HTML = r"""<!doctype html>
         .desp-red   .desp-tagline b { color: #991b1b; }
         .desp-amber .desp-tagline b { color: #b45309; }
         .desp-slate .desp-tagline b { color: #334155; }
+        .desp-blue  .desp-tagline b { color: #1d4ed8; }
         /* barras horizontales (mini-distribución) */
         .desp-bars { display: flex; flex-direction: column; gap: 5px; }
         .desp-bar-row {
@@ -10055,6 +10058,55 @@ HTML = r"""<!doctype html>
   };
   const _CC26_AG_ORDER = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo'].filter(a => _CC26_AG[a]);
 
+  // CONFIRMACIÓN DE CITA (Etapa 2) — campo DEAL `cita_confirmada`, grano actividad por
+  // fecha_de_la_cita. agendadas = TODOS los deals con cita en el mes (= suma de conf).
+  // confirmadas = cita_confirmada='Confirma'. efec = asistió=Si (efec ≤ confirmadas en
+  // todas las agencias-mes → no-show s/conf = (conf−efec)/conf, 0-100%). conf = distribución
+  // Confirma/Desiste/No contesta/Reagenda/Sin gestión. Foto verificada datos-hubspot 16-jun.
+  const _CONF_M = {
+    'ene·26':{agendadas:279,confirmadas:136,efec:86,conf:[["Confirma",136],["Desiste",65],["No contesta",72],["Reagenda",2],["Sin gestión",4]]},
+    'feb·26':{agendadas:221,confirmadas:128,efec:85,conf:[["Confirma",128],["Desiste",51],["No contesta",41],["Reagenda",1]]},
+    'mar·26':{agendadas:316,confirmadas:143,efec:100,conf:[["Confirma",143],["Desiste",117],["No contesta",55],["Sin gestión",1]]},
+    'abr·26':{agendadas:318,confirmadas:184,efec:120,conf:[["Confirma",184],["Desiste",74],["No contesta",60]]},
+    'may·26':{agendadas:344,confirmadas:170,efec:106,conf:[["Confirma",170],["Desiste",78],["No contesta",90],["Reagenda",2],["Sin gestión",4]]},
+    'jun·26':{agendadas:255,confirmadas:148,efec:67,conf:[["Confirma",148],["Desiste",30],["No contesta",46],["Reagenda",15],["Sin gestión",16]]}
+  };
+  const _CONF_AG = {
+    'CJA':{
+      'ene·26':{agendadas:73,confirmadas:38,efec:20,conf:[["Confirma",38],["Desiste",18],["No contesta",16],["Sin gestión",1]]},'feb·26':{agendadas:75,confirmadas:47,efec:28,conf:[["Confirma",47],["Desiste",16],["No contesta",11],["Reagenda",1]]},'mar·26':{agendadas:103,confirmadas:43,efec:26,conf:[["Confirma",43],["Desiste",41],["No contesta",19]]},'abr·26':{agendadas:99,confirmadas:56,efec:31,conf:[["Confirma",56],["Desiste",23],["No contesta",20]]},'may·26':{agendadas:119,confirmadas:54,efec:33,conf:[["Confirma",54],["Desiste",25],["No contesta",38],["Reagenda",1],["Sin gestión",1]]},'jun·26':{agendadas:99,confirmadas:55,efec:16,conf:[["Confirma",55],["Desiste",12],["No contesta",21],["Reagenda",6],["Sin gestión",5]]}
+    },
+    'Orellana':{
+      'ene·26':{agendadas:68,confirmadas:30,efec:22,conf:[["Confirma",30],["No contesta",24],["Desiste",12],["Sin gestión",2]]},'feb·26':{agendadas:68,confirmadas:36,efec:25,conf:[["Confirma",36],["Desiste",20],["No contesta",12]]},'mar·26':{agendadas:86,confirmadas:38,efec:22,conf:[["Confirma",38],["Desiste",32],["No contesta",15],["Sin gestión",1]]},'abr·26':{agendadas:67,confirmadas:45,efec:30,conf:[["Confirma",45],["No contesta",12],["Desiste",10]]},'may·26':{agendadas:85,confirmadas:43,efec:28,conf:[["Confirma",43],["No contesta",26],["Desiste",15],["Sin gestión",1]]},'jun·26':{agendadas:65,confirmadas:39,efec:18,conf:[["Confirma",39],["No contesta",13],["Desiste",7],["Sin gestión",5],["Reagenda",1]]}
+    },
+    'La Y':{
+      'ene·26':{agendadas:69,confirmadas:30,efec:20,conf:[["Confirma",30],["Desiste",21],["No contesta",17],["Reagenda",1]]},'feb·26':{agendadas:39,confirmadas:23,efec:15,conf:[["Confirma",23],["Desiste",8],["No contesta",8]]},'mar·26':{agendadas:73,confirmadas:35,efec:30,conf:[["Confirma",35],["Desiste",27],["No contesta",11]]},'abr·26':{agendadas:80,confirmadas:39,efec:29,conf:[["Confirma",39],["Desiste",23],["No contesta",18]]},'may·26':{agendadas:79,confirmadas:36,efec:24,conf:[["Confirma",36],["Desiste",27],["No contesta",14],["Reagenda",1],["Sin gestión",1]]},'jun·26':{agendadas:35,confirmadas:18,efec:11,conf:[["Confirma",18],["Reagenda",7],["Desiste",5],["Sin gestión",3],["No contesta",2]]}
+    },
+    'Tumbaco':{
+      'ene·26':{agendadas:36,confirmadas:21,efec:13,conf:[["Confirma",21],["Desiste",7],["No contesta",7],["Reagenda",1]]},'feb·26':{agendadas:23,confirmadas:12,efec:10,conf:[["Confirma",12],["No contesta",6],["Desiste",5]]},'mar·26':{agendadas:32,confirmadas:17,efec:16,conf:[["Confirma",17],["Desiste",10],["No contesta",5]]},'abr·26':{agendadas:37,confirmadas:24,efec:15,conf:[["Confirma",24],["Desiste",10],["No contesta",3]]},'may·26':{agendadas:33,confirmadas:16,efec:10,conf:[["Confirma",16],["Desiste",10],["No contesta",6],["Sin gestión",1]]},'jun·26':{agendadas:37,confirmadas:19,efec:14,conf:[["Confirma",19],["No contesta",10],["Desiste",5],["Sin gestión",2],["Reagenda",1]]}
+    },
+    'Manta':{
+      'ene·26':{agendadas:23,confirmadas:11,efec:7,conf:[["Confirma",11],["Desiste",6],["No contesta",6]]},'feb·26':{agendadas:10,confirmadas:5,efec:4,conf:[["Confirma",5],["No contesta",4],["Desiste",1]]},'mar·26':{agendadas:11,confirmadas:6,efec:3,conf:[["Confirma",6],["Desiste",3],["No contesta",2]]},'abr·26':{agendadas:16,confirmadas:11,efec:8,conf:[["Confirma",11],["Desiste",4],["No contesta",1]]},'may·26':{agendadas:11,confirmadas:10,efec:4,conf:[["Confirma",10],["Sin gestión",1]]},'jun·26':{agendadas:9,confirmadas:8,efec:4,conf:[["Confirma",8],["Desiste",1]]}
+    },
+    'Machala':{
+      'ene·26':{agendadas:5,confirmadas:5,efec:3,conf:[["Confirma",5]]},'feb·26':{agendadas:5,confirmadas:4,efec:2,conf:[["Confirma",4],["Desiste",1]]},'mar·26':{agendadas:7,confirmadas:3,efec:3,conf:[["Confirma",3],["Desiste",2],["No contesta",2]]},'abr·26':{agendadas:11,confirmadas:4,efec:4,conf:[["Confirma",4],["No contesta",6],["Desiste",1]]},'may·26':{agendadas:8,confirmadas:5,efec:2,conf:[["Confirma",5],["No contesta",2],["Desiste",1]]},'jun·26':{agendadas:8,confirmadas:7,efec:4,conf:[["Confirma",7],["Sin gestión",1]]}
+    },
+    'Portoviejo':{
+      'ene·26':{agendadas:4,confirmadas:1,efec:1,conf:[["Confirma",1],["No contesta",2],["Desiste",1]]},'feb·26':{agendadas:1,confirmadas:1,efec:1,conf:[["Confirma",1]]},'mar·26':{agendadas:4,confirmadas:1,efec:0,conf:[["Confirma",1],["Desiste",2],["No contesta",1]]},'abr·26':{agendadas:8,confirmadas:5,efec:3,conf:[["Confirma",5],["Desiste",3]]},'may·26':{agendadas:9,confirmadas:6,efec:5,conf:[["Confirma",6],["No contesta",3]]},'jun·26':{agendadas:2,confirmadas:2,efec:0,conf:[["Confirma",2]]}
+    }
+  };
+  // Confirmación agregada para los meses + agencia activos (totales + distribución).
+  function _confForMonths(months, agency) {
+    const src = (agency && agency !== 'Todas') ? (_CONF_AG[agency] || {}) : _CONF_M;
+    let agendadas = 0, confirmadas = 0, efec = 0;
+    const m = new Map();
+    (months || []).forEach(mo => {
+      const d = src[mo]; if (!d) return;
+      agendadas += d.agendadas || 0; confirmadas += d.confirmadas || 0; efec += d.efec || 0;
+      (d.conf || []).forEach(([k, v]) => m.set(k, (m.get(k) || 0) + v));
+    });
+    return { agendadas, confirmadas, efec, conf: [...m.entries()].sort((a, b) => b[1] - a[1]) };
+  }
+
   // Agencia activa (lee el dropdown; 'Todas' por defecto).
   function _ccCurAgency() {
     const s = document.getElementById('cc26-sel-agency');
@@ -10086,16 +10138,14 @@ HTML = r"""<!doctype html>
   // 'Todas' usa _CC26_M; una agencia usa _CC26_AG (cita = efec + nos).
   function _cc26Agg(months) {
     const ag = _ccCurAgency();
-    let leads=0, cont=0, tope=0, cita=0, efec=0, nos=0;
+    let leads=0, cont=0, tope=0;
     for (const m of months) {
-      let d;
-      if (ag === 'Todas') { d = _CC26_M[m]; }
-      else { const a = _CC26_AG[ag] && _CC26_AG[ag][m]; d = a ? { leads:a.leads, cont:a.cont, tope:a.tope, efec:a.efec, nos:a.nos, cita:(a.efec + a.nos) } : null; }
-      if (!d) continue;
-      leads += d.leads; cont += d.cont; tope += d.tope;
-      cita  += d.cita;  efec += d.efec; nos  += d.nos;
+      const base = (ag === 'Todas') ? _CC26_M[m] : (_CC26_AG[ag] && _CC26_AG[ag][m]);
+      if (base) { leads += base.leads; cont += base.cont; tope += base.tope; }
     }
-    return { leads, cont, tope, cita, efec, nos };
+    // agendadas/confirmadas/efectivas vienen de la Etapa 2 (_CONF), misma agencia.
+    const cf = _confForMonths(months, ag);
+    return { leads, cont, tope, agen: cf.agendadas, conf: cf.confirmadas, efec: cf.efec };
   }
 
   // Formatea miles con punto
@@ -10115,11 +10165,13 @@ HTML = r"""<!doctype html>
     const VERDE_OSC  = '#0F6E56';
     const base       = Math.max(s.leads, 1);
 
-    // % conversiones
+    // % conversiones (cada etapa sobre la anterior)
+    const noShow = Math.max(s.conf - s.efec, 0);  // confirmadas que NO asistieron
     const pCont  = _cc26Pct(s.cont, s.leads);
-    const pCita  = _cc26Pct(s.cita, s.cont);
-    const pEfec  = _cc26Pct(s.efec, s.cita);
-    const pNos   = _cc26Pct(s.nos,  s.cita);
+    const pAgen  = _cc26Pct(s.agen, s.cont);   // agendan cita (de contactados)
+    const pConf  = _cc26Pct(s.conf, s.agen);   // confirman (de agendadas)
+    const pEfec  = _cc26Pct(s.efec, s.conf);   // asisten (de confirmadas)
+    const pNos   = _cc26Pct(noShow, s.conf);   // no-show SOBRE confirmadas
     const pTope  = _cc26Pct(s.tope, s.leads);
 
     function stage(name, val, widthPct, color) {
@@ -10146,7 +10198,7 @@ HTML = r"""<!doctype html>
         </div>
         <div class="cc26-chip red">
           <div class="cc26-chip-pct">${nPct}%</div>
-          <div class="cc26-chip-label">No-show</div>
+          <div class="cc26-chip-label">No-show s/conf</div>
         </div>
       </div>`;
     }
@@ -10155,9 +10207,11 @@ HTML = r"""<!doctype html>
       stage('Leads recibidos', s.leads, 100, VERDE)
       + conv(pCont + '% · contactamos')
       + stage('Contactados', s.cont, _cc26Pct(s.cont, s.leads), VERDE)
-      + conv(pCita + '% · agendan cita')
-      + stage('Citas agendadas', s.cita, _cc26Pct(s.cita, s.leads), VERDE)
-      + conv(pEfec + '% · asisten', pNos + '% no-show')
+      + conv(pAgen + '% · agendan cita')
+      + stage('Citas agendadas', s.agen, _cc26Pct(s.agen, s.leads), VERDE)
+      + conv(pConf + '% · confirman')
+      + stage('Citas confirmadas', s.conf, _cc26Pct(s.conf, s.leads), VERDE)
+      + conv(pEfec + '% · asisten', pNos + '% no-show s/ confirmadas')
       + stage('Citas efectivas', s.efec, _cc26Pct(s.efec, s.leads), VERDE_OSC)
       + chips(pTope, pNos);
   }
@@ -10705,6 +10759,19 @@ HTML = r"""<!doctype html>
       <div id="desp-c-drill"></div>
     </div>`;
 
+    // ── Card Confirmación de cita (Etapa 2: cita_confirmada) — entre Contactados y No-show ──
+    const BLUE = '#2563eb';
+    const cf = _confForMonths(months, agency);
+    const _cfGet = (k) => { const r = (cf.conf || []).find(x => x[0] === k); return r ? r[1] : 0; };
+    const cardConf = `<div class="desp-card desp-blue">
+      <div class="desp-card-head">
+        <div class="desp-card-name">Confirmación de cita</div>
+        <div class="desp-card-total">${_cc26Fmt(cf.agendadas)}</div>
+      </div>
+      <div class="desp-tagline">de <b>${_cc26Fmt(cf.agendadas)} agendadas</b>: <b>${_cc26Pct(_cfGet('Confirma'), cf.agendadas)}%</b> confirma · <b>${_cc26Pct(_cfGet('Desiste'), cf.agendadas)}%</b> desiste · <b>${_cc26Pct(_cfGet('No contesta'), cf.agendadas)}%</b> no contesta</div>
+      ${_despBars(cf.conf, cf.agendadas, BLUE)}
+    </div>`;
+
     // ── Card 3: No-show (drill etapa → llamadas de reactivación; solo en vista Todas) ──
     const ns = D.no_show || { total:0, by_estatus:[] };
     const nsAtasc = (ns.by_estatus || []).find(r => /Cita agendada/i.test(r[0]));
@@ -10729,7 +10796,7 @@ HTML = r"""<!doctype html>
       <div id="desp-ns-drill"></div>
     </div>`;
 
-    host.innerHTML = card1 + card2 + card3;
+    host.innerHTML = card1 + card2 + cardConf + card3;
 
     if (isTodas) {
       // Drill estatus/etapa → llamadas, con el cruce de los meses seleccionados (cuadra con la tabla).
