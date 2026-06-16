@@ -4540,6 +4540,9 @@ HTML = r"""<!doctype html>
         .desp-bar-fill { height: 100%; border-radius: 4px; min-width: 2px; }
         .desp-bar-val { color: var(--c-text, #0f172a); font-weight: 600; white-space: nowrap; }
         .desp-bar-val .desp-pct { color: var(--c-muted, #94a3b8); font-weight: 600; margin-left: 4px; }
+        /* variante etiqueta-palabra (tarjeta Confirmación de cita): columna ancha, sin cortar */
+        .desp-bars-words .desp-bar-row { grid-template-columns: 74px 1fr auto; gap: 7px; }
+        .desp-bars-words .desp-bar-lbl { text-align: left; white-space: nowrap; }
         /* tabla estatus */
         .desp-tbl { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
         .desp-tbl td { padding: 5px 4px; border-bottom: 1px solid var(--c-border, #f1f5f9); }
@@ -10627,9 +10630,9 @@ HTML = r"""<!doctype html>
   }
 
   // Mini-distribución de barras horizontales a partir de [[label, n], ...]
-  function _despBars(rows, total, color) {
+  function _despBars(rows, total, color, extraClass) {
     const max = rows.reduce((a, r) => Math.max(a, r[1]), 1);
-    return '<div class="desp-bars">' + rows.map(r => {
+    return '<div class="desp-bars' + (extraClass ? ' ' + extraClass : '') + '">' + rows.map(r => {
       const w = Math.max(Math.round(100 * r[1] / max), 2);
       const pct = _cc26Pct(r[1], total);
       return `<div class="desp-bar-row">
@@ -10769,7 +10772,7 @@ HTML = r"""<!doctype html>
         <div class="desp-card-total">${_cc26Fmt(cf.agendadas)}</div>
       </div>
       <div class="desp-tagline">de <b>${_cc26Fmt(cf.agendadas)} agendadas</b>: <b>${_cc26Pct(_cfGet('Confirma'), cf.agendadas)}%</b> confirma · <b>${_cc26Pct(_cfGet('Desiste'), cf.agendadas)}%</b> desiste · <b>${_cc26Pct(_cfGet('No contesta'), cf.agendadas)}%</b> no contesta</div>
-      ${_despBars(cf.conf, cf.agendadas, BLUE)}
+      ${_despBars(cf.conf, cf.agendadas, BLUE, 'desp-bars-words')}
     </div>`;
 
     // ── Card 3: No-show (drill etapa → llamadas de reactivación; solo en vista Todas) ──
