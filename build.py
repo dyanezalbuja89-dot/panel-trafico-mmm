@@ -3977,6 +3977,11 @@ HTML = r"""<!doctype html>
 
       <!-- FILTROS -->
       <div class="filter-bar">
+        <label>Marca
+          <select id="conv-f-marca">
+            <option value="FORD">FORD</option>
+          </select>
+        </label>
         <label>Mes de PRIMER TOQUE
           <select id="conv-f-mes" title="Mes en que el cliente apareció por primera vez en BD tráfico. NO es el mes en que se facturó.">
             <option value="">YTD 2026</option>
@@ -3985,6 +3990,7 @@ HTML = r"""<!doctype html>
             <option value="2026-03">Marzo</option>
             <option value="2026-04">Abril</option>
             <option value="2026-05">Mayo</option>
+            <option value="2026-06">Junio (en curso)</option>
           </select>
         </label>
         <label>Agencia
@@ -4971,6 +4977,11 @@ HTML = r"""<!doctype html>
 
       <!-- FILTROS DEL INFORME -->
       <div class="filter-bar">
+        <label>Marca
+          <select id="an-marca">
+            <option value="FORD">FORD</option>
+          </select>
+        </label>
         <label>Vista
           <select id="an-view">
             <option value="ytd">YTD 2026 (acumulado)</option>
@@ -4979,6 +4990,7 @@ HTML = r"""<!doctype html>
             <option value="marzo_2026">Marzo 2026</option>
             <option value="abril_2026">Abril 2026</option>
             <option value="mayo_2026">Mayo 2026</option>
+            <option value="junio_2026">Junio 2026 (en curso)</option>
           </select>
         </label>
         <label>Modelo<select id="an-modelo"><option value="">Todos</option></select></label>
@@ -5454,7 +5466,7 @@ HTML = r"""<!doctype html>
       return 'Oferta vs demanda · snapshot ' + snap;
     }
     if(tab === 'conv'){
-      const g = DATA.conversion_data?.FORD?.global;
+      const g = (DATA.conversion_data||{})[convState.marca]?.global;
       return g ? `${g.n_ventas_atribuidas} de ${g.n_ventas_clientes_total} ventas atribuidas a tráfico (${g.cov_rate_pct}%)` : 'Conversión tráfico → venta';
     }
     if(tab === 'comp-imp'){
@@ -8557,9 +8569,9 @@ HTML = r"""<!doctype html>
   });
 
   // Estado de filtros de Conversión
-  const convState = { mes:'', agencia:'', zona:'', modelo:'', canal:'' };
+  const convState = { mes:'', agencia:'', zona:'', modelo:'', canal:'', marca:'FORD' };
   function convFilterClientes(){
-    const CONV = DATA.conversion_data?.FORD;
+    const CONV = (DATA.conversion_data||{})[convState.marca];
     if(!CONV || !CONV.clientes_flat) return [];
     return CONV.clientes_flat.filter(c => {
       if(convState.mes     && c.first_ym !== convState.mes)    return false;
@@ -8596,7 +8608,7 @@ HTML = r"""<!doctype html>
     return {n:ds.length, mediana:med, promedio:+prom.toFixed(1), p75};
   }
   function convInitFilters(){
-    const CONV = DATA.conversion_data?.FORD;
+    const CONV = (DATA.conversion_data||{})[convState.marca];
     if(!CONV || !CONV.clientes_flat) return;
     // Poblar modelo / canal dinámicamente
     const modelos = new Set(), canales = new Set();
@@ -8606,14 +8618,43 @@ HTML = r"""<!doctype html>
     });
     const selMod = document.getElementById('conv-f-modelo');
     const selCan = document.getElementById('conv-f-canal');
-    if(selMod && selMod.options.length === 1){
+    // Repopulate cuando el usuario cambió la marca (convState._needRepopulate=true) o
+    // en la primera inicialización (length === 1).
+    if(selMod && (selMod.options.length === 1 || convState._needRepopulate)){
+      selMod.innerHTML = '<option value="">Todos</option>';
       [...modelos].sort().forEach(m => {
         const o = document.createElement('option'); o.value=m; o.textContent=m; selMod.appendChild(o);
       });
     }
-    if(selCan && selCan.options.length === 1){
+    if(selCan && (selCan.options.length === 1 || convState._needRepopulate)){
+      selCan.innerHTML = '<option value="">Todos</option>';
       [...canales].sort().forEach(c => {
         const o = document.createElement('option'); o.value=c; o.textContent=c; selCan.appendChild(o);
+      });
+    }
+    convState._needRepopulate = false;
+    // Populate brand selector (FORD ya hardcoded; agregar marcas ORGU disponibles en conversion_data)
+    const selMa = document.getElementById('conv-f-marca');
+    if(selMa && !selMa.dataset._bound){
+      const existing = new Set(Array.from(selMa.options).map(o=>o.value));
+      const cd = DATA.conversion_data || {};
+      Object.keys(cd).filter(k=>k!=='FORD' && !existing.has(k)).forEach(k=>{
+        const o = document.createElement('option'); o.value=k;
+        o.textContent = DATA.brand_display?.[k] || k;
+        selMa.appendChild(o);
+      });
+      selMa.value = convState.marca || 'FORD';
+      selMa.dataset._bound = '1';
+      selMa.addEventListener('change', e=>{
+        convState.marca = e.target.value || 'FORD';
+        // Reset sub-filtros porque dealer/model order podrían cambiar entre marcas
+        convState.mes = ''; convState.agencia = ''; convState.zona = ''; convState.modelo = ''; convState.canal = '';
+        ['mes','agencia','zona','modelo','canal'].forEach(k=>{
+          const el = document.getElementById('conv-f-'+k); if(el) el.value = '';
+        });
+        // Repopulate modelo + canal selects desde la nueva marca
+        convState._needRepopulate = true;
+        renderConversion();
       });
     }
     ['mes','agencia','zona','modelo','canal'].forEach(k => {
@@ -8629,7 +8670,7 @@ HTML = r"""<!doctype html>
     if(resetBtn && !resetBtn.dataset._bound){
       resetBtn.dataset._bound = '1';
       resetBtn.addEventListener('click', () => {
-        Object.keys(convState).forEach(k => convState[k] = '');
+        Object.keys(convState).forEach(k => { if(k !== 'marca') convState[k] = ''; });
         ['mes','agencia','zona','modelo','canal'].forEach(k => {
           const el = document.getElementById('conv-f-'+k);
           if(el) el.value = '';
@@ -8640,7 +8681,7 @@ HTML = r"""<!doctype html>
   }
 
   function renderConversion(){
-    const CONV = DATA.conversion_data?.FORD;
+    const CONV = (DATA.conversion_data||{})[convState.marca];
     if(!CONV) return;
     convInitFilters();
     const clientes = convFilterClientes();
@@ -8851,7 +8892,7 @@ HTML = r"""<!doctype html>
   }
 
   function renderConvChartModelos(){
-    const CONV = DATA.conversion_data?.FORD;
+    const CONV = (DATA.conversion_data||{})[convState.marca];
     if(!CONV || !CONV.clientes_flat) return;
     const canvas = document.getElementById('conv-chart-modelos');
     if(!canvas) return;
@@ -8980,7 +9021,7 @@ HTML = r"""<!doctype html>
   // Gráfica de evolución mensual de conversión (respeta todos los filtros excepto mes)
   let convChartEvol = null;
   function renderConvChartEvol(){
-    const CONV = DATA.conversion_data?.FORD;
+    const CONV = (DATA.conversion_data||{})[convState.marca];
     if(!CONV || !CONV.clientes_flat) return;
     const canvas = document.getElementById('conv-chart-evol');
     if(!canvas) return;
@@ -11890,9 +11931,20 @@ HTML = r"""<!doctype html>
   // =========================================================
   //              ANÁLISIS COMPLETO (Otros tab)
   // =========================================================
-  const AN_MONTHS_2026 = ['enero_2026','febrero_2026','marzo_2026','abril_2026','mayo_2026'];
-  const AN_MONTH_LBL = {'enero_2026':'Enero','febrero_2026':'Febrero','marzo_2026':'Marzo','abril_2026':'Abril','mayo_2026':'Mayo'};
-  const anstate = { view:'ytd', modelo:'', agencia:'', canal:'marketing' };
+  const AN_MONTHS_2026 = ['enero_2026','febrero_2026','marzo_2026','abril_2026','mayo_2026','junio_2026'];
+  const AN_MONTH_LBL = {'enero_2026':'Enero','febrero_2026':'Febrero','marzo_2026':'Marzo','abril_2026':'Abril','mayo_2026':'Mayo','junio_2026':'Junio'};
+  const anstate = { view:'ytd', marca:'FORD', modelo:'', agencia:'', canal:'marketing' };
+  // Helpers brand-aware: devuelven el objeto-mes del mes/marca actual.
+  // Para FORD usamos anMonthData(mk); para brand ORGU usamos BRANDS_MONTHS[mk][brand].
+  function anMonthData(mk){
+    if(!mk) return null;
+    if(anstate.marca === 'FORD') return FORD_MONTHS[mk] || null;
+    return (BRANDS_MONTHS[mk]||{})[anstate.marca] || null;
+  }
+  function anBrandLabel(){
+    if(anstate.marca === 'FORD') return 'Ford';
+    return DATA.brand_display?.[anstate.marca] || anstate.marca;
+  }
   // Categorías de canal (Marketing ~80% vs Asesor Comercial ~20%)
   const AN_CH_CATS = (DATA.channel_categories) || {
     marketing: ['Showroom','Hubspot','Ferias y Eventos','Feria/Eventos','Ferias','Llamada In'],
@@ -11932,34 +11984,69 @@ HTML = r"""<!doctype html>
   }
   function anHasInProgressMonth(monthKeys){
     return monthKeys.some(mk=>{
-      const fm = FORD_MONTHS[mk];
+      const fm = anMonthData(mk);
       return fm && fm.days_lab && fm.days_trans < fm.days_lab;
     });
   }
   let anInited = false;
 
-  function initAnalysis(){
-    if(anInited) return;
-    anInited = true;
-    // Populate model + agency selects from FORD data
-    const ff = FORD_MONTHS['enero_2026'] || FORD_MONTHS[AN_MONTHS_2026[0]] || FORD;
+  // Repuebla selects modelo + agencia según la marca activa (model_order / dealer_order
+  // pueden diferir entre Ford y brands ORGU).
+  function anRepopulateScopeSelects(){
+    const ff = anMonthData(AN_MONTHS_2026[AN_MONTHS_2026.length-1])
+            || anMonthData(AN_MONTHS_2026[0])
+            || (anstate.marca === 'FORD' ? FORD : null);
     const modelos = ff?.model_order || [];
     const agencias = ff?.dealer_order || [];
     const elMod = document.getElementById('an-modelo');
-    modelos.forEach(m=>{ const o=document.createElement('option'); o.value=m; o.textContent=m; elMod.appendChild(o); });
+    if(elMod){
+      const prev = anstate.modelo;
+      elMod.innerHTML = '<option value="">Todos</option>';
+      modelos.forEach(m=>{ const o=document.createElement('option'); o.value=m; o.textContent=m; elMod.appendChild(o); });
+      elMod.value = modelos.includes(prev) ? prev : '';
+      if(!modelos.includes(prev)) anstate.modelo = '';
+    }
     const elAg = document.getElementById('an-agencia');
-    agencias.forEach(d=>{ const o=document.createElement('option'); o.value=d; o.textContent=d; elAg.appendChild(o); });
+    if(elAg){
+      const prev = anstate.agencia;
+      elAg.innerHTML = '<option value="">Todas</option>';
+      agencias.forEach(d=>{ const o=document.createElement('option'); o.value=d; o.textContent=d; elAg.appendChild(o); });
+      elAg.value = agencias.includes(prev) ? prev : '';
+      if(!agencias.includes(prev)) anstate.agencia = '';
+    }
+  }
+
+  function initAnalysis(){
+    if(anInited) return;
+    anInited = true;
+    // Populate brand select from BRANDS list (FORD ya está hardcoded como opción default).
+    const elMarca = document.getElementById('an-marca');
+    if(elMarca){
+      (BRANDS || []).forEach(b=>{
+        const o = document.createElement('option');
+        o.value = b; o.textContent = DATA.brand_display?.[b] || b;
+        elMarca.appendChild(o);
+      });
+    }
+    anRepopulateScopeSelects();
     // Bind
+    if(elMarca){
+      elMarca.addEventListener('change', e=>{
+        anstate.marca = e.target.value;
+        anRepopulateScopeSelects();
+        renderAnalysis();
+      });
+    }
     document.getElementById('an-view').addEventListener('change', e=>{ anstate.view = e.target.value; renderAnalysis(); });
     document.getElementById('an-modelo').addEventListener('change', e=>{ anstate.modelo = e.target.value; renderAnalysis(); });
     document.getElementById('an-agencia').addEventListener('change', e=>{ anstate.agencia = e.target.value; renderAnalysis(); });
     document.getElementById('an-canal').addEventListener('change', e=>{ anstate.canal = e.target.value; renderAnalysis(); });
     document.getElementById('an-reset').addEventListener('click', ()=>{
-      anstate.view='ytd'; anstate.modelo=''; anstate.agencia=''; anstate.canal='marketing';
+      anstate.view='ytd'; anstate.marca='FORD'; anstate.modelo=''; anstate.agencia=''; anstate.canal='marketing';
       document.getElementById('an-view').value='ytd';
-      document.getElementById('an-modelo').value='';
-      document.getElementById('an-agencia').value='';
+      if(elMarca) elMarca.value='FORD';
       document.getElementById('an-canal').value='marketing';
+      anRepopulateScopeSelects();
       renderAnalysis();
     });
   }
@@ -11974,7 +12061,7 @@ HTML = r"""<!doctype html>
     let curr=0, metaMkt=0;
     const canalSet = anCanalSet();
     monthKeys.forEach(mk=>{
-      const fm = FORD_MONTHS[mk]; if(!fm) return;
+      const fm = anMonthData(mk); if(!fm) return;
       const dayFactor = anMonthDayFactor(fm);
       const mods = models && models.length ? models : (fm.model_order||[]);
       const deals = dealers && dealers.length ? dealers : (fm.dealer_order||[]);
@@ -12050,7 +12137,7 @@ HTML = r"""<!doctype html>
 
   function renderAnPorModelo(){
     const months = anScopeMonths();
-    const ff = FORD_MONTHS[months[months.length-1]] || FORD_MONTHS[AN_MONTHS_2026[0]];
+    const ff = anMonthData(months[months.length-1]) || anMonthData(AN_MONTHS_2026[0]);
     const modelos = ff?.model_order || [];
     // filter by anstate.modelo if set
     const inModels = anstate.modelo ? [anstate.modelo] : null;
@@ -12087,7 +12174,7 @@ HTML = r"""<!doctype html>
 
   function renderAnPorAgencia(){
     const months = anScopeMonths();
-    const ff = FORD_MONTHS[months[months.length-1]] || FORD_MONTHS[AN_MONTHS_2026[0]];
+    const ff = anMonthData(months[months.length-1]) || anMonthData(AN_MONTHS_2026[0]);
     const dealers = ff?.dealer_order || [];
     const inDealers = anstate.agencia ? [anstate.agencia] : null;
     document.getElementById('an-ag-sub').textContent = anViewLabel() + (anstate.modelo?` · ${anstate.modelo}`:'') + (inDealers?` · sólo ${anstate.agencia}`:'');
@@ -12128,7 +12215,7 @@ HTML = r"""<!doctype html>
     const canalSet = anCanalSet();
     const ch = {};
     months.forEach(mk=>{
-      const fm = FORD_MONTHS[mk]; if(!fm) return;
+      const fm = anMonthData(mk); if(!fm) return;
       const dmc = fm.dealer_model_channel || {};
       const deals = anstate.agencia ? [anstate.agencia] : (fm.dealer_order || []);
       const mods = anstate.modelo ? [anstate.modelo] : (fm.model_order || []);
@@ -12161,7 +12248,7 @@ HTML = r"""<!doctype html>
 
   function renderAnHeatmap(){
     const months = anScopeMonths();
-    const ff = FORD_MONTHS[months[months.length-1]] || FORD_MONTHS[AN_MONTHS_2026[0]];
+    const ff = anMonthData(months[months.length-1]) || anMonthData(AN_MONTHS_2026[0]);
     document.getElementById('an-heat-sub').textContent = anViewLabel() + ' · ' + anCanalLabel();
     const modelos = anstate.modelo ? [anstate.modelo] : (ff?.model_order||[]);
     const dealers = anstate.agencia ? [anstate.agencia] : (ff?.dealer_order||[]);
@@ -12174,7 +12261,7 @@ HTML = r"""<!doctype html>
       const cells = dealers.map(d=>{
         let real=0, metaMkt=0;
         months.forEach(mk=>{
-          const fm = FORD_MONTHS[mk]; if(!fm) return;
+          const fm = anMonthData(mk); if(!fm) return;
           const dayFactor = anMonthDayFactor(fm);
           const chMap = (fm.dealer_model_channel?.[d]||{})[m] || {};
           for(const k in chMap){ if(canalSet.has(k)) real += chMap[k]||0; }
@@ -12252,7 +12339,7 @@ HTML = r"""<!doctype html>
     //   total (no se atribuyen a agencia históricamente).
     function calcRow(mk, modeloOpt, agenciaOpt){
       const cr = mc[mk]; if(!cr) return null;
-      const fm = FORD_MONTHS[mk]; if(!fm) return null;
+      const fm = anMonthData(mk); if(!fm) return null;
       let trafico, meta;
       if(modeloOpt && agenciaOpt){
         trafico = (fm.matrix_cnt?.[modeloOpt]?.[agenciaOpt]) || 0;
@@ -12421,7 +12508,7 @@ HTML = r"""<!doctype html>
 
     // Headers con contexto: días lab. + barra de progreso si está en curso
     const headerCells = monthKeys.map((k, i) => {
-      const fm = FORD_MONTHS[k] || {};
+      const fm = anMonthData(k) || {};
       const isCurrent = mc[k]?.is_current;
       const label = monthLabels[i].toUpperCase();
       let ctx, progress = '';
@@ -12719,7 +12806,7 @@ HTML = r"""<!doctype html>
       html: `Bajo el scope <strong>${scope}</strong> (${anViewLabel()}), tráfico real es <span class="data">${curr}</span> contra meta <span class="data">${meta}</span> → cumplimiento <span class="data">${pct==null?'N/A':pct.toFixed(1)+'%'}</span>${meta>0?`, gap <span class="data">${fmtSigned(curr-meta)}</span>`:''}.`});
 
     // Best/worst model
-    const ff = FORD_MONTHS[AN_MONTHS_2026[0]] || FORD;
+    const ff = anMonthData(AN_MONTHS_2026[0]) || FORD;
     if(!anstate.modelo){
       const perModel = (ff?.model_order||[]).map(m=>{
         const {curr:c,meta:me} = anAgg(months, [m], anScopeDealers());
@@ -12772,7 +12859,7 @@ HTML = r"""<!doctype html>
     const ch = {};
     const insCanalSet = anCanalSet();
     months.forEach(mk=>{
-      const fm = FORD_MONTHS[mk]; if(!fm) return;
+      const fm = anMonthData(mk); if(!fm) return;
       const dmc = fm.dealer_model_channel || {};
       const deals = anstate.agencia ? [anstate.agencia] : (fm.dealer_order || []);
       const mods = anstate.modelo ? [anstate.modelo] : (fm.model_order || []);

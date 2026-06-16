@@ -1219,13 +1219,24 @@ def main():
         # ► Fuente de ventas: archivo "Base de ventas YTD ...xlsx" (ventas netas).
         # El inventario sigue siendo la fuente de stock/reservas (eso no cambia).
         "conversion_data": (
-            (lambda: {
-                'FORD': compute_conversion_metrics(
+            (lambda _ventas: ({
+                # Ford + cada marca ORGU. Tab Conversión usa el filtro brand para switchear.
+                # Brand-key mapping: aggregate emite con sufijo _ORGU (DONGFENG_ORGU, etc.)
+                # pero compute_conversion_metrics filtra por columna 'marca' de ventas que
+                # contiene los nombres limpios (DONGFENG, CHERY, MAZDA, RAM).
+                k: compute_conversion_metrics(
                     bd_dir=str(BASE / 'BD_MAYO'),
-                    sales_df=__import__('ventas').load_ventas(),
-                    marca_filter='FORD',
+                    sales_df=_ventas,
+                    marca_filter=mf,
                 )
-            } if __import__('ventas').load_ventas() is not None else None)()
+                for (k, mf) in [
+                    ('FORD',          'FORD'),
+                    ('DONGFENG_ORGU', 'DONGFENG'),
+                    ('CHERY_ORGU',    'CHERY'),
+                    ('MAZDA_ORGU',    'MAZDA'),
+                    ('RAM_ORGU',      'RAM'),
+                ]
+            }) if _ventas is not None else None)(__import__('ventas').load_ventas())
         ),
         # matrix_meta carga la meta marketing (80%). Para escalar la meta cuando se
         # filtra por categoría de canal en la pestaña Otros, JS aplica estos ratios.
