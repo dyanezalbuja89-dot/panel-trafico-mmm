@@ -9051,8 +9051,8 @@
       return true;
     });
 
-    const meses  = ['2026-01','2026-02','2026-03','2026-04','2026-05'];
-    const labels = ['Enero','Febrero','Marzo','Abril','Mayo'];
+    const meses  = ['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06'];
+    const labels = ['Enero','Febrero','Marzo','Abril','Mayo','Junio'];
     const stats = meses.map(m => {
       const sub = filtered.filter(c => c.first_ym === m);
       const total = sub.length;
@@ -9061,6 +9061,9 @@
       const pct = total > 0 ? Math.round(100*cerraron/total*10)/10 : null;
       return { total, cerraron, ventas, pct };
     });
+    // Y-axis dinámico con headroom para que las etiquetas no se corten.
+    const _maxPct = Math.max(0, ...stats.map(s => s.pct || 0));
+    const _yMax = Math.max(20, Math.ceil((_maxPct + 12) / 10) * 10);
 
     if(convChartEvol){ convChartEvol.destroy(); }
     convChartEvol = new Chart(canvas, {
@@ -9103,7 +9106,10 @@
           },
           datalabels: {
             display: ctx => stats[ctx.dataIndex].pct != null,
-            anchor: 'end', align: 'top', offset: 8,
+            // Datalabels arriba del punto. Para pct === 0, anchor 'start' + align 'top'
+            // evita que la etiqueta caiga bajo el eje X y se recorte.
+            anchor: ctx => (stats[ctx.dataIndex].pct === 0 ? 'start' : 'end'),
+            align: 'top', offset: 10,
             color: '#003478', font: { size: 13, weight: '700' },
             formatter: (v, ctx) => stats[ctx.dataIndex].pct != null ? stats[ctx.dataIndex].pct + '%' : ''
           }
@@ -9111,12 +9117,14 @@
         scales: {
           y: {
             beginAtZero: true,
+            suggestedMax: _yMax,
+            max: _yMax,
             ticks: { callback: v => v + '%', font:{size:11} },
             title: { display:true, text:'% Conversión', font:{size:11,weight:'600'} }
           },
           x: { ticks:{font:{size:11}}, grid:{display:false} }
         },
-        layout: { padding: { top: 24 } }
+        layout: { padding: { top: 36, bottom: 12, left: 8, right: 16 } }
       }
     });
   }
