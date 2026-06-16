@@ -10295,6 +10295,8 @@ HTML = r"""<!doctype html>
     if(digitalUnlocked()) digShowContent(); else digShowGate();
   });
 
+  // Render inicial del tab digital (gate removido: ya no depende del desbloqueo)
+  try { if (typeof renderDigital === "function") renderDigital(); } catch(e) { console.error("renderDigital init", e); }
   let compImpChart = null;
   function renderCompImp(){
     const C = DATA.competencia_data;
