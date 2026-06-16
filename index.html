@@ -10161,17 +10161,29 @@
       no_show:        { total: list.reduce((s, d) => s + (d.no_show.total || 0), 0),        by_estatus: sumBuckets(list.map(d => d.no_show.by_estatus)) }
     };
   }
-  // Dato VIVO por mes si el pull lo emite (DATA.digital.cc_desperdicio.by_month[label]).
-  function _despLiveMonth(label) {
-    const live = (window.DATA && DATA.digital && DATA.digital.cc_desperdicio) || null;
-    return (live && live.by_month && live.by_month[label]) || null;
-  }
   // Devuelve el objeto-desperdicio para el periodo: 'Total' (suma de meses) o un mes.
-  // Prioriza el vivo por-mes; cae al estatico _DESP_M.
+  // FUENTE ÚNICA: contactados/no_show (total + by_estatus) se DERIVAN del cruce
+  // _DESP_CRUCE_M (sumando cada fila estatus×llamada). Así la tabla por estatus y su
+  // drill SIEMPRE cuadran: fila = total del drill, y total de la tarjeta = suma de filas.
+  // (Antes salían de _DESP_M, una foto distinta del cruce → desfase de ±2 en jun sin madurar.)
+  // no_contactados no tiene cruce; viene de _DESP_M (su by_llamada ya suma al total).
   function _despForPeriod(period) {
-    const pick = (l) => _despLiveMonth(l) || _DESP_M[l];
-    if (period && period !== 'Total' && _DESP_M[period]) return pick(period);
-    return _despMerge(_DESP_ORDER.map(pick));  // Total
+    const cruce = _despCruceForPeriod(period);
+    const fromCruce = (obj) => {
+      const rows = Object.entries(obj || {})
+        .map(([k, arr]) => [k, arr.reduce((a, b) => a + b, 0)])
+        .filter(r => r[1] > 0)
+        .sort((a, b) => b[1] - a[1]);
+      return { total: rows.reduce((s, r) => s + r[1], 0), by_estatus: rows };
+    };
+    const ncList = (period && period !== 'Total' && _DESP_M[period])
+      ? [_DESP_M[period]] : _DESP_ORDER.map(l => _DESP_M[l]);
+    return {
+      available: true,
+      no_contactados: _despMerge(ncList).no_contactados,
+      contactados: fromCruce(cruce.contactados),
+      no_show: fromCruce(cruce.no_show)
+    };
   }
   // Rellena el <select> de periodo una sola vez (Total + meses presentes).
   function _despPopulatePeriodo() {
