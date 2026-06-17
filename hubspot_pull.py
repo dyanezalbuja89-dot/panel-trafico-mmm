@@ -136,8 +136,12 @@ AGENCY_SHORT = {
     'Orgu Portoviejo': 'Portoviejo',
 }
 
+# Valores del enum cita_confirmada (Etapa 2). Sin gestión = agendadas − suma(estos).
+_CONFIRMA_VALS = ['Confirma', 'Desiste', 'No contesta', 'Reagenda']
+
 def fetch_monthly_funnel(months):
-    """Para cada mes: leads, contactados, agendadas, efectivas, ventas."""
+    """Para cada mes: leads, contactados, agendadas, confirmadas, efectivas, ventas
+    + distribución de confirmación (conf)."""
     out = []
     for label, y, m_idx in months:
         s, e = _month_bounds(y, m_idx)
@@ -148,12 +152,26 @@ def fetch_monthly_funnel(months):
         nos  = _count('deals',    [PIPE_FILTER, _between('fecha_de_la_cita', s, e), _eq('asistio_a_la_cita', 'No')])
         tope = _count('contacts', [_between('fecha_y_hora_de_ingreso___cc', s, e), _eq('numero_de_llamada', '12º Llamada')])
         vent  = _count('deals',    [PIPE_FILTER, _eq('dealstage', 'closedwon'), _between('closedate', s, e)])
+        # Etapa 2 confirmación: distribución de cita_confirmada sobre las agendadas.
+        conf = []
+        conf_sum = 0
+        for cv in _CONFIRMA_VALS:
+            n = _count('deals', [PIPE_FILTER, _between('fecha_de_la_cita', s, e), _eq('cita_confirmada', cv)])
+            if n > 0:
+                conf.append([cv, n])
+            conf_sum += n
+        sin_gestion = max(agen - conf_sum, 0)
+        if sin_gestion > 0:
+            conf.append(['Sin gestión', sin_gestion])
+        conf.sort(key=lambda r: r[1], reverse=True)
+        confirmadas = next((n for k, n in conf if k == 'Confirma'), 0)
         out.append({
             'label': label, 'year': y, 'month': m_idx + 1,
             'leads': leads, 'cont': cont, 'agen': agen, 'efec': efec, 'vent': vent,
             'tope': tope, 'nos': nos,
+            'confirmadas': confirmadas, 'conf': conf,
         })
-        print(f'  {label}: leads={leads} cont={cont} agen={agen} efec={efec} vent={vent}', flush=True)
+        print(f'  {label}: leads={leads} cont={cont} agen={agen} confirm={confirmadas} efec={efec}', flush=True)
     return out
 
 def fetch_agency_breakdown(months):

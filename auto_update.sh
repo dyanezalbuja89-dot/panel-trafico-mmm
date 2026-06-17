@@ -44,6 +44,12 @@ elif [ "$FETCH_EXIT" -ne 0 ]; then
     exit "$FETCH_EXIT"
 fi
 
+# 2b. Refrescar dato digital (HubSpot · Ventas-Ford + Ventas-Dongfeng)
+#     Escribe digital.json (mismo dir) que aggregate.py mergea al data.json.
+#     Si falla, aggregate usa el digital.json previo (no rompe el pipeline).
+log "Refrescando digital desde HubSpot..."
+python3 hubspot_pull.py >> "$LOG_FILE" 2>&1 || log "WARN: hubspot_pull fallo; se usa digital.json previo"
+
 # 3. Regenerar data.json
 log "Generando data.json..."
 python3 aggregate.py >> "$LOG_FILE" 2>&1

@@ -10270,22 +10270,19 @@
   const _CC26_MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   function _cc26BuildLiveM(){
     const out = {};
-    const months = (window.DATA && DATA.digital && DATA.digital.months) || [];
-    for (const m of months) {
+    // FIX: DATA es const del IIFE, NO window.DATA (que es undefined) → antes caía SIEMPRE
+    // al fallback estático. Ahora lee el data.json vivo (lo refresca el pull diario).
+    const D = (typeof DATA !== 'undefined' && DATA.digital && DATA.digital.months) ? DATA.digital.months : [];
+    for (const m of D) {
       if (Number(m.year) !== 2026) continue;
       const idx = Number(m.month) - 1;
       if (idx < 0 || idx > 11) continue;
       if (m.tope == null || m.nos == null) continue;
       const label = _CC26_MES[idx] + '·26';
-      const efec = Number(m.efec) || 0;
-      const nos  = Number(m.nos)  || 0;
       out[label] = {
         leads: Number(m.leads) || 0,
         cont:  Number(m.cont)  || 0,
-        tope:  Number(m.tope)  || 0,
-        cita:  efec + nos,           // cita = efectivas + no-show (NO usar agen)
-        efec:  efec,
-        nos:   nos
+        tope:  Number(m.tope)  || 0
       };
     }
     return out;
@@ -10380,8 +10377,25 @@
     }
   };
   // Confirmación agregada para los meses + agencia activos (totales + distribución).
+  // CONF vivo (Todas) desde data.json.months {agen,confirmadas,efec,conf}. {} si el pull
+  // aún no emite 'confirmadas' (entonces se usa la foto estática _CONF_M).
+  function _confLiveTodas() {
+    const D = (typeof DATA !== 'undefined' && DATA.digital && DATA.digital.months) ? DATA.digital.months : [];
+    const out = {};
+    for (const m of D) {
+      if (Number(m.year) !== 2026 || m.confirmadas == null) continue;
+      const idx = Number(m.month) - 1; if (idx < 0 || idx > 11) continue;
+      out[_CC26_MES[idx] + '·26'] = {
+        agendadas: Number(m.agen) || 0, confirmadas: Number(m.confirmadas) || 0,
+        efec: Number(m.efec) || 0, conf: m.conf || []
+      };
+    }
+    return out;
+  }
   function _confForMonths(months, agency) {
-    const src = (agency && agency !== 'Todas') ? (_CONF_AG[agency] || {}) : _CONF_M;
+    let src;
+    if (agency && agency !== 'Todas') { src = _CONF_AG[agency] || {}; }
+    else { const live = _confLiveTodas(); src = Object.keys(live).length ? live : _CONF_M; }
     let agendadas = 0, confirmadas = 0, efec = 0;
     const m = new Map();
     (months || []).forEach(mo => {
