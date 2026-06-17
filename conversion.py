@@ -517,22 +517,23 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     period_start = pd.Timestamp('2026-01-01')
 
     # Cargar facturas. Modo nuevo (sales_df pasado) o legacy (sales_df_path).
+    # ► VENTAS NETAS: incluimos FACTURA y NOTA DE CREDITO. Cada fila trae 'Cantidad'
+    # con signo (+1 FACTURA, -1 NC). Los conteos posteriores usan sum(Cantidad).
     if sales_df is not None:
-        # ► Archivo de ventas netas (Base de ventas YTD ...xlsx) ya viene con
-        # columnas mapeadas vía ventas.load_ventas(). Sólo facturación (no NC)
-        # y solo Ford si marca_filter está activo.
         facturas = sales_df.copy()
-        if 'Tipo Transaccion' in facturas.columns:
-            facturas = facturas[facturas['Tipo Transaccion'].astype(str).str.upper() == 'FACTURA']
         facturas['fecha_fact'] = pd.to_datetime(facturas['fecha de facturacion'], errors='coerce')
         facturas['marca_up'] = facturas['marca'].astype(str).str.strip().str.upper()
+        if 'Cantidad' not in facturas.columns:
+            facturas['Cantidad'] = 1
+        facturas['Cantidad'] = facturas['Cantidad'].fillna(1).astype(int)
     else:
-        # Modo legacy: leer del inventario DATOS
+        # Modo legacy: leer del inventario DATOS (sin NC explícitas, todo cuenta como +1)
         inv = pd.read_excel(sales_df_path, sheet_name='DATOS', header=0)
         inv['STATUS_H'] = inv['STATUS HOMOLOGADO'].astype(str).str.strip().str.upper()
         facturas = inv[inv['STATUS_H'] == 'FACTURADO'].copy()
         facturas['fecha_fact'] = pd.to_datetime(facturas['fecha de facturacion'], errors='coerce')
         facturas['marca_up'] = facturas['marca'].astype(str).str.strip().str.upper()
+        facturas['Cantidad'] = 1
     if marca_filter:
         facturas = facturas[facturas['marca_up'] == marca_filter.upper()]
     # Filtrar a período donde tenemos BDs
@@ -567,15 +568,21 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     n_clientes_traffic = traffic_df['client_key'].nunique()
     n_clientes_matched = matched_sales['matched_ck'].nunique()
     conv_rate = (100 * n_clientes_matched / n_clientes_traffic) if n_clientes_traffic else 0
-    # Cobertura inversa: % de FACTURAS (ventas) atribuidas a tráfico
+    # Cobertura inversa: % de VENTAS NETAS atribuidas a tráfico.
+    # n_facturas_* ahora son NETOS (sum Cantidad con signo FACTURA-NC), no conteo de filas.
     sales_df_after = result['sales_df']
-    n_facturas_total = int(len(sales_df_after))
-    n_facturas_atribuidas = int(sales_df_after['matched_ck'].notna().sum())
+    if 'Cantidad' not in sales_df_after.columns:
+        sales_df_after['Cantidad'] = 1
+    sales_df_after['Cantidad'] = sales_df_after['Cantidad'].fillna(1).astype(int)
+    n_facturas_total = int(sales_df_after['Cantidad'].sum())
+    n_facturas_atribuidas = int(sales_df_after.loc[sales_df_after['matched_ck'].notna(), 'Cantidad'].sum())
     n_facturas_sin_atribuir = n_facturas_total - n_facturas_atribuidas
     cov_rate = (100 * n_facturas_atribuidas / n_facturas_total) if n_facturas_total else 0
-    # También conservamos cobertura por cliente único (para análisis)
-    n_clientes_unicos_total = int(sales_df_after['ced_base'].nunique())
-    n_clientes_unicos_matched = int(sales_df_after[sales_df_after['matched_ck'].notna()]['ced_base'].nunique())
+    # Cobertura por cliente único: sólo clientes con NETO > 0.
+    _net_by_ced = sales_df_after.groupby('ced_base')['Cantidad'].sum()
+    n_clientes_unicos_total = int((_net_by_ced > 0).sum())
+    _net_by_ced_matched = sales_df_after[sales_df_after['matched_ck'].notna()].groupby('ced_base')['Cantidad'].sum()
+    n_clientes_unicos_matched = int((_net_by_ced_matched > 0).sum())
 
     # Tiempo de ciclo: días entre primer toque (tráfico) y factura
     ciclo_dias = []
@@ -600,11 +607,14 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     # Antes contábamos matched a NIVEL de fila de factura sin filtrar fecha,
     # inflando el conteo con facturas anteriores al touch (típico B2B).
     valid_ck_to_n_ventas = {}
+    if 'Cantidad' not in matched_sales.columns:
+        matched_sales['Cantidad'] = 1
+    matched_sales['Cantidad'] = matched_sales['Cantidad'].fillna(1).astype(int)
     for ck, ft in first_touch.items():
         first_t = ft.get('first_fecha')
         if pd.isna(first_t):
             continue
-        # Buscar facturas posteriores al touch para este ck
+        # Buscar facturas+NC posteriores al touch para este ck. NETO = sum(Cantidad).
         if ck in matched_sales['matched_ck'].values:
             sub = matched_sales[
                 (matched_sales['matched_ck'] == ck)
@@ -612,7 +622,9 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
                 & (matched_sales['fecha_fact'] >= first_t)
             ]
             if len(sub):
-                valid_ck_to_n_ventas[ck] = len(sub)
+                neto = int(sub['Cantidad'].sum())
+                if neto > 0:
+                    valid_ck_to_n_ventas[ck] = neto
 
     def _build_breakdown(get_key):
         bd = {}
@@ -711,24 +723,35 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
         n_ventas = 0
         ciclo_d = None
         if cerro:
-            fechas_fact = sales_by_ck.get(ck, [])
+            # ► VENTAS NETAS por cliente: sumar Cantidad de filas matched (con signo).
+            # Si NC > FACTURA, neto ≤ 0 → no es conversión real (cerro=False).
             first_t = ft.get('first_fecha')
             if pd.notna(first_t):
-                # ► Solo contar facturas posteriores (o iguales) al primer toque.
-                # Las facturas anteriores al touch no son atribuibles a esa cohorte.
-                fechas_post = [f for f in fechas_fact if pd.notna(f) and f >= first_t]
-                n_ventas = len(fechas_post)
-                if fechas_post:
-                    primera_fact = min(fechas_post)
-                    d = (primera_fact - first_t).days
-                    if 0 <= d <= 730:
-                        ciclo_d = int(d)
+                sub_ck = matched_sales[
+                    (matched_sales['matched_ck'] == ck)
+                    & matched_sales['fecha_fact'].notna()
+                    & (matched_sales['fecha_fact'] >= first_t)
+                ]
+                if len(sub_ck):
+                    n_ventas = int(sub_ck['Cantidad'].sum())
+                    if n_ventas <= 0:
+                        cerro = False
+                    else:
+                        # Para el ciclo usamos la primera FACTURA posterior al toque
+                        # (las NC no inician el ciclo de venta).
+                        fechas_fact_pos = sub_ck[sub_ck['Cantidad'] > 0]['fecha_fact']
+                        if len(fechas_fact_pos):
+                            primera_fact = fechas_fact_pos.min()
+                            d = (primera_fact - first_t).days
+                            if 0 <= d <= 730:
+                                ciclo_d = int(d)
                 else:
-                    # Si no hay facturas posteriores al toque → no es conversión real
                     cerro = False
             else:
-                # Sin fecha de toque (raro), usar count total como fallback
-                n_ventas = len(fechas_fact)
+                # Sin fecha de toque (raro), neto sobre todo lo matched.
+                sub_ck = matched_sales[matched_sales['matched_ck'] == ck]
+                n_ventas = int(sub_ck['Cantidad'].sum()) if len(sub_ck) else 0
+                if n_ventas <= 0: cerro = False
         # n_toques: cuántos meses distintos vino el cliente. Para B2B sintéticos sin
         # tráfico, asumimos 1 (la "venta" cuenta como un toque atendido).
         n_toques = int(toques_mensuales.get(ck, 1)) if str(ck).startswith('r') else 1
