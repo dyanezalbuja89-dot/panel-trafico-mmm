@@ -2832,6 +2832,7 @@ HTML = r"""<!doctype html>
           <option value="comp">🔁 Comparativo</option>
           <option value="otros">📑 Análisis General</option>
           <option value="digital">📡 Seguimiento Digital</option>
+          <option value="digital-df">📡 Seguimiento Digital Dong Feng</option>
         </optgroup>
         <optgroup label="Ventas">
           <option value="conv">🎯 Conversión</option>
