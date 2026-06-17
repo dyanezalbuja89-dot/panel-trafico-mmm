@@ -11772,6 +11772,37 @@ HTML = r"""<!doctype html>
     if(digitalUnlocked()) digShowContent(); else digShowGate();
   });
 
+  // ── EN VIVO (etapa 2): sobreescribe los datos estáticos con DATA.digital.live ──
+  // (pull eficiente fetch-aggregate, Ford + Dong Feng). Si no hay live, queda la foto.
+  // Object.assign muta los const (permitido); los *_ORDER/_Q ya se calcularon con los
+  // mismos labels de mes, así que siguen válidos.
+  try {
+    const _L = (typeof DATA !== 'undefined' && DATA.digital && DATA.digital.live) || null;
+    if (_L) {
+      const _mm = (arr, fields) => { const o = {}; (arr || []).forEach(m => { const x = {}; fields.forEach(f => x[f] = m[f]); o[m.label] = x; }); return o; };
+      if (_L.ford) {
+        const F = _L.ford;
+        if (F.ag) { Object.assign(_CC26_AG, F.ag); Object.assign(_CONF_AG, F.ag); }
+        if (F.desperdicio) {
+          Object.assign(_DESP_M, F.desperdicio.by_month || {});
+          Object.assign(_DESP_AG, F.desperdicio.by_agency || {});
+          Object.assign(_DESP_CRUCE_M, F.desperdicio.cruce || {});
+        }
+      }
+      if (_L.dongfeng) {
+        const G = _L.dongfeng;
+        Object.assign(_DF2_CC26_M, _mm(G.months, ['leads', 'cont', 'tope']));
+        Object.assign(_DF2_CONF_M, _mm(G.months, ['agendadas', 'confirmadas', 'efec', 'conf']));
+        if (G.ag) { Object.assign(_DF2_CC26_AG, G.ag); Object.assign(_DF2_CONF_AG, G.ag); }
+        if (G.desperdicio) {
+          Object.assign(_DF2_DESP_M, G.desperdicio.by_month || {});
+          Object.assign(_DF2_DESP_AG, G.desperdicio.by_agency || {});
+          Object.assign(_DF2_DESP_CRUCE_M, G.desperdicio.cruce || {});
+        }
+      }
+    }
+  } catch (e) { console.error("live override", e); }
+
   // Render inicial del tab digital (gate removido: ya no depende del desbloqueo)
   try { if (typeof renderDigital === "function") renderDigital(); } catch(e) { console.error("renderDigital init", e); }
 

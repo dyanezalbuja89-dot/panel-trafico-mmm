@@ -413,6 +413,14 @@ def main(output_path='digital.json'):
         kpis = compute_kpis(funnel)
         print('[hubspot_pull] Fetch desperdicio por fase...', flush=True)
         desperdicio = fetch_cc_desperdicio(months)
+        # ── Pull EFICIENTE (fetch-aggregate) Ford + Dong Feng → todo el panel en vivo ──
+        live = None
+        try:
+            import digital_pull2 as _D2
+            print('[hubspot_pull] Fetch eficiente Ford + Dong Feng (live)...', flush=True)
+            live = _D2.fetch_all_brands()
+        except Exception as _ex:
+            print(f'[hubspot_pull] live fetch FALLO: {type(_ex).__name__}: {_ex}', file=sys.stderr, flush=True)
         snapshot = {
             'available': True,
             'updated_at': datetime.now(timezone.utc).isoformat(),
@@ -423,6 +431,7 @@ def main(output_path='digital.json'):
             'models': model,
             'kpis': kpis,
             'cc_desperdicio': desperdicio,
+            'live': live,
         }
     out = Path(output_path)
     out.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False))
