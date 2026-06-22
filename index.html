@@ -2840,8 +2840,8 @@
     </div>
   </div>
   <div class="topbar-actions">
-    <div class="topbar-hero" id="topbar-hero">
-      <div class="h-label">Cumplimiento Ford</div>
+    <div class="topbar-hero" id="topbar-hero" title="Rota cada 5s entre marcas">
+      <div class="h-label" id="topbar-hero-label">Cumplimiento de Tráfico · Ford</div>
       <div class="h-value" id="topbar-hero-value">—</div>
       <div class="h-hint" id="topbar-hero-hint">mes actual</div>
     </div>
@@ -5439,6 +5439,67 @@
   let currentMonthFF = DATA.default_month_key || (MONTHS_CONFIG[MONTHS_CONFIG.length-1]||{}).key || '';
   let currentMonthBR = currentMonthFF;
 
+  // ── TOPBAR HERO rotativo · ciclo entre marcas cada 5s ──────────────
+  // Sustituye el indicador "Cumplimiento Ford" fijo por una rotación que
+  // pasa Ford → DongFeng → Chery → Mazda → RAM (sólo las marcas que tienen
+  // datos y meta válida en el mes en curso).
+  function topbarHeroComputeBrands(){
+    const mk = currentMonthFF && currentMonthFF !== 'ytd' ? currentMonthFF : (DATA.default_month_key || '');
+    const cfg = MONTHS_CONFIG.find(c => c.key === mk);
+    const monthLabel = cfg ? cfg.label : 'mes actual';
+    const out = [];
+    // Ford
+    const fm = FORD_MONTHS[mk];
+    if(fm){
+      const meta = fm.meta_total || 0;
+      const proj = fm.projection_total || 0;
+      const cumpl = meta > 0 ? Math.round(100 * proj / meta) : null;
+      if(meta > 0) out.push({ key:'FORD', display:'Ford', cumpl, monthLabel });
+    }
+    // Brands ORGU
+    const brandsMonth = BRANDS_MONTHS[mk] || {};
+    (DATA.brand_list || []).forEach(bk => {
+      const b = brandsMonth[bk];
+      if(!b) return;
+      const meta = b.meta_total || 0;
+      if(meta <= 0) return;
+      const proj = b.projection_total || 0;
+      const cumpl = Math.round(100 * proj / meta);
+      const display = DATA.brand_display?.[bk] || bk;
+      out.push({ key:bk, display, cumpl, monthLabel });
+    });
+    return out;
+  }
+  let _topbarHeroIdx = 0;
+  function topbarHeroRender(item){
+    const lbl = document.getElementById('topbar-hero-label');
+    const v = document.getElementById('topbar-hero-value');
+    const h = document.getElementById('topbar-hero-hint');
+    if(lbl) lbl.textContent = 'Cumplimiento de Tráfico · ' + item.display;
+    if(v){
+      v.textContent = item.cumpl == null ? '—' : item.cumpl + '%';
+      v.style.color = item.cumpl == null ? '#fff'
+        : item.cumpl >= 100 ? '#86efac'
+        : item.cumpl >= 70  ? '#fcd34d'
+        : '#fca5a5';
+      // Fade-in suave
+      v.style.transition = 'opacity .25s ease';
+      v.style.opacity = '0';
+      requestAnimationFrame(()=>{ v.style.opacity = '1'; });
+    }
+    if(h) h.textContent = item.monthLabel;
+  }
+  function topbarHeroRotateTick(){
+    const arr = topbarHeroComputeBrands();
+    if(!arr.length) return;
+    _topbarHeroIdx = _topbarHeroIdx % arr.length;
+    topbarHeroRender(arr[_topbarHeroIdx]);
+    _topbarHeroIdx++;
+  }
+  // Inicializar inmediato + rotar cada 5s. Pausar si el doc no está visible.
+  setTimeout(topbarHeroRotateTick, 200);
+  setInterval(()=>{ if(!document.hidden) topbarHeroRotateTick(); }, 5000);
+
   // ---------- TAB SWITCH ----------
   function tabSubtitle(tab){
     if(tab === 'ford'){
@@ -5931,21 +5992,8 @@
     else if(k.cumpl_proj>=100){ tag.textContent='🟢 en meta'; tag.style.background='var(--green-bg)'; tag.style.color='var(--green-tx)'; }
     else if(k.cumpl_proj>=70){ tag.textContent='🟡 alerta'; tag.style.background='var(--yellow-bg)'; tag.style.color='var(--yellow-tx)'; }
     else{ tag.textContent='🔴 riesgo'; tag.style.background='var(--red-bg)'; tag.style.color='var(--red-tx)'; }
-    // ► Sincronizar KPI hero del topbar (refleja siempre el cumplimiento Ford
-    // del mes actualmente seleccionado en la pestaña Ford)
-    const heroV = document.getElementById('topbar-hero-value');
-    const heroH = document.getElementById('topbar-hero-hint');
-    if(heroV){
-      heroV.textContent = k.cumpl_proj==null? '—' : k.cumpl_proj+'%';
-      heroV.style.color = k.cumpl_proj==null ? '#fff'
-        : k.cumpl_proj>=100 ? '#86efac'   /* emerald-300 sobre fondo azul */
-        : k.cumpl_proj>=70  ? '#fcd34d'   /* amber-300 sobre fondo azul */
-        : '#fca5a5';                       /* red-300 sobre fondo azul */
-    }
-    if(heroH){
-      const cfgMes = MONTHS_CONFIG.find(x=>x.key===currentMonthFF);
-      heroH.textContent = cfgMes ? cfgMes.label : 'mes actual';
-    }
+    // El topbar-hero ya no se actualiza desde aquí — corre en rotación
+    // automática vía topbarHeroRotateTick() · ver inicialización al final del script.
   }
   function ffRenderGauge(cumpl){
     destroy('ff-gauge');
