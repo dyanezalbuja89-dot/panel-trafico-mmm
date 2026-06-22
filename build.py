@@ -11282,7 +11282,7 @@ HTML = r"""<!doctype html>
         // Sin tarea futura en HubSpot (huérfano CRM). Nota: el CC agenda en Genesys.
         const nt = catNotask && catNotask[cat];
         if (typeof nt === 'number') {
-          llamBlock += `<div class="desp-notask">⚠️ <b>${_cc26Fmt(nt)}</b> sin tarea futura en HubSpot (${_cc26Pct(nt, sum)}%)<div class="desp-notask-note">= sin próxima actividad agendada en HubSpot. El CC agenda en Genesys → mide higiene de CRM, no abandono real.</div></div>`;
+          llamBlock += `<div class="desp-notask">⚠️ <b>${_cc26Fmt(nt)}</b> sin tarea futura en HubSpot (${_cc26Pct(nt, sum)}%)<div class="desp-notask-note">= sin próxima actividad agendada en HubSpot. Ford agenda el seguimiento en Genesys → mide higiene de CRM, no abandono real.</div></div>`;
         }
       }
       body.innerHTML = det.length
@@ -11981,7 +11981,7 @@ HTML = r"""<!doctype html>
         if (lbars) llamBlock = `<div class="desp-drill-title" style="margin-top:11px">¿En qué llamada está? (${_df_cc26Fmt(lsum)}):</div><div class="desp-bars">${lbars}</div>`;
         const nt = catNotask && catNotask[cat];
         if (typeof nt === 'number') {
-          llamBlock += `<div class="desp-notask">⚠️ <b>${_df_cc26Fmt(nt)}</b> sin tarea futura en HubSpot (${_df_cc26Pct(nt, sum)}%)<div class="desp-notask-note">= sin próxima actividad agendada en HubSpot. El CC agenda en Genesys → mide higiene de CRM, no abandono real.</div></div>`;
+          llamBlock += `<div class="desp-notask">⚠️ <b>${_df_cc26Fmt(nt)}</b> sin tarea futura (${_df_cc26Pct(nt, sum)}%)<div class="desp-notask-note">= sin próxima actividad agendada en HubSpot. Dong Feng se gestiona en HubSpot (no Genesys) → esto SÍ es abandono real: activos sin próximo paso.</div></div>`;
         }
       }
       body.innerHTML = det.length
