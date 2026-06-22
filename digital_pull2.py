@@ -36,14 +36,15 @@ _CATEGORIA = {
     'Interesado a futuro': 'En gestión activa',
     'Solicita cotización': 'En gestión activa',
     'Solicita Cotización': 'En gestión activa',
+    # gestión en curso (aún se intenta contactar; pedido del usuario 22-jun) — antes Desperdicio
+    'No contesta': 'En gestión activa',
+    'Buzón de voz': 'En gestión activa',
+    'Se cortó llamada': 'En gestión activa',
     'Cliente compró un vehículo de otra marca': 'Salida legítima',
     'Cliente ya compró un vehículo FORD en otro concesionario': 'Salida legítima',
     'Ya compró un vehículo usado': 'Salida legítima',
     'No desea que lo contacten se acercará directamente': 'Salida legítima',
     'NO Volver a Contactar': 'Salida legítima',
-    'No contesta': 'Desperdicio',
-    'Buzón de voz': 'Desperdicio',
-    'Se cortó llamada': 'Desperdicio',
     'Ocupado': 'Desperdicio',
     'Línea no existe/Suspendida/Fuera de servicio': 'Desperdicio',
     'Sin interés': 'Desperdicio',
@@ -199,7 +200,7 @@ def fetch_brand_full(cfg):
     def newcell():
         return {'leads': 0, 'cont': 0, 'tope': 0, 'agen': 0, 'confirmadas': 0, 'efec': 0, 'nos': 0,
                 'nc_by': {}, 'c_est': {}, 'c_cross': {}, 'ns_est': {}, 'conf_d': {}, 'ns_react': {},
-                'c_cat': {}, 'c_cat_det': {}}
+                'c_cat': {}, 'c_cat_det': {}, 'c_cat_llam': {}}
     # cells[(scope, label)] donde scope = 'T' o agencia-corta
     cells = {}
 
@@ -250,6 +251,10 @@ def fetch_brand_full(cfg):
                 detlbl = det if (det in _CATEGORIA) else 'Sin tipificar'
                 d = c['c_cat_det'].setdefault(cat, {})
                 d[detlbl] = d.get(detlbl, 0) + 1
+                # distribución por nº de llamada por categoría (ej. "gestión activa en qué llamada está")
+                if idx is not None:
+                    cl = c['c_cat_llam'].setdefault(cat, [0] * 12)
+                    cl[idx] += 1
 
     # Agrega deals
     noshow_ids = []
@@ -308,7 +313,7 @@ def fetch_brand_full(cfg):
         return {
             'no_contactados': {'total': sum(c['nc_by'].values()), 'by_llamada': _sorted_pairs(c['nc_by'])},
             'contactados': {'total': sum(c['c_est'].values()), 'by_estatus': _sorted_pairs(c['c_est']),
-                            'by_categoria': by_cat, 'cat_detalle': cat_det},
+                            'by_categoria': by_cat, 'cat_detalle': cat_det, 'cat_llamada': dict(c['c_cat_llam'])},
             'no_show': {'total': sum(c['ns_est'].values()), 'by_estatus': _sorted_pairs(c['ns_est'])},
         }
 

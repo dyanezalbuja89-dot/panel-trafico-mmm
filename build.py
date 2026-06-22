@@ -11085,11 +11085,19 @@ HTML = r"""<!doctype html>
       Object.entries(out).forEach(([cat, m]) => res[cat] = [...m.entries()].sort((a, b) => b[1] - a[1]));
       return res;
     };
+    const mergeCatLlam = (dicts) => {
+      const out = {};
+      dicts.forEach(cl => Object.entries(cl || {}).forEach(([cat, arr]) => {
+        const acc = out[cat] || (out[cat] = new Array(12).fill(0));
+        (arr || []).forEach((n, i) => acc[i] += n);
+      }));
+      return out;
+    };
     return {
       available: true,
       no_contactados: { total: list.reduce((s, d) => s + (d.no_contactados.total || 0), 0), by_llamada: sumBuckets(list.map(d => d.no_contactados.by_llamada)) },
       contactados:    { total: list.reduce((s, d) => s + (d.contactados.total || 0), 0),    by_estatus: sumBuckets(list.map(d => d.contactados.by_estatus)),
-                        by_categoria: sumByCat(list.map(d => d.contactados.by_categoria)), cat_detalle: mergeCatDet(list.map(d => d.contactados.cat_detalle)) },
+                        by_categoria: sumByCat(list.map(d => d.contactados.by_categoria)), cat_detalle: mergeCatDet(list.map(d => d.contactados.cat_detalle)), cat_llamada: mergeCatLlam(list.map(d => d.contactados.cat_llamada)) },
       no_show:        { total: list.reduce((s, d) => s + (d.no_show.total || 0), 0),        by_estatus: sumBuckets(list.map(d => d.no_show.by_estatus)) }
     };
   }
@@ -11235,7 +11243,7 @@ HTML = r"""<!doctype html>
   }
   // Drill de categoría → detalle granular (cat_detalle[cat] = [[sub-estatus, n], ...]).
   // Disponible en TODAS las vistas (el dato viene de la misma fuente que la tabla).
-  function _despWireCatDrill(hostCard, bodyId, catDet) {
+  function _despWireCatDrill(hostCard, bodyId, catDet, catLlam) {
     if (!hostCard) return;
     const body = hostCard.querySelector('#' + bodyId);
     const rows = hostCard.querySelectorAll('tr.clk');
@@ -11253,8 +11261,21 @@ HTML = r"""<!doctype html>
         const pct = _cc26Pct(n, sum);
         return `<div class="desp-catbar"><div class="desp-catbar-top"><span class="desp-catbar-lbl">${lbl}</span><span class="desp-catbar-val">${_cc26Fmt(n)} ${pct}%</span></div><div class="desp-catbar-track"><div class="desp-catbar-fill" style="width:${w}%;background:${col}"></div></div></div>`;
       }).join('');
+      // "En gestión activa": además ¿en qué nº de llamada está cada lead? (distribución 1ª→Nª)
+      let llamBlock = '';
+      const llam = catLlam && catLlam[cat];
+      if (cat === 'En gestión activa' && llam) {
+        const lsum = llam.reduce((a, n) => a + n, 0);
+        const lmx = llam.reduce((a, n) => Math.max(a, n), 1);
+        const lbars = llam.map((n, i) => [i, n]).filter(p => p[1] > 0).map(([i, n]) => {
+          const w = Math.max(Math.round(100 * n / lmx), 3);
+          const pct = _cc26Pct(n, lsum);
+          return `<div class="desp-bar-row"><div class="desp-bar-lbl">${_DESP_LLAM_LBL[i]}</div><div class="desp-bar-track"><div class="desp-bar-fill" style="width:${w}%;background:${col}"></div></div><div class="desp-bar-val">${_cc26Fmt(n)}<span class="desp-pct">${pct}%</span></div></div>`;
+        }).join('');
+        if (lbars) llamBlock = `<div class="desp-drill-title" style="margin-top:11px">¿En qué llamada está? (${_cc26Fmt(lsum)}):</div><div class="desp-bars">${lbars}</div>`;
+      }
       body.innerHTML = det.length
-        ? `<div class="desp-drill"><div class="desp-drill-title">Detalle de <b>${cat}</b> (${_cc26Fmt(sum)}):</div><div class="desp-catbars">${bars}</div></div>`
+        ? `<div class="desp-drill"><div class="desp-drill-title">Detalle de <b>${cat}</b> (${_cc26Fmt(sum)}):</div><div class="desp-catbars">${bars}</div>${llamBlock}</div>`
         : `<div class="desp-drill"><div class="desp-drill-empty">Sin detalle granular para esta categoría.</div></div>`;
     };
     rows.forEach(tr => tr.addEventListener('click', () => pick(tr)));
@@ -11352,7 +11373,7 @@ HTML = r"""<!doctype html>
     host.innerHTML = card1 + card2 + cardConf + card3;
 
     // Contactados: drill categoría → sub-estatus granular (disponible en TODAS las vistas).
-    _despWireCatDrill(document.getElementById('desp-card-c'), 'desp-c-drill', c.cat_detalle);
+    _despWireCatDrill(document.getElementById('desp-card-c'), 'desp-c-drill', c.cat_detalle, c.cat_llamada);
     // No-show: drill etapa → llamadas de reactivación (solo Todas; usa el cruce).
     if (isTodas) {
       _despWireDrill(document.getElementById('desp-card-ns'), 'desp-ns-drill', cruce.no_show, SLATE, _DESP_REACT_LBL, 'Llamadas de reactivación de');
@@ -11765,11 +11786,19 @@ HTML = r"""<!doctype html>
       Object.entries(out).forEach(([cat, m]) => res[cat] = [...m.entries()].sort((a, b) => b[1] - a[1]));
       return res;
     };
+    const mergeCatLlam = (dicts) => {
+      const out = {};
+      dicts.forEach(cl => Object.entries(cl || {}).forEach(([cat, arr]) => {
+        const acc = out[cat] || (out[cat] = new Array(12).fill(0));
+        (arr || []).forEach((n, i) => acc[i] += n);
+      }));
+      return out;
+    };
     return {
       available: true,
       no_contactados: { total: list.reduce((s, d) => s + (d.no_contactados.total || 0), 0), by_llamada: sumBuckets(list.map(d => d.no_contactados.by_llamada)) },
       contactados:    { total: list.reduce((s, d) => s + (d.contactados.total || 0), 0),    by_estatus: sumBuckets(list.map(d => d.contactados.by_estatus)),
-                        by_categoria: sumByCat(list.map(d => d.contactados.by_categoria)), cat_detalle: mergeCatDet(list.map(d => d.contactados.cat_detalle)) },
+                        by_categoria: sumByCat(list.map(d => d.contactados.by_categoria)), cat_detalle: mergeCatDet(list.map(d => d.contactados.cat_detalle)), cat_llamada: mergeCatLlam(list.map(d => d.contactados.cat_llamada)) },
       no_show:        { total: list.reduce((s, d) => s + (d.no_show.total || 0), 0),        by_estatus: sumBuckets(list.map(d => d.no_show.by_estatus)) }
     };
   }
@@ -11910,7 +11939,7 @@ HTML = r"""<!doctype html>
       return `<tr class="clk" data-key="${encodeURIComponent(r[0])}" data-idx="${i}"><td class="desp-tbl-name">${dot}${r[0]}</td><td>${_df_cc26Fmt(r[1])}</td><td>${pct}%</td></tr>`;
     }).join('') + '</tbody></table>';
   }
-  function _df_despWireCatDrill(hostCard, bodyId, catDet) {
+  function _df_despWireCatDrill(hostCard, bodyId, catDet, catLlam) {
     if (!hostCard) return;
     const body = hostCard.querySelector('#' + bodyId);
     const rows = hostCard.querySelectorAll('tr.clk');
@@ -11928,8 +11957,20 @@ HTML = r"""<!doctype html>
         const pct = _df_cc26Pct(n, sum);
         return `<div class="desp-catbar"><div class="desp-catbar-top"><span class="desp-catbar-lbl">${lbl}</span><span class="desp-catbar-val">${_df_cc26Fmt(n)} ${pct}%</span></div><div class="desp-catbar-track"><div class="desp-catbar-fill" style="width:${w}%;background:${col}"></div></div></div>`;
       }).join('');
+      let llamBlock = '';
+      const llam = catLlam && catLlam[cat];
+      if (cat === 'En gestión activa' && llam) {
+        const lsum = llam.reduce((a, n) => a + n, 0);
+        const lmx = llam.reduce((a, n) => Math.max(a, n), 1);
+        const lbars = llam.map((n, i) => [i, n]).filter(p => p[1] > 0).map(([i, n]) => {
+          const w = Math.max(Math.round(100 * n / lmx), 3);
+          const pct = _df_cc26Pct(n, lsum);
+          return `<div class="desp-bar-row"><div class="desp-bar-lbl">${_DF2_DESP_LLAM_LBL[i]}</div><div class="desp-bar-track"><div class="desp-bar-fill" style="width:${w}%;background:${col}"></div></div><div class="desp-bar-val">${_df_cc26Fmt(n)}<span class="desp-pct">${pct}%</span></div></div>`;
+        }).join('');
+        if (lbars) llamBlock = `<div class="desp-drill-title" style="margin-top:11px">¿En qué llamada está? (${_df_cc26Fmt(lsum)}):</div><div class="desp-bars">${lbars}</div>`;
+      }
       body.innerHTML = det.length
-        ? `<div class="desp-drill"><div class="desp-drill-title">Detalle de <b>${cat}</b> (${_df_cc26Fmt(sum)}):</div><div class="desp-catbars">${bars}</div></div>`
+        ? `<div class="desp-drill"><div class="desp-drill-title">Detalle de <b>${cat}</b> (${_df_cc26Fmt(sum)}):</div><div class="desp-catbars">${bars}</div>${llamBlock}</div>`
         : `<div class="desp-drill"><div class="desp-drill-empty">Sin detalle granular para esta categoría.</div></div>`;
     };
     rows.forEach(tr => tr.addEventListener('click', () => pick(tr)));
@@ -12024,7 +12065,7 @@ HTML = r"""<!doctype html>
     host.innerHTML = card1 + card2 + cardConf + card3;
 
     // Contactados: drill categoría → sub-estatus granular (disponible en TODAS las vistas).
-    _df_despWireCatDrill(document.getElementById('df-desp-card-c'), 'df-desp-c-drill', c.cat_detalle);
+    _df_despWireCatDrill(document.getElementById('df-desp-card-c'), 'df-desp-c-drill', c.cat_detalle, c.cat_llamada);
     // No-show: drill etapa → llamadas de reactivación (solo Todas; usa el cruce).
     if (isTodas) {
       _df_despWireDrill(document.getElementById('df-desp-card-ns'), 'df-desp-ns-drill', cruce.no_show, SLATE, _DF2_DESP_REACT_LBL, 'Llamadas de reactivación de');
