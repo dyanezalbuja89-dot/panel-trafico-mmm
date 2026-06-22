@@ -5485,10 +5485,13 @@ HTML = r"""<!doctype html>
     if(lbl) lbl.textContent = 'Cumplimiento de Tráfico · ' + item.display;
     if(v){
       v.textContent = item.cumpl == null ? '—' : item.cumpl + '%';
+      // Thresholds: ≥90% verde intenso · 80-89% amarillo intenso · <80% rojo intenso.
       v.style.color = item.cumpl == null ? '#fff'
-        : item.cumpl >= 100 ? '#86efac'
-        : item.cumpl >= 70  ? '#fcd34d'
-        : '#fca5a5';
+        : item.cumpl >= 90 ? '#16a34a'   /* green-600 — verde intenso */
+        : item.cumpl >= 80 ? '#eab308'   /* yellow-500 — amarillo intenso */
+        : '#dc2626';                      /* red-600 — rojo intenso */
+      v.style.textShadow = item.cumpl == null ? 'none' : '0 0 1px rgba(0,0,0,.3)';
+      v.style.fontWeight = '800';
       // Fade-in suave
       v.style.transition = 'opacity .25s ease';
       v.style.opacity = '0';
