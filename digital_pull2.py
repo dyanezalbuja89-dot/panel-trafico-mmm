@@ -64,6 +64,24 @@ MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', '
 # Ventana 2026-H1 (ene 1 .. jul 1 - 1ms)
 _S = int(datetime(2026, 1, 1, tzinfo=timezone.utc).timestamp() * 1000)
 _E = int(datetime(2026, 7, 1, tzinfo=timezone.utc).timestamp() * 1000) - 1
+# "Ahora" para evaluar tareas futuras (notes_next_activity_date >= _NOW = tiene tarea futura).
+_NOW = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+
+def _act_ms(v):
+    """Fecha HubSpot (ISO o ms) -> ms epoch, o None si vacío/no parseable."""
+    if not v:
+        return None
+    s = str(v).strip()
+    try:
+        if s.isdigit():
+            return int(s)
+        return int(datetime.fromisoformat(s.replace('Z', '+00:00')).timestamp() * 1000)
+    except (ValueError, OverflowError):
+        try:
+            return int(datetime.fromisoformat(s[:10]).replace(tzinfo=timezone.utc).timestamp() * 1000)
+        except ValueError:
+            return None
 
 
 def _label_from_ms(v):
@@ -191,7 +209,8 @@ def fetch_brand_full(cfg):
     contacts = _fetch_all('contacts', c_filters,
                           [cohort, 'contactabilidad', 'resultado_de_llamada', 'numero_de_llamada',
                            'agencia', 'lead_enviado_cct',
-                           'detalle_resultado_de_llamada___ultima_llamada'])
+                           'detalle_resultado_de_llamada___ultima_llamada',
+                           'notes_next_activity_date'])
     # ── DEALS (actividad por fecha_de_la_cita) ──
     d_filters = [H._eq('pipeline', pipe), H._between('fecha_de_la_cita', _S, _E)]
     deals = _fetch_all('deals', d_filters,
@@ -200,7 +219,7 @@ def fetch_brand_full(cfg):
     def newcell():
         return {'leads': 0, 'cont': 0, 'tope': 0, 'agen': 0, 'confirmadas': 0, 'efec': 0, 'nos': 0,
                 'nc_by': {}, 'c_est': {}, 'c_cross': {}, 'ns_est': {}, 'conf_d': {}, 'ns_react': {},
-                'c_cat': {}, 'c_cat_det': {}, 'c_cat_llam': {}}
+                'c_cat': {}, 'c_cat_det': {}, 'c_cat_llam': {}, 'c_cat_notask': {}}
     # cells[(scope, label)] donde scope = 'T' o agencia-corta
     cells = {}
 
@@ -222,6 +241,8 @@ def fetch_brand_full(cfg):
         num = p.get('numero_de_llamada')
         res = p.get('resultado_de_llamada')
         det = p.get('detalle_resultado_de_llamada___ultima_llamada')
+        nact = _act_ms(p.get('notes_next_activity_date'))
+        no_task = (nact is None) or (nact < _NOW)   # sin próxima actividad/tarea en HubSpot
         for sc in scopes:
             c = cell(sc, lbl)
             c['leads'] += 1
@@ -255,6 +276,9 @@ def fetch_brand_full(cfg):
                 if idx is not None:
                     cl = c['c_cat_llam'].setdefault(cat, [0] * 12)
                     cl[idx] += 1
+                # sin tarea futura en HubSpot (huérfano CRM; el CC agenda en Genesys, ver nota panel)
+                if no_task:
+                    c['c_cat_notask'][cat] = c['c_cat_notask'].get(cat, 0) + 1
 
     # Agrega deals
     noshow_ids = []
@@ -313,7 +337,8 @@ def fetch_brand_full(cfg):
         return {
             'no_contactados': {'total': sum(c['nc_by'].values()), 'by_llamada': _sorted_pairs(c['nc_by'])},
             'contactados': {'total': sum(c['c_est'].values()), 'by_estatus': _sorted_pairs(c['c_est']),
-                            'by_categoria': by_cat, 'cat_detalle': cat_det, 'cat_llamada': dict(c['c_cat_llam'])},
+                            'by_categoria': by_cat, 'cat_detalle': cat_det, 'cat_llamada': dict(c['c_cat_llam']),
+                            'cat_notask': dict(c['c_cat_notask'])},
             'no_show': {'total': sum(c['ns_est'].values()), 'by_estatus': _sorted_pairs(c['ns_est'])},
         }
 

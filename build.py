@@ -4726,6 +4726,9 @@ HTML = r"""<!doctype html>
         .desp-catbar-val { font-size: 11.5px; font-weight: 700; white-space: nowrap; flex-shrink: 0; color: var(--c-muted, #64748b); }
         .desp-catbar-track { height: 9px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
         .desp-catbar-fill { height: 100%; border-radius: 4px; }
+        .desp-notask { margin-top: 11px; padding: 7px 9px; background: rgba(220,38,38,.08); border-left: 3px solid #dc2626; border-radius: 4px; font-size: 12px; }
+        .desp-notask b { color: #dc2626; }
+        .desp-notask-note { font-size: 10.5px; color: var(--c-muted, #94a3b8); font-style: italic; margin-top: 3px; line-height: 1.3; }
       </style>
 
       <div class="desp-wrap">
@@ -4913,6 +4916,9 @@ HTML = r"""<!doctype html>
         .desp-catbar-val { font-size: 11.5px; font-weight: 700; white-space: nowrap; flex-shrink: 0; color: var(--c-muted, #64748b); }
         .desp-catbar-track { height: 9px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
         .desp-catbar-fill { height: 100%; border-radius: 4px; }
+        .desp-notask { margin-top: 11px; padding: 7px 9px; background: rgba(220,38,38,.08); border-left: 3px solid #dc2626; border-radius: 4px; font-size: 12px; }
+        .desp-notask b { color: #dc2626; }
+        .desp-notask-note { font-size: 10.5px; color: var(--c-muted, #94a3b8); font-style: italic; margin-top: 3px; line-height: 1.3; }
       </style>
 
       <div class="desp-wrap">
@@ -11097,7 +11103,7 @@ HTML = r"""<!doctype html>
       available: true,
       no_contactados: { total: list.reduce((s, d) => s + (d.no_contactados.total || 0), 0), by_llamada: sumBuckets(list.map(d => d.no_contactados.by_llamada)) },
       contactados:    { total: list.reduce((s, d) => s + (d.contactados.total || 0), 0),    by_estatus: sumBuckets(list.map(d => d.contactados.by_estatus)),
-                        by_categoria: sumByCat(list.map(d => d.contactados.by_categoria)), cat_detalle: mergeCatDet(list.map(d => d.contactados.cat_detalle)), cat_llamada: mergeCatLlam(list.map(d => d.contactados.cat_llamada)) },
+                        by_categoria: sumByCat(list.map(d => d.contactados.by_categoria)), cat_detalle: mergeCatDet(list.map(d => d.contactados.cat_detalle)), cat_llamada: mergeCatLlam(list.map(d => d.contactados.cat_llamada)), cat_notask: list.reduce((o, d) => { Object.entries((d.contactados.cat_notask) || {}).forEach(([k, v]) => o[k] = (o[k] || 0) + v); return o; }, {}) },
       no_show:        { total: list.reduce((s, d) => s + (d.no_show.total || 0), 0),        by_estatus: sumBuckets(list.map(d => d.no_show.by_estatus)) }
     };
   }
@@ -11243,7 +11249,7 @@ HTML = r"""<!doctype html>
   }
   // Drill de categoría → detalle granular (cat_detalle[cat] = [[sub-estatus, n], ...]).
   // Disponible en TODAS las vistas (el dato viene de la misma fuente que la tabla).
-  function _despWireCatDrill(hostCard, bodyId, catDet, catLlam) {
+  function _despWireCatDrill(hostCard, bodyId, catDet, catLlam, catNotask) {
     if (!hostCard) return;
     const body = hostCard.querySelector('#' + bodyId);
     const rows = hostCard.querySelectorAll('tr.clk');
@@ -11273,6 +11279,11 @@ HTML = r"""<!doctype html>
           return `<div class="desp-bar-row"><div class="desp-bar-lbl">${_DESP_LLAM_LBL[i]}</div><div class="desp-bar-track"><div class="desp-bar-fill" style="width:${w}%;background:${col}"></div></div><div class="desp-bar-val">${_cc26Fmt(n)}<span class="desp-pct">${pct}%</span></div></div>`;
         }).join('');
         if (lbars) llamBlock = `<div class="desp-drill-title" style="margin-top:11px">¿En qué llamada está? (${_cc26Fmt(lsum)}):</div><div class="desp-bars">${lbars}</div>`;
+        // Sin tarea futura en HubSpot (huérfano CRM). Nota: el CC agenda en Genesys.
+        const nt = catNotask && catNotask[cat];
+        if (typeof nt === 'number') {
+          llamBlock += `<div class="desp-notask">⚠️ <b>${_cc26Fmt(nt)}</b> sin tarea futura en HubSpot (${_cc26Pct(nt, sum)}%)<div class="desp-notask-note">= sin próxima actividad agendada en HubSpot. El CC agenda en Genesys → mide higiene de CRM, no abandono real.</div></div>`;
+        }
       }
       body.innerHTML = det.length
         ? `<div class="desp-drill"><div class="desp-drill-title">Detalle de <b>${cat}</b> (${_cc26Fmt(sum)}):</div><div class="desp-catbars">${bars}</div>${llamBlock}</div>`
@@ -11373,7 +11384,7 @@ HTML = r"""<!doctype html>
     host.innerHTML = card1 + card2 + cardConf + card3;
 
     // Contactados: drill categoría → sub-estatus granular (disponible en TODAS las vistas).
-    _despWireCatDrill(document.getElementById('desp-card-c'), 'desp-c-drill', c.cat_detalle, c.cat_llamada);
+    _despWireCatDrill(document.getElementById('desp-card-c'), 'desp-c-drill', c.cat_detalle, c.cat_llamada, c.cat_notask);
     // No-show: drill etapa → llamadas de reactivación (solo Todas; usa el cruce).
     if (isTodas) {
       _despWireDrill(document.getElementById('desp-card-ns'), 'desp-ns-drill', cruce.no_show, SLATE, _DESP_REACT_LBL, 'Llamadas de reactivación de');
@@ -11798,7 +11809,7 @@ HTML = r"""<!doctype html>
       available: true,
       no_contactados: { total: list.reduce((s, d) => s + (d.no_contactados.total || 0), 0), by_llamada: sumBuckets(list.map(d => d.no_contactados.by_llamada)) },
       contactados:    { total: list.reduce((s, d) => s + (d.contactados.total || 0), 0),    by_estatus: sumBuckets(list.map(d => d.contactados.by_estatus)),
-                        by_categoria: sumByCat(list.map(d => d.contactados.by_categoria)), cat_detalle: mergeCatDet(list.map(d => d.contactados.cat_detalle)), cat_llamada: mergeCatLlam(list.map(d => d.contactados.cat_llamada)) },
+                        by_categoria: sumByCat(list.map(d => d.contactados.by_categoria)), cat_detalle: mergeCatDet(list.map(d => d.contactados.cat_detalle)), cat_llamada: mergeCatLlam(list.map(d => d.contactados.cat_llamada)), cat_notask: list.reduce((o, d) => { Object.entries((d.contactados.cat_notask) || {}).forEach(([k, v]) => o[k] = (o[k] || 0) + v); return o; }, {}) },
       no_show:        { total: list.reduce((s, d) => s + (d.no_show.total || 0), 0),        by_estatus: sumBuckets(list.map(d => d.no_show.by_estatus)) }
     };
   }
@@ -11939,7 +11950,7 @@ HTML = r"""<!doctype html>
       return `<tr class="clk" data-key="${encodeURIComponent(r[0])}" data-idx="${i}"><td class="desp-tbl-name">${dot}${r[0]}</td><td>${_df_cc26Fmt(r[1])}</td><td>${pct}%</td></tr>`;
     }).join('') + '</tbody></table>';
   }
-  function _df_despWireCatDrill(hostCard, bodyId, catDet, catLlam) {
+  function _df_despWireCatDrill(hostCard, bodyId, catDet, catLlam, catNotask) {
     if (!hostCard) return;
     const body = hostCard.querySelector('#' + bodyId);
     const rows = hostCard.querySelectorAll('tr.clk');
@@ -11968,6 +11979,10 @@ HTML = r"""<!doctype html>
           return `<div class="desp-bar-row"><div class="desp-bar-lbl">${_DF2_DESP_LLAM_LBL[i]}</div><div class="desp-bar-track"><div class="desp-bar-fill" style="width:${w}%;background:${col}"></div></div><div class="desp-bar-val">${_df_cc26Fmt(n)}<span class="desp-pct">${pct}%</span></div></div>`;
         }).join('');
         if (lbars) llamBlock = `<div class="desp-drill-title" style="margin-top:11px">¿En qué llamada está? (${_df_cc26Fmt(lsum)}):</div><div class="desp-bars">${lbars}</div>`;
+        const nt = catNotask && catNotask[cat];
+        if (typeof nt === 'number') {
+          llamBlock += `<div class="desp-notask">⚠️ <b>${_df_cc26Fmt(nt)}</b> sin tarea futura en HubSpot (${_df_cc26Pct(nt, sum)}%)<div class="desp-notask-note">= sin próxima actividad agendada en HubSpot. El CC agenda en Genesys → mide higiene de CRM, no abandono real.</div></div>`;
+        }
       }
       body.innerHTML = det.length
         ? `<div class="desp-drill"><div class="desp-drill-title">Detalle de <b>${cat}</b> (${_df_cc26Fmt(sum)}):</div><div class="desp-catbars">${bars}</div>${llamBlock}</div>`
@@ -12065,7 +12080,7 @@ HTML = r"""<!doctype html>
     host.innerHTML = card1 + card2 + cardConf + card3;
 
     // Contactados: drill categoría → sub-estatus granular (disponible en TODAS las vistas).
-    _df_despWireCatDrill(document.getElementById('df-desp-card-c'), 'df-desp-c-drill', c.cat_detalle, c.cat_llamada);
+    _df_despWireCatDrill(document.getElementById('df-desp-card-c'), 'df-desp-c-drill', c.cat_detalle, c.cat_llamada, c.cat_notask);
     // No-show: drill etapa → llamadas de reactivación (solo Todas; usa el cruce).
     if (isTodas) {
       _df_despWireDrill(document.getElementById('df-desp-card-ns'), 'df-desp-ns-drill', cruce.no_show, SLATE, _DF2_DESP_REACT_LBL, 'Llamadas de reactivación de');
