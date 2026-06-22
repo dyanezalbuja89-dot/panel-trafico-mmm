@@ -273,11 +273,11 @@ _NUM_LLAMADA[8] = ('69º Llamada', '9ª')  # índice 8 = 9ª llamada
 
 # resultado_de_llamada (valor interno) → etiqueta legible del panel
 _RES_LLAMADA = [
-    ('Contactado',                    'Contactado / seguimiento activo'),
-    ('Barreras técnicas/No contesta', 'Barreras técnicas / no contesta'),
+    ('Contactado',                    'Contactado'),
+    ('Barreras técnicas/No contesta', 'Barreras técnicas/No contesta'),
     ('No interesado',                 'No interesado'),
     ('Sin recursos económicos',       'Sin recursos económicos'),
-    ('Posponer contacto',             'Posponer'),
+    ('Posponer contacto',             'Posponer contacto'),
     ('Errores operativos',            'Errores operativos'),
 ]
 
