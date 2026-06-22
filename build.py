@@ -4720,6 +4720,12 @@ HTML = r"""<!doctype html>
         .desp-drill .desp-bar-row { grid-template-columns: 26px 1fr auto; gap: 7px; }
         .desp-drill .desp-bar-track { height: 11px; }
         .desp-drill .desp-bar-fill.top { box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+        .desp-catbars { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+        .desp-catbar-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin-bottom: 2px; }
+        .desp-catbar-lbl { font-size: 11.5px; font-weight: 600; line-height: 1.25; color: var(--c-text, #0f172a); }
+        .desp-catbar-val { font-size: 11.5px; font-weight: 700; white-space: nowrap; flex-shrink: 0; color: var(--c-muted, #64748b); }
+        .desp-catbar-track { height: 9px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+        .desp-catbar-fill { height: 100%; border-radius: 4px; }
       </style>
 
       <div class="desp-wrap">
@@ -4901,6 +4907,12 @@ HTML = r"""<!doctype html>
         .desp-drill .desp-bar-row { grid-template-columns: 26px 1fr auto; gap: 7px; }
         .desp-drill .desp-bar-track { height: 11px; }
         .desp-drill .desp-bar-fill.top { box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+        .desp-catbars { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+        .desp-catbar-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin-bottom: 2px; }
+        .desp-catbar-lbl { font-size: 11.5px; font-weight: 600; line-height: 1.25; color: var(--c-text, #0f172a); }
+        .desp-catbar-val { font-size: 11.5px; font-weight: 700; white-space: nowrap; flex-shrink: 0; color: var(--c-muted, #64748b); }
+        .desp-catbar-track { height: 9px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+        .desp-catbar-fill { height: 100%; border-radius: 4px; }
       </style>
 
       <div class="desp-wrap">
@@ -11235,8 +11247,14 @@ HTML = r"""<!doctype html>
       const det = (catDet && catDet[cat]) || [];
       const col = _CAT_COLOR[cat] || '#64748b';
       const sum = det.reduce((a, r) => a + r[1], 0);
+      const mx = det.length ? det[0][1] : 1;
+      const bars = det.map(([lbl, n]) => {
+        const w = Math.max(Math.round(100 * n / (mx || 1)), n > 0 ? 3 : 0);
+        const pct = _cc26Pct(n, sum);
+        return `<div class="desp-catbar"><div class="desp-catbar-top"><span class="desp-catbar-lbl">${lbl}</span><span class="desp-catbar-val">${_cc26Fmt(n)} ${pct}%</span></div><div class="desp-catbar-track"><div class="desp-catbar-fill" style="width:${w}%;background:${col}"></div></div></div>`;
+      }).join('');
       body.innerHTML = det.length
-        ? `<div class="desp-drill"><div class="desp-drill-title">Detalle de <b>${cat}</b> (${_cc26Fmt(sum)}):</div>${_despBars(det, sum, col)}</div>`
+        ? `<div class="desp-drill"><div class="desp-drill-title">Detalle de <b>${cat}</b> (${_cc26Fmt(sum)}):</div><div class="desp-catbars">${bars}</div></div>`
         : `<div class="desp-drill"><div class="desp-drill-empty">Sin detalle granular para esta categoría.</div></div>`;
     };
     rows.forEach(tr => tr.addEventListener('click', () => pick(tr)));
@@ -11904,8 +11922,14 @@ HTML = r"""<!doctype html>
       const det = (catDet && catDet[cat]) || [];
       const col = _DF_CAT_COLOR[cat] || '#64748b';
       const sum = det.reduce((a, r) => a + r[1], 0);
+      const mx = det.length ? det[0][1] : 1;
+      const bars = det.map(([lbl, n]) => {
+        const w = Math.max(Math.round(100 * n / (mx || 1)), n > 0 ? 3 : 0);
+        const pct = _df_cc26Pct(n, sum);
+        return `<div class="desp-catbar"><div class="desp-catbar-top"><span class="desp-catbar-lbl">${lbl}</span><span class="desp-catbar-val">${_df_cc26Fmt(n)} ${pct}%</span></div><div class="desp-catbar-track"><div class="desp-catbar-fill" style="width:${w}%;background:${col}"></div></div></div>`;
+      }).join('');
       body.innerHTML = det.length
-        ? `<div class="desp-drill"><div class="desp-drill-title">Detalle de <b>${cat}</b> (${_df_cc26Fmt(sum)}):</div>${_df_despBars(det, sum, col)}</div>`
+        ? `<div class="desp-drill"><div class="desp-drill-title">Detalle de <b>${cat}</b> (${_df_cc26Fmt(sum)}):</div><div class="desp-catbars">${bars}</div></div>`
         : `<div class="desp-drill"><div class="desp-drill-empty">Sin detalle granular para esta categoría.</div></div>`;
     };
     rows.forEach(tr => tr.addEventListener('click', () => pick(tr)));
