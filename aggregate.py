@@ -42,6 +42,14 @@ def _compute_ventas_mensual(sales_df):
     MES_LBL = {'2026-01':'Enero','2026-02':'Febrero','2026-03':'Marzo','2026-04':'Abril','2026-05':'Mayo','2026-06':'Junio','2026-07':'Julio','2026-08':'Agosto','2026-09':'Septiembre','2026-10':'Octubre','2026-11':'Noviembre','2026-12':'Diciembre'}
 
     BRAND_KEY_MAP = {'FORD':'FORD','DONGFENG':'DONGFENG_ORGU','CHERY':'CHERY_ORGU','MAZDA':'MAZDA_ORGU','RAM':'RAM_ORGU'}
+    # Mapa agencia → zona (mismo del módulo conversion.py)
+    ZONA_MAP = {
+        'CJA':'Guayaquil','Orellana':'Guayaquil',
+        'La Y':'Quito','Tumbaco':'Quito',
+        'Manta':'Manta','Portoviejo':'Manta',
+        'Machala':'Machala',
+    }
+    df['zona'] = df['agencia'].apply(lambda a: ZONA_MAP.get(a, 'Otra'))
 
     def _pivot_dim(sub_df, dim_col):
         out = {}
@@ -59,9 +67,19 @@ def _compute_ventas_mensual(sales_df):
         sub = df[df['marca_up'] == marca_raw]
         if len(sub) == 0:
             continue
-        # By modelo
+        # Flat rows — el cliente hace pivot dinámico con filtros agencia/zona/modelo.
+        flat = []
+        for _, r in sub.iterrows():
+            flat.append({
+                'mes': str(r['mes']),
+                'modelo': str(r['modelo_up']) if r['modelo_up'] and str(r['modelo_up']).lower() not in ('nan','none','') else 'Sin modelo',
+                'asesor': str(r['asesor']) if r['asesor'] and str(r['asesor']).lower() not in ('nan','sin asesor','none','') else 'Sin asesor',
+                'agencia': str(r['agencia']),
+                'zona': str(r['zona']),
+                'cantidad': int(r['Cantidad']),
+            })
+        # Pivots agregados (compat hacia atrás; el cliente puede usarlos cuando no hay filtros)
         by_modelo = _pivot_dim(sub, 'modelo_up')
-        # By asesor — con detalle por modelo dentro
         by_asesor = {}
         for asesor, g in sub.groupby('asesor'):
             if not asesor or asesor.lower() in ('nan','sin asesor','none'):
@@ -69,16 +87,15 @@ def _compute_ventas_mensual(sales_df):
             per_mes = g.groupby('mes')['Cantidad'].sum().astype(int).to_dict()
             row = {m: int(per_mes.get(m, 0)) for m in months_all}
             row['_total'] = int(sum(row.values()))
-            # Desglose por modelo del asesor (para drill-down)
             row['_por_modelo'] = {
                 str(mk): int(mv) for mk, mv in g.groupby('modelo_up')['Cantidad'].sum().astype(int).to_dict().items()
                 if mk and str(mk).lower() not in ('nan','none')
             }
             row['_agencia'] = g['agencia'].mode().iloc[0] if len(g['agencia'].mode()) else 'Sin agencia'
+            row['_zona'] = g['zona'].mode().iloc[0] if len(g['zona'].mode()) else 'Otra'
             by_asesor[str(asesor)] = row
-        # By agencia
         by_agencia = _pivot_dim(sub, 'agencia')
-        # Totales mes a mes y total marca
+        by_zona = _pivot_dim(sub, 'zona')
         per_mes_total = sub.groupby('mes')['Cantidad'].sum().astype(int).to_dict()
         totals = {m: int(per_mes_total.get(m, 0)) for m in months_all}
         totals['_total'] = int(sum(totals.values()))
@@ -89,6 +106,8 @@ def _compute_ventas_mensual(sales_df):
             'by_modelo': by_modelo,
             'by_asesor': by_asesor,
             'by_agencia': by_agencia,
+            'by_zona': by_zona,
+            'flat': flat,
         }
     return result
 
