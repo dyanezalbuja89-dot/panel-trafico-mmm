@@ -195,13 +195,14 @@ def fetch_brand_full(cfg):
                 if lbln:
                     c['nc_by'][lbln] = c['nc_by'].get(lbln, 0) + 1
             if cohort_ok and contab == 'Contactado':
-                est = _RES_TO_LBL.get(res)
-                if est:
-                    c['c_est'][est] = c['c_est'].get(est, 0) + 1
-                    idx = _NUM_INTERNAL_TO_IDX.get(num)
-                    if idx is not None:
-                        arr = c['c_cross'].setdefault(est, [0] * 12)
-                        arr[idx] += 1
+                # null/sin mapear → 'Sin tipificar' (setter no tipificó la llamada);
+                # antes se botaba en silencio (el panel ocultaba ~1,2% de los contactados).
+                est = _RES_TO_LBL.get(res) or 'Sin tipificar'
+                c['c_est'][est] = c['c_est'].get(est, 0) + 1
+                idx = _NUM_INTERNAL_TO_IDX.get(num)
+                if idx is not None:
+                    arr = c['c_cross'].setdefault(est, [0] * 12)
+                    arr[idx] += 1
 
     # Agrega deals
     noshow_ids = []
