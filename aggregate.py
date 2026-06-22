@@ -17,6 +17,81 @@ def _compute_embudo_safe():
         print(f"WARN: embudo no disponible: {e}")
         return None
 
+def _compute_ventas_mensual(sales_df):
+    """Pivot mensual de ventas NETAS por marca/modelo/asesor/agencia.
+    Devuelve {marca_key: {months, months_labels, by_modelo, by_asesor, by_agencia, totals}}.
+    Cantidad ya viene signada (+1 FACTURA, -1 NC) desde ventas.load_ventas().
+    """
+    if sales_df is None or len(sales_df) == 0:
+        return None
+    df = sales_df.copy()
+    df['fecha_fact'] = pd.to_datetime(df.get('fecha de facturacion'), errors='coerce')
+    df = df[df['fecha_fact'].dt.year == 2026].copy()
+    if len(df) == 0:
+        return None
+    df['mes'] = df['fecha_fact'].dt.strftime('%Y-%m')
+    df['Cantidad'] = df['Cantidad'].fillna(1).astype(int)
+    df['marca_up'] = df['marca'].astype(str).str.strip().str.upper()
+    df['modelo_up'] = df['familia'].astype(str).str.strip().str.upper()
+    df['asesor'] = df['ASESOR_FACTURACION'].astype(str).str.strip().str.upper().replace({'NAN': 'Sin asesor', '': 'Sin asesor'})
+    # Agencia: el archivo de ventas trae "Bodega Venta Vehiculo" (e.g. "1001 VEHICULOS CARLOS JULIO AROSEMENA").
+    # Normalizamos a corto via fact_agency_norm de inventario.py.
+    from inventario import fact_agency_norm
+    df['agencia'] = df['AGENCIA_FACTURACION'].apply(lambda s: fact_agency_norm(s) or 'Sin agencia')
+    months_all = sorted(df['mes'].unique())
+    MES_LBL = {'2026-01':'Enero','2026-02':'Febrero','2026-03':'Marzo','2026-04':'Abril','2026-05':'Mayo','2026-06':'Junio','2026-07':'Julio','2026-08':'Agosto','2026-09':'Septiembre','2026-10':'Octubre','2026-11':'Noviembre','2026-12':'Diciembre'}
+
+    BRAND_KEY_MAP = {'FORD':'FORD','DONGFENG':'DONGFENG_ORGU','CHERY':'CHERY_ORGU','MAZDA':'MAZDA_ORGU','RAM':'RAM_ORGU'}
+
+    def _pivot_dim(sub_df, dim_col):
+        out = {}
+        for key, g in sub_df.groupby(dim_col):
+            if not key or str(key).lower() in ('nan','none'):
+                continue
+            per_mes = g.groupby('mes')['Cantidad'].sum().astype(int).to_dict()
+            row = {m: int(per_mes.get(m, 0)) for m in months_all}
+            row['_total'] = int(sum(row.values()))
+            out[str(key)] = row
+        return out
+
+    result = {}
+    for marca_raw, brand_key in BRAND_KEY_MAP.items():
+        sub = df[df['marca_up'] == marca_raw]
+        if len(sub) == 0:
+            continue
+        # By modelo
+        by_modelo = _pivot_dim(sub, 'modelo_up')
+        # By asesor — con detalle por modelo dentro
+        by_asesor = {}
+        for asesor, g in sub.groupby('asesor'):
+            if not asesor or asesor.lower() in ('nan','sin asesor','none'):
+                continue
+            per_mes = g.groupby('mes')['Cantidad'].sum().astype(int).to_dict()
+            row = {m: int(per_mes.get(m, 0)) for m in months_all}
+            row['_total'] = int(sum(row.values()))
+            # Desglose por modelo del asesor (para drill-down)
+            row['_por_modelo'] = {
+                str(mk): int(mv) for mk, mv in g.groupby('modelo_up')['Cantidad'].sum().astype(int).to_dict().items()
+                if mk and str(mk).lower() not in ('nan','none')
+            }
+            row['_agencia'] = g['agencia'].mode().iloc[0] if len(g['agencia'].mode()) else 'Sin agencia'
+            by_asesor[str(asesor)] = row
+        # By agencia
+        by_agencia = _pivot_dim(sub, 'agencia')
+        # Totales mes a mes y total marca
+        per_mes_total = sub.groupby('mes')['Cantidad'].sum().astype(int).to_dict()
+        totals = {m: int(per_mes_total.get(m, 0)) for m in months_all}
+        totals['_total'] = int(sum(totals.values()))
+        result[brand_key] = {
+            'months': months_all,
+            'months_labels': [MES_LBL.get(m, m) for m in months_all],
+            'totals': totals,
+            'by_modelo': by_modelo,
+            'by_asesor': by_asesor,
+            'by_agencia': by_agencia,
+        }
+    return result
+
 BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Mayo")
 ABRIL_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Abril")
 # Files used for Dashboard tab "Marzo (cierre) vs Abril (cierre)" comparison
@@ -1238,6 +1313,9 @@ def main():
                 ]
             }) if _ventas is not None else None)(__import__('ventas').load_ventas())
         ),
+        # Panel de Ventas mensual · pivot por marca/modelo/asesor con NETOS (sum Cantidad).
+        # Permite ver ventas mes a mes y desplegar por modelo o por asesor comercial.
+        "ventas_mensual": _compute_ventas_mensual(__import__('ventas').load_ventas()),
         # matrix_meta carga la meta marketing (80%). Para escalar la meta cuando se
         # filtra por categoría de canal en la pestaña Otros, JS aplica estos ratios.
         "meta_split": {

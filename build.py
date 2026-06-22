@@ -2796,6 +2796,10 @@ HTML = r"""<!doctype html>
     <svg class="tab-icon" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
     <span class="tab-label">Embudo</span>
   </button>
+  <button class="tab-btn" data-tab="ventas" title="Ventas mensuales por modelo / asesor">
+    <svg class="tab-icon" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    <span class="tab-label">Ventas</span>
+  </button>
 
   <div class="sidebar-section-label">Operación</div>
   <button class="tab-btn" data-tab="inv" title="Inventario Orgu">
@@ -2836,6 +2840,7 @@ HTML = r"""<!doctype html>
         </optgroup>
         <optgroup label="Ventas">
           <option value="conv">🎯 Conversión</option>
+          <option value="ventas">💵 Ventas</option>
           <option value="embudo">🪜 Embudo</option>
         </optgroup>
         <optgroup label="Operación">
@@ -3525,6 +3530,55 @@ HTML = r"""<!doctype html>
     </div>
 
     <div class="footer-note">Compara dos meses cualesquiera de los disponibles. Datos = lógica oficial del reporte (dedupe CEDULA, canales válidos, mapeo SUCURSAL × Agencia).</div>
+  </section>
+
+  <!-- ======================= TAB VENTAS · panel mensual netos ======================= -->
+  <section id="tab-ventas" class="tab-panel">
+    <div class="otros-header">
+      <div>
+        <h2>💵 Ventas Mensuales · NETOS</h2>
+        <div class="sub">Facturación NETA (FACTURA − Nota de Crédito) · 2026 · fuente: Base de ventas YTD</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <label>Marca
+        <select id="vt-marca">
+          <option value="FORD">FORD</option>
+        </select>
+      </label>
+      <label>Vista
+        <select id="vt-view">
+          <option value="modelo">Por modelo</option>
+          <option value="asesor">Por asesor</option>
+          <option value="agencia">Por agencia</option>
+        </select>
+      </label>
+      <label>Modelo<select id="vt-modelo"><option value="">Todos</option></select></label>
+      <button class="reset" id="vt-reset" type="button">↺ Limpiar</button>
+    </div>
+
+    <div class="ford-filter-summary" id="vt-filter-summary"></div>
+
+    <!-- HERO KPIs -->
+    <div class="stat-hero">
+      <div class="card-big"><div class="lbl">Ventas netas YTD</div><div class="val" id="vt-k-total">—</div><div class="hint" id="vt-k-total-hint"></div></div>
+      <div class="card-big"><div class="lbl">Mejor mes</div><div class="val" id="vt-k-best">—</div><div class="hint" id="vt-k-best-hint"></div></div>
+      <div class="card-big"><div class="lbl">Líder vista activa</div><div class="val" id="vt-k-leader">—</div><div class="hint" id="vt-k-leader-hint"></div></div>
+    </div>
+
+    <!-- TABLA PIVOT -->
+    <div class="ford-section">
+      <h3 id="vt-tbl-title">📋 Ventas mes a mes</h3>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="vt-tbl">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer-note">NETOS = sum(Cantidad) con +1 FACTURA / −1 NC. Click en una fila para ver detalle (cuando aplica).</div>
   </section>
 
   <!-- ======================= TAB INVENTARIO ======================= -->
@@ -13080,6 +13134,200 @@ HTML = r"""<!doctype html>
     renderAnCruce();
     renderAnInsights();
   }
+
+  // =========================================================
+  //              TAB VENTAS · NETOS MENSUALES
+  // =========================================================
+  const VENTAS_MENSUAL = DATA.ventas_mensual || {};
+  const vtstate = { marca:'FORD', view:'modelo', modelo:'', expanded:'' };
+  let vtInited = false;
+
+  function vtBrandData(){ return VENTAS_MENSUAL[vtstate.marca] || null; }
+
+  function vtFillMarca(){
+    const sel = document.getElementById('vt-marca');
+    if(!sel || sel.dataset._filled) return;
+    sel.innerHTML = '';
+    const keys = Object.keys(VENTAS_MENSUAL);
+    // Ford primero, luego brands ORGU.
+    const ordered = keys.includes('FORD') ? ['FORD', ...keys.filter(k=>k!=='FORD')] : keys;
+    ordered.forEach(k=>{
+      const o = document.createElement('option');
+      o.value = k;
+      o.textContent = DATA.brand_display?.[k] || k.replace('_ORGU','');
+      sel.appendChild(o);
+    });
+    sel.value = vtstate.marca;
+    sel.dataset._filled = '1';
+  }
+
+  function vtFillModelo(){
+    const sel = document.getElementById('vt-modelo');
+    if(!sel) return;
+    const d = vtBrandData();
+    const prev = vtstate.modelo;
+    sel.innerHTML = '<option value="">Todos</option>';
+    if(d){
+      Object.keys(d.by_modelo || {}).sort().forEach(m=>{
+        const o = document.createElement('option');
+        o.value = m; o.textContent = m;
+        sel.appendChild(o);
+      });
+    }
+    sel.value = (d && d.by_modelo && d.by_modelo[prev]) ? prev : '';
+    if(sel.value !== prev) vtstate.modelo = sel.value;
+  }
+
+  function vtRenderHero(){
+    const d = vtBrandData();
+    if(!d){
+      document.getElementById('vt-k-total').textContent = '—';
+      document.getElementById('vt-k-best').textContent = '—';
+      document.getElementById('vt-k-leader').textContent = '—';
+      return;
+    }
+    const months = d.months || [];
+    // Si hay filtro de modelo, calcular totales del modelo en lugar del marca total
+    let totals = d.totals;
+    let scope = 'Marca';
+    if(vtstate.modelo && d.by_modelo[vtstate.modelo]){
+      totals = d.by_modelo[vtstate.modelo];
+      scope = vtstate.modelo;
+    }
+    document.getElementById('vt-k-total').textContent = fmt(totals._total || 0);
+    document.getElementById('vt-k-total-hint').textContent = scope + ' · YTD 2026';
+    // Mejor mes
+    let bestM = null, bestV = -Infinity;
+    months.forEach(m=>{ const v = totals[m] || 0; if(v > bestV){ bestV = v; bestM = m; } });
+    const idxBest = months.indexOf(bestM);
+    const lblBest = idxBest >= 0 ? d.months_labels[idxBest] : '—';
+    document.getElementById('vt-k-best').textContent = bestV >= 0 ? bestV : '—';
+    document.getElementById('vt-k-best-hint').textContent = lblBest;
+    // Líder vista activa (top item)
+    const dimMap = { modelo: d.by_modelo, asesor: d.by_asesor, agencia: d.by_agencia };
+    const dim = dimMap[vtstate.view] || {};
+    let leader = null, leaderV = -Infinity;
+    Object.entries(dim).forEach(([k,row])=>{
+      if(vtstate.modelo && vtstate.view !== 'modelo' && row._por_modelo){
+        // Si hay filtro modelo y vista asesor, mostrar líder de ese modelo
+        const v = row._por_modelo[vtstate.modelo] || 0;
+        if(v > leaderV){ leaderV = v; leader = k; }
+      } else {
+        const v = row._total || 0;
+        if(v > leaderV){ leaderV = v; leader = k; }
+      }
+    });
+    document.getElementById('vt-k-leader').textContent = leader || '—';
+    document.getElementById('vt-k-leader-hint').textContent = (leaderV >= 0 ? leaderV : 0) + ' netos · vista ' + vtstate.view;
+  }
+
+  function vtRenderTable(){
+    const d = vtBrandData();
+    const thead = document.querySelector('#vt-tbl thead');
+    const tbody = document.querySelector('#vt-tbl tbody');
+    const title = document.getElementById('vt-tbl-title');
+    if(!d){
+      thead.innerHTML = ''; tbody.innerHTML = '<tr><td>Sin data</td></tr>';
+      return;
+    }
+    const labels = d.months_labels || [];
+    const months = d.months || [];
+    const dimLbl = { modelo:'Modelo', asesor:'Asesor', agencia:'Agencia' }[vtstate.view] || 'Item';
+    title.innerHTML = '📋 Ventas mes a mes <span class="sub">' + dimLbl + ' × Mes · NETOS</span>';
+    thead.innerHTML = '<tr><th>' + dimLbl + '</th>' +
+      labels.map(l=>`<th class="num">${l}</th>`).join('') +
+      '<th class="num">Total</th></tr>';
+    const dimMap = { modelo: d.by_modelo, asesor: d.by_asesor, agencia: d.by_agencia };
+    let rows = Object.entries(dimMap[vtstate.view] || {});
+    // Filtro modelo (aplica si vista = modelo o si vista = asesor/agencia y queremos solo asesores que vendieron ese modelo)
+    if(vtstate.modelo){
+      if(vtstate.view === 'modelo'){
+        rows = rows.filter(([k]) => k === vtstate.modelo);
+      } else if(vtstate.view === 'asesor'){
+        // Reconstruir row del asesor restringido al modelo seleccionado
+        rows = rows
+          .map(([k,r])=>{
+            const sub = (r._por_modelo||{})[vtstate.modelo] || 0;
+            if(!sub) return null;
+            // Distribución por mes para ESE modelo de ESE asesor no la tenemos pre-aggregada,
+            // así que mostramos solo el total. Filas para vista filtrada por modelo.
+            const empty = {}; months.forEach(m=>{ empty[m] = ''; });
+            return [k, {...empty, _total: sub, _agencia: r._agencia}];
+          })
+          .filter(Boolean);
+      }
+    }
+    rows.sort((a,b)=> (b[1]._total||0) - (a[1]._total||0));
+    if(!rows.length){
+      tbody.innerHTML = '<tr><td colspan="'+(labels.length+2)+'" style="text-align:center;color:var(--c-muted)">Sin datos</td></tr>';
+      return;
+    }
+    const totalRow = months.map(m=> rows.reduce((s,[,r])=> s + (typeof r[m]==='number'? r[m]:0), 0));
+    const grandTotal = rows.reduce((s,[,r])=> s + (r._total||0), 0);
+    tbody.innerHTML = rows.map(([k,r])=>{
+      const cells = months.map(m=>{
+        const v = r[m];
+        if(v === '' || v === undefined || v === null) return '<td class="num" style="color:var(--c-muted)">—</td>';
+        const cls = v < 0 ? 'style="color:var(--neg);font-weight:600"' : (v === 0 ? 'style="color:var(--c-muted)"' : '');
+        return `<td class="num" ${cls}>${v}</td>`;
+      }).join('');
+      const tCls = (r._total||0) < 0 ? 'style="color:var(--neg)"' : '';
+      const sub = (vtstate.view === 'asesor' && r._agencia) ? `<div style="font-size:10px;color:var(--c-muted);font-weight:400">${r._agencia}</div>` : '';
+      return `<tr><td><strong>${k}</strong>${sub}</td>${cells}<td class="num" ${tCls}><strong>${r._total||0}</strong></td></tr>`;
+    }).join('') + `<tr class="total" style="border-top:2px solid var(--c-border-strong)">
+      <td><strong>TOTAL</strong></td>${totalRow.map(t=>`<td class="num"><strong>${t}</strong></td>`).join('')}<td class="num"><strong>${grandTotal}</strong></td>
+    </tr>`;
+  }
+
+  function vtRenderFilterSummary(){
+    const el = document.getElementById('vt-filter-summary');
+    if(!el) return;
+    const parts = [];
+    parts.push(DATA.brand_display?.[vtstate.marca] || vtstate.marca.replace('_ORGU',''));
+    parts.push('Vista: ' + ({modelo:'Por modelo', asesor:'Por asesor', agencia:'Por agencia'}[vtstate.view]));
+    if(vtstate.modelo) parts.push('Modelo: ' + vtstate.modelo);
+    el.textContent = parts.join(' · ');
+  }
+
+  function vtRenderAll(){
+    vtFillMarca();
+    vtFillModelo();
+    vtRenderFilterSummary();
+    vtRenderHero();
+    vtRenderTable();
+  }
+
+  function initVentas(){
+    if(vtInited) return;
+    vtInited = true;
+    vtFillMarca();
+    vtFillModelo();
+    document.getElementById('vt-marca').addEventListener('change', e=>{
+      vtstate.marca = e.target.value;
+      vtstate.modelo = '';
+      vtFillModelo();
+      vtRenderAll();
+    });
+    document.getElementById('vt-view').addEventListener('change', e=>{
+      vtstate.view = e.target.value;
+      vtRenderAll();
+    });
+    document.getElementById('vt-modelo').addEventListener('change', e=>{
+      vtstate.modelo = e.target.value;
+      vtRenderAll();
+    });
+    document.getElementById('vt-reset').addEventListener('click', ()=>{
+      vtstate.marca = 'FORD'; vtstate.view = 'modelo'; vtstate.modelo = '';
+      document.getElementById('vt-marca').value = 'FORD';
+      document.getElementById('vt-view').value = 'modelo';
+      vtFillModelo();
+      vtRenderAll();
+    });
+  }
+  document.querySelector('.tab-btn[data-tab="ventas"]')?.addEventListener('click', ()=>{
+    initVentas();
+    vtRenderAll();
+  });
 
   // =========================================================
   //              MÓDULO INVENTARIO
