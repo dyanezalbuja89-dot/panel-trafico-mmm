@@ -11051,16 +11051,33 @@ HTML = r"""<!doctype html>
   };
 
   // Suma una lista de objetos-periodo en uno solo (totales + buckets agregados).
+  const _DESP_CAT_ORDER = ['Citó','En gestión activa','Salida legítima','Desperdicio','Sin tipificar'];
   function _despMerge(list) {
     const sumBuckets = (arrs) => {
       const m = new Map();
       arrs.forEach(a => (a || []).forEach(([k, v]) => m.set(k, (m.get(k) || 0) + v)));
       return [...m.entries()].sort((a, b) => b[1] - a[1]);
     };
+    const sumByCat = (arrs) => {
+      const m = new Map();
+      arrs.forEach(a => (a || []).forEach(([k, v]) => m.set(k, (m.get(k) || 0) + v)));
+      return _DESP_CAT_ORDER.map(k => [k, m.get(k) || 0]).filter(r => r[1] > 0);
+    };
+    const mergeCatDet = (dicts) => {
+      const out = {};
+      dicts.forEach(cd => Object.entries(cd || {}).forEach(([cat, rows]) => {
+        const m = out[cat] || (out[cat] = new Map());
+        (rows || []).forEach(([k, v]) => m.set(k, (m.get(k) || 0) + v));
+      }));
+      const res = {};
+      Object.entries(out).forEach(([cat, m]) => res[cat] = [...m.entries()].sort((a, b) => b[1] - a[1]));
+      return res;
+    };
     return {
       available: true,
       no_contactados: { total: list.reduce((s, d) => s + (d.no_contactados.total || 0), 0), by_llamada: sumBuckets(list.map(d => d.no_contactados.by_llamada)) },
-      contactados:    { total: list.reduce((s, d) => s + (d.contactados.total || 0), 0),    by_estatus: sumBuckets(list.map(d => d.contactados.by_estatus)) },
+      contactados:    { total: list.reduce((s, d) => s + (d.contactados.total || 0), 0),    by_estatus: sumBuckets(list.map(d => d.contactados.by_estatus)),
+                        by_categoria: sumByCat(list.map(d => d.contactados.by_categoria)), cat_detalle: mergeCatDet(list.map(d => d.contactados.cat_detalle)) },
       no_show:        { total: list.reduce((s, d) => s + (d.no_show.total || 0), 0),        by_estatus: sumBuckets(list.map(d => d.no_show.by_estatus)) }
     };
   }
@@ -11084,11 +11101,12 @@ HTML = r"""<!doctype html>
       return { total: rows.reduce((s, r) => s + r[1], 0), by_estatus: rows };
     };
     const ncList = ms.map(l => _DESP_M[l]).filter(Boolean);
+    const merged = _despMerge(ncList);
     return {
       available: true,
-      no_contactados: _despMerge(ncList).no_contactados,
-      contactados: fromCruce(cruce.contactados),
-      no_show: fromCruce(cruce.no_show)
+      no_contactados: merged.no_contactados,
+      contactados: merged.contactados,   // by_categoria + cat_detalle (misma fuente que el drill → cuadra)
+      no_show: fromCruce(cruce.no_show)   // cruce solo para el drill de reactivación del no-show
     };
   }
   // Ordena filas [["1ª",n],...] por nº de llamada (1ª→12ª), no por cantidad.
@@ -11188,6 +11206,43 @@ HTML = r"""<!doctype html>
     pick(rows[0]);  // default: auto-selecciona el primer estatus
   }
 
+  // Colores por categoría de eficiencia (Citó verde, gestión ámbar, salida slate, desperdicio rojo).
+  const _CAT_COLOR = {
+    'Citó': '#16a34a', 'En gestión activa': '#d97706', 'Salida legítima': '#64748b',
+    'Desperdicio': '#dc2626', 'Sin tipificar': '#94a3b8'
+  };
+  // Tabla de la tarjeta Contactados por CATEGORÍA (no por estatus crudo): filas con punto
+  // de color, clickables para el drill a sub-estatus granular.
+  function _despCatTable(rows, total) {
+    return '<table class="desp-tbl"><tbody>' + (rows || []).map((r, i) => {
+      const pct = _cc26Pct(r[1], total);
+      const col = _CAT_COLOR[r[0]] || '#64748b';
+      const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${col};margin-right:6px;vertical-align:middle"></span>`;
+      return `<tr class="clk" data-key="${encodeURIComponent(r[0])}" data-idx="${i}"><td class="desp-tbl-name">${dot}${r[0]}</td><td>${_cc26Fmt(r[1])}</td><td>${pct}%</td></tr>`;
+    }).join('') + '</tbody></table>';
+  }
+  // Drill de categoría → detalle granular (cat_detalle[cat] = [[sub-estatus, n], ...]).
+  // Disponible en TODAS las vistas (el dato viene de la misma fuente que la tabla).
+  function _despWireCatDrill(hostCard, bodyId, catDet) {
+    if (!hostCard) return;
+    const body = hostCard.querySelector('#' + bodyId);
+    const rows = hostCard.querySelectorAll('tr.clk');
+    if (!body || !rows.length) return;
+    const pick = (tr) => {
+      rows.forEach(x => x.classList.remove('active'));
+      tr.classList.add('active');
+      const cat = decodeURIComponent(tr.dataset.key || '');
+      const det = (catDet && catDet[cat]) || [];
+      const col = _CAT_COLOR[cat] || '#64748b';
+      const sum = det.reduce((a, r) => a + r[1], 0);
+      body.innerHTML = det.length
+        ? `<div class="desp-drill"><div class="desp-drill-title">Detalle de <b>${cat}</b> (${_cc26Fmt(sum)}):</div>${_despBars(det, sum, col)}</div>`
+        : `<div class="desp-drill"><div class="desp-drill-empty">Sin detalle granular para esta categoría.</div></div>`;
+    };
+    rows.forEach(tr => tr.addEventListener('click', () => pick(tr)));
+    pick(rows[0]);
+  }
+
   function renderDesperdicio(){
     const host = document.getElementById('desp-cards');
     if (!host) return;
@@ -11223,20 +11278,19 @@ HTML = r"""<!doctype html>
       ${_despBars(_despByCallOrder(nc.by_llamada), nc.total, RED)}
     </div>`;
 
-    // ── Card 2: Contactados (drill estatus → nº de llamada; solo en vista Todas) ──
-    const c = D.contactados || { total:0, by_estatus:[] };
-    const cActivo = (c.by_estatus || []).find(r => _DESP_LIVE.has(r[0]));
-    const cActivoPct = _cc26Pct(cActivo ? cActivo[1] : 0, c.total);
-    let cDead = 0;
-    (c.by_estatus || []).forEach(r => { if (_DESP_DEAD.has(r[0])) cDead += r[1]; });
-    const c2hint = isTodas ? ' · <b>clic en un estatus</b> para ver sus llamadas' : '';
+    // ── Card 2: Contactados — desglose por CATEGORÍA de eficiencia (drill → sub-estatus granular) ──
+    // Citó (agendó cita) / En gestión activa / Salida legítima / Desperdicio real / Sin tipificar.
+    // Reemplaza el desglose crudo de 6 valores: 'Contactado' mezclaba éxitos (Aceptaciones
+    // auditadas=cita) y salidas (compró otra marca) con seguimiento real. Ahora se separan.
+    const c = D.contactados || { total:0, by_categoria:[], cat_detalle:{} };
+    const _catGet = (k) => { const r = (c.by_categoria || []).find(x => x[0] === k); return r ? r[1] : 0; };
     const card2 = `<div class="desp-card desp-amber" id="desp-card-c">
       <div class="desp-card-head">
         <div class="desp-card-name">Contactados</div>
         <div class="desp-card-total">${_cc26Fmt(c.total)}</div>
       </div>
-      <div class="desp-tagline">solo <b>${cActivoPct}%</b> en «Contactado» · <b>${_cc26Fmt(cDead)} ya muertos</b> (No interesado + Sin recursos)${c2hint}</div>
-      ${_despTable(c.by_estatus || [], c.total, true, isTodas ? 'contactados' : null)}
+      <div class="desp-tagline"><b>${_cc26Pct(_catGet('Citó'), c.total)}%</b> citó · <b>${_cc26Pct(_catGet('En gestión activa'), c.total)}%</b> en gestión · <b>${_cc26Pct(_catGet('Desperdicio'), c.total)}%</b> desperdicio real · <b>clic en una categoría</b> para el detalle</div>
+      ${_despCatTable(c.by_categoria || [], c.total)}
       <div id="desp-c-drill"></div>
     </div>`;
 
@@ -11279,15 +11333,14 @@ HTML = r"""<!doctype html>
 
     host.innerHTML = card1 + card2 + cardConf + card3;
 
+    // Contactados: drill categoría → sub-estatus granular (disponible en TODAS las vistas).
+    _despWireCatDrill(document.getElementById('desp-card-c'), 'desp-c-drill', c.cat_detalle);
+    // No-show: drill etapa → llamadas de reactivación (solo Todas; usa el cruce).
     if (isTodas) {
-      // Drill estatus/etapa → llamadas, con el cruce de los meses seleccionados (cuadra con la tabla).
-      _despWireDrill(document.getElementById('desp-card-c'),  'desp-c-drill',  cruce.contactados, AMBER, _DESP_LLAM_LBL,  'Llamadas de');
-      _despWireDrill(document.getElementById('desp-card-ns'), 'desp-ns-drill', cruce.no_show,     SLATE, _DESP_REACT_LBL, 'Llamadas de reactivación de');
+      _despWireDrill(document.getElementById('desp-card-ns'), 'desp-ns-drill', cruce.no_show, SLATE, _DESP_REACT_LBL, 'Llamadas de reactivación de');
     } else {
-      // Por agencia no hay cruce estatus×llamada (sería otra foto y rompería el cuadre); nota.
-      const note = '<div class="desp-drill"><div class="desp-drill-empty">Detalle de llamadas por estatus: disponible en vista <b>Todas las agencias</b>.</div></div>';
-      const cd = document.getElementById('desp-c-drill'); if (cd) cd.innerHTML = note;
-      const nd = document.getElementById('desp-ns-drill'); if (nd) nd.innerHTML = note;
+      const nd = document.getElementById('desp-ns-drill');
+      if (nd) nd.innerHTML = '<div class="desp-drill"><div class="desp-drill-empty">Detalle de reactivación: disponible en vista <b>Todas las agencias</b>.</div></div>';
     }
   }
 
@@ -11673,15 +11726,32 @@ HTML = r"""<!doctype html>
 
   // Suma una lista de objetos-periodo en uno solo (totales + buckets agregados).
   function _df_despMerge(list) {
+    const _CAT_ORD = ['Citó','En gestión activa','Salida legítima','Desperdicio','Sin tipificar'];
     const sumBuckets = (arrs) => {
       const m = new Map();
       arrs.forEach(a => (a || []).forEach(([k, v]) => m.set(k, (m.get(k) || 0) + v)));
       return [...m.entries()].sort((a, b) => b[1] - a[1]);
     };
+    const sumByCat = (arrs) => {
+      const m = new Map();
+      arrs.forEach(a => (a || []).forEach(([k, v]) => m.set(k, (m.get(k) || 0) + v)));
+      return _CAT_ORD.map(k => [k, m.get(k) || 0]).filter(r => r[1] > 0);
+    };
+    const mergeCatDet = (dicts) => {
+      const out = {};
+      dicts.forEach(cd => Object.entries(cd || {}).forEach(([cat, rows]) => {
+        const m = out[cat] || (out[cat] = new Map());
+        (rows || []).forEach(([k, v]) => m.set(k, (m.get(k) || 0) + v));
+      }));
+      const res = {};
+      Object.entries(out).forEach(([cat, m]) => res[cat] = [...m.entries()].sort((a, b) => b[1] - a[1]));
+      return res;
+    };
     return {
       available: true,
       no_contactados: { total: list.reduce((s, d) => s + (d.no_contactados.total || 0), 0), by_llamada: sumBuckets(list.map(d => d.no_contactados.by_llamada)) },
-      contactados:    { total: list.reduce((s, d) => s + (d.contactados.total || 0), 0),    by_estatus: sumBuckets(list.map(d => d.contactados.by_estatus)) },
+      contactados:    { total: list.reduce((s, d) => s + (d.contactados.total || 0), 0),    by_estatus: sumBuckets(list.map(d => d.contactados.by_estatus)),
+                        by_categoria: sumByCat(list.map(d => d.contactados.by_categoria)), cat_detalle: mergeCatDet(list.map(d => d.contactados.cat_detalle)) },
       no_show:        { total: list.reduce((s, d) => s + (d.no_show.total || 0), 0),        by_estatus: sumBuckets(list.map(d => d.no_show.by_estatus)) }
     };
   }
@@ -11705,11 +11775,12 @@ HTML = r"""<!doctype html>
       return { total: rows.reduce((s, r) => s + r[1], 0), by_estatus: rows };
     };
     const ncList = ms.map(l => _DF2_DESP_M[l]).filter(Boolean);
+    const merged = _df_despMerge(ncList);
     return {
       available: true,
-      no_contactados: _df_despMerge(ncList).no_contactados,
-      contactados: fromCruce(cruce.contactados),
-      no_show: fromCruce(cruce.no_show)
+      no_contactados: merged.no_contactados,
+      contactados: merged.contactados,   // by_categoria + cat_detalle (cuadra con el drill)
+      no_show: fromCruce(cruce.no_show)   // cruce solo para el drill de reactivación del no-show
     };
   }
   // Ordena filas [["1ª",n],...] por nº de llamada (1ª→12ª), no por cantidad.
@@ -11809,6 +11880,38 @@ HTML = r"""<!doctype html>
     pick(rows[0]);  // default: auto-selecciona el primer estatus
   }
 
+  const _DF_CAT_COLOR = {
+    'Citó': '#16a34a', 'En gestión activa': '#d97706', 'Salida legítima': '#64748b',
+    'Desperdicio': '#dc2626', 'Sin tipificar': '#94a3b8'
+  };
+  function _df_despCatTable(rows, total) {
+    return '<table class="desp-tbl"><tbody>' + (rows || []).map((r, i) => {
+      const pct = _df_cc26Pct(r[1], total);
+      const col = _DF_CAT_COLOR[r[0]] || '#64748b';
+      const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${col};margin-right:6px;vertical-align:middle"></span>`;
+      return `<tr class="clk" data-key="${encodeURIComponent(r[0])}" data-idx="${i}"><td class="desp-tbl-name">${dot}${r[0]}</td><td>${_df_cc26Fmt(r[1])}</td><td>${pct}%</td></tr>`;
+    }).join('') + '</tbody></table>';
+  }
+  function _df_despWireCatDrill(hostCard, bodyId, catDet) {
+    if (!hostCard) return;
+    const body = hostCard.querySelector('#' + bodyId);
+    const rows = hostCard.querySelectorAll('tr.clk');
+    if (!body || !rows.length) return;
+    const pick = (tr) => {
+      rows.forEach(x => x.classList.remove('active'));
+      tr.classList.add('active');
+      const cat = decodeURIComponent(tr.dataset.key || '');
+      const det = (catDet && catDet[cat]) || [];
+      const col = _DF_CAT_COLOR[cat] || '#64748b';
+      const sum = det.reduce((a, r) => a + r[1], 0);
+      body.innerHTML = det.length
+        ? `<div class="desp-drill"><div class="desp-drill-title">Detalle de <b>${cat}</b> (${_df_cc26Fmt(sum)}):</div>${_df_despBars(det, sum, col)}</div>`
+        : `<div class="desp-drill"><div class="desp-drill-empty">Sin detalle granular para esta categoría.</div></div>`;
+    };
+    rows.forEach(tr => tr.addEventListener('click', () => pick(tr)));
+    pick(rows[0]);
+  }
+
   function renderDesperdicioDF(){
     const host = document.getElementById('df-desp-cards');
     if (!host) return;
@@ -11844,20 +11947,16 @@ HTML = r"""<!doctype html>
       ${_df_despBars(_df_despByCallOrder(nc.by_llamada), nc.total, RED)}
     </div>`;
 
-    // ── Card 2: Contactados (drill estatus → nº de llamada; solo en vista Todas) ──
-    const c = D.contactados || { total:0, by_estatus:[] };
-    const cActivo = (c.by_estatus || []).find(r => _DF2_DESP_LIVE.has(r[0]));
-    const cActivoPct = _df_cc26Pct(cActivo ? cActivo[1] : 0, c.total);
-    let cDead = 0;
-    (c.by_estatus || []).forEach(r => { if (_DF2_DESP_DEAD.has(r[0])) cDead += r[1]; });
-    const c2hint = isTodas ? ' · <b>clic en un estatus</b> para ver sus llamadas' : '';
+    // ── Card 2: Contactados — desglose por CATEGORÍA de eficiencia (drill → sub-estatus granular) ──
+    const c = D.contactados || { total:0, by_categoria:[], cat_detalle:{} };
+    const _catGet = (k) => { const r = (c.by_categoria || []).find(x => x[0] === k); return r ? r[1] : 0; };
     const card2 = `<div class="desp-card desp-amber" id="df-desp-card-c">
       <div class="desp-card-head">
         <div class="desp-card-name">Contactados</div>
         <div class="desp-card-total">${_df_cc26Fmt(c.total)}</div>
       </div>
-      <div class="desp-tagline">solo <b>${cActivoPct}%</b> en «Contactado» · <b>${_df_cc26Fmt(cDead)} ya muertos</b> (No interesado + Sin recursos)${c2hint}</div>
-      ${_df_despTable(c.by_estatus || [], c.total, true, isTodas ? 'contactados' : null)}
+      <div class="desp-tagline"><b>${_df_cc26Pct(_catGet('Citó'), c.total)}%</b> citó · <b>${_df_cc26Pct(_catGet('En gestión activa'), c.total)}%</b> en gestión · <b>${_df_cc26Pct(_catGet('Desperdicio'), c.total)}%</b> desperdicio real · <b>clic en una categoría</b> para el detalle</div>
+      ${_df_despCatTable(c.by_categoria || [], c.total)}
       <div id="df-desp-c-drill"></div>
     </div>`;
 
@@ -11900,15 +11999,14 @@ HTML = r"""<!doctype html>
 
     host.innerHTML = card1 + card2 + cardConf + card3;
 
+    // Contactados: drill categoría → sub-estatus granular (disponible en TODAS las vistas).
+    _df_despWireCatDrill(document.getElementById('df-desp-card-c'), 'df-desp-c-drill', c.cat_detalle);
+    // No-show: drill etapa → llamadas de reactivación (solo Todas; usa el cruce).
     if (isTodas) {
-      // Drill estatus/etapa → llamadas, con el cruce de los meses seleccionados (cuadra con la tabla).
-      _df_despWireDrill(document.getElementById('df-desp-card-c'),  'df-desp-c-drill',  cruce.contactados, AMBER, _DF2_DESP_LLAM_LBL,  'Llamadas de');
-      _df_despWireDrill(document.getElementById('df-desp-card-ns'), 'df-desp-ns-drill', cruce.no_show,     SLATE, _DF2_DESP_REACT_LBL, 'Llamadas de reactivación de');
+      _df_despWireDrill(document.getElementById('df-desp-card-ns'), 'df-desp-ns-drill', cruce.no_show, SLATE, _DF2_DESP_REACT_LBL, 'Llamadas de reactivación de');
     } else {
-      // Por agencia no hay cruce estatus×llamada (sería otra foto y rompería el cuadre); nota.
-      const note = '<div class="desp-drill"><div class="desp-drill-empty">Detalle de llamadas por estatus: disponible en vista <b>Todas las agencias</b>.</div></div>';
-      const cd = document.getElementById('df-desp-c-drill'); if (cd) cd.innerHTML = note;
-      const nd = document.getElementById('df-desp-ns-drill'); if (nd) nd.innerHTML = note;
+      const nd = document.getElementById('df-desp-ns-drill');
+      if (nd) nd.innerHTML = '<div class="desp-drill"><div class="desp-drill-empty">Detalle de reactivación: disponible en vista <b>Todas las agencias</b>.</div></div>';
     }
   }
 

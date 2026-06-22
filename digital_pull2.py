@@ -21,6 +21,43 @@ _NUM_INTERNAL_TO_LBL = {v: l for v, l in H._NUM_LLAMADA}
 _RES_TO_LBL = dict(H._RES_LLAMADA)            # resultado_de_llamada interno -> etiqueta panel
 _REACT_INTERNAL_TO_IDX = {'1º Llamada': 0, '2º Llamada': 1, '3º Llamada': 2}  # idx3 = Sin react.
 
+# Clasificación del detalle granular (detalle_resultado_de_llamada___ultima_llamada, 24
+# valores) en 4+1 categorías de eficiencia/desperdicio. Verificado con datos-hubspot
+# (jun-2026) + criterio del usuario. 'Aceptaciones auditadas' = Citó (100% tiene deal con
+# fecha_de_la_cita; es agendamiento, no asistencia → no es "Convirtió"). Salida legítima =
+# cierre sano (compró/no volver). Desperdicio = no contesta/sin interés/error/no califica.
+# Gestión activa = seguimiento genuino en curso. Sin mapear/null → 'Sin tipificar'.
+# Variantes de capitalización del campo _1 incluidas (Sin Interés / Solicita Cotización).
+_CAT_ORDER = ['Citó', 'En gestión activa', 'Salida legítima', 'Desperdicio', 'Sin tipificar']
+_CATEGORIA = {
+    'Aceptaciones auditadas': 'Citó',
+    'Seguimiento por Whatsapp': 'En gestión activa',
+    'Llamar después': 'En gestión activa',
+    'Interesado a futuro': 'En gestión activa',
+    'Solicita cotización': 'En gestión activa',
+    'Solicita Cotización': 'En gestión activa',
+    'Cliente compró un vehículo de otra marca': 'Salida legítima',
+    'Cliente ya compró un vehículo FORD en otro concesionario': 'Salida legítima',
+    'Ya compró un vehículo usado': 'Salida legítima',
+    'No desea que lo contacten se acercará directamente': 'Salida legítima',
+    'NO Volver a Contactar': 'Salida legítima',
+    'No contesta': 'Desperdicio',
+    'Buzón de voz': 'Desperdicio',
+    'Se cortó llamada': 'Desperdicio',
+    'Ocupado': 'Desperdicio',
+    'Línea no existe/Suspendida/Fuera de servicio': 'Desperdicio',
+    'Sin interés': 'Desperdicio',
+    'Sin Interés': 'Desperdicio',
+    'Curiosos': 'Desperdicio',
+    'Equivocado': 'Desperdicio',
+    'Repetido': 'Desperdicio',
+    'Información cruzada': 'Desperdicio',
+    'Fuera del país': 'Desperdicio',
+    'Fuera de presupuesto': 'Desperdicio',
+    'Buro Bajo': 'Desperdicio',
+    'Fuera de Ciudad o Región': 'Desperdicio',
+}
+
 MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
 # Ventana 2026-H1 (ene 1 .. jul 1 - 1ms)
@@ -152,7 +189,8 @@ def fetch_brand_full(cfg):
     c_filters = [H._between(cohort, _S, _E)] + lead_filter
     contacts = _fetch_all('contacts', c_filters,
                           [cohort, 'contactabilidad', 'resultado_de_llamada', 'numero_de_llamada',
-                           'agencia', 'lead_enviado_cct'])
+                           'agencia', 'lead_enviado_cct',
+                           'detalle_resultado_de_llamada___ultima_llamada'])
     # ── DEALS (actividad por fecha_de_la_cita) ──
     d_filters = [H._eq('pipeline', pipe), H._between('fecha_de_la_cita', _S, _E)]
     deals = _fetch_all('deals', d_filters,
@@ -160,7 +198,8 @@ def fetch_brand_full(cfg):
 
     def newcell():
         return {'leads': 0, 'cont': 0, 'tope': 0, 'agen': 0, 'confirmadas': 0, 'efec': 0, 'nos': 0,
-                'nc_by': {}, 'c_est': {}, 'c_cross': {}, 'ns_est': {}, 'conf_d': {}, 'ns_react': {}}
+                'nc_by': {}, 'c_est': {}, 'c_cross': {}, 'ns_est': {}, 'conf_d': {}, 'ns_react': {},
+                'c_cat': {}, 'c_cat_det': {}}
     # cells[(scope, label)] donde scope = 'T' o agencia-corta
     cells = {}
 
@@ -181,6 +220,7 @@ def fetch_brand_full(cfg):
         env = p.get('lead_enviado_cct')
         num = p.get('numero_de_llamada')
         res = p.get('resultado_de_llamada')
+        det = p.get('detalle_resultado_de_llamada___ultima_llamada')
         for sc in scopes:
             c = cell(sc, lbl)
             c['leads'] += 1
@@ -203,6 +243,13 @@ def fetch_brand_full(cfg):
                 if idx is not None:
                     arr = c['c_cross'].setdefault(est, [0] * 12)
                     arr[idx] += 1
+                # categoría real (Citó / gestión / salida / desperdicio) desde el detalle granular
+                cat = _CATEGORIA.get(det, 'Sin tipificar')
+                c['c_cat'][cat] = c['c_cat'].get(cat, 0) + 1
+                # drill categoría → sub-estatus granular (etiqueta legible = el detalle, o 'Sin tipificar')
+                detlbl = det if (det in _CATEGORIA) else 'Sin tipificar'
+                d = c['c_cat_det'].setdefault(cat, {})
+                d[detlbl] = d.get(detlbl, 0) + 1
 
     # Agrega deals
     noshow_ids = []
@@ -256,9 +303,12 @@ def fetch_brand_full(cfg):
                 'agen': c['agen'], 'agendadas': c['agen'],  # ambos nombres (panel usa 'agendadas')
                 'confirmadas': c['confirmadas'], 'efec': c['efec'], 'nos': c['nos'], 'conf': conf}
     def desp_obj(c):
+        by_cat = [[k, c['c_cat'][k]] for k in _CAT_ORDER if c['c_cat'].get(k)]
+        cat_det = {k: _sorted_pairs(v) for k, v in c['c_cat_det'].items()}
         return {
             'no_contactados': {'total': sum(c['nc_by'].values()), 'by_llamada': _sorted_pairs(c['nc_by'])},
-            'contactados': {'total': sum(c['c_est'].values()), 'by_estatus': _sorted_pairs(c['c_est'])},
+            'contactados': {'total': sum(c['c_est'].values()), 'by_estatus': _sorted_pairs(c['c_est']),
+                            'by_categoria': by_cat, 'cat_detalle': cat_det},
             'no_show': {'total': sum(c['ns_est'].values()), 'by_estatus': _sorted_pairs(c['ns_est'])},
         }
 
