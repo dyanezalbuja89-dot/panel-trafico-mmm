@@ -1492,6 +1492,17 @@ HTML = r"""<!doctype html>
     font-variant-numeric:tabular-nums;
     letter-spacing:-.025em;
   }
+  /* Card 'Líder vista activa' del tab Ventas — modelo names pueden ser muy largos */
+  #vt-k-leader{
+    font-size:18px;
+    line-height:1.15;
+    letter-spacing:0;
+    word-break:break-word;
+    overflow:hidden;
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+  }
   .stat-hero .card-big .val.neg{color:var(--c-bad-tx)}
   .stat-hero .card-big .val.pos{color:var(--c-good-tx)}
   .stat-hero .card-big .val.warn{color:var(--c-warn-tx)}
