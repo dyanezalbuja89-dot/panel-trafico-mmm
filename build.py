@@ -3555,10 +3555,25 @@ HTML = r"""<!doctype html>
           <option value="zona">Por zona</option>
         </select>
       </label>
+      <label>Métrica
+        <select id="vt-metric">
+          <option value="cantidad">Unidades (NETOS)</option>
+          <option value="revenue">Facturación ($)</option>
+        </select>
+      </label>
       <label>Zona<select id="vt-zona"><option value="">Todas</option></select></label>
       <label>Agencia<select id="vt-agencia"><option value="">Todas</option></select></label>
       <label>Modelo<select id="vt-modelo"><option value="">Todos</option></select></label>
+      <label>Top
+        <select id="vt-topn">
+          <option value="">Todos</option>
+          <option value="5">Top 5</option>
+          <option value="10">Top 10</option>
+          <option value="20">Top 20</option>
+        </select>
+      </label>
       <button class="reset" id="vt-reset" type="button">↺ Limpiar</button>
+      <button class="reset" id="vt-export" type="button" title="Copia CSV al portapapeles">📋 Exportar CSV</button>
     </div>
 
     <div class="ford-filter-summary" id="vt-filter-summary"></div>
@@ -3583,7 +3598,7 @@ HTML = r"""<!doctype html>
 
     <!-- DETALLE POR ASESOR COMERCIAL (siempre visible al final) -->
     <div class="ford-section">
-      <h3>👤 Detalle por asesor comercial <span class="sub" id="vt-asesor-sub">filtros aplicados</span></h3>
+      <h3>👤 Detalle por asesor comercial <span class="sub" id="vt-asesor-sub">filtros aplicados · click para expandir modelos</span></h3>
       <div style="overflow-x:auto">
         <table class="analysis" id="vt-tbl-asesor">
           <thead></thead>
@@ -3592,7 +3607,18 @@ HTML = r"""<!doctype html>
       </div>
     </div>
 
-    <div class="footer-note">NETOS = sum(Cantidad) con +1 FACTURA / −1 NC. Pivote dinámico — todos los filtros aplican al main + sección de asesores.</div>
+    <!-- NOTAS DE CRÉDITO · auditoría -->
+    <div class="ford-section" id="vt-nc-section" style="display:none">
+      <h3>↩️ Notas de crédito · auditoría <span class="sub" id="vt-nc-sub">facturas anuladas / devoluciones</span></h3>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="vt-tbl-nc">
+          <thead><tr><th>Mes</th><th>Modelo</th><th>Asesor</th><th>Agencia</th><th>Zona</th><th class="num">$ Reversado</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer-note">NETOS = sum(Cantidad) con +1 FACTURA / −1 NC. Heatmap visual + Δ vs mes anterior + sparkline + ranking · filtros dinámicos.</div>
   </section>
 
   <!-- ======================= TAB INVENTARIO ======================= -->
@@ -13153,7 +13179,65 @@ HTML = r"""<!doctype html>
   //              TAB VENTAS · NETOS MENSUALES
   // =========================================================
   const VENTAS_MENSUAL = DATA.ventas_mensual || {};
-  const vtstate = { marca:'FORD', view:'modelo', modelo:'', agencia:'', zona:'' };
+  const vtstate = { marca:'FORD', view:'modelo', metric:'cantidad', modelo:'', agencia:'', zona:'', topN:'', sortKey:'_total', sortDir:'desc', expanded:new Set() };
+
+  // Helper formato $ y unidades.
+  function vtFmtVal(v){
+    if(v == null || v === '' || isNaN(v)) return '—';
+    if(vtstate.metric === 'revenue'){
+      const abs = Math.abs(v);
+      if(abs >= 1000000) return '$'+(v/1000000).toFixed(2)+'M';
+      if(abs >= 1000) return '$'+(v/1000).toFixed(1)+'k';
+      return '$'+Math.round(v);
+    }
+    return Math.round(v);
+  }
+  function vtMetricKey(){ return vtstate.metric === 'revenue' ? 'revenue' : 'cantidad'; }
+
+  // Color por intensidad (heatmap). v normalizado 0..1 vs max de la fila.
+  function vtHeatColor(v, maxAbs){
+    if(maxAbs <= 0 || v == null || isNaN(v)) return '';
+    const intensity = Math.min(1, Math.abs(v) / maxAbs);
+    if(v < 0){
+      const a = 0.10 + 0.45*intensity;
+      return `background:rgba(220,38,38,${a.toFixed(2)});color:#7f1d1d`;
+    }
+    const a = 0.08 + 0.55*intensity;
+    return `background:rgba(22,163,74,${a.toFixed(2)});color:#0f3d20`;
+  }
+
+  // Delta ▲▼ vs valor anterior.
+  function vtDeltaTag(curr, prev){
+    if(prev == null || prev === 0 || curr == null) return '';
+    const d = curr - prev;
+    if(d === 0) return '';
+    const arrow = d > 0 ? '▲' : '▼';
+    const col = d > 0 ? '#16a34a' : '#dc2626';
+    return `<span style="font-size:9px;color:${col};margin-left:2px;font-weight:600">${arrow}${Math.abs(d)}</span>`;
+  }
+
+  // Sparkline SVG inline · serie = array de números (puede tener nulls).
+  function vtSparkline(series, width){
+    width = width || 80;
+    const h = 22;
+    const clean = series.map(v => (typeof v === 'number' ? v : 0));
+    const maxV = Math.max(1, ...clean.map(Math.abs));
+    const step = clean.length > 1 ? width / (clean.length - 1) : 0;
+    const mid = h / 2;
+    const points = clean.map((v,i)=>{
+      const x = i * step;
+      const y = mid - (v / maxV) * (h/2 - 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const lastV = clean[clean.length-1] || 0;
+    const lastX = (clean.length-1) * step;
+    const lastY = mid - (lastV / maxV) * (h/2 - 2);
+    const col = lastV >= 0 ? '#16a34a' : '#dc2626';
+    return `<svg width="${width}" height="${h}" style="vertical-align:middle">
+      <polyline points="${points}" fill="none" stroke="${col}" stroke-width="1.5"/>
+      <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2" fill="${col}"/>
+    </svg>`;
+  }
   let vtInited = false;
 
   function vtBrandData(){ return VENTAS_MENSUAL[vtstate.marca] || null; }
@@ -13239,18 +13323,22 @@ HTML = r"""<!doctype html>
   }
 
   // Pivot dinámico de rows filtradas por una dimensión (modelo|asesor|agencia|zona) × mes.
+  // Usa la métrica activa (cantidad o revenue).
   function vtPivotByDim(rows, dim, months){
     const out = {};
+    const mk = vtMetricKey();
     rows.forEach(r=>{
       const key = r[dim];
       if(!key) return;
       if(!out[key]){
-        out[key] = {_total:0, _agencia:r.agencia, _zona:r.zona, _por_modelo:{}};
+        out[key] = {_total:0, _agencia:r.agencia, _zona:r.zona, _por_modelo:{}, _units:0, _rev:0};
         months.forEach(m=> out[key][m] = 0);
       }
-      out[key][r.mes] = (out[key][r.mes]||0) + r.cantidad;
-      out[key]._total = (out[key]._total||0) + r.cantidad;
-      out[key]._por_modelo[r.modelo] = (out[key]._por_modelo[r.modelo]||0) + r.cantidad;
+      out[key][r.mes] = (out[key][r.mes]||0) + r[mk];
+      out[key]._total = (out[key]._total||0) + r[mk];
+      out[key]._por_modelo[r.modelo] = (out[key]._por_modelo[r.modelo]||0) + r[mk];
+      out[key]._units += r.cantidad;
+      out[key]._rev += r.revenue;
     });
     return out;
   }
@@ -13265,25 +13353,29 @@ HTML = r"""<!doctype html>
     }
     const months = d.months || [];
     const rows = vtFilterFlat();
-    // Totales por mes (dinámico)
+    const mk = vtMetricKey();
     const perMes = {}; months.forEach(m=> perMes[m] = 0);
-    let total = 0;
-    rows.forEach(r=>{ perMes[r.mes] = (perMes[r.mes]||0) + r.cantidad; total += r.cantidad; });
+    let total = 0, totalUnits = 0, totalRev = 0;
+    rows.forEach(r=>{
+      perMes[r.mes] = (perMes[r.mes]||0) + r[mk];
+      total += r[mk];
+      totalUnits += r.cantidad;
+      totalRev += r.revenue;
+    });
     const filterParts = [];
     if(vtstate.zona) filterParts.push('Zona ' + vtstate.zona);
     if(vtstate.agencia) filterParts.push(vtstate.agencia);
     if(vtstate.modelo) filterParts.push(vtstate.modelo);
     const scope = filterParts.length ? filterParts.join(' · ') : (DATA.brand_display?.[vtstate.marca] || vtstate.marca.replace('_ORGU',''));
-    document.getElementById('vt-k-total').textContent = fmt(total);
-    document.getElementById('vt-k-total-hint').textContent = scope + ' · YTD 2026';
-    // Mejor mes
+    document.getElementById('vt-k-total').textContent = vtFmtVal(total);
+    const ticket = totalUnits > 0 ? totalRev / totalUnits : 0;
+    document.getElementById('vt-k-total-hint').textContent = scope + ' · YTD 2026' + (ticket ? ' · ticket prom ' + vtFmtValRaw(ticket, 'revenue') : '');
     let bestM = null, bestV = -Infinity;
     months.forEach(m=>{ const v = perMes[m] || 0; if(v > bestV){ bestV = v; bestM = m; } });
     const idxBest = months.indexOf(bestM);
     const lblBest = idxBest >= 0 ? d.months_labels[idxBest] : '—';
-    document.getElementById('vt-k-best').textContent = bestV >= 0 ? bestV : '—';
+    document.getElementById('vt-k-best').textContent = vtFmtVal(bestV);
     document.getElementById('vt-k-best-hint').textContent = lblBest;
-    // Líder vista activa (top item con filtros aplicados)
     const pivot = vtPivotByDim(rows, vtstate.view, months);
     let leader = null, leaderV = -Infinity;
     Object.entries(pivot).forEach(([k,row])=>{
@@ -13291,11 +13383,20 @@ HTML = r"""<!doctype html>
       if(v > leaderV){ leaderV = v; leader = k; }
     });
     document.getElementById('vt-k-leader').textContent = leader || '—';
-    document.getElementById('vt-k-leader-hint').textContent = (leaderV >= 0 ? leaderV : 0) + ' netos · vista ' + vtstate.view;
+    document.getElementById('vt-k-leader-hint').textContent = vtFmtVal(leaderV) + ' · vista ' + vtstate.view;
+  }
+  function vtFmtValRaw(v, metric){
+    if(metric === 'revenue'){
+      if(Math.abs(v) >= 1000000) return '$'+(v/1000000).toFixed(2)+'M';
+      if(Math.abs(v) >= 1000) return '$'+(v/1000).toFixed(1)+'k';
+      return '$'+Math.round(v);
+    }
+    return Math.round(v);
   }
 
-  // Render genérico de tabla pivot dim × mes con filtros aplicados.
-  function vtRenderPivotTable(tblId, titleEl, dimKey, dimLbl){
+  // Render genérico de tabla pivot dim × mes con heatmap + Δ + share + sparkline + ranking.
+  function vtRenderPivotTable(tblId, titleEl, dimKey, dimLbl, opts){
+    opts = opts || {};
     const d = vtBrandData();
     const thead = document.querySelector('#'+tblId+' thead');
     const tbody = document.querySelector('#'+tblId+' tbody');
@@ -13306,32 +13407,121 @@ HTML = r"""<!doctype html>
     }
     const labels = d.months_labels || [];
     const months = d.months || [];
-    if(titleEl) titleEl.innerHTML = '📋 Ventas mes a mes <span class="sub">' + dimLbl + ' × Mes · NETOS</span>';
-    thead.innerHTML = '<tr><th>' + dimLbl + '</th>' +
-      labels.map(l=>`<th class="num">${l}</th>`).join('') +
-      '<th class="num">Total</th></tr>';
+    const metricLbl = vtstate.metric === 'revenue' ? '$' : 'Unid';
+    if(titleEl) titleEl.innerHTML = '📋 Ventas mes a mes <span class="sub">' + dimLbl + ' × Mes · ' + metricLbl + '</span>';
+    const monthHdrs = labels.map((l,i)=>`<th class="num vt-sort-h" data-sort="${months[i]}" style="cursor:pointer" title="Click para ordenar">${l}</th>`).join('');
+    thead.innerHTML = '<tr><th>#</th><th class="vt-sort-h" data-sort="_name" style="cursor:pointer">' + dimLbl + '</th>' +
+      monthHdrs +
+      '<th class="num vt-sort-h" data-sort="_total" style="cursor:pointer" title="Click para ordenar">Total</th>' +
+      '<th class="num" title="Share del total">%</th>' +
+      '<th title="Trayectoria">Tendencia</th>' +
+      '</tr>';
     const rows0 = vtFilterFlat();
     const pivot = vtPivotByDim(rows0, dimKey, months);
-    let rows = Object.entries(pivot);
-    rows.sort((a,b)=> (b[1]._total||0) - (a[1]._total||0));
+    let rows = Object.entries(pivot).map(([k,r])=>({k, ...r}));
+    // Sort
+    const sk = vtstate.sortKey;
+    const sd = vtstate.sortDir === 'asc' ? 1 : -1;
+    rows.sort((a,b)=>{
+      if(sk === '_name') return sd * a.k.localeCompare(b.k);
+      const av = a[sk] || 0, bv = b[sk] || 0;
+      return sd * (bv - av) * -1; // desc=more first; for asc reverse
+    });
+    if(vtstate.sortDir === 'desc') rows.reverse();
+    if(vtstate.sortDir === 'desc' && sk !== '_name') rows.reverse();
+    // Actually simpler: redo
+    rows.sort((a,b)=>{
+      if(sk === '_name'){ const c = a.k.localeCompare(b.k); return sd === 1 ? c : -c; }
+      const av = a[sk] || 0, bv = b[sk] || 0;
+      return (av < bv ? -1 : av > bv ? 1 : 0) * sd;
+    });
+    // Top N
+    const topN = parseInt(vtstate.topN, 10);
+    if(topN > 0 && rows.length > topN) rows = rows.slice(0, topN);
     if(!rows.length){
-      tbody.innerHTML = '<tr><td colspan="'+(labels.length+2)+'" style="text-align:center;color:var(--c-muted)">Sin datos</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="'+(labels.length+5)+'" style="text-align:center;color:var(--c-muted)">Sin datos</td></tr>';
       return;
     }
-    const totalRow = months.map(m=> rows.reduce((s,[,r])=> s + (r[m]||0), 0));
-    const grandTotal = rows.reduce((s,[,r])=> s + (r._total||0), 0);
-    tbody.innerHTML = rows.map(([k,r])=>{
-      const cells = months.map(m=>{
+    const totalRow = months.map(m=> rows.reduce((s,r)=> s + (r[m]||0), 0));
+    const grandTotal = rows.reduce((s,r)=> s + (r._total||0), 0);
+    const maxCell = Math.max(1, ...rows.flatMap(r => months.map(m => Math.abs(r[m]||0))));
+    // Rank vs mes anterior (penúltimo)
+    let rankPrev = null;
+    if(months.length >= 2 && dimKey !== 'modelo'){
+      const prevM = months[months.length - 2];
+      const sortedPrev = Object.entries(pivot)
+        .map(([k,r])=>({k, v: r[prevM]||0}))
+        .sort((a,b)=> b.v - a.v);
+      rankPrev = {};
+      sortedPrev.forEach((it,i)=>{ rankPrev[it.k] = i+1; });
+    }
+    const sortedCurr = Object.entries(pivot)
+      .map(([k,r])=>({k, v: r._total||0}))
+      .sort((a,b)=> b.v - a.v);
+    const rankCurr = {};
+    sortedCurr.forEach((it,i)=>{ rankCurr[it.k] = i+1; });
+    tbody.innerHTML = rows.map((r,idx)=>{
+      const isAsesor = dimKey === 'asesor';
+      const expanded = opts.allowExpand && vtstate.expanded.has(r.k);
+      const cells = months.map((m, mi)=>{
         const v = r[m] || 0;
-        const cls = v < 0 ? 'style="color:var(--neg);font-weight:600"' : (v === 0 ? 'style="color:var(--c-muted)"' : '');
-        return `<td class="num" ${cls}>${v}</td>`;
+        const prev = mi > 0 ? (r[months[mi-1]] || 0) : null;
+        const heat = vtHeatColor(v, maxCell);
+        const delta = mi > 0 ? vtDeltaTag(v, prev) : '';
+        return `<td class="num" style="${heat};padding:6px 8px"><strong>${vtFmtVal(v)}</strong>${delta}</td>`;
       }).join('');
-      const tCls = (r._total||0) < 0 ? 'style="color:var(--neg)"' : '';
-      const sub = (dimKey === 'asesor') ? `<div style="font-size:10px;color:var(--c-muted);font-weight:400">${r._agencia||''}${r._zona?' · '+r._zona:''}</div>` : '';
-      return `<tr><td><strong>${k}</strong>${sub}</td>${cells}<td class="num" ${tCls}><strong>${r._total||0}</strong></td></tr>`;
-    }).join('') + `<tr class="total" style="border-top:2px solid var(--c-border-strong)">
-      <td><strong>TOTAL</strong></td>${totalRow.map(t=>`<td class="num"><strong>${t}</strong></td>`).join('')}<td class="num"><strong>${grandTotal}</strong></td>
+      const tCls = (r._total||0) < 0 ? 'style="color:var(--neg);font-weight:700"' : 'style="font-weight:700"';
+      const share = grandTotal !== 0 ? (100 * (r._total||0) / grandTotal).toFixed(1) + '%' : '—';
+      const sparkSeries = months.map(m => r[m] || 0);
+      const spark = vtSparkline(sparkSeries);
+      // Rank arrow
+      let rankArrow = '';
+      if(rankPrev && rankPrev[r.k] && rankCurr[r.k]){
+        const diff = rankPrev[r.k] - rankCurr[r.k];
+        if(diff > 0) rankArrow = `<span style="color:#16a34a;font-size:9px" title="subió ${diff}">▲${diff}</span>`;
+        else if(diff < 0) rankArrow = `<span style="color:#dc2626;font-size:9px" title="bajó ${Math.abs(diff)}">▼${Math.abs(diff)}</span>`;
+      }
+      const sub = isAsesor ? `<div style="font-size:10px;color:var(--c-muted);font-weight:400">${r._agencia||''}${r._zona?' · '+r._zona:''}</div>` : '';
+      const caret = opts.allowExpand ? `<span class="vt-caret" data-key="${r.k}" style="cursor:pointer;margin-right:4px;color:var(--c-muted)">${expanded?'▼':'▶'}</span>` : '';
+      let rowHtml = `<tr><td>${idx+1} ${rankArrow}</td><td>${caret}<strong>${r.k}</strong>${sub}</td>${cells}<td class="num" ${tCls}>${vtFmtVal(r._total||0)}</td><td class="num" style="color:var(--c-muted)">${share}</td><td>${spark}</td></tr>`;
+      if(expanded){
+        const porModelo = Object.entries(r._por_modelo || {})
+          .sort((a,b)=> b[1] - a[1])
+          .slice(0, 8);
+        const modHtml = porModelo.map(([mm,vv])=>{
+          const pct = (100 * vv / (r._total||1)).toFixed(0);
+          return `<div style="display:flex;justify-content:space-between;padding:2px 8px;font-size:11px;border-bottom:1px solid #eee"><span>${mm}</span><span style="color:var(--c-muted)">${vtFmtVal(vv)} · ${pct}%</span></div>`;
+        }).join('');
+        rowHtml += `<tr><td colspan="${labels.length+5}" style="background:#f8fafc;padding:6px 12px">
+          <div style="font-size:11px;color:var(--c-muted);margin-bottom:4px;font-weight:600">Modelos vendidos · ${r.k}</div>
+          ${modHtml || '<em>sin desglose</em>'}
+        </td></tr>`;
+      }
+      return rowHtml;
+    }).join('') + `<tr class="total" style="border-top:2px solid var(--c-border-strong);background:#f1f5f9">
+      <td></td><td><strong>TOTAL</strong></td>${totalRow.map(t=>`<td class="num"><strong>${vtFmtVal(t)}</strong></td>`).join('')}<td class="num"><strong>${vtFmtVal(grandTotal)}</strong></td><td class="num">100%</td><td>${vtSparkline(totalRow)}</td>
     </tr>`;
+    // Sort header binding
+    thead.querySelectorAll('.vt-sort-h').forEach(th=>{
+      th.addEventListener('click', ()=>{
+        const k = th.dataset.sort;
+        if(vtstate.sortKey === k) vtstate.sortDir = vtstate.sortDir === 'desc' ? 'asc' : 'desc';
+        else { vtstate.sortKey = k; vtstate.sortDir = 'desc'; }
+        vtRenderAll();
+      });
+    });
+    // Expand binding (sólo si allowExpand)
+    if(opts.allowExpand){
+      tbody.querySelectorAll('.vt-caret').forEach(c=>{
+        c.addEventListener('click', e=>{
+          e.stopPropagation();
+          const k = c.dataset.key;
+          if(vtstate.expanded.has(k)) vtstate.expanded.delete(k);
+          else vtstate.expanded.add(k);
+          vtRenderAll();
+        });
+      });
+    }
   }
 
   function vtRenderTable(){
@@ -13340,14 +13530,59 @@ HTML = r"""<!doctype html>
   }
 
   function vtRenderAsesorDetail(){
-    // Sección SIEMPRE visible al final: ventas mes a mes por asesor con los filtros activos.
-    vtRenderPivotTable('vt-tbl-asesor', null, 'asesor', 'Asesor');
-    // Subtitle con filtros activos
+    // Sección SIEMPRE visible al final: asesor × mes con drill-down a modelos.
+    vtRenderPivotTable('vt-tbl-asesor', null, 'asesor', 'Asesor', {allowExpand:true});
     const parts = [];
     if(vtstate.zona) parts.push('Zona ' + vtstate.zona);
     if(vtstate.agencia) parts.push(vtstate.agencia);
     if(vtstate.modelo) parts.push(vtstate.modelo);
-    document.getElementById('vt-asesor-sub').textContent = parts.length ? parts.join(' · ') : 'sin filtros activos';
+    document.getElementById('vt-asesor-sub').textContent = (parts.length ? parts.join(' · ') : 'sin filtros activos') + ' · click ▶ para ver modelos';
+  }
+
+  function vtRenderNC(){
+    const d = vtBrandData();
+    const sec = document.getElementById('vt-nc-section');
+    const tbody = document.querySelector('#vt-tbl-nc tbody');
+    if(!d || !d.nc || !d.nc.length){
+      if(sec) sec.style.display = 'none';
+      return;
+    }
+    // Filtrar NCs por filtros activos
+    const nc = d.nc.filter(r=>{
+      if(vtstate.modelo && r.modelo !== vtstate.modelo) return false;
+      if(vtstate.agencia && r.agencia !== vtstate.agencia) return false;
+      if(vtstate.zona && r.zona !== vtstate.zona) return false;
+      return true;
+    });
+    if(!nc.length){ if(sec) sec.style.display = 'none'; return; }
+    if(sec) sec.style.display = '';
+    document.getElementById('vt-nc-sub').textContent = nc.length + ' NC · total reversado ' + vtFmtValRaw(nc.reduce((s,r)=>s+r.revenue,0), 'revenue');
+    tbody.innerHTML = nc.sort((a,b)=> a.mes.localeCompare(b.mes)).map(r=>{
+      const lblMes = (d.months_labels||[])[(d.months||[]).indexOf(r.mes)] || r.mes;
+      return `<tr><td>${lblMes}</td><td>${r.modelo}</td><td>${r.asesor}</td><td>${r.agencia}</td><td>${r.zona}</td><td class="num" style="color:var(--neg);font-weight:600">${vtFmtValRaw(r.revenue,'revenue')}</td></tr>`;
+    }).join('');
+  }
+
+  // Export CSV de la tabla principal (con filtros activos).
+  function vtExportCSV(){
+    const d = vtBrandData();
+    if(!d) return;
+    const months = d.months || [];
+    const labels = d.months_labels || [];
+    const dimKey = vtstate.view;
+    const rows0 = vtFilterFlat();
+    const pivot = vtPivotByDim(rows0, dimKey, months);
+    const rows = Object.entries(pivot).sort((a,b)=> (b[1]._total||0) - (a[1]._total||0));
+    const header = [dimKey, ...labels, 'Total'].join(',');
+    const lines = rows.map(([k,r])=>{
+      const cells = months.map(m => r[m] || 0).join(',');
+      return `"${k}",${cells},${r._total||0}`;
+    });
+    const csv = [header, ...lines].join('\n');
+    navigator.clipboard?.writeText(csv).then(()=>{
+      const btn = document.getElementById('vt-export');
+      if(btn){ const old = btn.textContent; btn.textContent = '✓ Copiado'; setTimeout(()=> btn.textContent = old, 1500); }
+    });
   }
 
   function vtRenderFilterSummary(){
@@ -13371,6 +13606,7 @@ HTML = r"""<!doctype html>
     vtRenderHero();
     vtRenderTable();
     vtRenderAsesorDetail();
+    vtRenderNC();
   }
 
   function initVentas(){
@@ -13382,30 +13618,38 @@ HTML = r"""<!doctype html>
     vtFillModelo();
     document.getElementById('vt-marca').addEventListener('change', e=>{
       vtstate.marca = e.target.value;
-      vtstate.modelo = ''; vtstate.agencia = ''; vtstate.zona = '';
+      vtstate.modelo = ''; vtstate.agencia = ''; vtstate.zona = ''; vtstate.expanded.clear();
       vtFillZona(); vtFillAgencia(); vtFillModelo();
       vtRenderAll();
     });
     document.getElementById('vt-view').addEventListener('change', e=>{
-      vtstate.view = e.target.value;
-      vtRenderAll();
+      vtstate.view = e.target.value; vtRenderAll();
+    });
+    document.getElementById('vt-metric').addEventListener('change', e=>{
+      vtstate.metric = e.target.value; vtRenderAll();
     });
     document.getElementById('vt-zona').addEventListener('change', e=>{
-      vtstate.zona = e.target.value;
-      vtRenderAll();
+      vtstate.zona = e.target.value; vtRenderAll();
     });
     document.getElementById('vt-agencia').addEventListener('change', e=>{
-      vtstate.agencia = e.target.value;
-      vtRenderAll();
+      vtstate.agencia = e.target.value; vtRenderAll();
     });
     document.getElementById('vt-modelo').addEventListener('change', e=>{
-      vtstate.modelo = e.target.value;
-      vtRenderAll();
+      vtstate.modelo = e.target.value; vtRenderAll();
     });
+    document.getElementById('vt-topn').addEventListener('change', e=>{
+      vtstate.topN = e.target.value; vtRenderAll();
+    });
+    document.getElementById('vt-export').addEventListener('click', vtExportCSV);
     document.getElementById('vt-reset').addEventListener('click', ()=>{
-      vtstate.marca = 'FORD'; vtstate.view = 'modelo'; vtstate.modelo = ''; vtstate.agencia = ''; vtstate.zona = '';
-      document.getElementById('vt-marca').value = 'FORD';
-      document.getElementById('vt-view').value = 'modelo';
+      vtstate.marca = 'FORD'; vtstate.view = 'modelo'; vtstate.metric='cantidad';
+      vtstate.modelo = ''; vtstate.agencia = ''; vtstate.zona = '';
+      vtstate.topN = ''; vtstate.sortKey = '_total'; vtstate.sortDir = 'desc';
+      vtstate.expanded.clear();
+      ['vt-marca','vt-view','vt-metric','vt-zona','vt-agencia','vt-modelo','vt-topn'].forEach(id=>{
+        const el = document.getElementById(id);
+        if(el) el.value = id === 'vt-marca' ? 'FORD' : (id === 'vt-view' ? 'modelo' : (id === 'vt-metric' ? 'cantidad' : ''));
+      });
       vtFillZona(); vtFillAgencia(); vtFillModelo();
       vtRenderAll();
     });

@@ -31,6 +31,12 @@ def _compute_ventas_mensual(sales_df):
         return None
     df['mes'] = df['fecha_fact'].dt.strftime('%Y-%m')
     df['Cantidad'] = df['Cantidad'].fillna(1).astype(int)
+    # Revenue por fila — Total Factura ya viene signado en el archivo de origen
+    # (NC trae Total Factura negativo). Sumar columna directo da el NETO.
+    if 'Total Factura' in df.columns:
+        df['rev_signed'] = df['Total Factura'].fillna(0).astype(float)
+    else:
+        df['rev_signed'] = 0.0
     df['marca_up'] = df['marca'].astype(str).str.strip().str.upper()
     df['modelo_up'] = df['familia'].astype(str).str.strip().str.upper()
     df['asesor'] = df['ASESOR_FACTURACION'].astype(str).str.strip().str.upper().replace({'NAN': 'Sin asesor', '': 'Sin asesor'})
@@ -69,15 +75,28 @@ def _compute_ventas_mensual(sales_df):
             continue
         # Flat rows — el cliente hace pivot dinámico con filtros agencia/zona/modelo.
         flat = []
+        nc_rows = []
         for _, r in sub.iterrows():
-            flat.append({
+            row = {
                 'mes': str(r['mes']),
                 'modelo': str(r['modelo_up']) if r['modelo_up'] and str(r['modelo_up']).lower() not in ('nan','none','') else 'Sin modelo',
                 'asesor': str(r['asesor']) if r['asesor'] and str(r['asesor']).lower() not in ('nan','sin asesor','none','') else 'Sin asesor',
                 'agencia': str(r['agencia']),
                 'zona': str(r['zona']),
                 'cantidad': int(r['Cantidad']),
-            })
+                'revenue': round(float(r.get('rev_signed') or 0), 2),
+            }
+            flat.append(row)
+            # NC detail (Cantidad < 0)
+            if int(r['Cantidad']) < 0:
+                nc_rows.append({
+                    'mes': row['mes'],
+                    'modelo': row['modelo'],
+                    'asesor': row['asesor'],
+                    'agencia': row['agencia'],
+                    'zona': row['zona'],
+                    'revenue': row['revenue'],
+                })
         # Pivots agregados (compat hacia atrás; el cliente puede usarlos cuando no hay filtros)
         by_modelo = _pivot_dim(sub, 'modelo_up')
         by_asesor = {}
@@ -108,6 +127,7 @@ def _compute_ventas_mensual(sales_df):
             'by_agencia': by_agencia,
             'by_zona': by_zona,
             'flat': flat,
+            'nc': nc_rows,
         }
     return result
 
