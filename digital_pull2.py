@@ -112,9 +112,9 @@ def _label_from_ms(v):
     return MESES[dt.month - 1] + '·26'
 
 
-def _search_page(obj, filters, properties, after, limit=100):
+def _search_page(obj, filter_groups, properties, after, limit=100):
     url = f'{H.BASE}/crm/v3/objects/{obj}/search'
-    body = {'filterGroups': [{'filters': filters}], 'properties': properties, 'limit': limit}
+    body = {'filterGroups': filter_groups, 'properties': properties, 'limit': limit}
     if after:
         body['after'] = after
     req = urllib.request.Request(
@@ -132,20 +132,29 @@ def _search_page(obj, filters, properties, after, limit=100):
     raise RuntimeError(f'search {obj} falló tras reintentos')
 
 
-def _fetch_all(obj, filters, properties):
-    """Pagina /search y devuelve [props_dict, ...] de TODOS los registros (<10k)."""
-    out, after, pages = [], None, 0
+def _fetch_all_groups(obj, filter_groups, properties):
+    """Pagina /search con filterGroups (OR entre grupos) y dedup por id. <10k."""
+    out, seen, after, pages = [], set(), None, 0
     while True:
-        res = _search_page(obj, filters, properties, after)
+        res = _search_page(obj, filter_groups, properties, after)
         for r in res.get('results', []):
+            rid = r.get('id')
+            if rid in seen:
+                continue
+            seen.add(rid)
             p = dict(r.get('properties', {}))
-            p['_id'] = r.get('id')
+            p['_id'] = rid
             out.append(p)
         after = (res.get('paging') or {}).get('next', {}).get('after')
         pages += 1
         if not after or pages > 200:
             break
     return out
+
+
+def _fetch_all(obj, filters, properties):
+    """Caso AND (un solo grupo). Wrapper sobre _fetch_all_groups."""
+    return _fetch_all_groups(obj, [{'filters': filters}], properties)
 
 
 def _assoc_react(deal_ids):
@@ -205,12 +214,26 @@ def fetch_brand_full(cfg):
     ag_short = dict(agencies)
 
     # ── CONTACTS (cohorte) ──
-    c_filters = [H._between(cohort, _S, _E)] + lead_filter
-    contacts = _fetch_all('contacts', c_filters,
-                          [cohort, 'contactabilidad', 'resultado_de_llamada', 'numero_de_llamada',
-                           'agencia', 'lead_enviado_cct',
-                           'detalle_resultado_de_llamada___ultima_llamada',
-                           'notes_next_activity_date'])
+    ingreso = cfg.get('ingreso_field')   # DF: campo de ingreso real (COALESCE con createdate)
+    cprops = [cohort, 'contactabilidad', 'resultado_de_llamada', 'numero_de_llamada',
+              'agencia', 'lead_enviado_cct',
+              'detalle_resultado_de_llamada___ultima_llamada', 'notes_next_activity_date']
+    if ingreso:
+        # Población DF = (modelo HAS) OR (marca_=Dongfeng); cohorte = ingreso_dongfeng si existe,
+        # si no createdate (fallback p/ los ~467 sin el campo). Ventana = createdate OR ingreso →
+        # union de 4 filterGroups; el label COALESCE asigna el mes real (descarta fuera de H1).
+        cprops += [ingreso, 'marca_']
+        _DFPOP = [
+            [{'propertyName': 'dongfeng___modelo_de_interes', 'operator': 'HAS_PROPERTY'}],
+            [H._eq('marca_', 'Dongfeng')],
+        ]
+        groups = []
+        for pop in _DFPOP:
+            groups.append({'filters': pop + [H._between('createdate', _S, _E)]})
+            groups.append({'filters': pop + [H._between(ingreso, _S, _E)]})
+        contacts = _fetch_all_groups('contacts', groups, cprops)
+    else:
+        contacts = _fetch_all('contacts', [H._between(cohort, _S, _E)] + lead_filter, cprops)
     # ── DEALS (actividad por fecha_de_la_cita) ──
     d_filters = [H._eq('pipeline', pipe), H._between('fecha_de_la_cita', _S, _E)]
     deals = _fetch_all('deals', d_filters,
@@ -231,7 +254,9 @@ def fetch_brand_full(cfg):
 
     # Agrega contacts
     for p in contacts:
-        lbl = _label_from_ms(p.get(cohort))
+        # DF: cohorte real = ingreso_dongfeng, fallback createdate (COALESCE). Ford: su cohort.
+        cohort_val = (p.get(ingreso) or p.get('createdate')) if ingreso else p.get(cohort)
+        lbl = _label_from_ms(cohort_val)
         if not lbl:
             continue
         ag = p.get('agencia')
@@ -387,6 +412,7 @@ BRANDS = {
              'agencies': [(k, v) for k, v in H.AGENCY_SHORT.items()]},
     'dongfeng': {'pipeline': '773555758', 'cohort': 'createdate',
                  'lead_filter': [{'propertyName': 'dongfeng___modelo_de_interes', 'operator': 'HAS_PROPERTY'}],
+                 'ingreso_field': 'fecha_y_hora_de_ingreso___dongfeng',  # cohorte real DF (COALESCE con createdate)
                  'require_env': False, 'stage_map': _DF_STAGES,
                  'agencies': [('Orgu La Y', 'La Y'), ('Orgu Machala', 'Machala')]},
 }
