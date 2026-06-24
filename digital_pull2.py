@@ -348,9 +348,10 @@ def fetch_brand_full(cfg):
         confv = p.get('cita_confirmada')
         ck = confv if confv in ('Confirma', 'Desiste', 'No contesta', 'Reagenda') else 'Sin gestión'
         cci = _CONFCALL_IDX.get(a.get('numero_de_llamada_confirmacion_cita'))
-        if cci is not None:
-            arr = c['conf_cross'].setdefault(ck, [0, 0, 0])
-            arr[cci] += 1
+        # idx 0/1/2 = 1ª/2ª/3ª llamada de confirmación; idx3 = sin llamada registrada
+        # (así el drill cuadra con la tarjeta: total = con-llamada + sin-registro).
+        arr = c['conf_cross'].setdefault(ck, [0, 0, 0, 0])
+        arr[cci if cci is not None else 3] += 1
         # reactivación: solo no-show
         if p.get('asistio_a_la_cita') == 'No':
             stage = p.get('dealstage')

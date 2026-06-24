@@ -11182,7 +11182,7 @@ HTML = r"""<!doctype html>
       rows.forEach(x => x.classList.remove('active'));
       row.classList.add('active');
       const key = decodeURIComponent(row.dataset.key || '');
-      body.innerHTML = _despDrill(key, (cross && cross[key]) || null, color, ['1ª','2ª','3ª'], 'Llamadas de confirmación de');
+      body.innerHTML = _despDrill(key, (cross && cross[key]) || null, color, ['1ª','2ª','3ª','Sin reg.'], 'Llamadas de confirmación de');
     };
     rows.forEach(row => row.addEventListener('click', () => pick(row)));
     pick(rows[0]);
@@ -11908,7 +11908,7 @@ HTML = r"""<!doctype html>
       rows.forEach(x => x.classList.remove('active'));
       row.classList.add('active');
       const key = decodeURIComponent(row.dataset.key || '');
-      body.innerHTML = _df_despDrill(key, (cross && cross[key]) || null, color, ['1ª','2ª','3ª'], 'Llamadas de confirmación de');
+      body.innerHTML = _df_despDrill(key, (cross && cross[key]) || null, color, ['1ª','2ª','3ª','Sin reg.'], 'Llamadas de confirmación de');
     };
     rows.forEach(row => row.addEventListener('click', () => pick(row)));
     pick(rows[0]);
