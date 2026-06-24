@@ -4677,6 +4677,9 @@ HTML = r"""<!doctype html>
         .desp-bar-val .desp-pct { color: var(--c-muted, #94a3b8); font-weight: 600; margin-left: 4px; }
         /* variante etiqueta-palabra (tarjeta Confirmación de cita): columna ancha, sin cortar */
         .desp-bars-words .desp-bar-row { grid-template-columns: 74px 1fr auto; gap: 7px; }
+        .desp-bar-row.clk { cursor: pointer; }
+        .desp-bar-row.clk:hover .desp-bar-lbl { text-decoration: underline; }
+        .desp-bar-row.clk.active .desp-bar-lbl { font-weight: 800; }
         .desp-bars-words .desp-bar-lbl { text-align: left; white-space: nowrap; }
         /* tabla estatus */
         .desp-tbl { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -4867,6 +4870,9 @@ HTML = r"""<!doctype html>
         .desp-bar-val .desp-pct { color: var(--c-muted, #94a3b8); font-weight: 600; margin-left: 4px; }
         /* variante etiqueta-palabra (tarjeta Confirmación de cita): columna ancha, sin cortar */
         .desp-bars-words .desp-bar-row { grid-template-columns: 74px 1fr auto; gap: 7px; }
+        .desp-bar-row.clk { cursor: pointer; }
+        .desp-bar-row.clk:hover .desp-bar-lbl { text-decoration: underline; }
+        .desp-bar-row.clk.active .desp-bar-lbl { font-weight: 800; }
         .desp-bars-words .desp-bar-lbl { text-align: left; white-space: nowrap; }
         /* tabla estatus */
         .desp-tbl { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -10956,7 +10962,7 @@ HTML = r"""<!doctype html>
       });
       return out;
     };
-    return { contactados: merge('contactados'), no_show: merge('no_show') };
+    return { contactados: merge('contactados'), no_show: merge('no_show'), conf: merge('conf') };
   }
   const _DESP_LLAM_LBL = ["1ª","2ª","3ª","4ª","5ª","6ª","7ª","8ª","9ª","10ª","11ª","12ª"];
   const _DESP_REACT_LBL = ["1ª","2ª","3ª","Sin react."];
@@ -11152,17 +11158,34 @@ HTML = r"""<!doctype html>
   }
 
   // Mini-distribución de barras horizontales a partir de [[label, n], ...]
-  function _despBars(rows, total, color, extraClass) {
+  function _despBars(rows, total, color, extraClass, clk) {
     const max = rows.reduce((a, r) => Math.max(a, r[1]), 1);
     return '<div class="desp-bars' + (extraClass ? ' ' + extraClass : '') + '">' + rows.map(r => {
       const w = Math.max(Math.round(100 * r[1] / max), 2);
       const pct = _cc26Pct(r[1], total);
-      return `<div class="desp-bar-row">
+      const attrs = clk ? ` clk" data-key="${encodeURIComponent(r[0])}` : '';
+      return `<div class="desp-bar-row${attrs}">
         <div class="desp-bar-lbl">${r[0]}</div>
         <div class="desp-bar-track"><div class="desp-bar-fill" style="width:${w}%;background:${color}"></div></div>
         <div class="desp-bar-val">${_cc26Fmt(r[1])}<span class="desp-pct">${pct}%</span></div>
       </div>`;
     }).join('') + '</div>';
+  }
+  // Cablea el drill de la tarjeta Confirmación: clic en una barra (cita_confirmada) →
+  // distribución de nº de llamadas de confirmación (1ª/2ª/3ª). Solo en vista Todas.
+  function _confWireDrill(card, bodyId, cross, color) {
+    if (!card) return;
+    const body = card.querySelector('#' + bodyId);
+    const rows = card.querySelectorAll('.desp-bar-row.clk');
+    if (!body || !rows.length) return;
+    const pick = (row) => {
+      rows.forEach(x => x.classList.remove('active'));
+      row.classList.add('active');
+      const key = decodeURIComponent(row.dataset.key || '');
+      body.innerHTML = _despDrill(key, (cross && cross[key]) || null, color, ['1ª','2ª','3ª'], 'Llamadas de confirmación de');
+    };
+    rows.forEach(row => row.addEventListener('click', () => pick(row)));
+    pick(rows[0]);
   }
 
   // Tabla estatus a partir de [[label, n], ...] con marcado vivo/muerto opcional.
@@ -11348,13 +11371,15 @@ HTML = r"""<!doctype html>
     const BLUE = '#2563eb';
     const cf = _confForMonths(months, agency);
     const _cfGet = (k) => { const r = (cf.conf || []).find(x => x[0] === k); return r ? r[1] : 0; };
-    const cardConf = `<div class="desp-card desp-blue">
+    const cConfHint = isTodas ? ' · <b>clic</b> para ver las llamadas de confirmación' : '';
+    const cardConf = `<div class="desp-card desp-blue" id="desp-card-conf">
       <div class="desp-card-head">
         <div class="desp-card-name">Confirmación de cita</div>
         <div class="desp-card-total">${_cc26Fmt(cf.agendadas)}</div>
       </div>
-      <div class="desp-tagline">de <b>${_cc26Fmt(cf.agendadas)} agendadas</b>: <b>${_cc26Pct(_cfGet('Confirma'), cf.agendadas)}%</b> confirma · <b>${_cc26Pct(_cfGet('Desiste'), cf.agendadas)}%</b> desiste · <b>${_cc26Pct(_cfGet('No contesta'), cf.agendadas)}%</b> no contesta</div>
-      ${_despBars(cf.conf, cf.agendadas, BLUE, 'desp-bars-words')}
+      <div class="desp-tagline">de <b>${_cc26Fmt(cf.agendadas)} agendadas</b>: <b>${_cc26Pct(_cfGet('Confirma'), cf.agendadas)}%</b> confirma · <b>${_cc26Pct(_cfGet('Desiste'), cf.agendadas)}%</b> desiste · <b>${_cc26Pct(_cfGet('No contesta'), cf.agendadas)}%</b> no contesta${cConfHint}</div>
+      ${_despBars(cf.conf, cf.agendadas, BLUE, 'desp-bars-words', isTodas)}
+      <div id="desp-conf-drill"></div>
     </div>`;
 
     // ── Card 3: No-show (drill etapa → llamadas de reactivación; solo en vista Todas) ──
@@ -11385,12 +11410,15 @@ HTML = r"""<!doctype html>
 
     // Contactados: drill categoría → sub-estatus granular (disponible en TODAS las vistas).
     _despWireCatDrill(document.getElementById('desp-card-c'), 'desp-c-drill', c.cat_detalle, c.cat_llamada, c.cat_notask);
-    // No-show: drill etapa → llamadas de reactivación (solo Todas; usa el cruce).
+    // No-show + Confirmación: drills que usan el cruce (solo Todas).
     if (isTodas) {
       _despWireDrill(document.getElementById('desp-card-ns'), 'desp-ns-drill', cruce.no_show, SLATE, _DESP_REACT_LBL, 'Llamadas de reactivación de');
+      _confWireDrill(document.getElementById('desp-card-conf'), 'desp-conf-drill', cruce.conf, BLUE);
     } else {
       const nd = document.getElementById('desp-ns-drill');
       if (nd) nd.innerHTML = '<div class="desp-drill"><div class="desp-drill-empty">Detalle de reactivación: disponible en vista <b>Todas las agencias</b>.</div></div>';
+      const cd = document.getElementById('desp-conf-drill');
+      if (cd) cd.innerHTML = '<div class="desp-drill"><div class="desp-drill-empty">Detalle de llamadas de confirmación: disponible en vista <b>Todas las agencias</b>.</div></div>';
     }
   }
 
@@ -11750,7 +11778,7 @@ HTML = r"""<!doctype html>
       });
       return out;
     };
-    return { contactados: merge('contactados'), no_show: merge('no_show') };
+    return { contactados: merge('contactados'), no_show: merge('no_show'), conf: merge('conf') };
   }
   const _DF2_DESP_LLAM_LBL = ["1ª","2ª","3ª","4ª","5ª","6ª","7ª","8ª","9ª","10ª","11ª","12ª"];
   const _DF2_DESP_REACT_LBL = ["1ª","2ª","3ª","Sin react."];
@@ -11858,17 +11886,32 @@ HTML = r"""<!doctype html>
   }
 
   // Mini-distribución de barras horizontales a partir de [[label, n], ...]
-  function _df_despBars(rows, total, color, extraClass) {
+  function _df_despBars(rows, total, color, extraClass, clk) {
     const max = rows.reduce((a, r) => Math.max(a, r[1]), 1);
     return '<div class="desp-bars' + (extraClass ? ' ' + extraClass : '') + '">' + rows.map(r => {
       const w = Math.max(Math.round(100 * r[1] / max), 2);
       const pct = _df_cc26Pct(r[1], total);
-      return `<div class="desp-bar-row">
+      const attrs = clk ? ` clk" data-key="${encodeURIComponent(r[0])}` : '';
+      return `<div class="desp-bar-row${attrs}">
         <div class="desp-bar-lbl">${r[0]}</div>
         <div class="desp-bar-track"><div class="desp-bar-fill" style="width:${w}%;background:${color}"></div></div>
         <div class="desp-bar-val">${_df_cc26Fmt(r[1])}<span class="desp-pct">${pct}%</span></div>
       </div>`;
     }).join('') + '</div>';
+  }
+  function _df_confWireDrill(card, bodyId, cross, color) {
+    if (!card) return;
+    const body = card.querySelector('#' + bodyId);
+    const rows = card.querySelectorAll('.desp-bar-row.clk');
+    if (!body || !rows.length) return;
+    const pick = (row) => {
+      rows.forEach(x => x.classList.remove('active'));
+      row.classList.add('active');
+      const key = decodeURIComponent(row.dataset.key || '');
+      body.innerHTML = _df_despDrill(key, (cross && cross[key]) || null, color, ['1ª','2ª','3ª'], 'Llamadas de confirmación de');
+    };
+    rows.forEach(row => row.addEventListener('click', () => pick(row)));
+    pick(rows[0]);
   }
 
   // Tabla estatus a partir de [[label, n], ...] con marcado vivo/muerto opcional.
@@ -12044,13 +12087,15 @@ HTML = r"""<!doctype html>
     const BLUE = '#2563eb';
     const cf = _df_confForMonths(months, agency);
     const _cfGet = (k) => { const r = (cf.conf || []).find(x => x[0] === k); return r ? r[1] : 0; };
-    const cardConf = `<div class="desp-card desp-blue">
+    const cConfHint = isTodas ? ' · <b>clic</b> para ver las llamadas de confirmación' : '';
+    const cardConf = `<div class="desp-card desp-blue" id="df-desp-card-conf">
       <div class="desp-card-head">
         <div class="desp-card-name">Confirmación de cita</div>
         <div class="desp-card-total">${_df_cc26Fmt(cf.agendadas)}</div>
       </div>
-      <div class="desp-tagline">de <b>${_df_cc26Fmt(cf.agendadas)} agendadas</b>: <b>${_df_cc26Pct(_cfGet('Confirma'), cf.agendadas)}%</b> confirma · <b>${_df_cc26Pct(_cfGet('Desiste'), cf.agendadas)}%</b> desiste · <b>${_df_cc26Pct(_cfGet('No contesta'), cf.agendadas)}%</b> no contesta</div>
-      ${_df_despBars(cf.conf, cf.agendadas, BLUE, 'desp-bars-words')}
+      <div class="desp-tagline">de <b>${_df_cc26Fmt(cf.agendadas)} agendadas</b>: <b>${_df_cc26Pct(_cfGet('Confirma'), cf.agendadas)}%</b> confirma · <b>${_df_cc26Pct(_cfGet('Desiste'), cf.agendadas)}%</b> desiste · <b>${_df_cc26Pct(_cfGet('No contesta'), cf.agendadas)}%</b> no contesta${cConfHint}</div>
+      ${_df_despBars(cf.conf, cf.agendadas, BLUE, 'desp-bars-words', isTodas)}
+      <div id="df-desp-conf-drill"></div>
     </div>`;
 
     // ── Card 3: No-show (drill etapa → llamadas de reactivación; solo en vista Todas) ──
@@ -12081,12 +12126,15 @@ HTML = r"""<!doctype html>
 
     // Contactados: drill categoría → sub-estatus granular (disponible en TODAS las vistas).
     _df_despWireCatDrill(document.getElementById('df-desp-card-c'), 'df-desp-c-drill', c.cat_detalle, c.cat_llamada, c.cat_notask);
-    // No-show: drill etapa → llamadas de reactivación (solo Todas; usa el cruce).
+    // No-show + Confirmación: drills que usan el cruce (solo Todas).
     if (isTodas) {
       _df_despWireDrill(document.getElementById('df-desp-card-ns'), 'df-desp-ns-drill', cruce.no_show, SLATE, _DF2_DESP_REACT_LBL, 'Llamadas de reactivación de');
+      _df_confWireDrill(document.getElementById('df-desp-card-conf'), 'df-desp-conf-drill', cruce.conf, BLUE);
     } else {
       const nd = document.getElementById('df-desp-ns-drill');
       if (nd) nd.innerHTML = '<div class="desp-drill"><div class="desp-drill-empty">Detalle de reactivación: disponible en vista <b>Todas las agencias</b>.</div></div>';
+      const cd = document.getElementById('df-desp-conf-drill');
+      if (cd) cd.innerHTML = '<div class="desp-drill"><div class="desp-drill-empty">Detalle de llamadas de confirmación: disponible en vista <b>Todas las agencias</b>.</div></div>';
     }
   }
 

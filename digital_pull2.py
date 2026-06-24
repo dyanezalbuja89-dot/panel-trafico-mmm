@@ -20,6 +20,7 @@ for _i, (_val, _lbl) in enumerate(H._NUM_LLAMADA):
 _NUM_INTERNAL_TO_LBL = {v: l for v, l in H._NUM_LLAMADA}
 _RES_TO_LBL = dict(H._RES_LLAMADA)            # resultado_de_llamada interno -> etiqueta panel
 _REACT_INTERNAL_TO_IDX = {'1º Llamada': 0, '2º Llamada': 1, '3º Llamada': 2}  # idx3 = Sin react.
+_CONFCALL_IDX = {'1º Llamada': 0, '2º Llamada': 1, '3º Llamada': 2}  # nº llamada confirmación (enum 3 valores)
 
 # Clasificación del detalle granular (detalle_resultado_de_llamada___ultima_llamada, 24
 # valores) en 4+1 categorías de eficiencia/desperdicio. Verificado con datos-hubspot
@@ -157,10 +158,9 @@ def _fetch_all(obj, filters, properties):
     return _fetch_all_groups(obj, [{'filters': filters}], properties)
 
 
-def _assoc_react(deal_ids):
-    """Para los deals no-show: trae numero_de_llamada_reactivacion del CONTACT asociado.
-    Devuelve {deal_id: react_internal|None}. Batched (cross-object)."""
-    out = {}
+def _assoc_props(deal_ids, props):
+    """Para una lista de deals: trae props del CONTACT primario asociado.
+    Devuelve {deal_id: {prop: value|None}}. Batched (cross-object, deal→contact)."""
     deal_to_contact = {}
     for i in range(0, len(deal_ids), 100):
         chunk = deal_ids[i:i + 100]
@@ -179,23 +179,24 @@ def _assoc_react(deal_ids):
         except Exception:
             pass
     contact_ids = list(set(deal_to_contact.values()))
-    react = {}
+    cprops = {}
     for i in range(0, len(contact_ids), 100):
         chunk = contact_ids[i:i + 100]
         url = f'{H.BASE}/crm/v3/objects/contacts/batch/read'
-        body = {'inputs': [{'id': c} for c in chunk], 'properties': ['numero_de_llamada_reactivacion']}
+        body = {'inputs': [{'id': c} for c in chunk], 'properties': props}
         req = urllib.request.Request(url, method='POST', data=json.dumps(body).encode('utf-8'),
                                      headers={'Authorization': f'Bearer {H.TOKEN}', 'Content-Type': 'application/json'})
         try:
             with H._urlopen(req, timeout=40) as r:
                 res = json.loads(r.read())
             for row in res.get('results', []):
-                react[str(row.get('id'))] = (row.get('properties') or {}).get('numero_de_llamada_reactivacion')
+                cprops[str(row.get('id'))] = (row.get('properties') or {})
         except Exception:
             pass
+    out = {}
     for d in deal_ids:
         c = deal_to_contact.get(str(d))
-        out[str(d)] = react.get(c) if c else None
+        out[str(d)] = cprops.get(c, {}) if c else {}
     return out
 
 
@@ -242,7 +243,7 @@ def fetch_brand_full(cfg):
     def newcell():
         return {'leads': 0, 'cont': 0, 'tope': 0, 'agen': 0, 'confirmadas': 0, 'efec': 0, 'nos': 0,
                 'nc_by': {}, 'c_est': {}, 'c_cross': {}, 'ns_est': {}, 'conf_d': {}, 'ns_react': {},
-                'c_cat': {}, 'c_cat_det': {}, 'c_cat_llam': {}, 'c_cat_notask': {}}
+                'c_cat': {}, 'c_cat_det': {}, 'c_cat_llam': {}, 'c_cat_notask': {}, 'conf_cross': {}}
     # cells[(scope, label)] donde scope = 'T' o agencia-corta
     cells = {}
 
@@ -333,21 +334,30 @@ def fetch_brand_full(cfg):
             ck = confv if confv in ('Confirma', 'Desiste', 'No contesta', 'Reagenda') else 'Sin gestión'
             c['conf_d'][ck] = c['conf_d'].get(ck, 0) + 1
 
-    # Cruce no-show (reactivación) vía asociaciones — solo nivel T (Todas).
-    react_by_deal = _assoc_react([d for d in noshow_ids if d]) if noshow_ids else {}
+    # Cruces vía asociación DEAL→CONTACT (props del contacto primario) — nivel T (Todas).
+    # Una sola pasada de asociaciones para AMBOS: reactivación (no-show) + nº llamada confirmación.
+    all_deal_ids = [str(p.get('_id')) for p in deals if p.get('_id')]
+    assoc = _assoc_props(all_deal_ids, ['numero_de_llamada_reactivacion', 'numero_de_llamada_confirmacion_cita']) if all_deal_ids else {}
     for p in deals:
-        if p.get('asistio_a_la_cita') != 'No':
-            continue
         lbl = _label_from_ms(p.get('fecha_de_la_cita'))
         if not lbl:
             continue
-        stage = p.get('dealstage')
-        stlbl = stage_map.get(stage, stage)
-        rv = react_by_deal.get(str(p.get('_id')))
-        idx = _REACT_INTERNAL_TO_IDX.get(rv, 3)  # default Sin react.
+        a = assoc.get(str(p.get('_id')), {})
         c = cell('T', lbl)
-        arr = c['ns_react'].setdefault(stlbl, [0, 0, 0, 0])
-        arr[idx] += 1
+        # confirmación: nº de llamada de confirmación × cita_confirmada (todos los agendados)
+        confv = p.get('cita_confirmada')
+        ck = confv if confv in ('Confirma', 'Desiste', 'No contesta', 'Reagenda') else 'Sin gestión'
+        cci = _CONFCALL_IDX.get(a.get('numero_de_llamada_confirmacion_cita'))
+        if cci is not None:
+            arr = c['conf_cross'].setdefault(ck, [0, 0, 0])
+            arr[cci] += 1
+        # reactivación: solo no-show
+        if p.get('asistio_a_la_cita') == 'No':
+            stage = p.get('dealstage')
+            stlbl = stage_map.get(stage, stage)
+            idx = _REACT_INTERNAL_TO_IDX.get(a.get('numero_de_llamada_reactivacion'), 3)  # default Sin react.
+            arr = c['ns_react'].setdefault(stlbl, [0, 0, 0, 0])
+            arr[idx] += 1
 
     # ── Empaqueta a la forma que consume el panel ──
     months_order = [m + '·26' for m in MESES[:6]]
@@ -377,7 +387,7 @@ def fetch_brand_full(cfg):
         idx = MESES.index(lbl.split('·')[0])
         months.append({'label': lbl, 'year': 2026, 'month': idx + 1, **fo})
         by_month[lbl] = desp_obj(c)
-        cruce[lbl] = {'contactados': c['c_cross'], 'no_show': c['ns_react']}
+        cruce[lbl] = {'contactados': c['c_cross'], 'no_show': c['ns_react'], 'conf': c['conf_cross']}
 
     ag_funnel, by_agency = {}, {}
     for ag_int, ag_s in agencies:
