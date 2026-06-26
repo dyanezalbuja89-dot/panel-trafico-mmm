@@ -21,6 +21,8 @@ def _compute_ventas_mensual(sales_df):
     """Pivot mensual de ventas NETAS por marca/modelo/asesor/agencia.
     Devuelve {marca_key: {months, months_labels, by_modelo, by_asesor, by_agencia, totals}}.
     Cantidad ya viene signada (+1 FACTURA, -1 NC) desde ventas.load_ventas().
+    Si hay meses no cubiertos por sales_df (ej junio cuando ventas YTD solo va hasta mayo),
+    complementamos desde inventario DATOS (STATUS=FACTURADO) — solo unidades, sin revenue.
     """
     if sales_df is None or len(sales_df) == 0:
         return None
@@ -29,6 +31,28 @@ def _compute_ventas_mensual(sales_df):
     df = df[df['fecha_fact'].dt.year == 2026].copy()
     if len(df) == 0:
         return None
+    # Complemento desde inventario para meses no cubiertos por ventas.xlsx.
+    # Toma facturas STATUS=FACTURADO con fecha posterior al último mes de ventas_df.
+    try:
+        last_month_sales = df['fecha_fact'].dt.strftime('%Y-%m').max()
+        inv_df = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS', header=0)
+        inv_df['STATUS_H'] = inv_df['STATUS HOMOLOGADO'].astype(str).str.strip().str.upper()
+        inv_fact = inv_df[inv_df['STATUS_H']=='FACTURADO'].copy()
+        inv_fact['fecha_fact'] = pd.to_datetime(inv_fact['fecha de facturacion'], errors='coerce')
+        inv_fact['mes_str'] = inv_fact['fecha_fact'].dt.strftime('%Y-%m')
+        inv_fact = inv_fact[(inv_fact['fecha_fact'].dt.year==2026) & (inv_fact['mes_str'] > last_month_sales)]
+        if len(inv_fact) > 0:
+            # Map columnas a las que espera df
+            inv_fact = inv_fact.rename(columns={'familia':'familia','marca':'marca','AGENCIA_FACTURACION':'AGENCIA_FACTURACION','ASESOR_FACTURACION':'ASESOR_FACTURACION'})
+            inv_fact['Cantidad'] = 1
+            inv_fact['rev_signed'] = 0.0
+            inv_fact['fecha de facturacion'] = inv_fact['fecha_fact']
+            cols_keep = ['fecha_fact','fecha de facturacion','Cantidad','marca','familia','AGENCIA_FACTURACION','ASESOR_FACTURACION','rev_signed']
+            inv_subset = inv_fact[[c for c in cols_keep if c in inv_fact.columns]].copy()
+            df = pd.concat([df, inv_subset], ignore_index=True, sort=False)
+            print(f'[ventas_mensual] complementado {len(inv_fact)} facturas desde inventario para meses post-{last_month_sales}')
+    except Exception as e:
+        print(f'[ventas_mensual] WARN complemento inventario falló: {e}')
     df['mes'] = df['fecha_fact'].dt.strftime('%Y-%m')
     df['Cantidad'] = df['Cantidad'].fillna(1).astype(int)
     # Revenue por fila — Total Factura ya viene signado en el archivo de origen
