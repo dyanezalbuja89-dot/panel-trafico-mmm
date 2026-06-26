@@ -3675,16 +3675,21 @@ HTML = r"""<!doctype html>
     <div class="footer-note">NETOS = sum(Cantidad) con +1 FACTURA / −1 NC. Heatmap visual + Δ vs mes anterior + sparkline + ranking · filtros dinámicos.</div>
   </section>
 
-  <!-- ======================= TAB META DE VENTAS · Ford ======================= -->
+  <!-- ======================= TAB META DE VENTAS · Ford · MES EN CURSO ======================= -->
   <section id="tab-meta-ventas" class="tab-panel">
     <div class="otros-header">
       <div>
-        <h2>🎯 Cumplimiento Meta de Ventas · Ford</h2>
-        <div class="sub">Real NETOS vs meta mensual oficial · vistas por modelo o por agencia</div>
+        <h2>🎯 Avance Meta de Ventas · <span id="mv-month-label">Mes</span></h2>
+        <div class="sub">Real NETOS vs meta oficial del mes en curso · vistas por modelo o por agencia</div>
       </div>
     </div>
 
     <div class="filter-bar">
+      <label>Mes
+        <select id="mv-month">
+          <option value="">— mes en curso —</option>
+        </select>
+      </label>
       <label>Vista
         <select id="mv-view">
           <option value="modelo">Por modelo</option>
@@ -3698,14 +3703,14 @@ HTML = r"""<!doctype html>
     </div>
 
     <div class="stat-hero" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
-      <div class="card-big"><div class="lbl">Cumpl. YTD</div><div class="val" id="mv-k-ytd">—</div><div class="hint" id="mv-k-ytd-hint"></div></div>
-      <div class="card-big"><div class="lbl">Mes activo</div><div class="val" id="mv-k-mes">—</div><div class="hint" id="mv-k-mes-hint"></div></div>
-      <div class="card-big"><div class="lbl">Gap YTD</div><div class="val" id="mv-k-gap">—</div><div class="hint" id="mv-k-gap-hint"></div></div>
-      <div class="card-big"><div class="lbl" id="mv-k-risk-lbl">Modelo en riesgo</div><div class="val" id="mv-k-risk">—</div><div class="hint" id="mv-k-risk-hint"></div></div>
+      <div class="card-big"><div class="lbl">Cumplimiento</div><div class="val" id="mv-k-cumpl">—</div><div class="hint" id="mv-k-cumpl-hint"></div></div>
+      <div class="card-big"><div class="lbl">Real / Meta</div><div class="val" id="mv-k-real">—</div><div class="hint" id="mv-k-real-hint"></div></div>
+      <div class="card-big"><div class="lbl">Gap del mes</div><div class="val" id="mv-k-gap">—</div><div class="hint" id="mv-k-gap-hint"></div></div>
+      <div class="card-big"><div class="lbl" id="mv-k-risk-lbl">Item en riesgo</div><div class="val" id="mv-k-risk">—</div><div class="hint" id="mv-k-risk-hint"></div></div>
     </div>
 
     <div class="ford-section">
-      <h3 id="mv-tbl-title">Heatmap Real / Meta · NETOS</h3>
+      <h3 id="mv-tbl-title">Real vs Meta · mes en curso</h3>
       <div style="overflow-x:auto">
         <table class="analysis" id="mv-tbl">
           <thead></thead>
@@ -3714,7 +3719,7 @@ HTML = r"""<!doctype html>
       </div>
     </div>
 
-    <div class="footer-note">Cada celda: real / meta + cumpl% · color verde ≥100% · amarillo 80-99% · naranja 50-79% · rojo &lt;50% · Fuente meta: NUEVO_AI_FORD; Fuente real: Base de ventas YTD NETOS.</div>
+    <div class="footer-note">Cumpl% por fila · color verde ≥100% · amarillo 80-99% · naranja 50-79% · rojo &lt;50% · Fuente meta: NUEVO_AI_FORD; Fuente real: Base de ventas YTD NETOS.</div>
   </section>
 
   <!-- ======================= TAB INVENTARIO ======================= -->
@@ -14144,7 +14149,7 @@ HTML = r"""<!doctype html>
   // =========================================================
   //   TAB META VENTAS · Ford · pivots modelo×mes y agencia×mes
   // =========================================================
-  const mvstate = { view:'modelo', zona:'', agencia:'', modelo:'' };
+  const mvstate = { view:'modelo', zona:'', agencia:'', modelo:'', monthOverride:'' };
   let mvInited = false;
   const MV_YM_MAP = {enero_2026:'2026-01',febrero_2026:'2026-02',marzo_2026:'2026-03',abril_2026:'2026-04',mayo_2026:'2026-05',junio_2026:'2026-06',julio_2026:'2026-07',agosto_2026:'2026-08'};
   const MV_Z_AGS = {'Quito':['La Y','Tumbaco'],'Guayaquil':['CJA','Orellana'],'Manta':['Manta','Portoviejo'],'Machala':['Machala']};
@@ -14187,6 +14192,29 @@ HTML = r"""<!doctype html>
         [...set].sort().map(m=>`<option value="${m}">${m}</option>`).join('');
       selM.dataset._filled='1';
     }
+    const selMo = document.getElementById('mv-month');
+    if(selMo && !selMo.dataset._filled){
+      const monthsCfg = (DATA.months_config||[]).filter(c=>c.key.endsWith('_2026'));
+      selMo.innerHTML = '<option value="">— mes en curso —</option>' +
+        monthsCfg.map(c=>`<option value="${c.key}">${c.label}</option>`).join('');
+      selMo.dataset._filled='1';
+    }
+  }
+
+  // Detectar mes en curso. Default: último mes con meta>0 en ford_meta_breakdown
+  // (típicamente el más reciente), o default_month_key del panel.
+  function mvCurrentMonthKey(){
+    if(mvstate.monthOverride) return mvstate.monthOverride;
+    const FMB = DATA.ford_meta_breakdown || {};
+    const monthsCfg = (DATA.months_config||[]).filter(c=>c.key.endsWith('_2026'));
+    // Último mes con meta válida
+    for(let i=monthsCfg.length-1; i>=0; i--){
+      const mk = monthsCfg[i].key;
+      const monthMap = FMB[mk] || {};
+      const total = Object.values(monthMap).reduce((s,mb)=> s + (mb.meta_ventas||0), 0);
+      if(total > 0) return mk;
+    }
+    return DATA.default_month_key || (monthsCfg[monthsCfg.length-1]||{}).key || '';
   }
 
   function mvMetaForKey(dimKey, dimVal, mk){
@@ -14237,101 +14265,84 @@ HTML = r"""<!doctype html>
 
   function mvRenderTable(){
     const monthsCfg = DATA.months_config || [];
-    const monthKeys = monthsCfg.filter(c=>c.key.endsWith('_2026')).map(c=>c.key);
-    const monthLabels = monthKeys.map(k=>{
-      const c = monthsCfg.find(x=>x.key===k);
-      return c ? c.label.replace(' 2026','') : k;
-    });
-    const dim = mvstate.view; // 'modelo' o 'agencia'
+    const mk = mvCurrentMonthKey();
+    const cfg = monthsCfg.find(x=>x.key===mk);
+    const monthLabel = cfg ? cfg.label : mk;
+    const ym = MV_YM_MAP[mk];
+    document.getElementById('mv-month-label').textContent = monthLabel;
+    const FMB = DATA.ford_meta_breakdown || {};
+    const monthMap = FMB[mk] || {};
+    const dim = mvstate.view;
     const dimLbl = dim === 'modelo' ? 'Modelo' : 'Agencia';
-    // Items a mostrar
+    // Items
     let items;
     if(dim === 'modelo'){
-      const FMB = DATA.ford_meta_breakdown || {};
-      const set = new Set();
-      monthKeys.forEach(mk=> Object.keys(FMB[mk]||{}).forEach(m=>set.add(m)));
-      items = [...set].sort();
+      items = Object.keys(monthMap).sort();
       if(mvstate.modelo) items = items.filter(m=>m === mvstate.modelo);
     } else {
       if(mvstate.agencia) items = [mvstate.agencia];
       else if(mvstate.zona) items = MV_Z_AGS[mvstate.zona]||[];
       else items = MV_FORD_AGS.slice();
     }
-    // Render
-    document.getElementById('mv-tbl-title').textContent = '📋 Heatmap Real / Meta por ' + dimLbl;
+    // Render tabla — solo 4 cols: dim, real, meta, cumpl%
+    document.getElementById('mv-tbl-title').textContent = '📋 Real vs Meta · ' + monthLabel + ' · por ' + dimLbl;
     const thead = document.querySelector('#mv-tbl thead');
     const tbody = document.querySelector('#mv-tbl tbody');
-    thead.innerHTML = '<tr><th>' + dimLbl + '</th>' +
-      monthLabels.map(l=>`<th class="num">${l}</th>`).join('') +
-      '<th class="num">YTD</th><th class="num">Cumpl%</th></tr>';
-    let totalRealYTD = 0, totalMetaYTD = 0;
+    thead.innerHTML = `<tr><th>${dimLbl}</th><th class="num">Real</th><th class="num">Meta</th><th class="num">Gap</th><th class="num">Cumpl%</th><th>Avance</th></tr>`;
+    let totalReal = 0, totalMeta = 0;
     let riskItem = null, riskGap = 0;
-    let activeMk = null;
-    // Detect mes activo: último mes con meta total > 0
-    for(let i=monthKeys.length-1; i>=0; i--){
-      const mk = monthKeys[i];
-      const totM = items.reduce((s,it)=> s + mvMetaForKey(dim, it, mk), 0);
-      if(totM > 0){ activeMk = mk; break; }
+    const rowsData = items.map(it=>{
+      const real = mvRealForKey(dim, it, ym);
+      const meta = mvMetaForKey(dim, it, mk);
+      totalReal += real; totalMeta += meta;
+      const gap = real - meta;
+      const pct = meta > 0 ? Math.round(100*real/meta) : null;
+      if(meta > 0 && gap < riskGap){ riskGap = gap; riskItem = it; }
+      return {it, real, meta, gap, pct};
+    });
+    // Filter: ocultar filas sin actividad (real=0 y meta=0) excepto si user filtró específicamente
+    const filteredRows = rowsData.filter(r => r.real !== 0 || r.meta !== 0 || mvstate.modelo || mvstate.agencia);
+    filteredRows.sort((a,b)=> (b.pct||0) - (a.pct||0));
+    function bullet(real, meta){
+      if(meta <= 0) return '<span style="color:var(--c-muted);font-size:11px">sin meta</span>';
+      const ratio = Math.min(1.5, real/meta);
+      const w = Math.max(2, Math.round(100*ratio/1.5));
+      const markerLeft = Math.round(100*1/1.5);
+      const pct = Math.round(100*real/meta);
+      const col = pct >= 100 ? '#16a34a' : pct >= 80 ? '#eab308' : pct >= 50 ? '#ea580c' : '#dc2626';
+      return `<div style="position:relative;height:14px;background:#e5e7eb;border-radius:7px;width:160px">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:${w}%;background:${col};border-radius:7px"></div>
+        <div style="position:absolute;left:${markerLeft}%;top:-2px;bottom:-2px;width:2px;background:#1e293b"></div>
+      </div>`;
     }
-    let activeReal = 0, activeMeta = 0;
-    const trs = items.map(it=>{
-      let rowReal = 0, rowMeta = 0;
-      const cells = monthKeys.map(mk=>{
-        const ym = MV_YM_MAP[mk];
-        const real = mvRealForKey(dim, it, ym);
-        const meta = mvMetaForKey(dim, it, mk);
-        rowReal += real; rowMeta += meta;
-        if(mk === activeMk){ activeReal += real; activeMeta += meta; }
-        const pct = meta > 0 ? Math.round(100*real/meta) : null;
-        const style = mvCumplColor(pct);
-        const inner = meta > 0 ? `${real}/${meta}` : (real || '—');
-        const pctStr = pct != null ? `<div style="font-size:9px;opacity:.85">${pct}%</div>` : '';
-        return `<td class="num" style="${style};padding:6px 8px"><strong>${inner}</strong>${pctStr}</td>`;
-      }).join('');
-      totalRealYTD += rowReal; totalMetaYTD += rowMeta;
-      const rowPct = rowMeta > 0 ? Math.round(100*rowReal/rowMeta) : null;
-      const rowGap = rowReal - rowMeta;
-      if(rowMeta > 0 && rowGap < riskGap){ riskGap = rowGap; riskItem = it; }
-      const rowStyle = mvCumplColor(rowPct);
-      return `<tr><td><strong>${it}</strong></td>${cells}<td class="num"><strong>${rowReal}/${rowMeta}</strong></td><td class="num" style="${rowStyle};font-weight:700">${rowPct != null ? rowPct + '%' : '—'}</td></tr>`;
-    }).join('');
-    // Total row
-    const totalCells = monthKeys.map(mk=>{
-      const ym = MV_YM_MAP[mk];
-      let r = 0, m = 0;
-      items.forEach(it=>{
-        r += mvRealForKey(dim, it, ym);
-        m += mvMetaForKey(dim, it, mk);
-      });
-      const pct = m > 0 ? Math.round(100*r/m) : null;
-      const style = mvCumplColor(pct);
-      const inner = m > 0 ? `${r}/${m}` : (r || '—');
-      const pctStr = pct != null ? `<div style="font-size:9px;opacity:.85">${pct}%</div>` : '';
-      return `<td class="num" style="${style};padding:6px 8px"><strong>${inner}</strong>${pctStr}</td>`;
-    }).join('');
-    const totalPct = totalMetaYTD > 0 ? Math.round(100*totalRealYTD/totalMetaYTD) : null;
-    tbody.innerHTML = trs + `<tr class="total" style="border-top:2px solid var(--c-border-strong);background:#f1f5f9">
-      <td><strong>TOTAL</strong></td>${totalCells}<td class="num"><strong>${totalRealYTD}/${totalMetaYTD}</strong></td><td class="num" style="${mvCumplColor(totalPct)};font-weight:700">${totalPct != null ? totalPct + '%' : '—'}</td>
-    </tr>`;
+    tbody.innerHTML = filteredRows.map(r=>{
+      const style = mvCumplColor(r.pct);
+      return `<tr><td><strong>${r.it}</strong></td>
+        <td class="num"><strong>${r.real}</strong></td>
+        <td class="num">${r.meta}</td>
+        <td class="num" style="color:${r.gap >= 0 ? '#16a34a' : '#dc2626'};font-weight:600">${(r.gap >= 0 ? '+' : '') + r.gap}</td>
+        <td class="num" style="${style};font-weight:700">${r.pct != null ? r.pct + '%' : '—'}</td>
+        <td>${bullet(r.real, r.meta)}</td></tr>`;
+    }).join('') + (filteredRows.length ? `<tr class="total" style="border-top:2px solid var(--c-border-strong);background:#f1f5f9">
+      <td><strong>TOTAL</strong></td>
+      <td class="num"><strong>${totalReal}</strong></td>
+      <td class="num"><strong>${totalMeta}</strong></td>
+      <td class="num" style="color:${totalReal-totalMeta >= 0 ? '#16a34a' : '#dc2626'};font-weight:700">${(totalReal-totalMeta >= 0 ? '+' : '') + (totalReal-totalMeta)}</td>
+      <td class="num" style="${mvCumplColor(totalMeta > 0 ? Math.round(100*totalReal/totalMeta) : null)};font-weight:700">${totalMeta > 0 ? Math.round(100*totalReal/totalMeta) + '%' : '—'}</td>
+      <td>${bullet(totalReal, totalMeta)}</td>
+    </tr>` : '<tr><td colspan="6" style="text-align:center;color:var(--c-muted)">Sin datos</td></tr>');
     // KPI hero
-    document.getElementById('mv-k-ytd').textContent = totalPct != null ? totalPct + '%' : '—';
-    document.getElementById('mv-k-ytd').style.color = (totalPct||0) >= 100 ? '#16a34a' : (totalPct||0) >= 80 ? '#eab308' : '#dc2626';
-    document.getElementById('mv-k-ytd-hint').textContent = `${totalRealYTD} netos vs meta ${totalMetaYTD}`;
-    if(activeMk){
-      const pA = activeMeta > 0 ? Math.round(100*activeReal/activeMeta) : null;
-      const cfg = monthsCfg.find(x=>x.key===activeMk);
-      document.getElementById('mv-k-mes').textContent = pA != null ? pA + '%' : '—';
-      document.getElementById('mv-k-mes').style.color = (pA||0) >= 100 ? '#16a34a' : (pA||0) >= 80 ? '#eab308' : '#dc2626';
-      document.getElementById('mv-k-mes-hint').textContent = (cfg ? cfg.label : activeMk) + ` · ${activeReal}/${activeMeta}`;
-    } else {
-      document.getElementById('mv-k-mes').textContent = '—';
-      document.getElementById('mv-k-mes-hint').textContent = 'sin metas activas';
-    }
-    const gapYTD = totalRealYTD - totalMetaYTD;
-    document.getElementById('mv-k-gap').textContent = (gapYTD >= 0 ? '+' : '') + gapYTD;
-    document.getElementById('mv-k-gap').style.color = gapYTD >= 0 ? '#16a34a' : '#dc2626';
-    document.getElementById('mv-k-gap-hint').textContent = gapYTD >= 0 ? 'sobre meta' : 'bajo meta';
-    document.getElementById('mv-k-risk-lbl').textContent = (dim === 'modelo' ? 'Modelo' : 'Agencia') + ' en riesgo';
+    const totalPct = totalMeta > 0 ? Math.round(100*totalReal/totalMeta) : null;
+    document.getElementById('mv-k-cumpl').textContent = totalPct != null ? totalPct + '%' : '—';
+    document.getElementById('mv-k-cumpl').style.color = (totalPct||0) >= 100 ? '#16a34a' : (totalPct||0) >= 80 ? '#eab308' : '#dc2626';
+    document.getElementById('mv-k-cumpl-hint').textContent = monthLabel + ' · ' + dimLbl.toLowerCase();
+    document.getElementById('mv-k-real').textContent = totalReal + ' / ' + totalMeta;
+    document.getElementById('mv-k-real-hint').textContent = 'netos vs meta';
+    const gap = totalReal - totalMeta;
+    document.getElementById('mv-k-gap').textContent = (gap >= 0 ? '+' : '') + gap;
+    document.getElementById('mv-k-gap').style.color = gap >= 0 ? '#16a34a' : '#dc2626';
+    document.getElementById('mv-k-gap-hint').textContent = gap >= 0 ? 'sobre meta' : 'bajo meta';
+    document.getElementById('mv-k-risk-lbl').textContent = dimLbl + ' en riesgo';
     document.getElementById('mv-k-risk').textContent = riskItem || '—';
     document.getElementById('mv-k-risk-hint').textContent = riskItem ? `gap ${riskGap}` : 'todos en meta';
   }
@@ -14340,13 +14351,14 @@ HTML = r"""<!doctype html>
     if(mvInited) return;
     mvInited = true;
     mvFillSelectors();
+    document.getElementById('mv-month').addEventListener('change', e=>{ mvstate.monthOverride = e.target.value; mvRenderTable(); });
     document.getElementById('mv-view').addEventListener('change', e=>{ mvstate.view = e.target.value; mvRenderTable(); });
     document.getElementById('mv-zona').addEventListener('change', e=>{ mvstate.zona = e.target.value; mvRenderTable(); });
     document.getElementById('mv-agencia').addEventListener('change', e=>{ mvstate.agencia = e.target.value; mvRenderTable(); });
     document.getElementById('mv-modelo').addEventListener('change', e=>{ mvstate.modelo = e.target.value; mvRenderTable(); });
     document.getElementById('mv-reset').addEventListener('click', ()=>{
-      mvstate.view='modelo'; mvstate.zona=''; mvstate.agencia=''; mvstate.modelo='';
-      ['mv-view','mv-zona','mv-agencia','mv-modelo'].forEach(id=>{
+      mvstate.view='modelo'; mvstate.zona=''; mvstate.agencia=''; mvstate.modelo=''; mvstate.monthOverride='';
+      ['mv-month','mv-view','mv-zona','mv-agencia','mv-modelo'].forEach(id=>{
         const el = document.getElementById(id);
         if(el) el.value = (id === 'mv-view' ? 'modelo' : '');
       });
