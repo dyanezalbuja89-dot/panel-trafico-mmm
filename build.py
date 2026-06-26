@@ -16052,6 +16052,25 @@ HTML = r"""<!doctype html>
   }
 })();
 </script>
+<script>
+/* Auto-refresco (global): el dato se embebe al cargar la página, así que un tab abierto
+   mucho tiempo muestra cifras viejas aunque prod esté fresco. Recarga si la página tiene
+   >30 min Y el usuario está inactivo (>90s) — al volver al tab o cada 5 min. No interrumpe
+   el uso activo (no recarga si estás clickeando/scrolleando). */
+(function(){
+  var loadedAt = Date.now(), lastInteract = Date.now();
+  ['click','keydown','scroll','pointerdown'].forEach(function(ev){
+    document.addEventListener(ev, function(){ lastInteract = Date.now(); }, { passive: true });
+  });
+  function maybeReload(){
+    if (Date.now() - loadedAt > 1800000 && Date.now() - lastInteract > 90000) location.reload();
+  }
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'visible') maybeReload();
+  });
+  setInterval(function(){ if (document.visibilityState === 'visible') maybeReload(); }, 300000);
+})();
+</script>
 </body>
 </html>
 """
