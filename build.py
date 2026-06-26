@@ -3685,6 +3685,11 @@ HTML = r"""<!doctype html>
     </div>
 
     <div class="filter-bar">
+      <label>Marca
+        <select id="mv-marca">
+          <option value="FORD">FORD</option>
+        </select>
+      </label>
       <label>Mes
         <select id="mv-month">
           <option value="">— mes en curso —</option>
@@ -14169,7 +14174,40 @@ HTML = r"""<!doctype html>
   // =========================================================
   //   TAB META VENTAS · Ford · pivots modelo×mes y agencia×mes
   // =========================================================
-  const mvstate = { view:'modelo', zona:'', agencia:'', modelo:'', monthOverride:'' };
+  const mvstate = { marca:'FORD', view:'modelo', zona:'', agencia:'', modelo:'', monthOverride:'' };
+
+  // Helper: meta breakdown source para la marca activa (Ford o brand ORGU).
+  function mvMetaSource(){
+    if(mvstate.marca === 'FORD') return DATA.ford_meta_breakdown || {};
+    // brand_meta_breakdown shape: {mk: {brand_key: {modelo: {meta_ventas, por_agencia}}}}
+    const bmb = DATA.brand_meta_breakdown || {};
+    const out = {};
+    Object.keys(bmb).forEach(mk=>{
+      const brandMap = bmb[mk]?.[mvstate.marca];
+      if(brandMap) out[mk] = brandMap;
+    });
+    return out;
+  }
+
+  // Modelos disponibles para la marca activa (todos los meses).
+  function mvModelosByMarca(){
+    const src = mvMetaSource();
+    const set = new Set();
+    Object.values(src).forEach(mp=> Object.keys(mp).forEach(m=>set.add(m)));
+    return [...set].sort();
+  }
+
+  // Agencias relevantes para la marca.
+  function mvAgenciasByMarca(){
+    const src = mvMetaSource();
+    const set = new Set();
+    Object.values(src).forEach(mp=> Object.values(mp).forEach(mb=>{
+      Object.keys(mb.por_agencia||{}).forEach(a=>{
+        if((mb.por_agencia?.[a]?.meta_ventas)||0 > 0) set.add(a);
+      });
+    }));
+    return [...set];
+  }
   let mvInited = false;
   const MV_YM_MAP = {enero_2026:'2026-01',febrero_2026:'2026-02',marzo_2026:'2026-03',abril_2026:'2026-04',mayo_2026:'2026-05',junio_2026:'2026-06',julio_2026:'2026-07',agosto_2026:'2026-08'};
   const MV_Z_AGS = {'Quito':['La Y','Tumbaco'],'Guayaquil':['CJA','Orellana'],'Manta':['Manta','Portoviejo'],'Machala':['Machala']};
@@ -14191,26 +14229,36 @@ HTML = r"""<!doctype html>
   }
 
   function mvFillSelectors(){
+    // Marca: Ford + brands con meta breakdown disponible
+    const selMa = document.getElementById('mv-marca');
+    if(selMa && !selMa.dataset._filled){
+      const brands = ['FORD'];
+      const bmb = DATA.brand_meta_breakdown || {};
+      const brandSet = new Set();
+      Object.values(bmb).forEach(monthMap=> Object.keys(monthMap).forEach(b=>brandSet.add(b)));
+      [...brandSet].sort().forEach(b => brands.push(b));
+      selMa.innerHTML = brands.map(b=>{
+        const lbl = b === 'FORD' ? 'FORD' : (DATA.brand_display?.[b] || b.replace('_ORGU',''));
+        return `<option value="${b}">${lbl}</option>`;
+      }).join('');
+      selMa.dataset._filled='1';
+    }
     const selZ = document.getElementById('mv-zona');
-    if(selZ && !selZ.dataset._filled){
+    if(selZ){
       selZ.innerHTML = '<option value="">Todas</option>' +
         Object.keys(MV_Z_AGS).map(z=>`<option value="${z}">${z}</option>`).join('');
-      selZ.dataset._filled='1';
     }
     const selA = document.getElementById('mv-agencia');
-    if(selA && !selA.dataset._filled){
+    if(selA){
+      const ags = mvstate.marca === 'FORD' ? MV_FORD_AGS : mvAgenciasByMarca();
       selA.innerHTML = '<option value="">Todas</option>' +
-        MV_FORD_AGS.map(a=>`<option value="${a}">${a}</option>`).join('');
-      selA.dataset._filled='1';
+        ags.sort().map(a=>`<option value="${a}">${a}</option>`).join('');
     }
     const selM = document.getElementById('mv-modelo');
-    if(selM && !selM.dataset._filled){
-      const FMB = DATA.ford_meta_breakdown || {};
-      const set = new Set();
-      Object.values(FMB).forEach(monthMap=> Object.keys(monthMap).forEach(m=> set.add(m)));
+    if(selM){
+      const modelos = mvModelosByMarca();
       selM.innerHTML = '<option value="">Todos</option>' +
-        [...set].sort().map(m=>`<option value="${m}">${m}</option>`).join('');
-      selM.dataset._filled='1';
+        modelos.map(m=>`<option value="${m}">${m}</option>`).join('');
     }
     const selMo = document.getElementById('mv-month');
     if(selMo && !selMo.dataset._filled){
@@ -14225,12 +14273,11 @@ HTML = r"""<!doctype html>
   // (típicamente el más reciente), o default_month_key del panel.
   function mvCurrentMonthKey(){
     if(mvstate.monthOverride) return mvstate.monthOverride;
-    const FMB = DATA.ford_meta_breakdown || {};
+    const src = mvMetaSource();
     const monthsCfg = (DATA.months_config||[]).filter(c=>c.key.endsWith('_2026'));
-    // Último mes con meta válida
     for(let i=monthsCfg.length-1; i>=0; i--){
       const mk = monthsCfg[i].key;
-      const monthMap = FMB[mk] || {};
+      const monthMap = src[mk] || {};
       const total = Object.values(monthMap).reduce((s,mb)=> s + (mb.meta_ventas||0), 0);
       if(total > 0) return mk;
     }
@@ -14240,7 +14287,7 @@ HTML = r"""<!doctype html>
   function mvMetaForKey(dimKey, dimVal, mk){
     // dimKey: 'modelo' o 'agencia'. Devuelve meta_ventas para esa intersección × mes,
     // respetando filtros zona/agencia/modelo (los que no sean la dim activa).
-    const FMB = DATA.ford_meta_breakdown || {};
+    const FMB = mvMetaSource();
     const month = FMB[mk] || {};
     if(dimKey === 'modelo'){
       const mb = month[dimVal];
@@ -14262,19 +14309,33 @@ HTML = r"""<!doctype html>
     return total;
   }
 
+  function mvModeloFamilyBrand(fullName){
+    // Mapping para marcas ORGU (DongFeng/Chery/Mazda/RAM)
+    const u = (fullName||'').toUpperCase();
+    const PATS = ['HUGE','MAGE','PALADIN','RICH 6','RICH 7','Z9',
+      'NEW BT-50','BT-50','CX-30','CX3','CX-3','CX5','CX-5','CX-60','CX-90',
+      'ARRIZO','TIGGO 2','TIGGO 4','TIGGO 7','TIGGO 8','HIMLA',
+      'RAM 1500','RAM 700','1500','700'];
+    const MAP = {'BT-50':'NEW BT-50','CX-3':'CX3','CX-5':'CX5','1500':'RAM 1500','700':'RAM 700'};
+    for(const p of PATS){ if(u.indexOf(p) >= 0){ return MAP[p] || p; } }
+    return null;
+  }
+  function mvFamilyForRow(modelo){
+    return mvstate.marca === 'FORD' ? mvModeloFamily(modelo) : mvModeloFamilyBrand(modelo);
+  }
   function mvRealForKey(dimKey, dimVal, ym){
-    // Suma real (cantidad signed) del fordV.flat para esa key × ym, respetando filtros que no sean la dim activa.
-    const fordV = (DATA.ventas_mensual||{}).FORD || {flat:[]};
+    const vmKey = mvstate.marca;
+    const brandV = (DATA.ventas_mensual||{})[vmKey] || {flat:[]};
     let total = 0;
-    fordV.flat.forEach(r=>{
+    brandV.flat.forEach(r=>{
       if(r.mes !== ym) return;
       if(dimKey === 'modelo'){
-        if(mvModeloFamily(r.modelo) !== dimVal) return;
+        if(mvFamilyForRow(r.modelo) !== dimVal) return;
         if(mvstate.agencia && r.agencia !== mvstate.agencia) return;
         if(mvstate.zona && r.zona !== mvstate.zona) return;
       } else {
         if(r.agencia !== dimVal) return;
-        if(mvstate.modelo && mvModeloFamily(r.modelo) !== mvstate.modelo) return;
+        if(mvstate.modelo && mvFamilyForRow(r.modelo) !== mvstate.modelo) return;
       }
       total += r.cantidad;
     });
@@ -14284,7 +14345,12 @@ HTML = r"""<!doctype html>
   // Tráfico del mes (leads marketing) para dim × dimVal — cross con ventas para cierre %.
   // Source: FORD_MONTHS[mk].matrix_cnt[modelo][agencia] (marketing-only).
   function mvTrafficForKey(dimKey, dimVal, mk){
-    const fm = (DATA.ford_months||{})[mk];
+    let fm;
+    if(mvstate.marca === 'FORD'){
+      fm = (DATA.ford_months||{})[mk];
+    } else {
+      fm = ((DATA.brands_months||{})[mk]||{})[mvstate.marca];
+    }
     if(!fm) return 0;
     const mc = fm.matrix_cnt || {};
     let total = 0;
@@ -14307,7 +14373,7 @@ HTML = r"""<!doctype html>
     const monthLabel = cfg ? cfg.label : mk;
     const ym = MV_YM_MAP[mk];
     document.getElementById('mv-month-label').textContent = monthLabel;
-    const FMB = DATA.ford_meta_breakdown || {};
+    const FMB = mvMetaSource();
     const monthMap = FMB[mk] || {};
     const dim = mvstate.view;
     const dimLbl = dim === 'modelo' ? 'Modelo' : 'Agencia';
@@ -14317,9 +14383,10 @@ HTML = r"""<!doctype html>
       items = Object.keys(monthMap).sort();
       if(mvstate.modelo) items = items.filter(m=>m === mvstate.modelo);
     } else {
+      const brandAgs = mvstate.marca === 'FORD' ? MV_FORD_AGS : mvAgenciasByMarca();
       if(mvstate.agencia) items = [mvstate.agencia];
-      else if(mvstate.zona) items = MV_Z_AGS[mvstate.zona]||[];
-      else items = MV_FORD_AGS.slice();
+      else if(mvstate.zona) items = (MV_Z_AGS[mvstate.zona]||[]).filter(a=>brandAgs.includes(a));
+      else items = brandAgs.slice();
     }
     // Render tabla con cruce real/meta/tráfico/cierre%
     document.getElementById('mv-tbl-title').textContent = '📋 Real vs Meta + Tasa de cierre · ' + monthLabel + ' · por ' + dimLbl;
@@ -14402,16 +14469,24 @@ HTML = r"""<!doctype html>
     if(mvInited) return;
     mvInited = true;
     mvFillSelectors();
+    document.getElementById('mv-marca').addEventListener('change', e=>{
+      mvstate.marca = e.target.value;
+      mvstate.modelo = ''; mvstate.agencia = ''; mvstate.zona = ''; mvstate.monthOverride = '';
+      mvFillSelectors();
+      ['mv-month','mv-zona','mv-agencia','mv-modelo'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value=''; });
+      mvRenderTable();
+    });
     document.getElementById('mv-month').addEventListener('change', e=>{ mvstate.monthOverride = e.target.value; mvRenderTable(); });
     document.getElementById('mv-view').addEventListener('change', e=>{ mvstate.view = e.target.value; mvRenderTable(); });
     document.getElementById('mv-zona').addEventListener('change', e=>{ mvstate.zona = e.target.value; mvRenderTable(); });
     document.getElementById('mv-agencia').addEventListener('change', e=>{ mvstate.agencia = e.target.value; mvRenderTable(); });
     document.getElementById('mv-modelo').addEventListener('change', e=>{ mvstate.modelo = e.target.value; mvRenderTable(); });
     document.getElementById('mv-reset').addEventListener('click', ()=>{
-      mvstate.view='modelo'; mvstate.zona=''; mvstate.agencia=''; mvstate.modelo=''; mvstate.monthOverride='';
-      ['mv-month','mv-view','mv-zona','mv-agencia','mv-modelo'].forEach(id=>{
+      mvstate.marca='FORD'; mvstate.view='modelo'; mvstate.zona=''; mvstate.agencia=''; mvstate.modelo=''; mvstate.monthOverride='';
+      mvFillSelectors();
+      ['mv-marca','mv-month','mv-view','mv-zona','mv-agencia','mv-modelo'].forEach(id=>{
         const el = document.getElementById(id);
-        if(el) el.value = (id === 'mv-view' ? 'modelo' : '');
+        if(el) el.value = (id === 'mv-marca' ? 'FORD' : (id === 'mv-view' ? 'modelo' : ''));
       });
       mvRenderTable();
     });

@@ -17,6 +17,80 @@ def _compute_embudo_safe():
         print(f"WARN: embudo no disponible: {e}")
         return None
 
+def _parse_brand_meta_breakdown(file_path):
+    """Parsea hoja METAS_OM del archivo NUEVO_AI_MARCAS y devuelve:
+       {brand_key: {modelo_canonico: {meta_ventas, por_agencia: {ag: meta_ventas}}}}.
+    El archivo lista total por marca seguido de sus modelos (Dong Feng total, Huge, Mage...).
+    """
+    try:
+        df = pd.read_excel(file_path, sheet_name='METAS_OM', header=1)
+    except Exception as e:
+        print(f'[brand_meta_breakdown] WARN {file_path.name}: {e}')
+        return {}
+    AG_COLS = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo']
+    # Mapping brand-header → brand_key (uppercase keyword search)
+    BRAND_KEY = {
+        'DONG FENG': 'DONGFENG_ORGU', 'DONGFENG': 'DONGFENG_ORGU',
+        'MAZDA': 'MAZDA_ORGU', 'CHERY': 'CHERY_ORGU', 'RAM': 'RAM_ORGU',
+    }
+    # Mapping modelo → familia canónica (alineado con normalize_familia + ventas_mensual modeloKey)
+    MODELO_FAM = {
+        'HUGE':'HUGE','MAGE':'MAGE','PALADIN':'PALADIN',
+        'RICH 6':'RICH 6','RICH 7':'RICH 7','Z9':'Z9',
+        'BT-50':'NEW BT-50','CX-3':'CX3','CX-30':'CX-30',
+        'CX-5':'CX5','CX-60':'CX-60','CX-90':'CX-90',
+        'ARRIZO':'ARRIZO','TIGGO 2':'TIGGO 2','TIGGO 4':'TIGGO 4',
+        'TIGGO 7':'TIGGO 7','TIGGO 8':'TIGGO 8','HIMLA':'HIMLA',
+        '1500':'RAM 1500','700':'RAM 700',
+    }
+    def model_to_fam(name):
+        u = str(name or '').upper().strip()
+        for kw, fam in MODELO_FAM.items():
+            if kw in u: return fam
+        return None
+    result = {}
+    current_brand = None
+    for _, row in df.iterrows():
+        modelo_raw = str(row.get('Modelo', '')).strip()
+        if not modelo_raw or modelo_raw.lower() == 'nan':
+            continue
+        u = modelo_raw.upper()
+        if u == 'TOTAL':
+            break
+        # Brand header?
+        matched_brand = None
+        for kw, bk in BRAND_KEY.items():
+            if kw in u and len(u) <= len(kw) + 2:  # row "Dong Feng" pero no "Dong Feng XYZ"
+                matched_brand = bk; break
+        if matched_brand:
+            current_brand = matched_brand
+            if current_brand not in result:
+                result[current_brand] = {}
+            continue
+        if not current_brand:
+            continue
+        # Modelo row
+        fam = model_to_fam(modelo_raw)
+        if not fam:
+            continue
+        total = 0
+        por_ag = {}
+        for ag in AG_COLS:
+            try:
+                v = int(row.get(ag, 0) or 0)
+            except Exception:
+                v = 0
+            por_ag[ag] = {'meta_ventas': v}
+            total += v
+        # Acumular (si ya existe la fam, sumar)
+        prev = result[current_brand].get(fam, {'meta_ventas':0, 'por_agencia':{}})
+        prev['meta_ventas'] = prev.get('meta_ventas',0) + total
+        for ag, d in por_ag.items():
+            pa = prev['por_agencia'].setdefault(ag, {'meta_ventas':0})
+            pa['meta_ventas'] = pa.get('meta_ventas',0) + d['meta_ventas']
+        result[current_brand][fam] = prev
+    return result
+
 def _compute_ventas_mensual(sales_df):
     """Pivot mensual de ventas NETAS por marca/modelo/asesor/agencia.
     Devuelve {marca_key: {months, months_labels, by_modelo, by_asesor, by_agencia, totals}}.
@@ -1265,6 +1339,7 @@ def main():
     ford_months = {}
     brands_months = {}
     ford_meta_breakdown = {}  # {mk: {modelo: {meta_ventas, reservas_pre}}} para diagnóstico "cobertura por reservas"
+    brand_meta_breakdown = {}  # {mk: {brand_key: {modelo: {meta_ventas, por_agencia}}}}
     for cfg in MONTHS_CONFIG:
         curr_raw = load_raw(BASE / cfg["curr_file"])
         prev_raw = load_raw(BASE / cfg["prev_file"])
@@ -1292,6 +1367,13 @@ def main():
         else:
             bmetas_file = cfg.get("brand_metas_file") or str(DEFAULT_BRAND_METAS_FILE)
             bmetas = get_brand_metas(bmetas_file)
+            # Brand meta_ventas breakdown (hoja METAS_OM del mismo archivo)
+            try:
+                bb = _parse_brand_meta_breakdown(Path(bmetas_file))
+                if bb:
+                    brand_meta_breakdown[cfg["key"]] = bb
+            except Exception as e:
+                print(f'[brand_meta_breakdown] WARN mes {cfg["key"]}: {e}')
         # Días no laborables extra (overrides puntuales por mes)
         extra_nw = cfg.get("extra_non_working_days")
 
@@ -1330,6 +1412,7 @@ def main():
         "brand_display": BRAND_DISPLAY,
         "ford_months": ford_months,
         "ford_meta_breakdown": ford_meta_breakdown,
+        "brand_meta_breakdown": brand_meta_breakdown,
         "brands_months": brands_months,
         "months_config": [{"key":c["key"], "label":c["label"]} for c in MONTHS_CONFIG],
         "default_month_key": default_key,
