@@ -2822,6 +2822,10 @@
     <svg class="tab-icon" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     <span class="tab-label">Ventas</span>
   </button>
+  <button class="tab-btn" data-tab="meta-ventas" title="Cumplimiento Meta de Ventas Ford">
+    <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><line x1="22" y1="12" x2="12" y2="12"/></svg>
+    <span class="tab-label">Meta Ventas</span>
+  </button>
 
   <div class="sidebar-section-label">Operación</div>
   <button class="tab-btn" data-tab="inv" title="Inventario Orgu">
@@ -2863,6 +2867,7 @@
         <optgroup label="Ventas">
           <option value="conv">🎯 Conversión</option>
           <option value="ventas">💵 Ventas</option>
+          <option value="meta-ventas">🎯 Meta Ventas</option>
           <option value="embudo">🪜 Embudo</option>
         </optgroup>
         <optgroup label="Operación">
@@ -3629,8 +3634,8 @@
       </div>
     </div>
 
-    <!-- CUMPLIMIENTO META DE VENTAS (solo Ford) -->
-    <div class="ford-section" id="vt-meta-section">
+    <!-- CUMPLIMIENTO META DE VENTAS (solo Ford) — versión inline tab Ventas, oculta para evitar duplicado con tab dedicada -->
+    <div class="ford-section" id="vt-meta-section" style="display:none">
       <h3>🎯 Cumplimiento Meta de Ventas · Ford <span class="sub" id="vt-meta-sub">real (NETOS) vs meta mensual por modelo</span></h3>
 
       <div class="stat-hero" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
@@ -3661,6 +3666,48 @@
     </div>
 
     <div class="footer-note">NETOS = sum(Cantidad) con +1 FACTURA / −1 NC. Heatmap visual + Δ vs mes anterior + sparkline + ranking · filtros dinámicos.</div>
+  </section>
+
+  <!-- ======================= TAB META DE VENTAS · Ford ======================= -->
+  <section id="tab-meta-ventas" class="tab-panel">
+    <div class="otros-header">
+      <div>
+        <h2>🎯 Cumplimiento Meta de Ventas · Ford</h2>
+        <div class="sub">Real NETOS vs meta mensual oficial · vistas por modelo o por agencia</div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <label>Vista
+        <select id="mv-view">
+          <option value="modelo">Por modelo</option>
+          <option value="agencia">Por agencia</option>
+        </select>
+      </label>
+      <label>Zona<select id="mv-zona"><option value="">Todas</option></select></label>
+      <label>Agencia<select id="mv-agencia"><option value="">Todas</option></select></label>
+      <label>Modelo<select id="mv-modelo"><option value="">Todos</option></select></label>
+      <button class="reset" id="mv-reset" type="button">↺ Limpiar</button>
+    </div>
+
+    <div class="stat-hero" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+      <div class="card-big"><div class="lbl">Cumpl. YTD</div><div class="val" id="mv-k-ytd">—</div><div class="hint" id="mv-k-ytd-hint"></div></div>
+      <div class="card-big"><div class="lbl">Mes activo</div><div class="val" id="mv-k-mes">—</div><div class="hint" id="mv-k-mes-hint"></div></div>
+      <div class="card-big"><div class="lbl">Gap YTD</div><div class="val" id="mv-k-gap">—</div><div class="hint" id="mv-k-gap-hint"></div></div>
+      <div class="card-big"><div class="lbl" id="mv-k-risk-lbl">Modelo en riesgo</div><div class="val" id="mv-k-risk">—</div><div class="hint" id="mv-k-risk-hint"></div></div>
+    </div>
+
+    <div class="ford-section">
+      <h3 id="mv-tbl-title">Heatmap Real / Meta · NETOS</h3>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="mv-tbl">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer-note">Cada celda: real / meta + cumpl% · color verde ≥100% · amarillo 80-99% · naranja 50-79% · rojo &lt;50% · Fuente meta: NUEVO_AI_FORD; Fuente real: Base de ventas YTD NETOS.</div>
   </section>
 
   <!-- ======================= TAB INVENTARIO ======================= -->
@@ -14085,6 +14132,223 @@
   document.querySelector('.tab-btn[data-tab="ventas"]')?.addEventListener('click', ()=>{
     initVentas();
     vtRenderAll();
+  });
+
+  // =========================================================
+  //   TAB META VENTAS · Ford · pivots modelo×mes y agencia×mes
+  // =========================================================
+  const mvstate = { view:'modelo', zona:'', agencia:'', modelo:'' };
+  let mvInited = false;
+  const MV_YM_MAP = {enero_2026:'2026-01',febrero_2026:'2026-02',marzo_2026:'2026-03',abril_2026:'2026-04',mayo_2026:'2026-05',junio_2026:'2026-06',julio_2026:'2026-07',agosto_2026:'2026-08'};
+  const MV_Z_AGS = {'Quito':['La Y','Tumbaco'],'Guayaquil':['CJA','Orellana'],'Manta':['Manta','Portoviejo'],'Machala':['Machala']};
+  const MV_FORD_AGS = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo'];
+
+  function mvModeloFamily(fullName){
+    const FAM = ['TERRITORY','ESCAPE','EVEREST','EXPLORER','EXPEDITION','BRONCO','F-150','F150','RANGER'];
+    const u = (fullName||'').toUpperCase();
+    for(const f of FAM){ if(u.startsWith(f)) return f === 'F150' ? 'F-150' : f; }
+    return 'OTROS';
+  }
+
+  function mvCumplColor(pct){
+    if(pct == null) return '';
+    if(pct >= 100) return 'background:rgba(22,163,74,0.28);color:#0f3d20';
+    if(pct >= 80)  return 'background:rgba(234,179,8,0.28);color:#713f12';
+    if(pct >= 50)  return 'background:rgba(234,88,12,0.28);color:#7c2d12';
+    return 'background:rgba(220,38,38,0.32);color:#7f1d1d';
+  }
+
+  function mvFillSelectors(){
+    const selZ = document.getElementById('mv-zona');
+    if(selZ && !selZ.dataset._filled){
+      selZ.innerHTML = '<option value="">Todas</option>' +
+        Object.keys(MV_Z_AGS).map(z=>`<option value="${z}">${z}</option>`).join('');
+      selZ.dataset._filled='1';
+    }
+    const selA = document.getElementById('mv-agencia');
+    if(selA && !selA.dataset._filled){
+      selA.innerHTML = '<option value="">Todas</option>' +
+        MV_FORD_AGS.map(a=>`<option value="${a}">${a}</option>`).join('');
+      selA.dataset._filled='1';
+    }
+    const selM = document.getElementById('mv-modelo');
+    if(selM && !selM.dataset._filled){
+      const FMB = DATA.ford_meta_breakdown || {};
+      const set = new Set();
+      Object.values(FMB).forEach(monthMap=> Object.keys(monthMap).forEach(m=> set.add(m)));
+      selM.innerHTML = '<option value="">Todos</option>' +
+        [...set].sort().map(m=>`<option value="${m}">${m}</option>`).join('');
+      selM.dataset._filled='1';
+    }
+  }
+
+  function mvMetaForKey(dimKey, dimVal, mk){
+    // dimKey: 'modelo' o 'agencia'. Devuelve meta_ventas para esa intersección × mes,
+    // respetando filtros zona/agencia/modelo (los que no sean la dim activa).
+    const FMB = DATA.ford_meta_breakdown || {};
+    const month = FMB[mk] || {};
+    if(dimKey === 'modelo'){
+      const mb = month[dimVal];
+      if(!mb) return 0;
+      // Aplicar filtros agencia/zona
+      if(mvstate.agencia) return (mb.por_agencia?.[mvstate.agencia]?.meta_ventas)||0;
+      if(mvstate.zona){
+        const ags = MV_Z_AGS[mvstate.zona]||[];
+        return ags.reduce((s,a)=> s + ((mb.por_agencia?.[a]?.meta_ventas)||0), 0);
+      }
+      return mb.meta_ventas || 0;
+    }
+    // dim=agencia: sumar meta_ventas[*modelos*][por_agencia[agencia]]
+    let total = 0;
+    Object.entries(month).forEach(([modName, mb])=>{
+      if(mvstate.modelo && modName !== mvstate.modelo) return;
+      total += (mb.por_agencia?.[dimVal]?.meta_ventas)||0;
+    });
+    return total;
+  }
+
+  function mvRealForKey(dimKey, dimVal, ym){
+    // Suma real (cantidad signed) del fordV.flat para esa key × ym, respetando filtros que no sean la dim activa.
+    const fordV = (DATA.ventas_mensual||{}).FORD || {flat:[]};
+    let total = 0;
+    fordV.flat.forEach(r=>{
+      if(r.mes !== ym) return;
+      // Filtros que no son la dim activa
+      if(dimKey === 'modelo'){
+        if(mvModeloFamily(r.modelo) !== dimVal) return;
+        if(mvstate.agencia && r.agencia !== mvstate.agencia) return;
+        if(mvstate.zona && r.zona !== mvstate.zona) return;
+      } else { // agencia
+        if(r.agencia !== dimVal) return;
+        if(mvstate.modelo && mvModeloFamily(r.modelo) !== mvstate.modelo) return;
+        // (zona ya queda contenida en agencia específica)
+      }
+      total += r.cantidad;
+    });
+    return total;
+  }
+
+  function mvRenderTable(){
+    const monthsCfg = DATA.months_config || [];
+    const monthKeys = monthsCfg.filter(c=>c.key.endsWith('_2026')).map(c=>c.key);
+    const monthLabels = monthKeys.map(k=>{
+      const c = monthsCfg.find(x=>x.key===k);
+      return c ? c.label.replace(' 2026','') : k;
+    });
+    const dim = mvstate.view; // 'modelo' o 'agencia'
+    const dimLbl = dim === 'modelo' ? 'Modelo' : 'Agencia';
+    // Items a mostrar
+    let items;
+    if(dim === 'modelo'){
+      const FMB = DATA.ford_meta_breakdown || {};
+      const set = new Set();
+      monthKeys.forEach(mk=> Object.keys(FMB[mk]||{}).forEach(m=>set.add(m)));
+      items = [...set].sort();
+      if(mvstate.modelo) items = items.filter(m=>m === mvstate.modelo);
+    } else {
+      if(mvstate.agencia) items = [mvstate.agencia];
+      else if(mvstate.zona) items = MV_Z_AGS[mvstate.zona]||[];
+      else items = MV_FORD_AGS.slice();
+    }
+    // Render
+    document.getElementById('mv-tbl-title').textContent = '📋 Heatmap Real / Meta por ' + dimLbl;
+    const thead = document.querySelector('#mv-tbl thead');
+    const tbody = document.querySelector('#mv-tbl tbody');
+    thead.innerHTML = '<tr><th>' + dimLbl + '</th>' +
+      monthLabels.map(l=>`<th class="num">${l}</th>`).join('') +
+      '<th class="num">YTD</th><th class="num">Cumpl%</th></tr>';
+    let totalRealYTD = 0, totalMetaYTD = 0;
+    let riskItem = null, riskGap = 0;
+    let activeMk = null;
+    // Detect mes activo: último mes con meta total > 0
+    for(let i=monthKeys.length-1; i>=0; i--){
+      const mk = monthKeys[i];
+      const totM = items.reduce((s,it)=> s + mvMetaForKey(dim, it, mk), 0);
+      if(totM > 0){ activeMk = mk; break; }
+    }
+    let activeReal = 0, activeMeta = 0;
+    const trs = items.map(it=>{
+      let rowReal = 0, rowMeta = 0;
+      const cells = monthKeys.map(mk=>{
+        const ym = MV_YM_MAP[mk];
+        const real = mvRealForKey(dim, it, ym);
+        const meta = mvMetaForKey(dim, it, mk);
+        rowReal += real; rowMeta += meta;
+        if(mk === activeMk){ activeReal += real; activeMeta += meta; }
+        const pct = meta > 0 ? Math.round(100*real/meta) : null;
+        const style = mvCumplColor(pct);
+        const inner = meta > 0 ? `${real}/${meta}` : (real || '—');
+        const pctStr = pct != null ? `<div style="font-size:9px;opacity:.85">${pct}%</div>` : '';
+        return `<td class="num" style="${style};padding:6px 8px"><strong>${inner}</strong>${pctStr}</td>`;
+      }).join('');
+      totalRealYTD += rowReal; totalMetaYTD += rowMeta;
+      const rowPct = rowMeta > 0 ? Math.round(100*rowReal/rowMeta) : null;
+      const rowGap = rowReal - rowMeta;
+      if(rowMeta > 0 && rowGap < riskGap){ riskGap = rowGap; riskItem = it; }
+      const rowStyle = mvCumplColor(rowPct);
+      return `<tr><td><strong>${it}</strong></td>${cells}<td class="num"><strong>${rowReal}/${rowMeta}</strong></td><td class="num" style="${rowStyle};font-weight:700">${rowPct != null ? rowPct + '%' : '—'}</td></tr>`;
+    }).join('');
+    // Total row
+    const totalCells = monthKeys.map(mk=>{
+      const ym = MV_YM_MAP[mk];
+      let r = 0, m = 0;
+      items.forEach(it=>{
+        r += mvRealForKey(dim, it, ym);
+        m += mvMetaForKey(dim, it, mk);
+      });
+      const pct = m > 0 ? Math.round(100*r/m) : null;
+      const style = mvCumplColor(pct);
+      const inner = m > 0 ? `${r}/${m}` : (r || '—');
+      const pctStr = pct != null ? `<div style="font-size:9px;opacity:.85">${pct}%</div>` : '';
+      return `<td class="num" style="${style};padding:6px 8px"><strong>${inner}</strong>${pctStr}</td>`;
+    }).join('');
+    const totalPct = totalMetaYTD > 0 ? Math.round(100*totalRealYTD/totalMetaYTD) : null;
+    tbody.innerHTML = trs + `<tr class="total" style="border-top:2px solid var(--c-border-strong);background:#f1f5f9">
+      <td><strong>TOTAL</strong></td>${totalCells}<td class="num"><strong>${totalRealYTD}/${totalMetaYTD}</strong></td><td class="num" style="${mvCumplColor(totalPct)};font-weight:700">${totalPct != null ? totalPct + '%' : '—'}</td>
+    </tr>`;
+    // KPI hero
+    document.getElementById('mv-k-ytd').textContent = totalPct != null ? totalPct + '%' : '—';
+    document.getElementById('mv-k-ytd').style.color = (totalPct||0) >= 100 ? '#16a34a' : (totalPct||0) >= 80 ? '#eab308' : '#dc2626';
+    document.getElementById('mv-k-ytd-hint').textContent = `${totalRealYTD} netos vs meta ${totalMetaYTD}`;
+    if(activeMk){
+      const pA = activeMeta > 0 ? Math.round(100*activeReal/activeMeta) : null;
+      const cfg = monthsCfg.find(x=>x.key===activeMk);
+      document.getElementById('mv-k-mes').textContent = pA != null ? pA + '%' : '—';
+      document.getElementById('mv-k-mes').style.color = (pA||0) >= 100 ? '#16a34a' : (pA||0) >= 80 ? '#eab308' : '#dc2626';
+      document.getElementById('mv-k-mes-hint').textContent = (cfg ? cfg.label : activeMk) + ` · ${activeReal}/${activeMeta}`;
+    } else {
+      document.getElementById('mv-k-mes').textContent = '—';
+      document.getElementById('mv-k-mes-hint').textContent = 'sin metas activas';
+    }
+    const gapYTD = totalRealYTD - totalMetaYTD;
+    document.getElementById('mv-k-gap').textContent = (gapYTD >= 0 ? '+' : '') + gapYTD;
+    document.getElementById('mv-k-gap').style.color = gapYTD >= 0 ? '#16a34a' : '#dc2626';
+    document.getElementById('mv-k-gap-hint').textContent = gapYTD >= 0 ? 'sobre meta' : 'bajo meta';
+    document.getElementById('mv-k-risk-lbl').textContent = (dim === 'modelo' ? 'Modelo' : 'Agencia') + ' en riesgo';
+    document.getElementById('mv-k-risk').textContent = riskItem || '—';
+    document.getElementById('mv-k-risk-hint').textContent = riskItem ? `gap ${riskGap}` : 'todos en meta';
+  }
+
+  function initMetaVentas(){
+    if(mvInited) return;
+    mvInited = true;
+    mvFillSelectors();
+    document.getElementById('mv-view').addEventListener('change', e=>{ mvstate.view = e.target.value; mvRenderTable(); });
+    document.getElementById('mv-zona').addEventListener('change', e=>{ mvstate.zona = e.target.value; mvRenderTable(); });
+    document.getElementById('mv-agencia').addEventListener('change', e=>{ mvstate.agencia = e.target.value; mvRenderTable(); });
+    document.getElementById('mv-modelo').addEventListener('change', e=>{ mvstate.modelo = e.target.value; mvRenderTable(); });
+    document.getElementById('mv-reset').addEventListener('click', ()=>{
+      mvstate.view='modelo'; mvstate.zona=''; mvstate.agencia=''; mvstate.modelo='';
+      ['mv-view','mv-zona','mv-agencia','mv-modelo'].forEach(id=>{
+        const el = document.getElementById(id);
+        if(el) el.value = (id === 'mv-view' ? 'modelo' : '');
+      });
+      mvRenderTable();
+    });
+  }
+  document.querySelector('.tab-btn[data-tab="meta-ventas"]')?.addEventListener('click', ()=>{
+    initMetaVentas();
+    mvRenderTable();
   });
 
   // =========================================================
