@@ -3629,6 +3629,26 @@
       </div>
     </div>
 
+    <!-- CUMPLIMIENTO META DE VENTAS (solo Ford) -->
+    <div class="ford-section" id="vt-meta-section">
+      <h3>🎯 Cumplimiento Meta de Ventas · Ford <span class="sub" id="vt-meta-sub">real (NETOS) vs meta mensual por modelo</span></h3>
+
+      <div class="stat-hero" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+        <div class="card-big"><div class="lbl">Cumpl. YTD</div><div class="val" id="vt-meta-k-ytd">—</div><div class="hint" id="vt-meta-k-ytd-hint"></div></div>
+        <div class="card-big"><div class="lbl">Mes activo</div><div class="val" id="vt-meta-k-mes">—</div><div class="hint" id="vt-meta-k-mes-hint"></div></div>
+        <div class="card-big"><div class="lbl">Gap YTD</div><div class="val" id="vt-meta-k-gap">—</div><div class="hint" id="vt-meta-k-gap-hint"></div></div>
+        <div class="card-big"><div class="lbl">Modelo en riesgo</div><div class="val" id="vt-meta-k-risk">—</div><div class="hint" id="vt-meta-k-risk-hint"></div></div>
+      </div>
+
+      <div style="overflow-x:auto">
+        <table class="analysis" id="vt-meta-tbl">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--c-muted);margin-top:6px">Cada celda: real / meta · color = cumplimiento (verde ≥100% · amarillo 80-99 · naranja 50-79 · rojo &lt;50). Solo Ford tiene meta de ventas oficial cargada.</div>
+    </div>
+
     <!-- NOTAS DE CRÉDITO · auditoría -->
     <div class="ford-section" id="vt-nc-section" style="display:none">
       <h3>↩️ Notas de crédito · auditoría <span class="sub" id="vt-nc-sub">facturas anuladas / devoluciones</span></h3>
@@ -13787,6 +13807,165 @@
     document.getElementById('vt-asesor-sub').textContent = (parts.length ? parts.join(' · ') : 'sin filtros activos') + ' · click ▶ para ver modelos';
   }
 
+  // CUMPLIMIENTO META DE VENTAS · Ford solamente (data: DATA.ford_meta_breakdown).
+  // Compara ventas NETAS reales (de ventas_mensual flat) vs meta_ventas por modelo×mes.
+  function vtRenderMetaVentas(){
+    const section = document.getElementById('vt-meta-section');
+    if(!section) return;
+    // Solo visible cuando marca = FORD
+    if(vtstate.marca !== 'FORD'){
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = '';
+    const FMB = DATA.ford_meta_breakdown || {};
+    const monthsCfg = DATA.months_config || [];
+    const monthKeys2026 = monthsCfg.filter(c => c.key.endsWith('_2026')).map(c=>c.key);
+    const monthLabels = monthKeys2026.map(k => {
+      const c = monthsCfg.find(x=>x.key===k);
+      return c ? c.label.replace(' 2026','') : k;
+    });
+    // YM map: 'enero_2026' → '2026-01'
+    const YM_MAP = {enero_2026:'2026-01',febrero_2026:'2026-02',marzo_2026:'2026-03',abril_2026:'2026-04',mayo_2026:'2026-05',junio_2026:'2026-06',julio_2026:'2026-07',agosto_2026:'2026-08'};
+    // Ventas reales por modelo desde ventas_mensual flat (Ford). Aplicamos filtros zona/agencia/modelo.
+    const fordV = (DATA.ventas_mensual||{}).FORD || {flat:[]};
+    const rows = fordV.flat.filter(r=>{
+      if(vtstate.agencia && r.agencia !== vtstate.agencia) return false;
+      if(vtstate.zona && r.zona !== vtstate.zona) return false;
+      return true;
+    });
+    // Real por modelo × ym (acumular)
+    function modeloKey(fullName){
+      // Normalizar a familia Ford. ventas_mensual trae nombres como "F150 PLATINUM HEV..."
+      // Buscar match con MODEL_ORDER conocidos.
+      const FAM = ['TERRITORY','ESCAPE','EVEREST','EXPLORER','EXPEDITION','BRONCO','F-150','F150','RANGER'];
+      const u = (fullName||'').toUpperCase();
+      for(const f of FAM){ if(u.startsWith(f)) return f === 'F150' ? 'F-150' : f; }
+      return 'OTROS';
+    }
+    const realPerMM = {}; // {modelo: {ym: neto}}
+    rows.forEach(r=>{
+      const m = modeloKey(r.modelo);
+      if(!realPerMM[m]) realPerMM[m] = {};
+      realPerMM[m][r.mes] = (realPerMM[m][r.mes]||0) + r.cantidad;
+    });
+    // Para cada mes_key extraer modelo→meta. Filtrar por agencia si aplica.
+    function metaForModeloMes(modelo, mkey){
+      const mb = (FMB[mkey]||{})[modelo];
+      if(!mb) return 0;
+      if(vtstate.agencia){
+        return (mb.por_agencia?.[vtstate.agencia]?.meta_ventas) || 0;
+      }
+      if(vtstate.zona){
+        // Sumar por agencias de la zona
+        const Z_AGS = {'Quito':['La Y','Tumbaco'],'Guayaquil':['CJA','Orellana'],'Manta':['Manta','Portoviejo'],'Machala':['Machala']};
+        const ags = Z_AGS[vtstate.zona] || [];
+        return ags.reduce((s,a)=> s + ((mb.por_agencia?.[a]?.meta_ventas)||0), 0);
+      }
+      return mb.meta_ventas || 0;
+    }
+    // Modelos a mostrar: filtro modelo o todos los de FMB del último mes
+    const allModelos = new Set();
+    monthKeys2026.forEach(mk=>{
+      Object.keys(FMB[mk]||{}).forEach(m=> allModelos.add(m));
+    });
+    let modelos = [...allModelos].sort();
+    if(vtstate.modelo){
+      const um = vtstate.modelo.toUpperCase();
+      // Si user filtró un modelo Ford clásico, mostrarlo
+      const matched = modelos.find(m => um.startsWith(m));
+      if(matched) modelos = [matched];
+      else modelos = modelos.filter(m=> false); // empty
+    }
+    // Render tabla
+    const thead = document.querySelector('#vt-meta-tbl thead');
+    const tbody = document.querySelector('#vt-meta-tbl tbody');
+    thead.innerHTML = '<tr><th>Modelo</th>' +
+      monthLabels.map(l=>`<th class="num">${l}</th>`).join('') +
+      '<th class="num">YTD</th><th class="num">Cumpl</th></tr>';
+    function cumplColor(pct){
+      if(pct == null) return '';
+      if(pct >= 100) return 'background:rgba(22,163,74,0.25);color:#0f3d20';
+      if(pct >= 80)  return 'background:rgba(234,179,8,0.25);color:#713f12';
+      if(pct >= 50)  return 'background:rgba(234,88,12,0.25);color:#7c2d12';
+      return 'background:rgba(220,38,38,0.30);color:#7f1d1d';
+    }
+    let totalRealYTD = 0, totalMetaYTD = 0;
+    let riskModel = null, riskGap = 0;
+    const trs = modelos.map(m=>{
+      let rowReal = 0, rowMeta = 0;
+      const cells = monthKeys2026.map(mk=>{
+        const ym = YM_MAP[mk];
+        const real = (realPerMM[m]||{})[ym] || 0;
+        const meta = metaForModeloMes(m, mk);
+        rowReal += real; rowMeta += meta;
+        const pct = meta > 0 ? Math.round(100*real/meta) : null;
+        const style = cumplColor(pct);
+        const inner = meta > 0 ? `${real}/${meta}` : (real || '—');
+        const pctStr = pct != null ? `<div style="font-size:9px;opacity:.8">${pct}%</div>` : '';
+        return `<td class="num" style="${style};padding:6px 8px"><strong>${inner}</strong>${pctStr}</td>`;
+      }).join('');
+      totalRealYTD += rowReal; totalMetaYTD += rowMeta;
+      const rowPct = rowMeta > 0 ? Math.round(100*rowReal/rowMeta) : null;
+      const rowGap = rowReal - rowMeta;
+      if(rowMeta > 0 && rowGap < riskGap){ riskGap = rowGap; riskModel = m; }
+      const rowStyle = cumplColor(rowPct);
+      return `<tr><td><strong>${m}</strong></td>${cells}<td class="num"><strong>${rowReal}/${rowMeta}</strong></td><td class="num" style="${rowStyle};font-weight:700">${rowPct != null ? rowPct + '%' : '—'}</td></tr>`;
+    }).join('');
+    // Total row
+    const totalCells = monthKeys2026.map(mk=>{
+      const ym = YM_MAP[mk];
+      let r = 0, m = 0;
+      modelos.forEach(mod=>{
+        r += (realPerMM[mod]||{})[ym] || 0;
+        m += metaForModeloMes(mod, mk);
+      });
+      const pct = m > 0 ? Math.round(100*r/m) : null;
+      const style = cumplColor(pct);
+      const inner = m > 0 ? `${r}/${m}` : (r || '—');
+      const pctStr = pct != null ? `<div style="font-size:9px;opacity:.8">${pct}%</div>` : '';
+      return `<td class="num" style="${style};padding:6px 8px"><strong>${inner}</strong>${pctStr}</td>`;
+    }).join('');
+    const totalPct = totalMetaYTD > 0 ? Math.round(100*totalRealYTD/totalMetaYTD) : null;
+    tbody.innerHTML = trs + `<tr class="total" style="border-top:2px solid var(--c-border-strong);background:#f1f5f9">
+      <td><strong>TOTAL</strong></td>${totalCells}<td class="num"><strong>${totalRealYTD}/${totalMetaYTD}</strong></td><td class="num" style="${cumplColor(totalPct)};font-weight:700">${totalPct != null ? totalPct + '%' : '—'}</td>
+    </tr>`;
+    // KPI hero
+    document.getElementById('vt-meta-k-ytd').textContent = totalPct != null ? totalPct + '%' : '—';
+    document.getElementById('vt-meta-k-ytd-hint').textContent = `${totalRealYTD} netos vs meta ${totalMetaYTD}`;
+    // Mes activo: último mes con meta > 0
+    let activeMk = null;
+    for(let i = monthKeys2026.length - 1; i >= 0; i--){
+      const mk = monthKeys2026[i];
+      const m = modelos.reduce((s,mod)=> s + metaForModeloMes(mod, mk), 0);
+      if(m > 0){ activeMk = mk; break; }
+    }
+    if(activeMk){
+      const ym = YM_MAP[activeMk];
+      const rA = modelos.reduce((s,mod)=> s + ((realPerMM[mod]||{})[ym]||0), 0);
+      const mA = modelos.reduce((s,mod)=> s + metaForModeloMes(mod, activeMk), 0);
+      const pA = mA > 0 ? Math.round(100*rA/mA) : null;
+      const cfg = monthsCfg.find(x=>x.key===activeMk);
+      document.getElementById('vt-meta-k-mes').textContent = pA != null ? pA + '%' : '—';
+      document.getElementById('vt-meta-k-mes-hint').textContent = (cfg ? cfg.label : activeMk) + ` · ${rA}/${mA}`;
+    } else {
+      document.getElementById('vt-meta-k-mes').textContent = '—';
+      document.getElementById('vt-meta-k-mes-hint').textContent = 'sin metas activas';
+    }
+    const gapYTD = totalRealYTD - totalMetaYTD;
+    document.getElementById('vt-meta-k-gap').textContent = (gapYTD >= 0 ? '+' : '') + gapYTD;
+    document.getElementById('vt-meta-k-gap').style.color = gapYTD >= 0 ? '#16a34a' : '#dc2626';
+    document.getElementById('vt-meta-k-gap-hint').textContent = gapYTD >= 0 ? 'sobre meta' : 'bajo meta';
+    document.getElementById('vt-meta-k-risk').textContent = riskModel || '—';
+    document.getElementById('vt-meta-k-risk-hint').textContent = riskModel ? `gap ${riskGap}` : 'todos en meta';
+    // Sub line
+    const subParts = [];
+    if(vtstate.zona) subParts.push('Zona ' + vtstate.zona);
+    if(vtstate.agencia) subParts.push(vtstate.agencia);
+    if(vtstate.modelo) subParts.push(vtstate.modelo);
+    document.getElementById('vt-meta-sub').textContent = subParts.length ? subParts.join(' · ') + ' · real vs meta NETOS' : 'real (NETOS) vs meta mensual por modelo';
+  }
+
   function vtRenderNC(){
     const d = vtBrandData();
     const sec = document.getElementById('vt-nc-section');
@@ -13854,6 +14033,7 @@
     vtRenderHero();
     vtRenderTable();
     vtRenderAsesorDetail();
+    vtRenderMetaVentas();
     vtRenderNC();
   }
 
