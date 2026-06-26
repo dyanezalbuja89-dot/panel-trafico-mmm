@@ -1,9 +1,11 @@
 #!/bin/bash
 # Refresco HORARIO del dato digital (HubSpot · Ventas-Ford + Dongfeng).
 # Lanzado por launchd cada hora. Flujo:
-#   sync a origin → pull HubSpot → merge solo 'digital' en data.json → build → deploy.
-# NO commitea data.json (lo maneja el flujo diario de inventario) — solo deploya
-# el index.html con el dato digital fresco. Así no hay conflictos de git.
+#   sync a origin → pull HubSpot → COMMIT+PUSH digital.json → merge en data.json → build → deploy.
+# COMMITEA digital.json (single-writer: solo este flujo lo escribe) para que git tenga SIEMPRE
+# el dato digital fresco → ningún deploy (mío o de la otra sesión) embebe un digital.json viejo.
+# NO commitea data.json/index.html (los maneja el flujo de inventario; evita conflictos).
+# ⚠️ La otra sesión NO debe commitear digital.json (habría conflicto de dos escritores).
 set -e
 REPO="/Users/danielyanezalbuja/dev/panel-trafico-mmm"
 LOG="$HOME/panel_digital_hourly.log"
@@ -39,6 +41,21 @@ git reset --hard origin/main >> "$LOG" 2>&1 || log "WARN git reset"
 # 2. Pull HubSpot → digital.json
 log "pull HubSpot..."
 python3 hubspot_pull.py >> "$LOG" 2>&1 || { log "ERROR hubspot_pull; abort"; exit 1; }
+
+# 2b. Commitear + pushear digital.json fresco (single-writer). Mantiene el dato digital
+#     al día en git → cualquier deploy (mío o de la otra sesión, tras un pull) lleva dato
+#     fresco; incluso si el pull de la otra sesión falla, su fallback es el committeado fresco.
+if ! git diff --quiet -- digital.json; then
+  git add digital.json
+  git commit -q -m "data(digital): refresco $(date '+%Y-%m-%d %H:%M')" 2>>"$LOG" || true
+  if git push origin main >> "$LOG" 2>&1; then
+    log "✓ digital.json pusheado"
+  else
+    log "push rechazado (origin adelantó); rebase + retry"
+    git pull --rebase origin main >> "$LOG" 2>&1 || git rebase --abort >> "$LOG" 2>&1 || true
+    git push origin main >> "$LOG" 2>&1 && log "✓ digital.json pusheado (retry)" || log "WARN push digital.json falló; reintenta próxima hora"
+  fi
+fi
 
 # 3. Merge solo 'digital' en data.json (preserva otras pestañas)
 python3 _merge_digital.py >> "$LOG" 2>&1 || { log "ERROR merge; abort"; exit 1; }
