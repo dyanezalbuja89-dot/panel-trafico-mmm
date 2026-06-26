@@ -14248,18 +14248,35 @@ HTML = r"""<!doctype html>
     let total = 0;
     fordV.flat.forEach(r=>{
       if(r.mes !== ym) return;
-      // Filtros que no son la dim activa
       if(dimKey === 'modelo'){
         if(mvModeloFamily(r.modelo) !== dimVal) return;
         if(mvstate.agencia && r.agencia !== mvstate.agencia) return;
         if(mvstate.zona && r.zona !== mvstate.zona) return;
-      } else { // agencia
+      } else {
         if(r.agencia !== dimVal) return;
         if(mvstate.modelo && mvModeloFamily(r.modelo) !== mvstate.modelo) return;
-        // (zona ya queda contenida en agencia específica)
       }
       total += r.cantidad;
     });
+    return total;
+  }
+
+  // Tráfico del mes (leads marketing) para dim × dimVal — cross con ventas para cierre %.
+  // Source: FORD_MONTHS[mk].matrix_cnt[modelo][agencia] (marketing-only).
+  function mvTrafficForKey(dimKey, dimVal, mk){
+    const fm = (DATA.ford_months||{})[mk];
+    if(!fm) return 0;
+    const mc = fm.matrix_cnt || {};
+    let total = 0;
+    if(dimKey === 'modelo'){
+      const mp = mc[dimVal] || {};
+      const targets = mvstate.agencia ? [mvstate.agencia]
+        : (mvstate.zona ? (MV_Z_AGS[mvstate.zona]||[]) : Object.keys(mp));
+      targets.forEach(a => { total += mp[a] || 0; });
+    } else {
+      const models = mvstate.modelo ? [mvstate.modelo] : Object.keys(mc);
+      models.forEach(m => { total += (mc[m]||{})[dimVal] || 0; });
+    }
     return total;
   }
 
@@ -14284,25 +14301,34 @@ HTML = r"""<!doctype html>
       else if(mvstate.zona) items = MV_Z_AGS[mvstate.zona]||[];
       else items = MV_FORD_AGS.slice();
     }
-    // Render tabla — solo 4 cols: dim, real, meta, cumpl%
-    document.getElementById('mv-tbl-title').textContent = '📋 Real vs Meta · ' + monthLabel + ' · por ' + dimLbl;
+    // Render tabla con cruce real/meta/tráfico/cierre%
+    document.getElementById('mv-tbl-title').textContent = '📋 Real vs Meta + Tasa de cierre · ' + monthLabel + ' · por ' + dimLbl;
     const thead = document.querySelector('#mv-tbl thead');
     const tbody = document.querySelector('#mv-tbl tbody');
-    thead.innerHTML = `<tr><th>${dimLbl}</th><th class="num">Real</th><th class="num">Meta</th><th class="num">Gap</th><th class="num">Cumpl%</th><th>Avance</th></tr>`;
-    let totalReal = 0, totalMeta = 0;
+    thead.innerHTML = `<tr><th>${dimLbl}</th><th class="num">Real</th><th class="num">Meta</th><th class="num">Gap</th><th class="num">Cumpl%</th><th class="num" title="Leads marketing del mes">Tráfico</th><th class="num" title="Real / Tráfico">Cierre%</th><th>Avance</th></tr>`;
+    let totalReal = 0, totalMeta = 0, totalTraf = 0;
     let riskItem = null, riskGap = 0;
     const rowsData = items.map(it=>{
       const real = mvRealForKey(dim, it, ym);
       const meta = mvMetaForKey(dim, it, mk);
-      totalReal += real; totalMeta += meta;
+      const traf = mvTrafficForKey(dim, it, mk);
+      totalReal += real; totalMeta += meta; totalTraf += traf;
       const gap = real - meta;
       const pct = meta > 0 ? Math.round(100*real/meta) : null;
+      const cierre = traf > 0 ? Math.round(1000*real/traf)/10 : null;
       if(meta > 0 && gap < riskGap){ riskGap = gap; riskItem = it; }
-      return {it, real, meta, gap, pct};
+      return {it, real, meta, gap, pct, traf, cierre};
     });
     // Filter: ocultar filas sin actividad (real=0 y meta=0) excepto si user filtró específicamente
-    const filteredRows = rowsData.filter(r => r.real !== 0 || r.meta !== 0 || mvstate.modelo || mvstate.agencia);
+    const filteredRows = rowsData.filter(r => r.real !== 0 || r.meta !== 0 || r.traf !== 0 || mvstate.modelo || mvstate.agencia);
     filteredRows.sort((a,b)=> (b.pct||0) - (a.pct||0));
+    function cierreColor(pct){
+      if(pct == null) return '';
+      if(pct >= 15) return 'background:rgba(22,163,74,0.22);color:#0f3d20';
+      if(pct >= 10) return 'background:rgba(234,179,8,0.22);color:#713f12';
+      if(pct >= 5)  return 'background:rgba(234,88,12,0.22);color:#7c2d12';
+      return 'background:rgba(220,38,38,0.25);color:#7f1d1d';
+    }
     function bullet(real, meta){
       if(meta <= 0) return '<span style="color:var(--c-muted);font-size:11px">sin meta</span>';
       const ratio = Math.min(1.5, real/meta);
@@ -14317,11 +14343,14 @@ HTML = r"""<!doctype html>
     }
     tbody.innerHTML = filteredRows.map(r=>{
       const style = mvCumplColor(r.pct);
+      const cStyle = cierreColor(r.cierre);
       return `<tr><td><strong>${r.it}</strong></td>
         <td class="num"><strong>${r.real}</strong></td>
         <td class="num">${r.meta}</td>
         <td class="num" style="color:${r.gap >= 0 ? '#16a34a' : '#dc2626'};font-weight:600">${(r.gap >= 0 ? '+' : '') + r.gap}</td>
         <td class="num" style="${style};font-weight:700">${r.pct != null ? r.pct + '%' : '—'}</td>
+        <td class="num">${r.traf || '—'}</td>
+        <td class="num" style="${cStyle};font-weight:700">${r.cierre != null ? r.cierre + '%' : '—'}</td>
         <td>${bullet(r.real, r.meta)}</td></tr>`;
     }).join('') + (filteredRows.length ? `<tr class="total" style="border-top:2px solid var(--c-border-strong);background:#f1f5f9">
       <td><strong>TOTAL</strong></td>
@@ -14329,8 +14358,10 @@ HTML = r"""<!doctype html>
       <td class="num"><strong>${totalMeta}</strong></td>
       <td class="num" style="color:${totalReal-totalMeta >= 0 ? '#16a34a' : '#dc2626'};font-weight:700">${(totalReal-totalMeta >= 0 ? '+' : '') + (totalReal-totalMeta)}</td>
       <td class="num" style="${mvCumplColor(totalMeta > 0 ? Math.round(100*totalReal/totalMeta) : null)};font-weight:700">${totalMeta > 0 ? Math.round(100*totalReal/totalMeta) + '%' : '—'}</td>
+      <td class="num"><strong>${totalTraf || '—'}</strong></td>
+      <td class="num" style="${cierreColor(totalTraf > 0 ? Math.round(1000*totalReal/totalTraf)/10 : null)};font-weight:700">${totalTraf > 0 ? (Math.round(1000*totalReal/totalTraf)/10) + '%' : '—'}</td>
       <td>${bullet(totalReal, totalMeta)}</td>
-    </tr>` : '<tr><td colspan="6" style="text-align:center;color:var(--c-muted)">Sin datos</td></tr>');
+    </tr>` : '<tr><td colspan="8" style="text-align:center;color:var(--c-muted)">Sin datos</td></tr>');
     // KPI hero
     const totalPct = totalMeta > 0 ? Math.round(100*totalReal/totalMeta) : null;
     document.getElementById('mv-k-cumpl').textContent = totalPct != null ? totalPct + '%' : '—';
