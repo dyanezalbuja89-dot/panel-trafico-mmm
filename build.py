@@ -12249,41 +12249,61 @@ HTML = r"""<!doctype html>
   // (pull eficiente fetch-aggregate, Ford + Dong Feng). Si no hay live, queda la foto.
   // Object.assign muta los const (permitido); los *_ORDER/_Q ya se calcularon con los
   // mismos labels de mes, así que siguen válidos.
-  try {
-    const _L = (typeof DATA !== 'undefined' && DATA.digital && DATA.digital.live) || null;
-    if (_L) {
-      const _mm = (arr, fields) => { const o = {}; (arr || []).forEach(m => { const x = {}; fields.forEach(f => x[f] = m[f]); o[m.label] = x; }); return o; };
-      if (_L.ford) {
-        const F = _L.ford;
-        if (F.ag) { Object.assign(_CC26_AG, F.ag); Object.assign(_CONF_AG, F.ag); }
-        if (F.desperdicio) {
-          Object.assign(_DESP_M, F.desperdicio.by_month || {});
-          Object.assign(_DESP_AG, F.desperdicio.by_agency || {});
-          Object.assign(_DESP_CRUCE_M, F.desperdicio.cruce || {});
+  // Aplica el dato live (Object.assign sobre los const estáticos) + renderiza ambos tabs.
+  // Re-llamable: corre con el embebido al cargar y de nuevo con el dato fresco del fetch.
+  function _initDigital(){
+    try {
+      const _L = (typeof DATA !== 'undefined' && DATA.digital && DATA.digital.live) || null;
+      if (_L) {
+        const _mm = (arr, fields) => { const o = {}; (arr || []).forEach(m => { const x = {}; fields.forEach(f => x[f] = m[f]); o[m.label] = x; }); return o; };
+        if (_L.ford) {
+          const F = _L.ford;
+          if (F.ag) { Object.assign(_CC26_AG, F.ag); Object.assign(_CONF_AG, F.ag); }
+          if (F.desperdicio) {
+            Object.assign(_DESP_M, F.desperdicio.by_month || {});
+            Object.assign(_DESP_AG, F.desperdicio.by_agency || {});
+            Object.assign(_DESP_CRUCE_M, F.desperdicio.cruce || {});
+          }
+        }
+        if (_L.dongfeng) {
+          const G = _L.dongfeng;
+          Object.assign(_DF2_CC26_M, _mm(G.months, ['leads', 'cont', 'tope']));
+          Object.assign(_DF2_CONF_M, _mm(G.months, ['agendadas', 'confirmadas', 'efec', 'conf']));
+          if (G.ag) { Object.assign(_DF2_CC26_AG, G.ag); Object.assign(_DF2_CONF_AG, G.ag); }
+          if (G.desperdicio) {
+            Object.assign(_DF2_DESP_M, G.desperdicio.by_month || {});
+            Object.assign(_DF2_DESP_AG, G.desperdicio.by_agency || {});
+            Object.assign(_DF2_DESP_CRUCE_M, G.desperdicio.cruce || {});
+          }
         }
       }
-      if (_L.dongfeng) {
-        const G = _L.dongfeng;
-        Object.assign(_DF2_CC26_M, _mm(G.months, ['leads', 'cont', 'tope']));
-        Object.assign(_DF2_CONF_M, _mm(G.months, ['agendadas', 'confirmadas', 'efec', 'conf']));
-        if (G.ag) { Object.assign(_DF2_CC26_AG, G.ag); Object.assign(_DF2_CONF_AG, G.ag); }
-        if (G.desperdicio) {
-          Object.assign(_DF2_DESP_M, G.desperdicio.by_month || {});
-          Object.assign(_DF2_DESP_AG, G.desperdicio.by_agency || {});
-          Object.assign(_DF2_DESP_CRUCE_M, G.desperdicio.cruce || {});
-        }
-      }
-    }
-  } catch (e) { console.error("live override", e); }
+    } catch (e) { console.error("live override", e); }
+    try { if (typeof renderDigital === "function") renderDigital(); } catch(e) { console.error("renderDigital init", e); }
+    try { if (typeof renderDigitalDF === "function") renderDigitalDF(); } catch(e) { console.error("renderDigitalDF init", e); }
+  }
 
-  // Render inicial del tab digital (gate removido: ya no depende del desbloqueo)
-  try { if (typeof renderDigital === "function") renderDigital(); } catch(e) { console.error("renderDigital init", e); }
-
-  // ── Tab Seguimiento Digital Dong Feng: hook de clic + render inicial ──
+  // ── Tab Seguimiento Digital Dong Feng: hook de clic (siempre, independiente del init) ──
   document.querySelector('.tab-btn[data-tab="digital-df"]')?.addEventListener('click', ()=>{
     try { renderDigitalDF(); } catch(e) { console.error("renderDigitalDF click", e); }
   });
-  try { if (typeof renderDigitalDF === "function") renderDigitalDF(); } catch(e) { console.error("renderDigitalDF init", e); }
+
+  // Render inmediato con el dato embebido (sin pantalla en blanco).
+  _initDigital();
+
+  // BULLETPROOF: el dato digital se RE-LEE EN RUNTIME del digital.json committeado (GitHub raw,
+  // solo lo escribe el cron horario). Así NINGÚN deploy del HTML —de cualquier sesión— puede
+  // mostrar dato viejo: el HTML embebido es solo el arranque; el dato real viene del fetch.
+  // Si el fetch falla (sin red, etc.), queda el embebido. Cache-bust + no-store por las dudas.
+  (function(){
+    if (typeof DATA === 'undefined' || !DATA.digital || typeof fetch !== 'function') return;
+    var _RAW = 'https://raw.githubusercontent.com/dyanezalbuja89-dot/panel-trafico-mmm/main/digital.json';
+    fetch(_RAW + '?t=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if (j && j.months && j.updated_at !== DATA.digital.updated_at) { DATA.digital = j; _initDigital(); }
+      })
+      .catch(function(){ /* fallback: queda el dato embebido */ });
+  })();
   let compImpChart = null;
   function renderCompImp(){
     const C = DATA.competencia_data;
