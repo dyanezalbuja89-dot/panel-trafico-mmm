@@ -2817,21 +2817,21 @@ HTML = r"""<!doctype html>
   </button>
 
   <div class="sidebar-section-label">Ventas</div>
-  <button class="tab-btn" data-tab="conv" title="Conversión">
-    <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-    <span class="tab-label">Conversión</span>
+  <button class="tab-btn" data-tab="meta-ventas" title="Cumplimiento Meta de Ventas Ford · mes en curso">
+    <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><line x1="22" y1="12" x2="12" y2="12"/></svg>
+    <span class="tab-label">Meta ventas mes</span>
   </button>
   <button class="tab-btn" data-tab="embudo" title="Embudo">
     <svg class="tab-icon" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
     <span class="tab-label">Embudo</span>
   </button>
-  <button class="tab-btn" data-tab="ventas" title="Ventas mensuales por modelo / asesor">
-    <svg class="tab-icon" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    <span class="tab-label">Ventas</span>
+  <button class="tab-btn" data-tab="conv" title="Conversión">
+    <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+    <span class="tab-label">Conversión</span>
   </button>
-  <button class="tab-btn" data-tab="meta-ventas" title="Cumplimiento Meta de Ventas Ford">
-    <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><line x1="22" y1="12" x2="12" y2="12"/></svg>
-    <span class="tab-label">Meta Ventas</span>
+  <button class="tab-btn" data-tab="ventas" title="Ventas históricas mensuales por modelo / asesor">
+    <svg class="tab-icon" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    <span class="tab-label">Ventas Históricas</span>
   </button>
 
   <div class="sidebar-section-label">Operación</div>
@@ -2872,10 +2872,10 @@ HTML = r"""<!doctype html>
           <option value="digital-df">📡 Seguimiento Digital Dong Feng</option>
         </optgroup>
         <optgroup label="Ventas">
-          <option value="conv">🎯 Conversión</option>
-          <option value="ventas">💵 Ventas</option>
-          <option value="meta-ventas">🎯 Meta Ventas</option>
+          <option value="meta-ventas">🎯 Meta ventas mes</option>
           <option value="embudo">🪜 Embudo</option>
+          <option value="conv">🎯 Conversión</option>
+          <option value="ventas">💵 Ventas Históricas</option>
         </optgroup>
         <optgroup label="Operación">
           <option value="inv">📦 Inventario</option>
