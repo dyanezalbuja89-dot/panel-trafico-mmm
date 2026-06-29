@@ -102,7 +102,7 @@ def _compute_ventas_mensual(sales_df):
         return None
     df = sales_df.copy()
     df['fecha_fact'] = pd.to_datetime(df.get('fecha de facturacion'), errors='coerce')
-    df = df[df['fecha_fact'].dt.year == 2026].copy()
+    df = df[df['fecha_fact'].dt.year >= 2025].copy()
     if len(df) == 0:
         return None
     # Complemento desde inventario para meses no cubiertos por ventas.xlsx.
@@ -184,6 +184,38 @@ def _compute_ventas_mensual(sales_df):
             print(f'[ventas_mensual] complementado {len(mapped)} transacciones DATOS 2 (NETO={netos}) post-{last_month_sales}')
     except Exception as e:
         print(f'[ventas_mensual] WARN complemento DATOS 2 falló: {e}')
+
+    # ► HISTÓRICO 2025: complementar meses pre-sales_df desde DATOS (chasis FACTURADO).
+    # sales_df solo tiene 2026+. Para mostrar 2025 en el panel, leer DATOS y filtrar
+    # FACTURADO con fecha en 2025. Aproximación: chasis actualmente FACTURADO con fecha
+    # de fact en 2025-XX (los NC'd ya no están como FACTURADO, así se aproxima el neto).
+    try:
+        with _wa.catch_warnings():
+            _wa.simplefilter('ignore')
+            inv_hist = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS', header=0)
+        inv_hist['STATUS_H'] = inv_hist['STATUS HOMOLOGADO'].astype(str).str.strip().str.upper()
+        inv_hist = inv_hist[inv_hist['STATUS_H']=='FACTURADO'].copy()
+        inv_hist['fecha_fact'] = pd.to_datetime(inv_hist['fecha de facturacion'], errors='coerce')
+        inv_hist['mes_str'] = inv_hist['fecha_fact'].dt.strftime('%Y-%m')
+        # Solo meses 2025 que no están en sales_df ni DATOS 2
+        existing_mes = set(df['fecha_fact'].dt.strftime('%Y-%m').unique())
+        inv_hist = inv_hist[(inv_hist['fecha_fact'].dt.year==2025) & (~inv_hist['mes_str'].isin(existing_mes))]
+        if len(inv_hist) > 0:
+            hist_mapped = pd.DataFrame({
+                'fecha_fact': inv_hist['fecha_fact'],
+                'fecha de facturacion': inv_hist['fecha_fact'],
+                'Cantidad': 1,
+                'marca': inv_hist.get('marca', '').astype(str),
+                'familia': inv_hist.get('familia', '').astype(str),
+                'AGENCIA_FACTURACION': inv_hist.get('AGENCIA_FACTURACION', '').astype(str),
+                'ASESOR_FACTURACION': inv_hist.get('ASESOR_FACTURACION', '').astype(str).str.upper(),
+                'Chasis': inv_hist.get('vin', '').astype(str),
+                'rev_signed': 0.0,
+            })
+            df = pd.concat([df, hist_mapped], ignore_index=True, sort=False)
+            print(f'[ventas_mensual] histórico 2025: {len(hist_mapped)} chasis FACTURADO desde DATOS')
+    except Exception as e:
+        print(f'[ventas_mensual] WARN histórico 2025 falló: {e}')
     df['mes'] = df['fecha_fact'].dt.strftime('%Y-%m')
     df['Cantidad'] = df['Cantidad'].fillna(1).astype(int)
     # Revenue por fila — Total Factura ya viene signado en el archivo de origen
