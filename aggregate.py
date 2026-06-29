@@ -1238,10 +1238,10 @@ MONTHS_CONFIG = [
      "brand_metas_file": str(MAY_BRAND_METAS_FILE),
      # Override: Sábado 2 de mayo no se trabajó (puente con feriado del Día del Trabajo)
      "extra_non_working_days": [(5, 2)]},
-    {"key": "junio_2026", "label": "Junio 2026", "month": 6, "year": 2026, "cut_day": 25,
-     "curr_file": "../Junio/BD_JUNIO/BD_JUN_25_06_26.xlsx",
-     "prev_file": "../Junio/BD_JUNIO/BD_JUN_24_06_26.xlsx",
-     "prev_date": "24/06/2026",
+    {"key": "junio_2026", "label": "Junio 2026", "month": 6, "year": 2026, "cut_day": 28,
+     "curr_file": "../Junio/BD_JUNIO/BD_JUN_28_06_26.xlsx",
+     "prev_file": "../Junio/BD_JUNIO/BD_JUN_25_06_26.xlsx",
+     "prev_date": "25/06/2026",
      "ford_metas_file": str(JUN_FORD_METAS_FILE),
      "brand_metas_file": str(JUN_BRAND_METAS_FILE)},
 ]

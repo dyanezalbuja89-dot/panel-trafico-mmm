@@ -20,7 +20,7 @@ MONTHS = [
     ("marzo_2026",    "Marzo 2026",    3,  2026, 31),
     ("abril_2026",    "Abril 2026",    4,  2026, 30),
     ("mayo_2026",     "Mayo 2026",     5,  2026, 31),
-    ("junio_2026",    "Junio 2026",    6,  2026, 25),
+    ("junio_2026",    "Junio 2026",    6,  2026, 28),
 ]
 
 DATA_PATH = Path(__file__).parent / "data.json"
