@@ -142,17 +142,31 @@ def _compute_ventas_mensual(sales_df):
         inv_tx['mes_str'] = inv_tx['fecha_fact'].dt.strftime('%Y-%m')
         inv_tx['Cantidad'] = inv_tx.get('Cantidad', 0).fillna(0).astype(int)
         inv_tx = inv_tx[(inv_tx['fecha_fact'].dt.year==2026) & (inv_tx['mes_str'] > last_month_sales)].copy()
-        # Dedup: solo excluir FACTURAs (Cantidad>0) cuyo VIN ya está en sales_df.
-        # NCs (Cantidad<0) SIEMPRE se incluyen — son anulaciones genuinas que sales_df
-        # no refleja (factura original en mes anterior).
+        # No dedup VIN: DATOS 2 = fuente de verdad para meses post-mayo. Cada TX
+        # cuenta tal cual (FACT +1, NC -1). User confirma "tengo 79 facturados"
+        # = DATOS 2 sum junio 2026 = 79. Si VIN aparece en sales_df mayo y DATOS 2
+        # junio tiene FACT (re-fact), ambas son ventas distintas — la NC mayo
+        # correspondiente debe estar en sales_df (si no está, es bug del archivo).
+        # exclude_vins del override sigue activo (re-facts confirmadas manualmente).
+        if 'exclude_vins_set' in dir():
+            pass
         if known_vins and 'Vin' in inv_tx.columns:
-            inv_tx['vin_up'] = inv_tx['Vin'].astype(str).str.strip().str.upper()
-            before = len(inv_tx)
-            mask_dup_fact = (inv_tx['Cantidad'] > 0) & (inv_tx['vin_up'].isin(known_vins))
-            inv_tx = inv_tx[~mask_dup_fact]
-            skipped = before - len(inv_tx)
-            if skipped > 0:
-                print(f'[ventas_mensual] omitidas {skipped} FACTURAs (VIN ya en sales_df, re-facts)')
+            override_excl = set()
+            if override_path.exists():
+                try:
+                    with open(override_path, 'r') as f:
+                        ov2 = __import__('json').load(f)
+                    for v in (ov2.get('exclude_vins') or []):
+                        v = str(v).strip().upper()
+                        if v: override_excl.add(v)
+                except Exception: pass
+            if override_excl:
+                inv_tx['vin_up'] = inv_tx['Vin'].astype(str).str.strip().str.upper()
+                before = len(inv_tx)
+                inv_tx = inv_tx[~inv_tx['vin_up'].isin(override_excl)]
+                skipped = before - len(inv_tx)
+                if skipped > 0:
+                    print(f'[ventas_mensual] omitidas {skipped} TXs (exclude_vins override)')
         if len(inv_tx) > 0:
             mapped = pd.DataFrame({
                 'fecha_fact': inv_tx['fecha_fact'],
