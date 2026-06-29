@@ -3619,9 +3619,9 @@ HTML = r"""<!doctype html>
       <div class="card-big"><div class="lbl">Líder vista activa</div><div class="val" id="vt-k-leader">—</div><div class="hint" id="vt-k-leader-hint"></div></div>
     </div>
 
-    <!-- EVOLUCIÓN TASA DE CIERRE MENSUAL -->
+    <!-- EVOLUCIÓN VENTAS MENSUALES -->
     <div class="ford-section">
-      <h3>📊 Evolución tasa de cierre mensual <span class="sub" id="vt-cierre-sub">ventas netas / tráfico × 100 · respeta Marca/Agencia/Modelo</span></h3>
+      <h3>📊 Evolución ventas mensuales <span class="sub" id="vt-cierre-sub">unidades netas (FACTURA − NC) por mes · respeta Marca/Agencia/Modelo</span></h3>
       <div style="display:flex;justify-content:flex-end;font-size:11px;color:var(--c-muted);margin-bottom:6px" id="vt-cierre-summary"></div>
       <div style="position:relative;height:330px"><canvas id="vt-chart-cierre"></canvas></div>
     </div>
@@ -14155,26 +14155,27 @@ HTML = r"""<!doctype html>
     const ventasByMes = {};
     rows.forEach(r=>{ ventasByMes[r.mes] = (ventasByMes[r.mes]||0) + (r.cantidad||0); });
     const ventas = MONTHS_CONFIG.map(c => ventasByMes[vtMonthKeyToYM(c.key)] || 0);
-    const trafico = MONTHS_CONFIG.map(c => vtTraficoForMonth(c.key));
-    const pct = trafico.map((t,i)=> (t>0 ? +(100*ventas[i]/t).toFixed(2) : null));
-    // Header trend summary
-    const validPct = pct.filter(v=>v!=null);
+    // Mostrar solo meses con data ventas (no graficar 0s para periodos pre-sales_df)
+    const ventasPlot = ventas.map(v => v || null);
+    const valid = ventasPlot.filter(v=>v!=null);
     const summary = document.getElementById('vt-cierre-summary');
     if(summary){
-      if(validPct.length >= 2){
-        const first = validPct[0], last = validPct[validPct.length-1];
+      if(valid.length >= 2){
+        const first = valid[0], last = valid[valid.length-1];
         const d = last - first;
+        const pct = first>0 ? (100*d/first) : null;
         const arrow = d > 0 ? '▲' : (d < 0 ? '▼' : '·');
         const col = d > 0 ? 'var(--pos)' : (d < 0 ? 'var(--neg)' : 'var(--c-muted)');
         const sign = d > 0 ? '+' : '';
-        summary.innerHTML = `<span style="color:${col};font-weight:700">${arrow} ${sign}${d.toFixed(1)} pp</span>&nbsp;de ${labels[0]} a ${labels[labels.length-1]}`;
+        const pctTxt = pct==null ? '' : ' ('+sign+pct.toFixed(1)+'%)';
+        summary.innerHTML = `<span style="color:${col};font-weight:700">${arrow} ${sign}${d} uds${pctTxt}</span>&nbsp;de ${labels[ventas.findIndex(v=>v)]} a ${labels[labels.length-1]}`;
       } else summary.innerHTML = '';
     }
     charts['vt-chart-cierre'] = new Chart(canvas,{
       type:'line',
       data:{labels, datasets:[{
-        label:'Tasa de cierre',
-        data: pct,
+        label:'Ventas netas',
+        data: ventasPlot,
         borderColor:'#003478', backgroundColor:'rgba(0,52,120,.15)',
         fill:true, tension:.25, pointRadius:5, pointBackgroundColor:'#003478', borderWidth:2.5, spanGaps:true,
       }]},
@@ -14182,18 +14183,14 @@ HTML = r"""<!doctype html>
         layout:{padding:{top:28}},
         plugins:{
           legend:{display:false},
-          tooltip:{callbacks:{label:c=>{
-            const i = c.dataIndex;
-            const v = c.parsed.y;
-            return ' ' + (v==null ? '—' : v.toFixed(1)+'%') + '  ('+ventas[i]+' / '+trafico[i]+')';
-          }}},
+          tooltip:{callbacks:{label:c=> ' ' + (c.parsed.y==null?'—':c.parsed.y+' uds')}},
           datalabels:{display:true,anchor:'end',align:'top',offset:6,clip:false,
             font:{size:12,weight:'700'},color:'#003478',
-            formatter:v=>v==null?'':v.toFixed(1)+'%'}
+            formatter:v=>v==null?'':v}
         },
         scales:{
-          y:{beginAtZero:true, grace:'10%', ticks:{precision:1, callback:v=>v+'%'},
-             title:{display:true,text:'Tasa de cierre (%)',color:'#6b7280',font:{size:11}}},
+          y:{beginAtZero:true, grace:'10%', ticks:{precision:0},
+             title:{display:true,text:'Ventas netas (uds)',color:'#6b7280',font:{size:11}}},
           x:{ticks:{font:{size:12}}}
         },
         interaction:{mode:'index',intersect:false},
