@@ -1,0 +1,6 @@
+{
+  "_comment_exclude_vins": "VINs a excluir del complemento de ventas desde inventario (chasis facturado que NO debe contar como venta del mes). Solo para casos donde claramente sea re-facturación intramonth NO reflejada en sales_df.",
+  "_comment_manual_nc": "NCs manuales DESHABILITADAS por decisión de Daniel (2026-06-29): la BD de ventas es fuente de verdad. Si una NC no está en el archivo, el panel refleja eso. No agregar entries aquí.",
+  "exclude_vins": [],
+  "manual_nc": []
+}

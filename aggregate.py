@@ -110,6 +110,8 @@ def _compute_ventas_mensual(sales_df):
     # ► Excluye VINs ya presentes en sales_df (Chasis) — evita doble conteo cuando
     # un chasis facturado en mayo fue NC'd y re-facturado en junio (re-facturación,
     # no venta nueva). El neto correcto es el que ya quedó en sales_df.
+    # ► También excluye VINs listados en ventas_overrides.json — para casos donde
+    # una factura se anuló intramonth y la NC no llegó al archivo Base de ventas YTD.
     try:
         last_month_sales = df['fecha_fact'].dt.strftime('%Y-%m').max()
         # VINs ya conocidos en sales_df (cualquier mes)
@@ -118,6 +120,42 @@ def _compute_ventas_mensual(sales_df):
             for v in df['Chasis'].dropna().astype(str):
                 v = v.strip().upper()
                 if v: known_vins.add(v)
+        # Manual overrides (VINs anulados intramonth sin trace en sales_df)
+        override_path = Path(__file__).parent / 'ventas_overrides.json'
+        manual_nc_rows = []
+        if override_path.exists():
+            try:
+                with open(override_path, 'r') as f:
+                    ov = __import__('json').load(f)
+                for v in (ov.get('exclude_vins') or []):
+                    v = str(v).strip().upper()
+                    if v: known_vins.add(v)
+                # Manual NC rows: facturas previas anuladas cuya NC no llegó al sales_df.
+                # Se appendean como Cantidad=-1 directamente al df antes del split por marca.
+                for item in (ov.get('manual_nc') or []):
+                    vin = str(item.get('vin','')).strip().upper()
+                    mes_str = str(item.get('mes','')).strip()
+                    if not mes_str: continue
+                    try:
+                        fecha = pd.to_datetime(mes_str + '-15')  # mes-15 como aproximación
+                    except Exception:
+                        continue
+                    manual_nc_rows.append({
+                        'fecha_fact': fecha,
+                        'fecha de facturacion': fecha,
+                        'Cantidad': -1,
+                        'marca': str(item.get('marca','')).strip(),
+                        'familia': str(item.get('modelo','')).strip(),
+                        'AGENCIA_FACTURACION': str(item.get('agencia','')).strip(),
+                        'ASESOR_FACTURACION': str(item.get('asesor','')).strip().upper(),
+                        'rev_signed': 0.0,
+                        'Chasis': vin,
+                    })
+                if manual_nc_rows:
+                    df = pd.concat([df, pd.DataFrame(manual_nc_rows)], ignore_index=True, sort=False)
+                    print(f'[ventas_mensual] appended {len(manual_nc_rows)} manual NCs from overrides')
+            except Exception as e:
+                print(f'[ventas_mensual] WARN reading overrides: {e}')
         inv_df = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS', header=0)
         inv_df['STATUS_H'] = inv_df['STATUS HOMOLOGADO'].astype(str).str.strip().str.upper()
         inv_fact = inv_df[inv_df['STATUS_H']=='FACTURADO'].copy()
