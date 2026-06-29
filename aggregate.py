@@ -122,7 +122,6 @@ def _compute_ventas_mensual(sales_df):
                 if v: known_vins.add(v)
         # Manual overrides (VINs anulados intramonth sin trace en sales_df)
         override_path = Path(__file__).parent / 'ventas_overrides.json'
-        manual_nc_rows = []
         if override_path.exists():
             try:
                 with open(override_path, 'r') as f:
@@ -130,57 +129,47 @@ def _compute_ventas_mensual(sales_df):
                 for v in (ov.get('exclude_vins') or []):
                     v = str(v).strip().upper()
                     if v: known_vins.add(v)
-                # Manual NC rows: facturas previas anuladas cuya NC no llegó al sales_df.
-                # Se appendean como Cantidad=-1 directamente al df antes del split por marca.
-                for item in (ov.get('manual_nc') or []):
-                    vin = str(item.get('vin','')).strip().upper()
-                    mes_str = str(item.get('mes','')).strip()
-                    if not mes_str: continue
-                    try:
-                        fecha = pd.to_datetime(mes_str + '-15')  # mes-15 como aproximación
-                    except Exception:
-                        continue
-                    manual_nc_rows.append({
-                        'fecha_fact': fecha,
-                        'fecha de facturacion': fecha,
-                        'Cantidad': -1,
-                        'marca': str(item.get('marca','')).strip(),
-                        'familia': str(item.get('modelo','')).strip(),
-                        'AGENCIA_FACTURACION': str(item.get('agencia','')).strip(),
-                        'ASESOR_FACTURACION': str(item.get('asesor','')).strip().upper(),
-                        'rev_signed': 0.0,
-                        'Chasis': vin,
-                    })
-                if manual_nc_rows:
-                    df = pd.concat([df, pd.DataFrame(manual_nc_rows)], ignore_index=True, sort=False)
-                    print(f'[ventas_mensual] appended {len(manual_nc_rows)} manual NCs from overrides')
             except Exception as e:
                 print(f'[ventas_mensual] WARN reading overrides: {e}')
-        inv_df = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS', header=0)
-        inv_df['STATUS_H'] = inv_df['STATUS HOMOLOGADO'].astype(str).str.strip().str.upper()
-        inv_fact = inv_df[inv_df['STATUS_H']=='FACTURADO'].copy()
-        inv_fact['fecha_fact'] = pd.to_datetime(inv_fact['fecha de facturacion'], errors='coerce')
-        inv_fact['mes_str'] = inv_fact['fecha_fact'].dt.strftime('%Y-%m')
-        inv_fact = inv_fact[(inv_fact['fecha_fact'].dt.year==2026) & (inv_fact['mes_str'] > last_month_sales)]
-        # Filtrar VINs ya conocidos (re-facturaciones)
-        if known_vins and 'vin' in inv_fact.columns:
-            inv_fact['vin_up'] = inv_fact['vin'].astype(str).str.strip().str.upper()
-            before = len(inv_fact)
-            inv_fact = inv_fact[~inv_fact['vin_up'].isin(known_vins)]
-            skipped = before - len(inv_fact)
+        # ► NUEVO: leer hoja DATOS 2 del inventario — trae FACTURA + NC con Cantidad
+        # SIGNADA (+1/-1). Esto da el neto real intramonth sin necesidad de overrides
+        # manuales. Reemplaza el complemento viejo que usaba DATOS (chasis FACTURADO).
+        import warnings as _wa
+        with _wa.catch_warnings():
+            _wa.simplefilter('ignore')
+            inv_tx = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS 2', header=0)
+        inv_tx['fecha_fact'] = pd.to_datetime(inv_tx['Fecha'], errors='coerce')
+        inv_tx['mes_str'] = inv_tx['fecha_fact'].dt.strftime('%Y-%m')
+        inv_tx['Cantidad'] = inv_tx.get('Cantidad', 0).fillna(0).astype(int)
+        inv_tx = inv_tx[(inv_tx['fecha_fact'].dt.year==2026) & (inv_tx['mes_str'] > last_month_sales)].copy()
+        # Dedup: solo excluir FACTURAs (Cantidad>0) cuyo VIN ya está en sales_df.
+        # NCs (Cantidad<0) SIEMPRE se incluyen — son anulaciones genuinas que sales_df
+        # no refleja (factura original en mes anterior).
+        if known_vins and 'Vin' in inv_tx.columns:
+            inv_tx['vin_up'] = inv_tx['Vin'].astype(str).str.strip().str.upper()
+            before = len(inv_tx)
+            mask_dup_fact = (inv_tx['Cantidad'] > 0) & (inv_tx['vin_up'].isin(known_vins))
+            inv_tx = inv_tx[~mask_dup_fact]
+            skipped = before - len(inv_tx)
             if skipped > 0:
-                print(f'[ventas_mensual] omitidas {skipped} re-facturaciones (VIN ya en sales_df)')
-        if len(inv_fact) > 0:
-            inv_fact = inv_fact.rename(columns={'familia':'familia','marca':'marca','AGENCIA_FACTURACION':'AGENCIA_FACTURACION','ASESOR_FACTURACION':'ASESOR_FACTURACION'})
-            inv_fact['Cantidad'] = 1
-            inv_fact['rev_signed'] = 0.0
-            inv_fact['fecha de facturacion'] = inv_fact['fecha_fact']
-            cols_keep = ['fecha_fact','fecha de facturacion','Cantidad','marca','familia','AGENCIA_FACTURACION','ASESOR_FACTURACION','rev_signed']
-            inv_subset = inv_fact[[c for c in cols_keep if c in inv_fact.columns]].copy()
-            df = pd.concat([df, inv_subset], ignore_index=True, sort=False)
-            print(f'[ventas_mensual] complementado {len(inv_fact)} facturas desde inventario para meses post-{last_month_sales}')
+                print(f'[ventas_mensual] omitidas {skipped} FACTURAs (VIN ya en sales_df, re-facts)')
+        if len(inv_tx) > 0:
+            mapped = pd.DataFrame({
+                'fecha_fact': inv_tx['fecha_fact'],
+                'fecha de facturacion': inv_tx['fecha_fact'],
+                'Cantidad': inv_tx['Cantidad'].fillna(0).astype(int),
+                'marca': inv_tx.get('Marca', '').astype(str),
+                'familia': inv_tx.get('Descripción Modelo', '').astype(str),
+                'AGENCIA_FACTURACION': inv_tx.get('Descripcion Bodega', '').astype(str),
+                'ASESOR_FACTURACION': inv_tx.get('Usuario Vende', '').astype(str).str.upper(),
+                'Chasis': inv_tx['Vin'].astype(str) if 'Vin' in inv_tx.columns else '',
+                'rev_signed': inv_tx.get('Valor Total', 0).fillna(0).astype(float) if 'Valor Total' in inv_tx.columns else 0.0,
+            })
+            df = pd.concat([df, mapped], ignore_index=True, sort=False)
+            netos = int(mapped['Cantidad'].sum())
+            print(f'[ventas_mensual] complementado {len(mapped)} transacciones DATOS 2 (NETO={netos}) post-{last_month_sales}')
     except Exception as e:
-        print(f'[ventas_mensual] WARN complemento inventario falló: {e}')
+        print(f'[ventas_mensual] WARN complemento DATOS 2 falló: {e}')
     df['mes'] = df['fecha_fact'].dt.strftime('%Y-%m')
     df['Cantidad'] = df['Cantidad'].fillna(1).astype(int)
     # Revenue por fila — Total Factura ya viene signado en el archivo de origen
