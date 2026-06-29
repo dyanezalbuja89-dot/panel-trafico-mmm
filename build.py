@@ -14155,9 +14155,9 @@ HTML = r"""<!doctype html>
     const ventasByMes = {};
     rows.forEach(r=>{ ventasByMes[r.mes] = (ventasByMes[r.mes]||0) + (r.cantidad||0); });
     const ventas = MONTHS_CONFIG.map(c => ventasByMes[vtMonthKeyToYM(c.key)] || 0);
-    // Mostrar solo meses con data ventas (no graficar 0s para periodos pre-sales_df)
-    const ventasPlot = ventas.map(v => v || null);
-    const valid = ventasPlot.filter(v=>v!=null);
+    // 0 = 0 ventas reales (no missing). Históricos 2025 ahora se llenan desde DATOS.
+    const ventasPlot = ventas.slice();
+    const valid = ventasPlot;
     const summary = document.getElementById('vt-cierre-summary');
     if(summary){
       if(valid.length >= 2){
@@ -14168,7 +14168,7 @@ HTML = r"""<!doctype html>
         const col = d > 0 ? 'var(--pos)' : (d < 0 ? 'var(--neg)' : 'var(--c-muted)');
         const sign = d > 0 ? '+' : '';
         const pctTxt = pct==null ? '' : ' ('+sign+pct.toFixed(1)+'%)';
-        summary.innerHTML = `<span style="color:${col};font-weight:700">${arrow} ${sign}${d} uds${pctTxt}</span>&nbsp;de ${labels[ventas.findIndex(v=>v)]} a ${labels[labels.length-1]}`;
+        summary.innerHTML = `<span style="color:${col};font-weight:700">${arrow} ${sign}${d} uds${pctTxt}</span>&nbsp;de ${labels[0]} a ${labels[labels.length-1]}`;
       } else summary.innerHTML = '';
     }
     charts['vt-chart-cierre'] = new Chart(canvas,{
