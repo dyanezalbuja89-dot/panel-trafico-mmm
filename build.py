@@ -3619,6 +3619,13 @@ HTML = r"""<!doctype html>
       <div class="card-big"><div class="lbl">Líder vista activa</div><div class="val" id="vt-k-leader">—</div><div class="hint" id="vt-k-leader-hint"></div></div>
     </div>
 
+    <!-- EVOLUCIÓN TASA DE CIERRE MENSUAL -->
+    <div class="ford-section">
+      <h3>📊 Evolución tasa de cierre mensual <span class="sub" id="vt-cierre-sub">ventas netas / tráfico × 100 · respeta Marca/Agencia/Modelo</span></h3>
+      <div style="display:flex;justify-content:flex-end;font-size:11px;color:var(--c-muted);margin-bottom:6px" id="vt-cierre-summary"></div>
+      <div style="position:relative;height:330px"><canvas id="vt-chart-cierre"></canvas></div>
+    </div>
+
     <!-- TABLA PIVOT -->
     <div class="ford-section">
       <h3 id="vt-tbl-title">📋 Ventas mes a mes</h3>
@@ -14108,6 +14115,93 @@ HTML = r"""<!doctype html>
     el.textContent = parts.join(' · ');
   }
 
+  // Map month_key ("junio_2026") → ventas mes ("2026-06").
+  const VT_MES_ES = {enero:'01',febrero:'02',marzo:'03',abril:'04',mayo:'05',junio:'06',julio:'07',agosto:'08',septiembre:'09',octubre:'10',noviembre:'11',diciembre:'12'};
+  function vtMonthKeyToYM(key){
+    const parts = String(key||'').split('_');
+    if(parts.length < 2) return '';
+    return parts[1] + '-' + (VT_MES_ES[parts[0]] || '00');
+  }
+
+  // Tráfico para mes según filtros (marca/modelo/agencia/zona).
+  function vtTraficoForMonth(mk){
+    const mar = vtstate.marca;
+    const md = (mar === 'FORD') ? (FORD_MONTHS[mk]||{}) : (((BRANDS_MONTHS[mk])||{})[mar] || {});
+    if(!md) return 0;
+    const mod = vtstate.modelo, ag = vtstate.agencia, zo = vtstate.zona;
+    if(!mod && !ag && !zo) return md.total_curr || 0;
+    // Filtros activos: sumar de matrix_cnt
+    const mat = md.matrix_cnt || {};
+    const ZONA_MAP = {'CJA':'Guayaquil','Orellana':'Guayaquil','La Y':'Quito','Tumbaco':'Quito','Manta':'Manta','Portoviejo':'Manta','Machala':'Machala'};
+    let t = 0;
+    Object.keys(mat).forEach(m=>{
+      if(mod && m !== mod) return;
+      const row = mat[m] || {};
+      Object.keys(row).forEach(a=>{
+        if(ag && a !== ag) return;
+        if(zo && (ZONA_MAP[a] || 'Otra') !== zo) return;
+        t += +row[a] || 0;
+      });
+    });
+    return t;
+  }
+
+  function vtRenderCierreChart(){
+    destroy('vt-chart-cierre');
+    const canvas = document.getElementById('vt-chart-cierre');
+    if(!canvas || typeof Chart === 'undefined') return;
+    const labels = MONTHS_CONFIG.map(c=>c.label);
+    const rows = vtFilterFlat();
+    const ventasByMes = {};
+    rows.forEach(r=>{ ventasByMes[r.mes] = (ventasByMes[r.mes]||0) + (r.cantidad||0); });
+    const ventas = MONTHS_CONFIG.map(c => ventasByMes[vtMonthKeyToYM(c.key)] || 0);
+    const trafico = MONTHS_CONFIG.map(c => vtTraficoForMonth(c.key));
+    const pct = trafico.map((t,i)=> (t>0 ? +(100*ventas[i]/t).toFixed(2) : null));
+    // Header trend summary
+    const validPct = pct.filter(v=>v!=null);
+    const summary = document.getElementById('vt-cierre-summary');
+    if(summary){
+      if(validPct.length >= 2){
+        const first = validPct[0], last = validPct[validPct.length-1];
+        const d = last - first;
+        const arrow = d > 0 ? '▲' : (d < 0 ? '▼' : '·');
+        const col = d > 0 ? 'var(--pos)' : (d < 0 ? 'var(--neg)' : 'var(--c-muted)');
+        const sign = d > 0 ? '+' : '';
+        summary.innerHTML = `<span style="color:${col};font-weight:700">${arrow} ${sign}${d.toFixed(1)} pp</span>&nbsp;de ${labels[0]} a ${labels[labels.length-1]}`;
+      } else summary.innerHTML = '';
+    }
+    charts['vt-chart-cierre'] = new Chart(canvas,{
+      type:'line',
+      data:{labels, datasets:[{
+        label:'Tasa de cierre',
+        data: pct,
+        borderColor:'#003478', backgroundColor:'rgba(0,52,120,.15)',
+        fill:true, tension:.25, pointRadius:5, pointBackgroundColor:'#003478', borderWidth:2.5, spanGaps:true,
+      }]},
+      options:{
+        layout:{padding:{top:28}},
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{label:c=>{
+            const i = c.dataIndex;
+            const v = c.parsed.y;
+            return ' ' + (v==null ? '—' : v.toFixed(1)+'%') + '  ('+ventas[i]+' / '+trafico[i]+')';
+          }}},
+          datalabels:{display:true,anchor:'end',align:'top',offset:6,clip:false,
+            font:{size:12,weight:'700'},color:'#003478',
+            formatter:v=>v==null?'':v.toFixed(1)+'%'}
+        },
+        scales:{
+          y:{beginAtZero:true, grace:'10%', ticks:{precision:1, callback:v=>v+'%'},
+             title:{display:true,text:'Tasa de cierre (%)',color:'#6b7280',font:{size:11}}},
+          x:{ticks:{font:{size:12}}}
+        },
+        interaction:{mode:'index',intersect:false},
+        maintainAspectRatio:false
+      }
+    });
+  }
+
   function vtRenderAll(){
     vtFillMarca();
     vtFillZona();
@@ -14115,6 +14209,7 @@ HTML = r"""<!doctype html>
     vtFillModelo();
     vtRenderFilterSummary();
     vtRenderHero();
+    vtRenderCierreChart();
     vtRenderTable();
     vtRenderAsesorDetail();
     vtRenderMetaVentas();
