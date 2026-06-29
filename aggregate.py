@@ -107,16 +107,32 @@ def _compute_ventas_mensual(sales_df):
         return None
     # Complemento desde inventario para meses no cubiertos por ventas.xlsx.
     # Toma facturas STATUS=FACTURADO con fecha posterior al último mes de ventas_df.
+    # ► Excluye VINs ya presentes en sales_df (Chasis) — evita doble conteo cuando
+    # un chasis facturado en mayo fue NC'd y re-facturado en junio (re-facturación,
+    # no venta nueva). El neto correcto es el que ya quedó en sales_df.
     try:
         last_month_sales = df['fecha_fact'].dt.strftime('%Y-%m').max()
+        # VINs ya conocidos en sales_df (cualquier mes)
+        known_vins = set()
+        if 'Chasis' in df.columns:
+            for v in df['Chasis'].dropna().astype(str):
+                v = v.strip().upper()
+                if v: known_vins.add(v)
         inv_df = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS', header=0)
         inv_df['STATUS_H'] = inv_df['STATUS HOMOLOGADO'].astype(str).str.strip().str.upper()
         inv_fact = inv_df[inv_df['STATUS_H']=='FACTURADO'].copy()
         inv_fact['fecha_fact'] = pd.to_datetime(inv_fact['fecha de facturacion'], errors='coerce')
         inv_fact['mes_str'] = inv_fact['fecha_fact'].dt.strftime('%Y-%m')
         inv_fact = inv_fact[(inv_fact['fecha_fact'].dt.year==2026) & (inv_fact['mes_str'] > last_month_sales)]
+        # Filtrar VINs ya conocidos (re-facturaciones)
+        if known_vins and 'vin' in inv_fact.columns:
+            inv_fact['vin_up'] = inv_fact['vin'].astype(str).str.strip().str.upper()
+            before = len(inv_fact)
+            inv_fact = inv_fact[~inv_fact['vin_up'].isin(known_vins)]
+            skipped = before - len(inv_fact)
+            if skipped > 0:
+                print(f'[ventas_mensual] omitidas {skipped} re-facturaciones (VIN ya en sales_df)')
         if len(inv_fact) > 0:
-            # Map columnas a las que espera df
             inv_fact = inv_fact.rename(columns={'familia':'familia','marca':'marca','AGENCIA_FACTURACION':'AGENCIA_FACTURACION','ASESOR_FACTURACION':'ASESOR_FACTURACION'})
             inv_fact['Cantidad'] = 1
             inv_fact['rev_signed'] = 0.0
