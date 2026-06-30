@@ -4862,9 +4862,15 @@ HTML = r"""<!doctype html>
           </div>
           <div class="cc-section-sub">Dong Feng · pipeline Ventas-Dongfeng · cohorte por createdate · datos a jun-2026</div>
         </div>
-        <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
-          <div class="cc26-funnel-title">Agencia</div>
-          <select id="df-cc26-sel-agency" class="cc26-select" title="Filtra todo el Control CC (embudos + desperdicio) por agencia"></select>
+        <div style="display:flex; gap:10px; align-items:flex-end">
+          <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
+            <div class="cc26-funnel-title">Agencia</div>
+            <select id="df-cc26-sel-agency" class="cc26-select" title="Filtra todo el Control CC (embudos + desperdicio) por agencia"></select>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
+            <div class="cc26-funnel-title">Modelo</div>
+            <select id="df-cc26-sel-model" class="cc26-select" title="Filtra el Control CC por modelo de interés (toma precedencia sobre agencia)"></select>
+          </div>
         </div>
       </div>
 
@@ -11637,8 +11643,9 @@ HTML = r"""<!doctype html>
   const _DF2_CONF_M = {"ene·26": {"agendadas": 70, "confirmadas": 27, "efec": 27, "conf": [["Confirma", 27], ["No contesta", 23], ["Reagenda", 12], ["Desiste", 6], ["Sin gestión", 2]]}, "feb·26": {"agendadas": 54, "confirmadas": 23, "efec": 22, "conf": [["Confirma", 23], ["Sin gestión", 12], ["No contesta", 11], ["Reagenda", 5], ["Desiste", 3]]}, "mar·26": {"agendadas": 76, "confirmadas": 23, "efec": 30, "conf": [["Confirma", 23], ["No contesta", 18], ["Sin gestión", 18], ["Reagenda", 14], ["Desiste", 3]]}, "abr·26": {"agendadas": 77, "confirmadas": 26, "efec": 28, "conf": [["Confirma", 26], ["Sin gestión", 24], ["No contesta", 19], ["Reagenda", 4], ["Desiste", 4]]}, "may·26": {"agendadas": 75, "confirmadas": 25, "efec": 19, "conf": [["Confirma", 25], ["Sin gestión", 25], ["No contesta", 16], ["Reagenda", 8], ["Desiste", 1]]}, "jun·26": {"agendadas": 49, "confirmadas": 14, "efec": 12, "conf": [["Sin gestión", 33], ["Confirma", 14], ["Reagenda", 2]]}};
   const _DF2_CONF_AG = {"La Y": {"ene·26": {"agendadas": 58, "confirmadas": 22, "efec": 23, "conf": [["Confirma", 22], ["No contesta", 18], ["Reagenda", 12], ["Desiste", 6]]}, "feb·26": {"agendadas": 37, "confirmadas": 16, "efec": 15, "conf": [["Confirma", 16], ["Sin gestión", 9], ["No contesta", 6], ["Reagenda", 4], ["Desiste", 2]]}, "mar·26": {"agendadas": 50, "confirmadas": 17, "efec": 19, "conf": [["Confirma", 17], ["No contesta", 15], ["Sin gestión", 8], ["Reagenda", 8], ["Desiste", 2]]}, "abr·26": {"agendadas": 59, "confirmadas": 18, "efec": 21, "conf": [["Confirma", 18], ["Sin gestión", 23], ["No contesta", 13], ["Reagenda", 3], ["Desiste", 2]]}, "may·26": {"agendadas": 69, "confirmadas": 23, "efec": 17, "conf": [["Confirma", 23], ["Sin gestión", 24], ["No contesta", 15], ["Reagenda", 6], ["Desiste", 1]]}, "jun·26": {"agendadas": 39, "confirmadas": 11, "efec": 10, "conf": [["Sin gestión", 26], ["Confirma", 11], ["Reagenda", 2]]}}, "Machala": {"ene·26": {"agendadas": 12, "confirmadas": 5, "efec": 4, "conf": [["Confirma", 5], ["No contesta", 5], ["Sin gestión", 2]]}, "feb·26": {"agendadas": 17, "confirmadas": 7, "efec": 7, "conf": [["Confirma", 7], ["No contesta", 5], ["Sin gestión", 3], ["Reagenda", 1], ["Desiste", 1]]}, "mar·26": {"agendadas": 26, "confirmadas": 6, "efec": 11, "conf": [["Sin gestión", 10], ["Confirma", 6], ["Reagenda", 6], ["No contesta", 3], ["Desiste", 1]]}, "abr·26": {"agendadas": 18, "confirmadas": 8, "efec": 7, "conf": [["Confirma", 8], ["No contesta", 6], ["Reagenda", 1], ["Desiste", 2], ["Sin gestión", 1]]}, "may·26": {"agendadas": 6, "confirmadas": 2, "efec": 2, "conf": [["Confirma", 2], ["No contesta", 1], ["Sin gestión", 1], ["Reagenda", 2]]}, "jun·26": {"agendadas": 10, "confirmadas": 3, "efec": 2, "conf": [["Sin gestión", 7], ["Confirma", 3]]}}};
   // Confirmación agregada para los meses + agencia activos (totales + distribución).
-  function _df_confForMonths(months, agency) {
-    const src = (agency && agency !== 'Todas') ? (_DF2_CONF_AG[agency] || {}) : _DF2_CONF_M;
+  function _df_confForMonths(months, agency, model) {
+    const src = (model && model !== 'Todas') ? (_DF2_CONF_MOD[model] || {})
+              : (agency && agency !== 'Todas') ? (_DF2_CONF_AG[agency] || {}) : _DF2_CONF_M;
     let agendadas = 0, confirmadas = 0, efec = 0;
     const m = new Map();
     (months || []).forEach(mo => {
@@ -11652,6 +11659,10 @@ HTML = r"""<!doctype html>
   // Agencia activa (lee el dropdown; 'Todas' por defecto).
   function _df_ccCurAgency() {
     const s = document.getElementById('df-cc26-sel-agency');
+    return (s && s.value) || 'Todas';
+  }
+  function _df_ccCurModel() {
+    const s = document.getElementById('df-cc26-sel-model');
     return (s && s.value) || 'Todas';
   }
   // Meses marcados en el dropdown de casillas (el mismo que maneja el embudo derecho).
@@ -11675,18 +11686,30 @@ HTML = r"""<!doctype html>
       `<option value="${a}">${a === 'Todas' ? 'Todas las agencias' : a}</option>`
     ).join('');
   }
+  function _df_cc26PopulateModel() {
+    const sel = document.getElementById('df-cc26-sel-model');
+    if (!sel || sel.options.length) return;
+    const tot = (o) => Object.values(o || {}).reduce((s, m) => s + (m.leads || 0), 0);
+    const models = Object.keys(_DF2_CC26_MOD).sort((a, b) => tot(_DF2_CC26_MOD[b]) - tot(_DF2_CC26_MOD[a]));
+    const opts = ['Todas'].concat(models);
+    sel.innerHTML = opts.map(a =>
+      `<option value="${a}">${a === 'Todas' ? 'Todos los modelos' : a}</option>`
+    ).join('');
+  }
 
   // Suma los meses seleccionados, respetando la agencia activa.
   // 'Todas' usa _DF2_CC26_M; una agencia usa _DF2_CC26_AG (cita = efec + nos).
   function _df_cc26Agg(months) {
+    const mod = _df_ccCurModel();
     const ag = _df_ccCurAgency();
+    const useMod = (mod !== 'Todas');   // modelo toma precedencia sobre agencia
     let leads=0, cont=0, tope=0;
     for (const m of months) {
-      const base = (ag === 'Todas') ? _DF2_CC26_M[m] : (_DF2_CC26_AG[ag] && _DF2_CC26_AG[ag][m]);
+      const base = useMod ? (_DF2_CC26_MOD[mod] && _DF2_CC26_MOD[mod][m])
+                 : (ag === 'Todas') ? _DF2_CC26_M[m] : (_DF2_CC26_AG[ag] && _DF2_CC26_AG[ag][m]);
       if (base) { leads += base.leads; cont += base.cont; tope += base.tope; }
     }
-    // agendadas/confirmadas/efectivas vienen de la Etapa 2 (_CONF), misma agencia.
-    const cf = _df_confForMonths(months, ag);
+    const cf = _df_confForMonths(months, ag, mod);
     return { leads, cont, tope, agen: cf.agendadas, conf: cf.confirmadas, efec: cf.efec };
   }
 
@@ -11872,6 +11895,21 @@ HTML = r"""<!doctype html>
         renderDesperdicioDF();
       });
     }
+
+    // Dropdown de MODELO (global, precedencia sobre agencia): mismo re-render.
+    _df_cc26PopulateModel();
+    const modSel = document.getElementById('df-cc26-sel-model');
+    if (modSel) {
+      const freshMod = modSel.cloneNode(true);
+      modSel.replaceWith(freshMod);
+      freshMod.addEventListener('change', () => {
+        _df_cc26RenderFunnel('df-cc26-funnel-left', _DF2_CC26_Q[freshSel.value] || _DF2_CC26_Q['Total']);
+        const arr = _DF2_CC26_ORDER.filter(m => selectedMonths.has(m));
+        const fb = _DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 1];
+        _df_cc26RenderFunnel('df-cc26-funnel-right', arr.length > 0 ? arr : (fb ? [fb] : []));
+        renderDesperdicioDF();
+      });
+    }
   }
 
   // ─────────────────── DESPERDICIO POR FASE ───────────────────
@@ -11980,8 +12018,12 @@ HTML = r"""<!doctype html>
   //   cada fila estatus×llamada) → tabla y drill SIEMPRE cuadran (fila = total del drill,
   //   total tarjeta = suma de filas); no_contactados de _DF2_DESP_M.
   // - agency=X: todo de _DF2_DESP_AG[X] (no hay cruce por agencia → el drill se oculta).
-  function _df_despForMonths(months, agency) {
+  function _df_despForMonths(months, agency, model) {
     const ms = (months && months.length) ? months : _DF2_DESP_ORDER.slice();
+    if (model && model !== 'Todas') {   // modelo: precedencia (sin cruce → drill oculto)
+      const list = ms.map(m => (_DF2_DESP_MOD[model] || {})[m]).filter(Boolean);
+      return _df_despMerge(list);
+    }
     if (agency && agency !== 'Todas') {
       const list = ms.map(m => (_DF2_DESP_AG[agency] || {})[m]).filter(Boolean);
       return _df_despMerge(list);
@@ -12173,11 +12215,12 @@ HTML = r"""<!doctype html>
     const host = document.getElementById('df-desp-cards');
     if (!host) return;
 
-    // Filtros COMPARTIDOS: meses (casillas "Mes(es) seleccionados") + agencia (dropdown).
+    // Filtros COMPARTIDOS: meses + agencia + modelo (precedencia modelo).
     const months  = _df_ccCheckedMonths();
     const agency  = _df_ccCurAgency();
-    const isTodas = (agency === 'Todas');
-    const D     = _df_despForMonths(months, agency);
+    const model   = _df_ccCurModel();
+    const isTodas = (agency === 'Todas' && model === 'Todas');
+    const D     = _df_despForMonths(months, agency, model);
     const cruce = isTodas ? _df_despCruceForMonths(months) : null;
 
     // Indicador del filtro activo (a la derecha del título del bloque).
@@ -12185,7 +12228,7 @@ HTML = r"""<!doctype html>
     if (scope) {
       const mLbl = (months.length >= _DF2_DESP_ORDER.length) ? 'ene–jun·26'
                  : (months.length === 1) ? months[0] : (months.length + ' meses');
-      scope.textContent = mLbl + ' · ' + agency;
+      scope.textContent = mLbl + ' · ' + (model !== 'Todas' ? model : agency);
     }
 
     const RED = '#dc2626', AMBER = '#d97706', SLATE = '#64748b';
