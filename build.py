@@ -4663,9 +4663,15 @@ HTML = r"""<!doctype html>
           </div>
           <div class="cc-section-sub">snapshot jun-2026 · datos estáticos verificados · solo 2026</div>
         </div>
-        <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
-          <div class="cc26-funnel-title">Agencia</div>
-          <select id="cc26-sel-agency" class="cc26-select" title="Filtra todo el Control CC (embudos + desperdicio) por agencia"></select>
+        <div style="display:flex; gap:10px; align-items:flex-end">
+          <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
+            <div class="cc26-funnel-title">Agencia</div>
+            <select id="cc26-sel-agency" class="cc26-select" title="Filtra todo el Control CC (embudos + desperdicio) por agencia"></select>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
+            <div class="cc26-funnel-title">Modelo</div>
+            <select id="cc26-sel-model" class="cc26-select" title="Filtra el Control CC por modelo de interés (toma precedencia sobre agencia)"></select>
+          </div>
         </div>
       </div>
 
@@ -10629,6 +10635,9 @@ HTML = r"""<!doctype html>
     }
   };
   const _CC26_AG_ORDER = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo'].filter(a => _CC26_AG[a]);
+  // Dimensión MODELO (paralela a agencia). Vacíos: los llena el override live con DATA.digital.live.ford.mod.
+  // _CC26_MOD y _CONF_MOD reciben el MISMO objeto (funnel+conf por modelo); _DESP_MOD el desperdicio.
+  const _CC26_MOD = {}, _CONF_MOD = {}, _DESP_MOD = {};
 
   // CONFIRMACIÓN DE CITA (Etapa 2) — campo DEAL `cita_confirmada`, grano actividad por
   // fecha_de_la_cita. agendadas = TODOS los deals con cita en el mes (= suma de conf).
@@ -10682,9 +10691,10 @@ HTML = r"""<!doctype html>
     }
     return out;
   }
-  function _confForMonths(months, agency) {
+  function _confForMonths(months, agency, model) {
     let src;
-    if (agency && agency !== 'Todas') { src = _CONF_AG[agency] || {}; }
+    if (model && model !== 'Todas') { src = _CONF_MOD[model] || {}; }       // modelo: precedencia
+    else if (agency && agency !== 'Todas') { src = _CONF_AG[agency] || {}; }
     else { const live = _confLiveTodas(); src = Object.keys(live).length ? live : _CONF_M; }
     let agendadas = 0, confirmadas = 0, efec = 0;
     const m = new Map();
@@ -10699,6 +10709,10 @@ HTML = r"""<!doctype html>
   // Agencia activa (lee el dropdown; 'Todas' por defecto).
   function _ccCurAgency() {
     const s = document.getElementById('cc26-sel-agency');
+    return (s && s.value) || 'Todas';
+  }
+  function _ccCurModel() {
+    const s = document.getElementById('cc26-sel-model');
     return (s && s.value) || 'Todas';
   }
   // Meses marcados en el dropdown de casillas (el mismo que maneja el embudo derecho).
@@ -10722,18 +10736,32 @@ HTML = r"""<!doctype html>
       `<option value="${a}">${a === 'Todas' ? 'Todas las agencias' : a}</option>`
     ).join('');
   }
+  // Dropdown de modelo: Todos + modelos con dato, ordenados por volumen de leads (desc).
+  function _cc26PopulateModel() {
+    const sel = document.getElementById('cc26-sel-model');
+    if (!sel || sel.options.length) return;
+    const tot = (o) => Object.values(o || {}).reduce((s, m) => s + (m.leads || 0), 0);
+    const models = Object.keys(_CC26_MOD).sort((a, b) => tot(_CC26_MOD[b]) - tot(_CC26_MOD[a]));
+    const opts = ['Todas'].concat(models);
+    sel.innerHTML = opts.map(a =>
+      `<option value="${a}">${a === 'Todas' ? 'Todos los modelos' : a}</option>`
+    ).join('');
+  }
 
   // Suma los meses seleccionados, respetando la agencia activa.
   // 'Todas' usa _CC26_M; una agencia usa _CC26_AG (cita = efec + nos).
   function _cc26Agg(months) {
+    const mod = _ccCurModel();
     const ag = _ccCurAgency();
+    const useMod = (mod !== 'Todas');   // modelo toma precedencia sobre agencia
     let leads=0, cont=0, tope=0;
     for (const m of months) {
-      const base = (ag === 'Todas') ? _CC26_M[m] : (_CC26_AG[ag] && _CC26_AG[ag][m]);
+      const base = useMod ? (_CC26_MOD[mod] && _CC26_MOD[mod][m])
+                 : (ag === 'Todas') ? _CC26_M[m] : (_CC26_AG[ag] && _CC26_AG[ag][m]);
       if (base) { leads += base.leads; cont += base.cont; tope += base.tope; }
     }
-    // agendadas/confirmadas/efectivas vienen de la Etapa 2 (_CONF), misma agencia.
-    const cf = _confForMonths(months, ag);
+    // agendadas/confirmadas/efectivas vienen de la Etapa 2 (_CONF), mismo scope.
+    const cf = _confForMonths(months, ag, mod);
     return { leads, cont, tope, agen: cf.agendadas, conf: cf.confirmadas, efec: cf.efec };
   }
 
@@ -10912,6 +10940,21 @@ HTML = r"""<!doctype html>
       const freshAg = agSel.cloneNode(true);  // preserva opciones y valor; quita listeners viejos
       agSel.replaceWith(freshAg);
       freshAg.addEventListener('change', () => {
+        _cc26RenderFunnel('cc26-funnel-left', _CC26_Q[freshSel.value] || _CC26_Q['Total']);
+        const arr = _CC26_ORDER.filter(m => selectedMonths.has(m));
+        const fb = _CC26_ORDER[_CC26_ORDER.length - 1];
+        _cc26RenderFunnel('cc26-funnel-right', arr.length > 0 ? arr : (fb ? [fb] : []));
+        renderDesperdicio();
+      });
+    }
+
+    // Dropdown de MODELO (global, precedencia sobre agencia): mismo re-render.
+    _cc26PopulateModel();
+    const modSel = document.getElementById('cc26-sel-model');
+    if (modSel) {
+      const freshMod = modSel.cloneNode(true);
+      modSel.replaceWith(freshMod);
+      freshMod.addEventListener('change', () => {
         _cc26RenderFunnel('cc26-funnel-left', _CC26_Q[freshSel.value] || _CC26_Q['Total']);
         const arr = _CC26_ORDER.filter(m => selectedMonths.has(m));
         const fb = _CC26_ORDER[_CC26_ORDER.length - 1];
@@ -11202,8 +11245,12 @@ HTML = r"""<!doctype html>
   //   cada fila estatus×llamada) → tabla y drill SIEMPRE cuadran (fila = total del drill,
   //   total tarjeta = suma de filas); no_contactados de _DESP_M.
   // - agency=X: todo de _DESP_AG[X] (no hay cruce por agencia → el drill se oculta).
-  function _despForMonths(months, agency) {
+  function _despForMonths(months, agency, model) {
     const ms = (months && months.length) ? months : _DESP_ORDER.slice();
+    if (model && model !== 'Todas') {   // modelo: precedencia (sin cruce → el drill se oculta, como por agencia)
+      const list = ms.map(m => (_DESP_MOD[model] || {})[m]).filter(Boolean);
+      return _despMerge(list);
+    }
     if (agency && agency !== 'Todas') {
       const list = ms.map(m => (_DESP_AG[agency] || {})[m]).filter(Boolean);
       return _despMerge(list);
@@ -11404,11 +11451,12 @@ HTML = r"""<!doctype html>
     const host = document.getElementById('desp-cards');
     if (!host) return;
 
-    // Filtros COMPARTIDOS: meses (casillas "Mes(es) seleccionados") + agencia (dropdown).
+    // Filtros COMPARTIDOS: meses (casillas) + agencia + modelo (dropdowns). Modelo tiene precedencia.
     const months  = _ccCheckedMonths();
     const agency  = _ccCurAgency();
-    const isTodas = (agency === 'Todas');
-    const D     = _despForMonths(months, agency);
+    const model   = _ccCurModel();
+    const isTodas = (agency === 'Todas' && model === 'Todas');   // cruce/drill solo sin filtro
+    const D     = _despForMonths(months, agency, model);
     const cruce = isTodas ? _despCruceForMonths(months) : null;
 
     // Indicador del filtro activo (a la derecha del título del bloque).
@@ -11416,7 +11464,7 @@ HTML = r"""<!doctype html>
     if (scope) {
       const mLbl = (months.length >= _DESP_ORDER.length) ? 'ene–jun·26'
                  : (months.length === 1) ? months[0] : (months.length + ' meses');
-      scope.textContent = mLbl + ' · ' + agency;
+      scope.textContent = mLbl + ' · ' + (model !== 'Todas' ? model : agency);
     }
 
     const RED = '#dc2626', AMBER = '#d97706', SLATE = '#64748b';
@@ -11578,6 +11626,8 @@ HTML = r"""<!doctype html>
   // de leads sin agencia asignada). 'Todas' usa _DF2_CC26_M (incluye ese residuo).
   const _DF2_CC26_AG = {"La Y": {"ene·26": {"leads": 129, "cont": 112, "tope": 0}, "feb·26": {"leads": 122, "cont": 100, "tope": 0}, "mar·26": {"leads": 133, "cont": 124, "tope": 0}, "abr·26": {"leads": 165, "cont": 159, "tope": 0}, "may·26": {"leads": 206, "cont": 172, "tope": 0}, "jun·26": {"leads": 133, "cont": 100, "tope": 0}}, "Machala": {"ene·26": {"leads": 39, "cont": 31, "tope": 0}, "feb·26": {"leads": 62, "cont": 42, "tope": 0}, "mar·26": {"leads": 86, "cont": 71, "tope": 0}, "abr·26": {"leads": 45, "cont": 40, "tope": 0}, "may·26": {"leads": 20, "cont": 15, "tope": 0}, "jun·26": {"leads": 29, "cont": 18, "tope": 0}}};
   const _DF2_CC26_AG_ORDER = ['La Y','Machala'].filter(a => _DF2_CC26_AG[a]);
+  // Dimensión MODELO DF (paralela a agencia). Vacíos: los llena el override con live.dongfeng.mod.
+  const _DF2_CC26_MOD = {}, _DF2_CONF_MOD = {}, _DF2_DESP_MOD = {};
 
   // CONFIRMACIÓN DE CITA (Etapa 2) — campo DEAL `cita_confirmada`, grano actividad por
   // fecha_de_la_cita. agendadas = TODOS los deals con cita en el mes (= suma de conf).
@@ -12271,9 +12321,11 @@ HTML = r"""<!doctype html>
         if (_L.ford) {
           const F = _L.ford;
           if (F.ag) { Object.assign(_CC26_AG, F.ag); Object.assign(_CONF_AG, F.ag); }
+          if (F.mod) { Object.assign(_CC26_MOD, F.mod); Object.assign(_CONF_MOD, F.mod); }
           if (F.desperdicio) {
             Object.assign(_DESP_M, F.desperdicio.by_month || {});
             Object.assign(_DESP_AG, F.desperdicio.by_agency || {});
+            Object.assign(_DESP_MOD, F.desperdicio.by_model || {});
             Object.assign(_DESP_CRUCE_M, F.desperdicio.cruce || {});
           }
         }
@@ -12282,9 +12334,11 @@ HTML = r"""<!doctype html>
           Object.assign(_DF2_CC26_M, _mm(G.months, ['leads', 'cont', 'tope']));
           Object.assign(_DF2_CONF_M, _mm(G.months, ['agendadas', 'confirmadas', 'efec', 'conf']));
           if (G.ag) { Object.assign(_DF2_CC26_AG, G.ag); Object.assign(_DF2_CONF_AG, G.ag); }
+          if (G.mod) { Object.assign(_DF2_CC26_MOD, G.mod); Object.assign(_DF2_CONF_MOD, G.mod); }
           if (G.desperdicio) {
             Object.assign(_DF2_DESP_M, G.desperdicio.by_month || {});
             Object.assign(_DF2_DESP_AG, G.desperdicio.by_agency || {});
+            Object.assign(_DF2_DESP_MOD, G.desperdicio.by_model || {});
             Object.assign(_DF2_DESP_CRUCE_M, G.desperdicio.cruce || {});
           }
         }

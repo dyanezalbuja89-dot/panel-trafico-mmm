@@ -216,9 +216,12 @@ def fetch_brand_full(cfg):
 
     # ── CONTACTS (cohorte) ──
     ingreso = cfg.get('ingreso_field')   # DF: campo de ingreso real (COALESCE con createdate)
+    model_field = cfg.get('model_field')  # modelo_de_interes (Ford) / dongfeng___modelo_de_interes (DF)
     cprops = [cohort, 'contactabilidad', 'resultado_de_llamada', 'numero_de_llamada',
               'agencia', 'lead_enviado_cct',
               'detalle_resultado_de_llamada___ultima_llamada', 'notes_next_activity_date']
+    if model_field:
+        cprops.append(model_field)
     if ingreso:
         # Población DF = (modelo HAS) OR (marca_=Dongfeng); cohorte = ingreso_dongfeng si existe,
         # si no createdate (fallback p/ los ~467 sin el campo). Ventana = createdate OR ingreso →
@@ -237,8 +240,10 @@ def fetch_brand_full(cfg):
         contacts = _fetch_all('contacts', [H._between(cohort, _S, _E)] + lead_filter, cprops)
     # ── DEALS (actividad por fecha_de_la_cita) ──
     d_filters = [H._eq('pipeline', pipe), H._between('fecha_de_la_cita', _S, _E)]
-    deals = _fetch_all('deals', d_filters,
-                       ['fecha_de_la_cita', 'asistio_a_la_cita', 'cita_confirmada', 'dealstage', 'agencia'])
+    dprops = ['fecha_de_la_cita', 'asistio_a_la_cita', 'cita_confirmada', 'dealstage', 'agencia']
+    if model_field:
+        dprops.append(model_field)
+    deals = _fetch_all('deals', d_filters, dprops)
 
     def newcell():
         return {'leads': 0, 'cont': 0, 'tope': 0, 'agen': 0, 'confirmadas': 0, 'efec': 0, 'nos': 0,
@@ -261,7 +266,8 @@ def fetch_brand_full(cfg):
         if not lbl:
             continue
         ag = p.get('agencia')
-        scopes = ['T'] + ([ag_short[ag]] if ag in ag_internal else [])
+        mod = p.get(model_field) if model_field else None
+        scopes = ['T'] + ([ag_short[ag]] if ag in ag_internal else []) + (['M|' + mod] if mod else [])
         contab = p.get('contactabilidad')
         env = p.get('lead_enviado_cct')
         num = p.get('numero_de_llamada')
@@ -313,7 +319,8 @@ def fetch_brand_full(cfg):
         if not lbl:
             continue
         ag = p.get('agencia')
-        scopes = ['T'] + ([ag_short[ag]] if ag in ag_internal else [])
+        mod = p.get(model_field) if model_field else None
+        scopes = ['T'] + ([ag_short[ag]] if ag in ag_internal else []) + (['M|' + mod] if mod else [])
         asis = p.get('asistio_a_la_cita')
         confv = p.get('cita_confirmada')
         stage = p.get('dealstage')
@@ -403,10 +410,26 @@ def fetch_brand_full(cfg):
             ag_funnel[ag_s] = af
             by_agency[ag_s] = ad
 
+    # Modelo (dimensión paralela a agencia; scope 'M|<modelo>'). Solo modelos con dato.
+    mod_funnel, by_model = {}, {}
+    model_keys = sorted({k[0][2:] for k in cells if isinstance(k[0], str) and k[0].startswith('M|')})
+    for m_name in model_keys:
+        mf, md = {}, {}
+        for lbl in months_order:
+            c = cells.get(('M|' + m_name, lbl))
+            if not c:
+                continue
+            mf[lbl] = funnel_obj(c)
+            md[lbl] = desp_obj(c)
+        if mf:
+            mod_funnel[m_name] = mf
+            by_model[m_name] = md
+
     return {
         'months': months,
         'ag': ag_funnel,
-        'desperdicio': {'by_month': by_month, 'by_agency': by_agency, 'cruce': cruce},
+        'mod': mod_funnel,
+        'desperdicio': {'by_month': by_month, 'by_agency': by_agency, 'by_model': by_model, 'cruce': cruce},
     }
 
 
@@ -419,11 +442,12 @@ _DF_STAGES = {'1129598793': 'Cita agendada (atascado)', '1129598794': 'Reagendar
 
 BRANDS = {
     'ford': {'pipeline': 'default', 'cohort': 'fecha_y_hora_de_ingreso___cc', 'lead_filter': [],
-             'require_env': True, 'stage_map': _FORD_STAGES,
+             'require_env': True, 'stage_map': _FORD_STAGES, 'model_field': 'modelo_de_interes',
              'agencies': [(k, v) for k, v in H.AGENCY_SHORT.items()]},
     'dongfeng': {'pipeline': '773555758', 'cohort': 'createdate',
                  'lead_filter': [{'propertyName': 'dongfeng___modelo_de_interes', 'operator': 'HAS_PROPERTY'}],
                  'ingreso_field': 'fecha_y_hora_de_ingreso___dongfeng',  # cohorte real DF (COALESCE con createdate)
+                 'model_field': 'dongfeng___modelo_de_interes',
                  'require_env': False, 'stage_map': _DF_STAGES,
                  'agencies': [('Orgu La Y', 'La Y'), ('Orgu Machala', 'Machala')]},
 }
