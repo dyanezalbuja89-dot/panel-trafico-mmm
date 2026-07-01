@@ -204,6 +204,20 @@ def _sorted_pairs(counter):
     return sorted([[k, v] for k, v in counter.items() if v > 0], key=lambda r: r[1], reverse=True)
 
 
+def _model_family(variant, families):
+    """Agrupa una versión de modelo en su FAMILIA (ej. 'Escape ST LINE'/'Escape Titanium 1.5'
+    → 'Escape'; 'All New Ranger' → 'Ranger'; 'Rich 7' → 'Rich'). Busca la familia que aparece
+    en el nombre (substring, case-insensitive). Si ninguna matchea, devuelve la versión tal cual."""
+    if not variant:
+        return None
+    v = str(variant).strip()
+    vl = v.lower()
+    for fam in families:
+        if fam.lower() in vl:
+            return fam
+    return v
+
+
 def fetch_brand_full(cfg):
     """Estructura completa de una marca: funnel/conf/desperdicio por mes y agencia."""
     pipe = cfg['pipeline']
@@ -217,6 +231,7 @@ def fetch_brand_full(cfg):
     # ── CONTACTS (cohorte) ──
     ingreso = cfg.get('ingreso_field')   # DF: campo de ingreso real (COALESCE con createdate)
     model_field = cfg.get('model_field')  # modelo_de_interes (Ford) / dongfeng___modelo_de_interes (DF)
+    model_families = cfg.get('model_families', [])  # agrupa versiones en familia (solo modelos, no versiones)
     cprops = [cohort, 'contactabilidad', 'resultado_de_llamada', 'numero_de_llamada',
               'agencia', 'lead_enviado_cct',
               'detalle_resultado_de_llamada___ultima_llamada', 'notes_next_activity_date']
@@ -266,7 +281,7 @@ def fetch_brand_full(cfg):
         if not lbl:
             continue
         ag = p.get('agencia')
-        mod = p.get(model_field) if model_field else None
+        mod = _model_family(p.get(model_field), model_families) if model_field else None
         scopes = ['T'] + ([ag_short[ag]] if ag in ag_internal else []) + (['M|' + mod] if mod else [])
         contab = p.get('contactabilidad')
         env = p.get('lead_enviado_cct')
@@ -319,7 +334,7 @@ def fetch_brand_full(cfg):
         if not lbl:
             continue
         ag = p.get('agencia')
-        mod = p.get(model_field) if model_field else None
+        mod = _model_family(p.get(model_field), model_families) if model_field else None
         scopes = ['T'] + ([ag_short[ag]] if ag in ag_internal else []) + (['M|' + mod] if mod else [])
         asis = p.get('asistio_a_la_cita')
         confv = p.get('cita_confirmada')
@@ -443,11 +458,15 @@ _DF_STAGES = {'1129598793': 'Cita agendada (atascado)', '1129598794': 'Reagendar
 BRANDS = {
     'ford': {'pipeline': 'default', 'cohort': 'fecha_y_hora_de_ingreso___cc', 'lead_filter': [],
              'require_env': True, 'stage_map': _FORD_STAGES, 'model_field': 'modelo_de_interes',
+             # familias (agrupan las versiones): el dropdown muestra estas, no cada versión
+             'model_families': ['F150', 'Escape', 'Ranger', 'Everest', 'Explorer', 'Expedition',
+                                'Territory', 'Bronco', 'Maverick'],
              'agencies': [(k, v) for k, v in H.AGENCY_SHORT.items()]},
     'dongfeng': {'pipeline': '773555758', 'cohort': 'createdate',
                  'lead_filter': [{'propertyName': 'dongfeng___modelo_de_interes', 'operator': 'HAS_PROPERTY'}],
                  'ingreso_field': 'fecha_y_hora_de_ingreso___dongfeng',  # cohorte real DF (COALESCE con createdate)
                  'model_field': 'dongfeng___modelo_de_interes',
+                 'model_families': ['Huge', 'Z9', 'Mage', 'Rich', 'Paladin'],
                  'require_env': False, 'stage_map': _DF_STAGES,
                  'agencies': [('Orgu La Y', 'La Y'), ('Orgu Machala', 'Machala')]},
 }
