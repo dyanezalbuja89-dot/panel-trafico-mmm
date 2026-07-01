@@ -37,8 +37,8 @@ def _parse_brand_meta_breakdown(file_path):
     MODELO_FAM = {
         'HUGE':'HUGE','MAGE':'MAGE','PALADIN':'PALADIN',
         'RICH 6':'RICH 6','RICH 7':'RICH 7','Z9':'Z9',
-        'BT-50':'NEW BT-50','CX-3':'CX3','CX-30':'CX-30',
-        'CX-5':'CX5','CX-60':'CX-60','CX-90':'CX-90',
+        'BT-50':'NEW BT-50','CX-3':'CX3','CX-30':'CX30','CX30':'CX30',
+        'CX-5':'CX5','CX-60':'CX60','CX60':'CX60','CX-90':'CX90','CX90':'CX90',
         'ARRIZO':'ARRIZO','TIGGO 2':'TIGGO 2','TIGGO 4':'TIGGO 4',
         'TIGGO 7':'TIGGO 7','TIGGO 8':'TIGGO 8','HIMLA':'HIMLA',
         '1500':'RAM 1500','700':'RAM 700',
@@ -1020,10 +1020,10 @@ BRAND_META_ROWS = {
     'MAZDA_ORGU': {
         'BT-50 3.0 4x4 TM Diesel': 'NEW BT-50',
         'CX-3 Entry 2.0': 'CX3',
-        'CX-30 Core 2.0': 'CX-30',
+        'CX-30 Core 2.0': 'CX30',
         'CX-5 Core 2.0': 'CX5', 'CX-5 High 2.0': 'CX5',
-        'CX-60 Core 2.5': 'CX-60',
-        'CX-90 Core 3.3': 'CX-90',
+        'CX-60 Core 2.5': 'CX60',
+        'CX-90 Core 3.3': 'CX90',
     },
     'CHERY_ORGU': {
         'Arrizo 5 Pro Max 1.5': 'ARRIZO',

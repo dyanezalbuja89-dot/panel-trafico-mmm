@@ -135,11 +135,11 @@ def normalize_familia(fam, marca):
 
     if marca == 'MAZDA':
         if 'BT-50' in s or 'BT50' in s: return 'NEW BT-50'
-        if 'CX-30' in s or 'CX30' in s: return 'CX-30'
+        if 'CX-30' in s or 'CX30' in s: return 'CX30'
         if 'CX-3' in s or 'CX3' in s: return 'CX3'
         if 'CX-5' in s or 'CX5' in s: return 'CX5'
-        if 'CX-60' in s: return 'CX-60'
-        if 'CX-90' in s: return 'CX-90'
+        if 'CX-60' in s or 'CX60' in s: return 'CX60'
+        if 'CX-90' in s or 'CX90' in s: return 'CX90'
         return None
 
     if marca == 'RAM':
@@ -237,11 +237,11 @@ def normalize_res_cola_modelo(modelo, marca):
         if 'TIGGO 4' in s: return 'TIGGO 4'
         if 'TIGGO 2' in s: return 'TIGGO 2'
     if marca == 'MAZDA':
-        if 'CX-30' in s or 'CX30' in s: return 'CX-30'
+        if 'CX-30' in s or 'CX30' in s: return 'CX30'
         if 'CX-3' in s or 'CX3' in s: return 'CX3'
         if 'CX-5' in s or 'CX5' in s: return 'CX5'
-        if 'CX-60' in s: return 'CX-60'
-        if 'CX-90' in s: return 'CX-90'
+        if 'CX-60' in s or 'CX60' in s: return 'CX60'
+        if 'CX-90' in s or 'CX90' in s: return 'CX90'
         if 'BT-50' in s or 'BT50' in s: return 'NEW BT-50'
     return None
 

@@ -14508,10 +14508,10 @@ HTML = r"""<!doctype html>
     // Mapping para marcas ORGU (DongFeng/Chery/Mazda/RAM)
     const u = (fullName||'').toUpperCase();
     const PATS = ['HUGE','MAGE','PALADIN','RICH 6','RICH 7','Z9',
-      'NEW BT-50','BT-50','CX-30','CX3','CX-3','CX5','CX-5','CX-60','CX-90',
+      'NEW BT-50','BT-50','CX-30','CX30','CX3','CX-3','CX5','CX-5','CX-60','CX60','CX-90','CX90',
       'ARRIZO','TIGGO 2','TIGGO 4','TIGGO 7','TIGGO 8','HIMLA',
       'RAM 1500','RAM 700','1500','700'];
-    const MAP = {'BT-50':'NEW BT-50','CX-3':'CX3','CX-5':'CX5','1500':'RAM 1500','700':'RAM 700'};
+    const MAP = {'BT-50':'NEW BT-50','CX-3':'CX3','CX-30':'CX30','CX-5':'CX5','CX-60':'CX60','CX-90':'CX90','1500':'RAM 1500','700':'RAM 700'};
     for(const p of PATS){ if(u.indexOf(p) >= 0){ return MAP[p] || p; } }
     return null;
   }
