@@ -4582,14 +4582,36 @@
         position: relative;
       }
       .cc26-stage-bar {
-        height: 100%; border-radius: 6px;
+        height: 100%; border-radius: 6px; position: relative;
         display: flex; align-items: center; justify-content: flex-end;
         padding-right: 8px; transition: width .35s ease; min-width: 4px;
       }
       @media (prefers-reduced-motion: reduce) { .cc26-stage-bar { transition: none; } }
       .cc26-stage-bar span {
         font-size: 10px; font-weight: 700; color: #fff;
-        white-space: nowrap;
+        white-space: nowrap; position: relative; z-index: 1;
+      }
+      /* Segmento "de otro mes" (arrastre): color ÁMBAR sólido (contrasta con el verde), a la derecha */
+      .cc26-bar-arr {
+        position: absolute; top: 0; bottom: 0; right: 0; z-index: 0;
+        border-left: 2px solid #fff;
+        background: #E8862B;
+      }
+      /* el número del valor se lee sobre verde Y sobre ámbar gracias a la sombra */
+      .cc26-stage-bar span { text-shadow: 0 1px 2px rgba(0,0,0,.45); }
+      /* Caption por etapa: "N de otro mes · X%" alineado a la derecha del nombre (ámbar oscuro, legible en blanco) */
+      .cc26-stage-arr {
+        font-size: 9px; font-weight: 700; color: #B45309;
+        text-transform: none; letter-spacing: 0; white-space: nowrap;
+      }
+      /* Leyenda de la hachura (una sola línea bajo el embudo) */
+      .cc26-arr-legend {
+        display: flex; align-items: center; gap: 6px; margin-top: 10px;
+        font-size: 10px; color: var(--c-muted, #64748b); line-height: 1.3;
+      }
+      .cc26-arr-legend .sw {
+        width: 26px; height: 12px; border-radius: 3px; flex: 0 0 auto;
+        background: #E8862B; border: 1px solid #B45309;
       }
       /* Flecha de conversión entre etapas */
       .cc26-conv {
@@ -10585,10 +10607,11 @@
   const _CC26_liveM = _cc26BuildLiveM();
   const _CC26_M = (_CC26_liveM && Object.keys(_CC26_liveM).length) ? _CC26_liveM : _CC26_M_FALLBACK;
 
-  // --- order: meses 2026 presentes en M, en orden cronologico ---
+  // --- order: meses 2026 presentes CON DATO (leads>0), en orden cronológico ---
+  // Excluye meses vacíos (ej. el mes en curso el día 1) → el default no abre en un mes sin dato.
   const _CC26_ORDER = _CC26_MES
     .map(mm => mm + '·26')
-    .filter(lbl => _CC26_M[lbl]);
+    .filter(lbl => _CC26_M[lbl] && (_CC26_M[lbl].leads || 0) > 0);
 
   // --- Q: trimestres construidos dinamicamente; solo los que tienen >=1 mes con dato ---
   const _CC26_Q = (function(){
@@ -10704,6 +10727,22 @@
     });
     return { agendadas, confirmadas, efec, conf: [...m.entries()].sort((a, b) => b[1] - a[1]) };
   }
+  // ARRASTRE: citas cuyo lead (contacto) ingresó en un mes ANTERIOR al de la cita.
+  // Solo lo trae digital_pull2 (live.ford: months=Todas, ag=agencia, mod=modelo).
+  // Los months de hubspot_pull (_confLiveTodas) NO lo traen → Todas se lee de live.ford.months.
+  function _arrForMonths(months, agency, model) {
+    const L = (typeof DATA !== 'undefined' && DATA.digital && DATA.digital.live && DATA.digital.live.ford) || {};
+    let src = {};
+    if (model && model !== 'Todas') { src = (L.mod && L.mod[model]) || _CONF_MOD[model] || {}; }
+    else if (agency && agency !== 'Todas') { src = (L.ag && L.ag[agency]) || _CONF_AG[agency] || {}; }
+    else { for (const mm of (L.months || [])) src[mm.label] = mm; }
+    let agen_arr = 0, conf_arr = 0, efec_arr = 0;
+    (months || []).forEach(mo => {
+      const d = src[mo]; if (!d) return;
+      agen_arr += d.agen_arr || 0; conf_arr += d.conf_arr || 0; efec_arr += d.efec_arr || 0;
+    });
+    return { agen_arr, conf_arr, efec_arr };
+  }
 
   // Agencia activa (lee el dropdown; 'Todas' por defecto).
   function _ccCurAgency() {
@@ -10761,7 +10800,9 @@
     }
     // agendadas/confirmadas/efectivas vienen de la Etapa 2 (_CONF), mismo scope.
     const cf = _confForMonths(months, ag, mod);
-    return { leads, cont, tope, agen: cf.agendadas, conf: cf.confirmadas, efec: cf.efec };
+    const ar = _arrForMonths(months, ag, mod);   // arrastre (de otro mes) por etapa
+    return { leads, cont, tope, agen: cf.agendadas, conf: cf.confirmadas, efec: cf.efec,
+             agen_arr: ar.agen_arr, conf_arr: ar.conf_arr, efec_arr: ar.efec_arr };
   }
 
   // Formatea miles con punto
@@ -10790,13 +10831,22 @@
     const pNos   = _cc26Pct(noShow, s.conf);   // no-show SOBRE confirmadas
     const pTope  = _cc26Pct(s.tope, s.leads);
 
-    function stage(name, val, widthPct, color) {
+    function stage(name, val, widthPct, color, arr) {
       const w = Math.max(widthPct, 2);
+      arr = arr || 0;
+      let arrSeg = '', cap = '';
+      if (arr > 0 && val > 0) {
+        const arrPct = Math.min(100, Math.round(100 * arr / val));   // % del ancho de ESTA barra
+        arrSeg = `<div class="cc26-bar-arr" style="width:${arrPct}%"></div>`;
+        cap = `<span class="cc26-stage-arr">${_cc26Fmt(arr)} de otro mes · ${arrPct}%</span>`;
+      }
       return `<div class="cc26-stage">
-        <div class="cc26-stage-name">${name}</div>
+        <div class="cc26-stage-name" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <span>${name}</span>${cap}
+        </div>
         <div class="cc26-stage-bar-wrap">
           <div class="cc26-stage-bar" style="width:${w}%;background:${color}">
-            <span>${_cc26Fmt(val)}</span>
+            ${arrSeg}<span>${_cc26Fmt(val)}</span>
           </div>
         </div>
       </div>`;
@@ -10819,17 +10869,24 @@
       </div>`;
     }
 
+    const arrAny = (s.agen_arr || 0) + (s.conf_arr || 0) + (s.efec_arr || 0) > 0;
+    const legend = arrAny
+      ? `<div class="cc26-arr-legend"><span class="sw"></span>
+           <span><b>de otro mes</b> = la cita cae en este mes pero el lead ingresó en un mes anterior (arrastre). Leads y Contactados son 100% de este mes.</span>
+         </div>`
+      : '';
     el.innerHTML =
       stage('Leads recibidos', s.leads, 100, VERDE)
       + conv(pCont + '% · contactamos')
       + stage('Contactados', s.cont, _cc26Pct(s.cont, s.leads), VERDE)
       + conv(pAgen + '% · agendan cita')
-      + stage('Citas agendadas', s.agen, _cc26Pct(s.agen, s.leads), VERDE)
+      + stage('Citas agendadas', s.agen, _cc26Pct(s.agen, s.leads), VERDE, s.agen_arr)
       + conv(pConf + '% · confirman')
-      + stage('Citas confirmadas', s.conf, _cc26Pct(s.conf, s.leads), VERDE)
+      + stage('Citas confirmadas', s.conf, _cc26Pct(s.conf, s.leads), VERDE, s.conf_arr)
       + conv(pEfec + '% · asisten', pNos + '% no-show s/ confirmadas')
-      + stage('Citas efectivas', s.efec, _cc26Pct(s.efec, s.leads), VERDE_OSC)
-      + chips(pTope, pNos);
+      + stage('Citas efectivas', s.efec, _cc26Pct(s.efec, s.leads), VERDE_OSC, s.efec_arr)
+      + chips(pTope, pNos)
+      + legend;
   }
 
   // Rellena el <select> de periodos SOLO con trimestres presentes en _CC26_Q.
@@ -10881,8 +10938,16 @@
     // Render inicial embudo izquierdo
     _cc26RenderFunnel('cc26-funnel-left', _CC26_Q[selPeriodo.value] || _CC26_Q['Total']);
 
-    // Estado checkboxes: default = ultimo mes presente
-    const defaultMonth = _CC26_ORDER[_CC26_ORDER.length - 1];
+    // Estado checkboxes: default = último mes con dato; pero si el último es INMADURO
+    // (mes en curso, <25% de los leads del mes previo), usa el previo → no abre en un mes
+    // recién empezado (ej. jul·26 con 13 leads vs jun 979).
+    let defaultMonth = _CC26_ORDER[_CC26_ORDER.length - 1];
+    if (_CC26_ORDER.length >= 2) {
+      const _last = _CC26_M[defaultMonth], _prev = _CC26_M[_CC26_ORDER[_CC26_ORDER.length - 2]];
+      if (_last && _prev && (_last.leads || 0) < 0.25 * (_prev.leads || 0)) {
+        defaultMonth = _CC26_ORDER[_CC26_ORDER.length - 2];
+      }
+    }
     _cc26PopulateMonths(defaultMonth);
     const selectedMonths = new Set([defaultMonth]);
     _cc26UpdateCbLabel(selectedMonths);
@@ -11601,7 +11666,7 @@
   // --- order: meses 2026 presentes en M, en orden cronologico ---
   const _DF2_CC26_ORDER = _DF2_CC26_MES
     .map(mm => mm + '·26')
-    .filter(lbl => _DF2_CC26_M[lbl]);
+    .filter(lbl => _DF2_CC26_M[lbl] && (_DF2_CC26_M[lbl].leads || 0) > 0);
 
   // --- Q: trimestres construidos dinamicamente; solo los que tienen >=1 mes con dato ---
   const _DF2_CC26_Q = (function(){
@@ -11647,6 +11712,21 @@
       (d.conf || []).forEach(([k, v]) => m.set(k, (m.get(k) || 0) + v));
     });
     return { agendadas, confirmadas, efec, conf: [...m.entries()].sort((a, b) => b[1] - a[1]) };
+  }
+  // ARRASTRE DF (mismo criterio que Ford): cita cuyo lead ingresó en un mes anterior.
+  // live.dongfeng: months=Todas, ag=agencia, mod=modelo (todos con agen_arr/conf_arr/efec_arr).
+  function _df_arrForMonths(months, agency, model) {
+    const L = (typeof DATA !== 'undefined' && DATA.digital && DATA.digital.live && DATA.digital.live.dongfeng) || {};
+    let src = {};
+    if (model && model !== 'Todas') { src = (L.mod && L.mod[model]) || _DF2_CONF_MOD[model] || {}; }
+    else if (agency && agency !== 'Todas') { src = (L.ag && L.ag[agency]) || _DF2_CONF_AG[agency] || {}; }
+    else { for (const mm of (L.months || [])) src[mm.label] = mm; }
+    let agen_arr = 0, conf_arr = 0, efec_arr = 0;
+    (months || []).forEach(mo => {
+      const d = src[mo]; if (!d) return;
+      agen_arr += d.agen_arr || 0; conf_arr += d.conf_arr || 0; efec_arr += d.efec_arr || 0;
+    });
+    return { agen_arr, conf_arr, efec_arr };
   }
 
   // Agencia activa (lee el dropdown; 'Todas' por defecto).
@@ -11703,7 +11783,9 @@
       if (base) { leads += base.leads; cont += base.cont; tope += base.tope; }
     }
     const cf = _df_confForMonths(months, ag, mod);
-    return { leads, cont, tope, agen: cf.agendadas, conf: cf.confirmadas, efec: cf.efec };
+    const ar = _df_arrForMonths(months, ag, mod);   // arrastre (de otro mes) por etapa
+    return { leads, cont, tope, agen: cf.agendadas, conf: cf.confirmadas, efec: cf.efec,
+             agen_arr: ar.agen_arr, conf_arr: ar.conf_arr, efec_arr: ar.efec_arr };
   }
 
   // Formatea miles con punto
@@ -11732,13 +11814,22 @@
     const pNos   = _df_cc26Pct(noShow, s.conf);   // no-show SOBRE confirmadas
     const pTope  = _df_cc26Pct(s.tope, s.leads);
 
-    function stage(name, val, widthPct, color) {
+    function stage(name, val, widthPct, color, arr) {
       const w = Math.max(widthPct, 2);
+      arr = arr || 0;
+      let arrSeg = '', cap = '';
+      if (arr > 0 && val > 0) {
+        const arrPct = Math.min(100, Math.round(100 * arr / val));   // % del ancho de ESTA barra
+        arrSeg = `<div class="cc26-bar-arr" style="width:${arrPct}%"></div>`;
+        cap = `<span class="cc26-stage-arr">${_df_cc26Fmt(arr)} de otro mes · ${arrPct}%</span>`;
+      }
       return `<div class="cc26-stage">
-        <div class="cc26-stage-name">${name}</div>
+        <div class="cc26-stage-name" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <span>${name}</span>${cap}
+        </div>
         <div class="cc26-stage-bar-wrap">
           <div class="cc26-stage-bar" style="width:${w}%;background:${color}">
-            <span>${_df_cc26Fmt(val)}</span>
+            ${arrSeg}<span>${_df_cc26Fmt(val)}</span>
           </div>
         </div>
       </div>`;
@@ -11761,17 +11852,24 @@
       </div>`;
     }
 
+    const arrAny = (s.agen_arr || 0) + (s.conf_arr || 0) + (s.efec_arr || 0) > 0;
+    const legend = arrAny
+      ? `<div class="cc26-arr-legend"><span class="sw"></span>
+           <span><b>de otro mes</b> = la cita cae en este mes pero el lead ingresó en un mes anterior (arrastre). Leads y Contactados son 100% de este mes.</span>
+         </div>`
+      : '';
     el.innerHTML =
       stage('Leads recibidos', s.leads, 100, VERDE)
       + conv(pCont + '% · contactamos')
       + stage('Contactados', s.cont, _df_cc26Pct(s.cont, s.leads), VERDE)
       + conv(pAgen + '% · agendan cita')
-      + stage('Citas agendadas', s.agen, _df_cc26Pct(s.agen, s.leads), VERDE)
+      + stage('Citas agendadas', s.agen, _df_cc26Pct(s.agen, s.leads), VERDE, s.agen_arr)
       + conv(pConf + '% · confirman')
-      + stage('Citas confirmadas', s.conf, _df_cc26Pct(s.conf, s.leads), VERDE)
+      + stage('Citas confirmadas', s.conf, _df_cc26Pct(s.conf, s.leads), VERDE, s.conf_arr)
       + conv(pEfec + '% · asisten', pNos + '% no-show s/ confirmadas')
-      + stage('Citas efectivas', s.efec, _df_cc26Pct(s.efec, s.leads), VERDE_OSC)
-      + chips(pTope, pNos);
+      + stage('Citas efectivas', s.efec, _df_cc26Pct(s.efec, s.leads), VERDE_OSC, s.efec_arr)
+      + chips(pTope, pNos)
+      + legend;
   }
 
   // Rellena el <select> de periodos SOLO con trimestres presentes en _DF2_CC26_Q.
@@ -11824,7 +11922,13 @@
     _df_cc26RenderFunnel('df-cc26-funnel-left', _DF2_CC26_Q[selPeriodo.value] || _DF2_CC26_Q['Total']);
 
     // Estado checkboxes: default = ultimo mes presente
-    const defaultMonth = _DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 1];
+    let defaultMonth = _DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 1];
+    if (_DF2_CC26_ORDER.length >= 2) {
+      const _last = _DF2_CC26_M[defaultMonth], _prev = _DF2_CC26_M[_DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 2]];
+      if (_last && _prev && (_last.leads || 0) < 0.25 * (_prev.leads || 0)) {
+        defaultMonth = _DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 2];
+      }
+    }
     _df_cc26PopulateMonths(defaultMonth);
     const selectedMonths = new Set([defaultMonth]);
     _df_cc26UpdateCbLabel(selectedMonths);
@@ -13689,14 +13793,41 @@
   }
   let vtInited = false;
 
-  function vtBrandData(){ return VENTAS_MENSUAL[vtstate.marca] || null; }
+  // Merge de todas las marcas en un pseudo-brand-data para filtro "Todas".
+  let _vtAllMerged = null;
+  function vtBrandDataAll(){
+    if(_vtAllMerged) return _vtAllMerged;
+    const brands = Object.values(VENTAS_MENSUAL);
+    if(!brands.length){ _vtAllMerged = {flat:[], months:[], months_labels:[], by_modelo:{}, by_agencia:{}, totals:{_total:0}}; return _vtAllMerged; }
+    const flat = brands.flatMap(b => b.flat || []);
+    // Union de meses
+    const mesesSet = new Set();
+    brands.forEach(b => (b.months||[]).forEach(m=>mesesSet.add(m)));
+    const months = Array.from(mesesSet).sort();
+    // Reusa labels del primer brand que tenga (todos deberían coincidir por mes)
+    const labelsMap = {};
+    brands.forEach(b => (b.months||[]).forEach((m,i)=>{ if(!labelsMap[m]) labelsMap[m] = (b.months_labels||[])[i] || m; }));
+    const months_labels = months.map(m => labelsMap[m] || m);
+    // by_modelo / by_agencia: union de keys
+    const by_modelo = {}; const by_agencia = {};
+    brands.forEach(b=>{
+      Object.keys(b.by_modelo||{}).forEach(k=>{ by_modelo[k] = true; });
+      Object.keys(b.by_agencia||{}).forEach(k=>{ by_agencia[k] = true; });
+    });
+    _vtAllMerged = {flat, months, months_labels, by_modelo, by_agencia, totals:{_total:0}};
+    return _vtAllMerged;
+  }
+  function vtBrandData(){
+    if(vtstate.marca === '__ALL__') return vtBrandDataAll();
+    return VENTAS_MENSUAL[vtstate.marca] || null;
+  }
 
   function vtFillMarca(){
     const sel = document.getElementById('vt-marca');
     if(!sel || sel.dataset._filled) return;
     sel.innerHTML = '';
     const keys = Object.keys(VENTAS_MENSUAL);
-    // Ford primero, luego brands ORGU.
+    // Ford primero, brands ORGU, luego "Todas las marcas".
     const ordered = keys.includes('FORD') ? ['FORD', ...keys.filter(k=>k!=='FORD')] : keys;
     ordered.forEach(k=>{
       const o = document.createElement('option');
@@ -13704,6 +13835,10 @@
       o.textContent = DATA.brand_display?.[k] || k.replace('_ORGU','');
       sel.appendChild(o);
     });
+    const oAll = document.createElement('option');
+    oAll.value = '__ALL__';
+    oAll.textContent = 'Todas las marcas';
+    sel.appendChild(oAll);
     sel.value = vtstate.marca;
     sel.dataset._filled = '1';
   }
@@ -13817,7 +13952,7 @@
     if(vtstate.zona) filterParts.push('Zona ' + vtstate.zona);
     if(vtstate.agencia) filterParts.push(vtstate.agencia);
     if(vtstate.modelo) filterParts.push(vtstate.modelo);
-    const scope = filterParts.length ? filterParts.join(' · ') : (DATA.brand_display?.[vtstate.marca] || vtstate.marca.replace('_ORGU',''));
+    const scope = filterParts.length ? filterParts.join(' · ') : ((vtstate.marca === '__ALL__' ? 'Todas las marcas' : (DATA.brand_display?.[vtstate.marca] || vtstate.marca.replace('_ORGU',''))));
     document.getElementById('vt-k-total').textContent = vtFmtVal(total);
     const ticket = totalUnits > 0 ? totalRev / totalUnits : 0;
     document.getElementById('vt-k-total-hint').textContent = scope + ' · YTD 2026' + (ticket ? ' · ticket prom ' + vtFmtValRaw(ticket, 'revenue') : '');
@@ -14203,7 +14338,7 @@
     const el = document.getElementById('vt-filter-summary');
     if(!el) return;
     const parts = [];
-    parts.push(DATA.brand_display?.[vtstate.marca] || vtstate.marca.replace('_ORGU',''));
+    parts.push((vtstate.marca === '__ALL__' ? 'Todas las marcas' : (DATA.brand_display?.[vtstate.marca] || vtstate.marca.replace('_ORGU',''))));
     parts.push('Vista: ' + ({modelo:'Por modelo', asesor:'Por asesor', agencia:'Por agencia', zona:'Por zona'}[vtstate.view]));
     if(vtstate.zona) parts.push('Zona: ' + vtstate.zona);
     if(vtstate.agencia) parts.push('Agencia: ' + vtstate.agencia);

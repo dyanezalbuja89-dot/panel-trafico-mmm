@@ -13800,14 +13800,41 @@ HTML = r"""<!doctype html>
   }
   let vtInited = false;
 
-  function vtBrandData(){ return VENTAS_MENSUAL[vtstate.marca] || null; }
+  // Merge de todas las marcas en un pseudo-brand-data para filtro "Todas".
+  let _vtAllMerged = null;
+  function vtBrandDataAll(){
+    if(_vtAllMerged) return _vtAllMerged;
+    const brands = Object.values(VENTAS_MENSUAL);
+    if(!brands.length){ _vtAllMerged = {flat:[], months:[], months_labels:[], by_modelo:{}, by_agencia:{}, totals:{_total:0}}; return _vtAllMerged; }
+    const flat = brands.flatMap(b => b.flat || []);
+    // Union de meses
+    const mesesSet = new Set();
+    brands.forEach(b => (b.months||[]).forEach(m=>mesesSet.add(m)));
+    const months = Array.from(mesesSet).sort();
+    // Reusa labels del primer brand que tenga (todos deberían coincidir por mes)
+    const labelsMap = {};
+    brands.forEach(b => (b.months||[]).forEach((m,i)=>{ if(!labelsMap[m]) labelsMap[m] = (b.months_labels||[])[i] || m; }));
+    const months_labels = months.map(m => labelsMap[m] || m);
+    // by_modelo / by_agencia: union de keys
+    const by_modelo = {}; const by_agencia = {};
+    brands.forEach(b=>{
+      Object.keys(b.by_modelo||{}).forEach(k=>{ by_modelo[k] = true; });
+      Object.keys(b.by_agencia||{}).forEach(k=>{ by_agencia[k] = true; });
+    });
+    _vtAllMerged = {flat, months, months_labels, by_modelo, by_agencia, totals:{_total:0}};
+    return _vtAllMerged;
+  }
+  function vtBrandData(){
+    if(vtstate.marca === '__ALL__') return vtBrandDataAll();
+    return VENTAS_MENSUAL[vtstate.marca] || null;
+  }
 
   function vtFillMarca(){
     const sel = document.getElementById('vt-marca');
     if(!sel || sel.dataset._filled) return;
     sel.innerHTML = '';
     const keys = Object.keys(VENTAS_MENSUAL);
-    // Ford primero, luego brands ORGU.
+    // Ford primero, brands ORGU, luego "Todas las marcas".
     const ordered = keys.includes('FORD') ? ['FORD', ...keys.filter(k=>k!=='FORD')] : keys;
     ordered.forEach(k=>{
       const o = document.createElement('option');
@@ -13815,6 +13842,10 @@ HTML = r"""<!doctype html>
       o.textContent = DATA.brand_display?.[k] || k.replace('_ORGU','');
       sel.appendChild(o);
     });
+    const oAll = document.createElement('option');
+    oAll.value = '__ALL__';
+    oAll.textContent = 'Todas las marcas';
+    sel.appendChild(oAll);
     sel.value = vtstate.marca;
     sel.dataset._filled = '1';
   }
@@ -13928,7 +13959,7 @@ HTML = r"""<!doctype html>
     if(vtstate.zona) filterParts.push('Zona ' + vtstate.zona);
     if(vtstate.agencia) filterParts.push(vtstate.agencia);
     if(vtstate.modelo) filterParts.push(vtstate.modelo);
-    const scope = filterParts.length ? filterParts.join(' · ') : (DATA.brand_display?.[vtstate.marca] || vtstate.marca.replace('_ORGU',''));
+    const scope = filterParts.length ? filterParts.join(' · ') : ((vtstate.marca === '__ALL__' ? 'Todas las marcas' : (DATA.brand_display?.[vtstate.marca] || vtstate.marca.replace('_ORGU',''))));
     document.getElementById('vt-k-total').textContent = vtFmtVal(total);
     const ticket = totalUnits > 0 ? totalRev / totalUnits : 0;
     document.getElementById('vt-k-total-hint').textContent = scope + ' · YTD 2026' + (ticket ? ' · ticket prom ' + vtFmtValRaw(ticket, 'revenue') : '');
@@ -14314,7 +14345,7 @@ HTML = r"""<!doctype html>
     const el = document.getElementById('vt-filter-summary');
     if(!el) return;
     const parts = [];
-    parts.push(DATA.brand_display?.[vtstate.marca] || vtstate.marca.replace('_ORGU',''));
+    parts.push((vtstate.marca === '__ALL__' ? 'Todas las marcas' : (DATA.brand_display?.[vtstate.marca] || vtstate.marca.replace('_ORGU',''))));
     parts.push('Vista: ' + ({modelo:'Por modelo', asesor:'Por asesor', agencia:'Por agencia', zona:'Por zona'}[vtstate.view]));
     if(vtstate.zona) parts.push('Zona: ' + vtstate.zona);
     if(vtstate.agencia) parts.push('Agencia: ' + vtstate.agencia);
