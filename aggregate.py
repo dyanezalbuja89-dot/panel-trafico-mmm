@@ -166,7 +166,20 @@ def _compute_ventas_mensual(sales_df):
         inv_tx['fecha_fact'] = pd.to_datetime(inv_tx['Fecha'], errors='coerce')
         inv_tx['mes_str'] = inv_tx['fecha_fact'].dt.strftime('%Y-%m')
         inv_tx['Cantidad'] = inv_tx.get('Cantidad', 0).fillna(0).astype(int)
-        inv_tx = inv_tx[(inv_tx['fecha_fact'].dt.year==2026) & (inv_tx['mes_str'] > last_month_sales)].copy()
+        # DATOS 2 aporta bien solo el mes ACTUAL del archivo de inventario más reciente.
+        # Meses cerrados: los snapshots capturaron parcialmente el mes, faltan facturas del día 30/31.
+        # Solución: DATOS 2 → solo mes actual (= max mes_str en el archivo actual).
+        # Meses cerrados post-sales_df → se llenan desde DATOS FACTURADO (bloque abajo).
+        try:
+            with _wa.catch_warnings():
+                _wa.simplefilter('ignore')
+                _actual = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS 2', header=0)
+            _actual['fecha_fact'] = pd.to_datetime(_actual['Fecha'], errors='coerce')
+            current_ym = _actual['fecha_fact'].dt.strftime('%Y-%m').max()
+        except Exception:
+            current_ym = inv_tx['mes_str'].max()
+        inv_tx = inv_tx[(inv_tx['fecha_fact'].dt.year==2026) & (inv_tx['mes_str'] > last_month_sales) & (inv_tx['mes_str'] == current_ym)].copy()
+        print(f'[ventas_mensual] DATOS 2 solo mes actual = {current_ym} ({len(inv_tx)} TXs)')
         # No dedup VIN: DATOS 2 = fuente de verdad para meses post-mayo. Cada TX
         # cuenta tal cual (FACT +1, NC -1). User confirma "tengo 79 facturados"
         # = DATOS 2 sum junio 2026 = 79. Si VIN aparece en sales_df mayo y DATOS 2
@@ -222,9 +235,9 @@ def _compute_ventas_mensual(sales_df):
         inv_hist = inv_hist[inv_hist['STATUS_H']=='FACTURADO'].copy()
         inv_hist['fecha_fact'] = pd.to_datetime(inv_hist['fecha de facturacion'], errors='coerce')
         inv_hist['mes_str'] = inv_hist['fecha_fact'].dt.strftime('%Y-%m')
-        # Solo meses 2025 que no están en sales_df ni DATOS 2
+        # Meses (2025 + 2026 cerrados) que no están en sales_df ni DATOS 2 mes actual.
         existing_mes = set(df['fecha_fact'].dt.strftime('%Y-%m').unique())
-        inv_hist = inv_hist[(inv_hist['fecha_fact'].dt.year==2025) & (~inv_hist['mes_str'].isin(existing_mes))]
+        inv_hist = inv_hist[(inv_hist['fecha_fact'].dt.year.isin([2025, 2026])) & (~inv_hist['mes_str'].isin(existing_mes))]
         if len(inv_hist) > 0:
             hist_mapped = pd.DataFrame({
                 'fecha_fact': inv_hist['fecha_fact'],
