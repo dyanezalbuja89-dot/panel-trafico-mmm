@@ -105,6 +105,47 @@ def _compute_ventas_mensual(sales_df):
     df = df[df['fecha_fact'].dt.year >= 2025].copy()
     if len(df) == 0:
         return None
+    # ► OVERRIDE: archivos RANKING_<MES>_<YYYY>.xlsx = fuente OFICIAL de meses cerrados
+    # (netos de NCs finales). Reemplazan cualquier cálculo desde inventario para el mes.
+    _ranking_meses = set()
+    try:
+        from parse_ranking import parse_ranking as _parse_ranking
+        import re as _re
+        _MES_MAP = {'ENERO':'01','FEBRERO':'02','MARZO':'03','ABRIL':'04','MAYO':'05','JUNIO':'06','JULIO':'07','AGOSTO':'08','SEPTIEMBRE':'09','OCTUBRE':'10','NOVIEMBRE':'11','DICIEMBRE':'12'}
+        _ranking_txs = []
+        for _p in Path(__file__).parent.glob('RANKING_*.xlsx'):
+            _m = _re.match(r'RANKING_([A-Z]+)_(\d{4})\.xlsx', _p.name, _re.IGNORECASE)
+            if not _m: continue
+            _mes_name = _m.group(1).upper()
+            _year = _m.group(2)
+            if _mes_name not in _MES_MAP: continue
+            _ym = f'{_year}-{_MES_MAP[_mes_name]}'
+            _txs = _parse_ranking(_p, _ym)
+            if _txs:
+                _ranking_txs.extend(_txs)
+                _ranking_meses.add(_ym)
+                print(f'[ventas_mensual] RANKING override: {_p.name} → {_ym} ({sum(t["cantidad"] for t in _txs)} netos, {len(_txs)} TXs)')
+        if _ranking_meses:
+            df['_mes_ym'] = df['fecha_fact'].dt.strftime('%Y-%m')
+            before = len(df)
+            df = df[~df['_mes_ym'].isin(_ranking_meses)].drop(columns=['_mes_ym'])
+            dropped = before - len(df)
+            if dropped > 0:
+                print(f'[ventas_mensual] omitidas {dropped} filas de sales_df cubiertas por RANKING')
+            _rank_df = pd.DataFrame([{
+                'fecha_fact': pd.to_datetime(t['mes']+'-15'),
+                'fecha de facturacion': pd.to_datetime(t['mes']+'-15'),
+                'Cantidad': t['cantidad'],
+                'marca': t['marca'].replace('_ORGU',''),
+                'familia': t['modelo'],
+                'AGENCIA_FACTURACION': t['agencia'],
+                'ASESOR_FACTURACION': t['asesor'].upper(),
+                'Chasis': '',
+                'rev_signed': 0.0,
+            } for t in _ranking_txs])
+            df = pd.concat([df, _rank_df], ignore_index=True, sort=False)
+    except Exception as e:
+        print(f'[ventas_mensual] WARN RANKING override falló: {e}')
     # Complemento desde inventario para meses no cubiertos por ventas.xlsx.
     # Toma facturas STATUS=FACTURADO con fecha posterior al último mes de ventas_df.
     # ► Excluye VINs ya presentes en sales_df (Chasis) — evita doble conteo cuando
@@ -178,7 +219,7 @@ def _compute_ventas_mensual(sales_df):
             current_ym = _actual['fecha_fact'].dt.strftime('%Y-%m').max()
         except Exception:
             current_ym = inv_tx['mes_str'].max()
-        inv_tx = inv_tx[(inv_tx['fecha_fact'].dt.year==2026) & (inv_tx['mes_str'] > last_month_sales) & (inv_tx['mes_str'] == current_ym)].copy()
+        inv_tx = inv_tx[(inv_tx['fecha_fact'].dt.year==2026) & (inv_tx['mes_str'] > last_month_sales) & (inv_tx['mes_str'] == current_ym) & (~inv_tx['mes_str'].isin(_ranking_meses))].copy()
         print(f'[ventas_mensual] DATOS 2 solo mes actual = {current_ym} ({len(inv_tx)} TXs)')
         # No dedup VIN: DATOS 2 = fuente de verdad para meses post-mayo. Cada TX
         # cuenta tal cual (FACT +1, NC -1). User confirma "tengo 79 facturados"
