@@ -10592,10 +10592,11 @@ HTML = r"""<!doctype html>
   const _CC26_liveM = _cc26BuildLiveM();
   const _CC26_M = (_CC26_liveM && Object.keys(_CC26_liveM).length) ? _CC26_liveM : _CC26_M_FALLBACK;
 
-  // --- order: meses 2026 presentes en M, en orden cronologico ---
+  // --- order: meses 2026 presentes CON DATO (leads>0), en orden cronológico ---
+  // Excluye meses vacíos (ej. el mes en curso el día 1) → el default no abre en un mes sin dato.
   const _CC26_ORDER = _CC26_MES
     .map(mm => mm + '·26')
-    .filter(lbl => _CC26_M[lbl]);
+    .filter(lbl => _CC26_M[lbl] && (_CC26_M[lbl].leads || 0) > 0);
 
   // --- Q: trimestres construidos dinamicamente; solo los que tienen >=1 mes con dato ---
   const _CC26_Q = (function(){
@@ -10888,8 +10889,16 @@ HTML = r"""<!doctype html>
     // Render inicial embudo izquierdo
     _cc26RenderFunnel('cc26-funnel-left', _CC26_Q[selPeriodo.value] || _CC26_Q['Total']);
 
-    // Estado checkboxes: default = ultimo mes presente
-    const defaultMonth = _CC26_ORDER[_CC26_ORDER.length - 1];
+    // Estado checkboxes: default = último mes con dato; pero si el último es INMADURO
+    // (mes en curso, <25% de los leads del mes previo), usa el previo → no abre en un mes
+    // recién empezado (ej. jul·26 con 13 leads vs jun 979).
+    let defaultMonth = _CC26_ORDER[_CC26_ORDER.length - 1];
+    if (_CC26_ORDER.length >= 2) {
+      const _last = _CC26_M[defaultMonth], _prev = _CC26_M[_CC26_ORDER[_CC26_ORDER.length - 2]];
+      if (_last && _prev && (_last.leads || 0) < 0.25 * (_prev.leads || 0)) {
+        defaultMonth = _CC26_ORDER[_CC26_ORDER.length - 2];
+      }
+    }
     _cc26PopulateMonths(defaultMonth);
     const selectedMonths = new Set([defaultMonth]);
     _cc26UpdateCbLabel(selectedMonths);
@@ -11608,7 +11617,7 @@ HTML = r"""<!doctype html>
   // --- order: meses 2026 presentes en M, en orden cronologico ---
   const _DF2_CC26_ORDER = _DF2_CC26_MES
     .map(mm => mm + '·26')
-    .filter(lbl => _DF2_CC26_M[lbl]);
+    .filter(lbl => _DF2_CC26_M[lbl] && (_DF2_CC26_M[lbl].leads || 0) > 0);
 
   // --- Q: trimestres construidos dinamicamente; solo los que tienen >=1 mes con dato ---
   const _DF2_CC26_Q = (function(){
@@ -11831,7 +11840,13 @@ HTML = r"""<!doctype html>
     _df_cc26RenderFunnel('df-cc26-funnel-left', _DF2_CC26_Q[selPeriodo.value] || _DF2_CC26_Q['Total']);
 
     // Estado checkboxes: default = ultimo mes presente
-    const defaultMonth = _DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 1];
+    let defaultMonth = _DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 1];
+    if (_DF2_CC26_ORDER.length >= 2) {
+      const _last = _DF2_CC26_M[defaultMonth], _prev = _DF2_CC26_M[_DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 2]];
+      if (_last && _prev && (_last.leads || 0) < 0.25 * (_prev.leads || 0)) {
+        defaultMonth = _DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 2];
+      }
+    }
     _df_cc26PopulateMonths(defaultMonth);
     const selectedMonths = new Set([defaultMonth]);
     _df_cc26UpdateCbLabel(selectedMonths);
