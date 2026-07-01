@@ -62,11 +62,20 @@ _CATEGORIA = {
 
 MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
-# Ventana 2026-H1 (ene 1 .. jul 1 - 1ms)
+# Ventana 2026: ene 1 .. FIN DEL MES EN CURSO (se extiende sola cada mes).
+# _E = fin del mes actual (no "ahora") para capturar TODAS las citas del mes, incluidas las
+# futuras-agendadas → 'agendadas' cuadra con hubspot_pull (que cuenta el mes completo) y el
+# arrastre se calcula sobre la base correcta. Cap a fin de 2026.
+_NOWDT = datetime.now(timezone.utc)
+_MAXMONTH = _NOWDT.month if _NOWDT.year == 2026 else 12  # último mes con dato (mes actual en 2026)
 _S = int(datetime(2026, 1, 1, tzinfo=timezone.utc).timestamp() * 1000)
-_E = int(datetime(2026, 7, 1, tzinfo=timezone.utc).timestamp() * 1000) - 1
-# "Ahora" para evaluar tareas futuras (notes_next_activity_date >= _NOW = tiene tarea futura).
-_NOW = int(datetime.now(timezone.utc).timestamp() * 1000)
+if _NOWDT.year == 2026:
+    _nextm = datetime(2027, 1, 1, tzinfo=timezone.utc) if _MAXMONTH >= 12 else datetime(2026, _MAXMONTH + 1, 1, tzinfo=timezone.utc)
+    _E = int(_nextm.timestamp() * 1000) - 1
+else:
+    _E = int(datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc).timestamp() * 1000)
+# "Ahora" REAL para evaluar tareas futuras (notes_next_activity_date >= _NOW = tiene tarea futura).
+_NOW = int(_NOWDT.timestamp() * 1000)
 
 
 def _act_ms(v):
@@ -108,7 +117,7 @@ def _label_from_ms(v):
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     dt = dt.astimezone(timezone.utc)
-    if dt.year != 2026 or dt.month > 6:
+    if dt.year != 2026 or dt.month > _MAXMONTH:
         return None
     return MESES[dt.month - 1] + '·26'
 
@@ -263,7 +272,8 @@ def fetch_brand_full(cfg):
     def newcell():
         return {'leads': 0, 'cont': 0, 'tope': 0, 'agen': 0, 'confirmadas': 0, 'efec': 0, 'nos': 0,
                 'nc_by': {}, 'c_est': {}, 'c_cross': {}, 'ns_est': {}, 'conf_d': {}, 'ns_react': {},
-                'c_cat': {}, 'c_cat_det': {}, 'c_cat_llam': {}, 'c_cat_notask': {}, 'conf_cross': {}}
+                'c_cat': {}, 'c_cat_det': {}, 'c_cat_llam': {}, 'c_cat_notask': {}, 'conf_cross': {},
+                'agen_arr': 0, 'conf_arr': 0, 'efec_arr': 0}  # arrastre: cita este mes de lead de OTRO mes
     # cells[(scope, label)] donde scope = 'T' o agencia-corta
     cells = {}
 
@@ -359,7 +369,8 @@ def fetch_brand_full(cfg):
     # Cruces vía asociación DEAL→CONTACT (props del contacto primario) — nivel T (Todas).
     # Una sola pasada de asociaciones para AMBOS: reactivación (no-show) + nº llamada confirmación.
     all_deal_ids = [str(p.get('_id')) for p in deals if p.get('_id')]
-    assoc = _assoc_props(all_deal_ids, ['numero_de_llamada_reactivacion', 'numero_de_llamada_confirmacion_cita']) if all_deal_ids else {}
+    _coh_props = ([ingreso, 'createdate'] if ingreso else [cohort])  # mes de ingreso del contacto (arrastre)
+    assoc = _assoc_props(all_deal_ids, ['numero_de_llamada_reactivacion', 'numero_de_llamada_confirmacion_cita'] + _coh_props) if all_deal_ids else {}
     for p in deals:
         lbl = _label_from_ms(p.get('fecha_de_la_cita'))
         if not lbl:
@@ -381,14 +392,29 @@ def fetch_brand_full(cfg):
             idx = _REACT_INTERNAL_TO_IDX.get(a.get('numero_de_llamada_reactivacion'), 3)  # default Sin react.
             arr = c['ns_react'].setdefault(stlbl, [0, 0, 0, 0])
             arr[idx] += 1
+        # arrastre PER-SCOPE: la cita cae en 'lbl' pero el lead (contacto) ingresó en OTRO mes
+        c_lbl = _label_from_ms((a.get(ingreso) or a.get('createdate')) if ingreso else a.get(cohort))
+        if c_lbl != lbl:
+            _ag = p.get('agencia')
+            _mod = _model_family(p.get(model_field), model_families) if model_field else None
+            _scopes = ['T'] + ([ag_short[_ag]] if _ag in ag_internal else []) + (['M|' + _mod] if _mod else [])
+            _asis = p.get('asistio_a_la_cita')
+            for _sc in _scopes:
+                cc = cell(_sc, lbl)
+                cc['agen_arr'] += 1
+                if confv == 'Confirma':
+                    cc['conf_arr'] += 1
+                if _asis == 'Si':
+                    cc['efec_arr'] += 1
 
     # ── Empaqueta a la forma que consume el panel ──
-    months_order = [m + '·26' for m in MESES[:6]]
+    months_order = [m + '·26' for m in MESES[:_MAXMONTH]]
     def funnel_obj(c):
         conf = _sorted_pairs(c['conf_d'])
         return {'leads': c['leads'], 'cont': c['cont'], 'tope': c['tope'],
                 'agen': c['agen'], 'agendadas': c['agen'],  # ambos nombres (panel usa 'agendadas')
-                'confirmadas': c['confirmadas'], 'efec': c['efec'], 'nos': c['nos'], 'conf': conf}
+                'confirmadas': c['confirmadas'], 'efec': c['efec'], 'nos': c['nos'], 'conf': conf,
+                'agen_arr': c['agen_arr'], 'conf_arr': c['conf_arr'], 'efec_arr': c['efec_arr']}  # arrastre
     def desp_obj(c):
         by_cat = [[k, c['c_cat'][k]] for k in _CAT_ORDER if c['c_cat'].get(k)]
         cat_det = {k: _sorted_pairs(v) for k, v in c['c_cat_det'].items()}
