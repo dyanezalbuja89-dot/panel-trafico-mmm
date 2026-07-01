@@ -4598,17 +4598,17 @@ HTML = r"""<!doctype html>
         font-size: 10px; font-weight: 700; color: #fff;
         white-space: nowrap; position: relative; z-index: 1;
       }
-      /* Segmento "de otro mes" (arrastre): mismo verde con hachura diagonal blanca, pegado a la derecha */
+      /* Segmento "de otro mes" (arrastre): color ÁMBAR sólido (contrasta con el verde), a la derecha */
       .cc26-bar-arr {
         position: absolute; top: 0; bottom: 0; right: 0; z-index: 0;
-        border-left: 1.5px solid rgba(255,255,255,.7);
-        background-image: repeating-linear-gradient(45deg,
-          rgba(255,255,255,0) 0, rgba(255,255,255,0) 3px,
-          rgba(255,255,255,.5) 3px, rgba(255,255,255,.5) 6px);
+        border-left: 2px solid #fff;
+        background: #E8862B;
       }
-      /* Caption por etapa: "N de otro mes · X%" alineado a la derecha del nombre */
+      /* el número del valor se lee sobre verde Y sobre ámbar gracias a la sombra */
+      .cc26-stage-bar span { text-shadow: 0 1px 2px rgba(0,0,0,.45); }
+      /* Caption por etapa: "N de otro mes · X%" alineado a la derecha del nombre (ámbar oscuro, legible en blanco) */
       .cc26-stage-arr {
-        font-size: 9px; font-weight: 700; color: #0F6E56;
+        font-size: 9px; font-weight: 700; color: #B45309;
         text-transform: none; letter-spacing: 0; white-space: nowrap;
       }
       /* Leyenda de la hachura (una sola línea bajo el embudo) */
@@ -4618,10 +4618,7 @@ HTML = r"""<!doctype html>
       }
       .cc26-arr-legend .sw {
         width: 26px; height: 12px; border-radius: 3px; flex: 0 0 auto;
-        background: #1D9E75;
-        background-image: repeating-linear-gradient(45deg,
-          rgba(255,255,255,0) 0, rgba(255,255,255,0) 3px,
-          rgba(255,255,255,.5) 3px, rgba(255,255,255,.5) 6px);
+        background: #E8862B; border: 1px solid #B45309;
       }
       /* Flecha de conversión entre etapas */
       .cc26-conv {
@@ -10882,7 +10879,7 @@ HTML = r"""<!doctype html>
     const arrAny = (s.agen_arr || 0) + (s.conf_arr || 0) + (s.efec_arr || 0) > 0;
     const legend = arrAny
       ? `<div class="cc26-arr-legend"><span class="sw"></span>
-           <span><b>▨ de otro mes</b> = la cita cae en este mes pero el lead ingresó en un mes anterior (arrastre). Leads y Contactados son 100% de este mes.</span>
+           <span><b>de otro mes</b> = la cita cae en este mes pero el lead ingresó en un mes anterior (arrastre). Leads y Contactados son 100% de este mes.</span>
          </div>`
       : '';
     el.innerHTML =
@@ -11865,7 +11862,7 @@ HTML = r"""<!doctype html>
     const arrAny = (s.agen_arr || 0) + (s.conf_arr || 0) + (s.efec_arr || 0) > 0;
     const legend = arrAny
       ? `<div class="cc26-arr-legend"><span class="sw"></span>
-           <span><b>▨ de otro mes</b> = la cita cae en este mes pero el lead ingresó en un mes anterior (arrastre). Leads y Contactados son 100% de este mes.</span>
+           <span><b>de otro mes</b> = la cita cae en este mes pero el lead ingresó en un mes anterior (arrastre). Leads y Contactados son 100% de este mes.</span>
          </div>`
       : '';
     el.innerHTML =
