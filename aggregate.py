@@ -5,7 +5,7 @@ import json
 import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
-from inventario import load_inventario, DEFAULT_INVENTORY_PATH
+from inventario import load_inventario, DEFAULT_INVENTORY_PATH, _INVENTORY_DIRS
 from conversion import compute_conversion_metrics, norm_ced as _conv_norm_ced, cedula_base as _conv_cedula_base, norm_email as _conv_norm_email, norm_cel as _conv_norm_cel
 from competencia import compute_competencia_data
 from embudo import compute_embudo_data
@@ -134,10 +134,35 @@ def _compute_ventas_mensual(sales_df):
         # ► NUEVO: leer hoja DATOS 2 del inventario — trae FACTURA + NC con Cantidad
         # SIGNADA (+1/-1). Esto da el neto real intramonth sin necesidad de overrides
         # manuales. Reemplaza el complemento viejo que usaba DATOS (chasis FACTURADO).
+        # OJO: cuando cambia el mes, DATOS 2 del archivo actual solo trae TXs del
+        # mes nuevo. Para no perder el mes anterior, concat DATOS 2 de TODOS los
+        # snapshots de inventario disponibles y dedup por (Vin, Fecha, Cantidad).
         import warnings as _wa
         with _wa.catch_warnings():
             _wa.simplefilter('ignore')
-            inv_tx = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS 2', header=0)
+            inv_tx_frames = []
+            _seen_paths = set()
+            for _inv_dir in _INVENTORY_DIRS:
+                if not _inv_dir.exists(): continue
+                for _ext in ('*.xlsm','*.xlsx'):
+                    for _p in _inv_dir.glob(_ext):
+                        if _p.name.startswith('~$'): continue
+                        if 'INVENTARIO' not in _p.name.upper(): continue
+                        if _p in _seen_paths: continue
+                        _seen_paths.add(_p)
+                        try:
+                            _df = pd.read_excel(_p, sheet_name='DATOS 2', header=0)
+                            _df['_src'] = _p.name
+                            inv_tx_frames.append(_df)
+                        except Exception as _e:
+                            pass
+            if inv_tx_frames:
+                inv_tx = pd.concat(inv_tx_frames, ignore_index=True, sort=False)
+                if 'Vin' in inv_tx.columns and 'Fecha' in inv_tx.columns and 'Cantidad' in inv_tx.columns:
+                    inv_tx = inv_tx.drop_duplicates(subset=['Vin','Fecha','Cantidad'], keep='first')
+                print(f'[ventas_mensual] DATOS 2 concat {len(inv_tx_frames)} snapshots → {len(inv_tx)} TXs únicas')
+            else:
+                inv_tx = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS 2', header=0)
         inv_tx['fecha_fact'] = pd.to_datetime(inv_tx['Fecha'], errors='coerce')
         inv_tx['mes_str'] = inv_tx['fecha_fact'].dt.strftime('%Y-%m')
         inv_tx['Cantidad'] = inv_tx.get('Cantidad', 0).fillna(0).astype(int)
