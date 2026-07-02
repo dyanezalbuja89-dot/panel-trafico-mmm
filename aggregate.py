@@ -264,14 +264,41 @@ def _compute_ventas_mensual(sales_df):
     except Exception as e:
         print(f'[ventas_mensual] WARN complemento DATOS 2 falló: {e}')
 
-    # ► HISTÓRICO 2025: complementar meses pre-sales_df desde DATOS (chasis FACTURADO).
-    # sales_df solo tiene 2026+. Para mostrar 2025 en el panel, leer DATOS y filtrar
-    # FACTURADO con fecha en 2025. Aproximación: chasis actualmente FACTURADO con fecha
-    # de fact en 2025-XX (los NC'd ya no están como FACTURADO, así se aproxima el neto).
+    # ► HISTÓRICO 2025 + meses cerrados 2026: complementar desde DATOS (chasis FACTURADO).
+    # Snapshots más recientes se limpian (1-jul solo trae junio+julio, 552 filas).
+    # Snapshots antiguos tienen histórico completo (29-jun con 2384 filas).
+    # Estrategia: por VIN → filter FACTURADO → keep first (snapshot más reciente que lo tenga).
     try:
         with _wa.catch_warnings():
             _wa.simplefilter('ignore')
-            inv_hist = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS', header=0)
+            _hist_frames = []
+            _seen_p = set()
+            for _inv_dir in _INVENTORY_DIRS:
+                if not _inv_dir.exists(): continue
+                for _ext in ('*.xlsm','*.xlsx'):
+                    for _p in _inv_dir.glob(_ext):
+                        if _p.name.startswith('~$'): continue
+                        if 'INVENTARIO' not in _p.name.upper(): continue
+                        if _p in _seen_p: continue
+                        _seen_p.add(_p)
+                        try:
+                            _df = pd.read_excel(_p, sheet_name='DATOS', header=0)
+                            _df['_src'] = _p.name
+                            _df['_mtime'] = _p.stat().st_mtime
+                            _hist_frames.append(_df)
+                        except Exception: pass
+            if _hist_frames:
+                inv_hist = pd.concat(_hist_frames, ignore_index=True, sort=False)
+                # Filter FACTURADO primero (evita quedarnos con row DISPONIBLE de snapshot reciente)
+                inv_hist['STATUS_H'] = inv_hist['STATUS HOMOLOGADO'].astype(str).str.strip().str.upper()
+                inv_hist = inv_hist[inv_hist['STATUS_H']=='FACTURADO'].copy()
+                # Dedup por VIN: keep first después de sort por _mtime DESC = quedarse con
+                # el snapshot MÁS RECIENTE que tenga el VIN FACTURADO.
+                if 'vin' in inv_hist.columns:
+                    inv_hist = inv_hist.sort_values('_mtime', ascending=False).drop_duplicates(subset=['vin'], keep='first')
+                print(f'[ventas_mensual] DATOS concat {len(_hist_frames)} snapshots → {len(inv_hist)} chasis FACTURADO únicos')
+            else:
+                inv_hist = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name='DATOS', header=0)
         inv_hist['STATUS_H'] = inv_hist['STATUS HOMOLOGADO'].astype(str).str.strip().str.upper()
         inv_hist = inv_hist[inv_hist['STATUS_H']=='FACTURADO'].copy()
         inv_hist['fecha_fact'] = pd.to_datetime(inv_hist['fecha de facturacion'], errors='coerce')
