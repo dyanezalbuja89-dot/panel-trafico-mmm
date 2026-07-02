@@ -3698,9 +3698,13 @@ HTML = r"""<!doctype html>
 
     <div class="filter-bar">
       <label>Marca
-        <select id="mv-marca">
-          <option value="FORD">FORD</option>
-        </select>
+        <div style="position:relative;display:inline-block;min-width:180px">
+          <button type="button" id="mv-marca-btn" style="width:100%;padding:8px 30px 8px 10px;background:#fff;border:1px solid var(--c-border);border-radius:6px;text-align:left;cursor:pointer;font-size:12px;position:relative">
+            <span id="mv-marca-label">Todas las marcas</span>
+            <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--c-muted);font-size:9px">▼</span>
+          </button>
+          <div id="mv-marca-panel" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--c-border);border-radius:6px;box-shadow:0 8px 20px rgba(0,0,0,0.12);z-index:100;padding:6px;margin-top:4px;max-height:280px;overflow-y:auto"></div>
+        </div>
       </label>
       <label>Mes
         <select id="mv-month">
@@ -3751,13 +3755,13 @@ HTML = r"""<!doctype html>
     <!-- FILTROS -->
     <div class="filter-bar">
       <label>Marca
-        <select id="inv-marca">
-          <option value="FORD">Ford</option>
-          <option value="DONGFENG_ORGU">DongFeng</option>
-          <option value="CHERY_ORGU">Chery</option>
-          <option value="MAZDA_ORGU">Mazda</option>
-          <option value="RAM_ORGU">RAM</option>
-        </select>
+        <div style="position:relative;display:inline-block;min-width:180px">
+          <button type="button" id="inv-marca-btn" style="width:100%;padding:8px 30px 8px 10px;background:#fff;border:1px solid var(--c-border);border-radius:6px;text-align:left;cursor:pointer;font-size:12px;position:relative">
+            <span id="inv-marca-label">Todas las marcas</span>
+            <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--c-muted);font-size:9px">▼</span>
+          </button>
+          <div id="inv-marca-panel" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--c-border);border-radius:6px;box-shadow:0 8px 20px rgba(0,0,0,0.12);z-index:100;padding:6px;margin-top:4px;max-height:280px;overflow-y:auto"></div>
+        </div>
       </label>
     </div>
 
@@ -5415,6 +5419,72 @@ HTML = r"""<!doctype html>
 <script>
 (function(){
   const DATA = JSON.parse(document.getElementById('data').textContent);
+
+  // ─── Helper: filtro Marca multi-select con dropdown checkboxes ─────────
+  // Se instala una vez por (btnId, panelId). Reusa el mismo state array.
+  // config: { btnId, panelId, allKeys, labelMap, state, onChange, allowNone=true }
+  // state debe ser un objeto con propiedad .marcas (array), que se mutará in-place.
+  window.installMultiMarcaFilter = function(cfg){
+    const btn = document.getElementById(cfg.btnId);
+    const panel = document.getElementById(cfg.panelId);
+    if(!btn || !panel) return;
+    if(panel.dataset._filled) return;
+    const allKeys = cfg.allKeys || [];
+    const labelMap = cfg.labelMap || {};
+    const label = (k)=> labelMap[k] || (DATA.brand_display?.[k] || String(k).replace('_ORGU',''));
+    // Header row + items
+    const rows = [
+      `<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:4px;font-weight:600;border-bottom:1px solid var(--c-border);margin-bottom:4px"><input type="checkbox" data-role="all" style="cursor:pointer"><span>Todas las marcas</span></label>`,
+      ...allKeys.map(k=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:4px"><input type="checkbox" data-role="one" value="${k}" style="cursor:pointer"><span>${label(k)}</span></label>`)
+    ];
+    panel.innerHTML = rows.join('');
+    panel.dataset._filled='1';
+    const labelSpan = btn.querySelector('span');
+    const refreshLabel = ()=>{
+      if(!labelSpan) return;
+      const n = (cfg.state.marcas||[]).length;
+      if(n === 0) labelSpan.textContent = 'Ninguna marca';
+      else if(n === allKeys.length) labelSpan.textContent = 'Todas las marcas';
+      else if(n === 1) labelSpan.textContent = label(cfg.state.marcas[0]);
+      else if(n <= 3) labelSpan.textContent = cfg.state.marcas.map(label).join(', ');
+      else labelSpan.textContent = n + ' marcas';
+    };
+    const syncCheckboxes = ()=>{
+      panel.querySelectorAll('input[data-role="one"]').forEach(chk=>{ chk.checked = (cfg.state.marcas||[]).includes(chk.value); });
+      const all = panel.querySelector('input[data-role="all"]');
+      if(all) all.checked = (cfg.state.marcas||[]).length === allKeys.length;
+      refreshLabel();
+    };
+    syncCheckboxes();
+    panel.querySelectorAll('input[data-role="one"]').forEach(chk=>{
+      chk.addEventListener('change', e=>{
+        e.stopPropagation();
+        const val = chk.value;
+        if(chk.checked && !cfg.state.marcas.includes(val)) cfg.state.marcas.push(val);
+        else if(!chk.checked) cfg.state.marcas = cfg.state.marcas.filter(x=>x!==val);
+        syncCheckboxes();
+        if(cfg.onChange) cfg.onChange();
+      });
+    });
+    const allChk = panel.querySelector('input[data-role="all"]');
+    if(allChk){
+      allChk.addEventListener('change', e=>{
+        e.stopPropagation();
+        cfg.state.marcas = allChk.checked ? allKeys.slice() : [];
+        syncCheckboxes();
+        if(cfg.onChange) cfg.onChange();
+      });
+    }
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
+    });
+    document.addEventListener('click', e=>{
+      if(!panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)){
+        panel.style.display = 'none';
+      }
+    });
+  };
 
   // ─── URL STATE · filtros compartibles via query params ─────────
   // Lee/escribe state en la URL sin reload para que las vistas sean
@@ -14573,17 +14643,49 @@ HTML = r"""<!doctype html>
   // =========================================================
   //   TAB META VENTAS · Ford · pivots modelo×mes y agencia×mes
   // =========================================================
-  const mvstate = { marca:'FORD', view:'modelo', zona:'', agencia:'', modelo:'', monthOverride:'' };
+  // Meta Ventas soporta multi-marca. mvstate.marcas = array. mvstate.marca (getter):
+  // 'FORD' si solo Ford, '__MULTI__' si varias, single key si solo una brand ORGU.
+  const MV_ALL_KEYS = (function(){
+    const brands = new Set(['FORD']);
+    Object.values(DATA.brand_meta_breakdown || {}).forEach(monthMap => Object.keys(monthMap).forEach(b => brands.add(b)));
+    return Array.from(brands);
+  })();
+  const mvstate = { marcas: MV_ALL_KEYS.slice(), view:'modelo', zona:'', agencia:'', modelo:'', monthOverride:'' };
+  Object.defineProperty(mvstate, 'marca', {
+    get(){
+      if(!this.marcas || !this.marcas.length) return '__NONE__';
+      if(this.marcas.length === 1) return this.marcas[0];
+      return '__MULTI__';
+    },
+    set(v){ this.marcas = [v]; }
+  });
 
   // Helper: meta breakdown source para la marca activa (Ford o brand ORGU).
   function mvMetaSource(){
-    if(mvstate.marca === 'FORD') return DATA.ford_meta_breakdown || {};
-    // brand_meta_breakdown shape: {mk: {brand_key: {modelo: {meta_ventas, por_agencia}}}}
-    const bmb = DATA.brand_meta_breakdown || {};
+    // Agregar sources de todas las marcas seleccionadas.
+    // shape: {mk: {modelo: {meta_ventas, por_agencia:{ag:{meta_ventas}}}}}
+    const marcas = mvstate.marcas || [];
     const out = {};
-    Object.keys(bmb).forEach(mk=>{
-      const brandMap = bmb[mk]?.[mvstate.marca];
-      if(brandMap) out[mk] = brandMap;
+    const addSrc = (src)=>{
+      Object.keys(src).forEach(mk=>{
+        if(!out[mk]) out[mk] = {};
+        Object.keys(src[mk]||{}).forEach(mod=>{
+          if(!out[mk][mod]) out[mk][mod] = {meta_ventas:0, por_agencia:{}};
+          const s = src[mk][mod];
+          out[mk][mod].meta_ventas += (s.meta_ventas||0);
+          Object.keys(s.por_agencia||{}).forEach(ag=>{
+            if(!out[mk][mod].por_agencia[ag]) out[mk][mod].por_agencia[ag] = {meta_ventas:0};
+            out[mk][mod].por_agencia[ag].meta_ventas += (s.por_agencia[ag].meta_ventas||0);
+          });
+        });
+      });
+    };
+    if(marcas.includes('FORD')) addSrc(DATA.ford_meta_breakdown || {});
+    const bmb = DATA.brand_meta_breakdown || {};
+    marcas.filter(m=>m!=='FORD').forEach(brand=>{
+      const src = {};
+      Object.keys(bmb).forEach(mk=>{ if(bmb[mk]?.[brand]) src[mk] = bmb[mk][brand]; });
+      addSrc(src);
     });
     return out;
   }
@@ -14628,20 +14730,7 @@ HTML = r"""<!doctype html>
   }
 
   function mvFillSelectors(){
-    // Marca: Ford + brands con meta breakdown disponible
-    const selMa = document.getElementById('mv-marca');
-    if(selMa && !selMa.dataset._filled){
-      const brands = ['FORD'];
-      const bmb = DATA.brand_meta_breakdown || {};
-      const brandSet = new Set();
-      Object.values(bmb).forEach(monthMap=> Object.keys(monthMap).forEach(b=>brandSet.add(b)));
-      [...brandSet].sort().forEach(b => brands.push(b));
-      selMa.innerHTML = brands.map(b=>{
-        const lbl = b === 'FORD' ? 'FORD' : (DATA.brand_display?.[b] || b.replace('_ORGU',''));
-        return `<option value="${b}">${lbl}</option>`;
-      }).join('');
-      selMa.dataset._filled='1';
-    }
+    // (Marca ya no es <select> — es dropdown multi-check inicializado en initMetaVentas)
     const selZ = document.getElementById('mv-zona');
     if(selZ){
       selZ.innerHTML = '<option value="">Todas</option>' +
@@ -14649,7 +14738,12 @@ HTML = r"""<!doctype html>
     }
     const selA = document.getElementById('mv-agencia');
     if(selA){
-      const ags = mvstate.marca === 'FORD' ? MV_FORD_AGS : mvAgenciasByMarca();
+      const ags = (function(){
+        const s = new Set();
+        if(mvstate.marcas.includes('FORD')) MV_FORD_AGS.forEach(a=>s.add(a));
+        if(mvstate.marcas.some(m=>m!=='FORD')) mvAgenciasByMarca().forEach(a=>s.add(a));
+        return [...s];
+      })();
       selA.innerHTML = '<option value="">Todas</option>' +
         ags.sort().map(a=>`<option value="${a}">${a}</option>`).join('');
     }
@@ -14719,49 +14813,48 @@ HTML = r"""<!doctype html>
     for(const p of PATS){ if(u.indexOf(p) >= 0){ return MAP[p] || p; } }
     return null;
   }
-  function mvFamilyForRow(modelo){
-    return mvstate.marca === 'FORD' ? mvModeloFamily(modelo) : mvModeloFamilyBrand(modelo);
+  function mvFamilyForRow(modelo, brandKey){
+    return brandKey === 'FORD' ? mvModeloFamily(modelo) : mvModeloFamilyBrand(modelo);
   }
   function mvRealForKey(dimKey, dimVal, ym){
-    const vmKey = mvstate.marca;
-    const brandV = (DATA.ventas_mensual||{})[vmKey] || {flat:[]};
     let total = 0;
-    brandV.flat.forEach(r=>{
-      if(r.mes !== ym) return;
-      if(dimKey === 'modelo'){
-        if(mvFamilyForRow(r.modelo) !== dimVal) return;
-        if(mvstate.agencia && r.agencia !== mvstate.agencia) return;
-        if(mvstate.zona && r.zona !== mvstate.zona) return;
-      } else {
-        if(r.agencia !== dimVal) return;
-        if(mvstate.modelo && mvFamilyForRow(r.modelo) !== mvstate.modelo) return;
-      }
-      total += r.cantidad;
+    (mvstate.marcas||[]).forEach(vmKey=>{
+      const brandV = (DATA.ventas_mensual||{})[vmKey] || {flat:[]};
+      brandV.flat.forEach(r=>{
+        if(r.mes !== ym) return;
+        if(dimKey === 'modelo'){
+          if(mvFamilyForRow(r.modelo, vmKey) !== dimVal) return;
+          if(mvstate.agencia && r.agencia !== mvstate.agencia) return;
+          if(mvstate.zona && r.zona !== mvstate.zona) return;
+        } else {
+          if(r.agencia !== dimVal) return;
+          if(mvstate.modelo && mvFamilyForRow(r.modelo, vmKey) !== mvstate.modelo) return;
+        }
+        total += r.cantidad;
+      });
     });
     return total;
   }
 
-  // Tráfico del mes (leads marketing) para dim × dimVal — cross con ventas para cierre %.
-  // Source: FORD_MONTHS[mk].matrix_cnt[modelo][agencia] (marketing-only).
+  // Tráfico del mes (leads marketing) — suma matrix_cnt de todas las marcas seleccionadas.
   function mvTrafficForKey(dimKey, dimVal, mk){
-    let fm;
-    if(mvstate.marca === 'FORD'){
-      fm = (DATA.ford_months||{})[mk];
-    } else {
-      fm = ((DATA.brands_months||{})[mk]||{})[mvstate.marca];
-    }
-    if(!fm) return 0;
-    const mc = fm.matrix_cnt || {};
     let total = 0;
-    if(dimKey === 'modelo'){
-      const mp = mc[dimVal] || {};
-      const targets = mvstate.agencia ? [mvstate.agencia]
-        : (mvstate.zona ? (MV_Z_AGS[mvstate.zona]||[]) : Object.keys(mp));
-      targets.forEach(a => { total += mp[a] || 0; });
-    } else {
-      const models = mvstate.modelo ? [mvstate.modelo] : Object.keys(mc);
-      models.forEach(m => { total += (mc[m]||{})[dimVal] || 0; });
-    }
+    (mvstate.marcas||[]).forEach(vmKey=>{
+      let fm;
+      if(vmKey === 'FORD') fm = (DATA.ford_months||{})[mk];
+      else fm = ((DATA.brands_months||{})[mk]||{})[vmKey];
+      if(!fm) return;
+      const mc = fm.matrix_cnt || {};
+      if(dimKey === 'modelo'){
+        const mp = mc[dimVal] || {};
+        const targets = mvstate.agencia ? [mvstate.agencia]
+          : (mvstate.zona ? (MV_Z_AGS[mvstate.zona]||[]) : Object.keys(mp));
+        targets.forEach(a => { total += mp[a] || 0; });
+      } else {
+        const models = mvstate.modelo ? [mvstate.modelo] : Object.keys(mc);
+        models.forEach(m => { total += (mc[m]||{})[dimVal] || 0; });
+      }
+    });
     return total;
   }
 
@@ -14868,12 +14961,15 @@ HTML = r"""<!doctype html>
     if(mvInited) return;
     mvInited = true;
     mvFillSelectors();
-    document.getElementById('mv-marca').addEventListener('change', e=>{
-      mvstate.marca = e.target.value;
-      mvstate.modelo = ''; mvstate.agencia = ''; mvstate.zona = ''; mvstate.monthOverride = '';
-      mvFillSelectors();
-      ['mv-month','mv-zona','mv-agencia','mv-modelo'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value=''; });
-      mvRenderTable();
+    installMultiMarcaFilter({
+      btnId:'mv-marca-btn', panelId:'mv-marca-panel', allKeys: MV_ALL_KEYS,
+      state: mvstate,
+      onChange: ()=>{
+        mvstate.modelo=''; mvstate.agencia=''; mvstate.zona=''; mvstate.monthOverride='';
+        mvFillSelectors();
+        ['mv-month','mv-zona','mv-agencia','mv-modelo'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+        mvRenderTable();
+      }
     });
     document.getElementById('mv-month').addEventListener('change', e=>{ mvstate.monthOverride = e.target.value; mvRenderTable(); });
     document.getElementById('mv-view').addEventListener('change', e=>{ mvstate.view = e.target.value; mvRenderTable(); });
@@ -14881,11 +14977,14 @@ HTML = r"""<!doctype html>
     document.getElementById('mv-agencia').addEventListener('change', e=>{ mvstate.agencia = e.target.value; mvRenderTable(); });
     document.getElementById('mv-modelo').addEventListener('change', e=>{ mvstate.modelo = e.target.value; mvRenderTable(); });
     document.getElementById('mv-reset').addEventListener('click', ()=>{
-      mvstate.marca='FORD'; mvstate.view='modelo'; mvstate.zona=''; mvstate.agencia=''; mvstate.modelo=''; mvstate.monthOverride='';
+      mvstate.marcas = MV_ALL_KEYS.slice();
+      mvstate.view='modelo'; mvstate.zona=''; mvstate.agencia=''; mvstate.modelo=''; mvstate.monthOverride='';
       mvFillSelectors();
-      ['mv-marca','mv-month','mv-view','mv-zona','mv-agencia','mv-modelo'].forEach(id=>{
+      const panel = document.getElementById('mv-marca-panel');
+      if(panel){ panel.dataset._filled=''; installMultiMarcaFilter({btnId:'mv-marca-btn', panelId:'mv-marca-panel', allKeys: MV_ALL_KEYS, state: mvstate, onChange: ()=>mvRenderTable()}); }
+      ['mv-month','mv-view','mv-zona','mv-agencia','mv-modelo'].forEach(id=>{
         const el = document.getElementById(id);
-        if(el) el.value = (id === 'mv-marca' ? 'FORD' : (id === 'mv-view' ? 'modelo' : ''));
+        if(el) el.value = (id === 'mv-view' ? 'modelo' : '');
       });
       mvRenderTable();
     });
@@ -14900,15 +14999,31 @@ HTML = r"""<!doctype html>
   // =========================================================
   const INV = DATA.inventario || null;
   const INV_AGENCIES = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo'];
-  const invstate = { marca: 'FORD', mes: DATA.default_month_key || 'mayo_2026', versionFilter: '', cobView: 'modelo' };
+  const INV_ALL_KEYS = INV && INV.brands ? Object.keys(INV.brands) : ['FORD','DONGFENG_ORGU','CHERY_ORGU','MAZDA_ORGU','RAM_ORGU'];
+  const invstate = { marcas: INV_ALL_KEYS.slice(), mes: DATA.default_month_key || 'mayo_2026', versionFilter: '', cobView: 'modelo' };
+  Object.defineProperty(invstate, 'marca', {
+    get(){ return (this.marcas && this.marcas.length) ? this.marcas[0] : 'FORD'; },
+    set(v){ this.marcas = [v]; }
+  });
+  // Merger brand data across selected marcas. Concat modelos entries (union).
+  function invBrandData(){
+    const brands = (invstate.marcas||[]).map(m => INV?.brands?.[m]).filter(Boolean);
+    if(!brands.length) return null;
+    if(brands.length === 1) return brands[0];
+    // Merge modelos across brands (assume no key collision — models are brand-specific)
+    const merged = {modelos: {}};
+    brands.forEach(b => Object.entries(b.modelos||{}).forEach(([k,v])=>{ merged.modelos[k] = v; }));
+    return merged;
+  }
   let invInited = false;
 
   function initInventario(){
     if(invInited || !INV) return;
     invInited = true;
-    document.getElementById('inv-marca').addEventListener('change', e=>{
-      invstate.marca = e.target.value;
-      renderInventario();
+    installMultiMarcaFilter({
+      btnId:'inv-marca-btn', panelId:'inv-marca-panel', allKeys: INV_ALL_KEYS,
+      state: invstate,
+      onChange: ()=>{ renderInventario(); }
     });
     // Toggle Modelo / Versión para tabla de cobertura
     document.querySelectorAll('.inv-cob-toggle-btn').forEach(btn => {
@@ -14968,7 +15083,7 @@ HTML = r"""<!doctype html>
 
   function renderInvHero(){
     if(!INV) return;
-    const bd = INV.brands?.[invstate.marca];
+    const bd = invBrandData();
     if(!bd){ return; }
     let disp=0, res=0, cola=0, pipe=0, colaSinVin=0;
     Object.values(bd.modelos).forEach(m=>{
@@ -15002,7 +15117,7 @@ HTML = r"""<!doctype html>
 
   function renderInvCobertura(){
     if(!INV) return;
-    const bd = INV.brands?.[invstate.marca];
+    const bd = invBrandData();
     if(!bd){ document.querySelector('#inv-tbl-cob tbody').innerHTML = '<tr><td colspan="10">Sin datos de inventario para esta marca.</td></tr>'; return; }
     const mesLbl = (MONTHS_CONFIG.find(c=>c.key===invstate.mes)?.label) || invstate.mes;
     const isVersion = invstate.cobView === 'version';
@@ -15138,7 +15253,7 @@ HTML = r"""<!doctype html>
   function renderInvVersiones(){
     if(!INV) return;
     const wrap = document.getElementById('inv-version-cards');
-    const bd = INV.brands?.[invstate.marca];
+    const bd = invBrandData();
     if(!bd){ wrap.innerHTML = '<div class="vc-empty">Sin datos para esta marca.</div>'; return; }
 
     // Modelos con cualquier tipo de reserva (con chasis o sin chasis)
@@ -15193,7 +15308,7 @@ HTML = r"""<!doctype html>
   let _invColaView = 'total';  // total | asig | noasig | split
   function renderInvColaPorAgencia(){
     if(!INV) return;
-    const bd = INV.brands?.[invstate.marca];
+    const bd = invBrandData();
     const head = document.querySelector('#inv-tbl-cola-agencia thead');
     const tbody = document.querySelector('#inv-tbl-cola-agencia tbody');
     if(!bd){
@@ -15417,7 +15532,7 @@ HTML = r"""<!doctype html>
 
   function renderInvMatrix(){
     if(!INV) return;
-    const bd = INV.brands?.[invstate.marca];
+    const bd = invBrandData();
     if(!bd) return;
     const modelos = Object.keys(bd.modelos);
     // Recoger todas las agencias que aparecen en disp_agencias o res_agencias
@@ -15457,7 +15572,7 @@ HTML = r"""<!doctype html>
 
   function renderInvAging(){
     if(!INV) return;
-    const bd = INV.brands?.[invstate.marca];
+    const bd = invBrandData();
     if(!bd) return;
     let a30=0, a60=0, a90=0, aOld=0, sinVin=0, colaTot=0;
     Object.values(bd.modelos).forEach(m=>{
@@ -15516,7 +15631,7 @@ HTML = r"""<!doctype html>
 
   function renderInvInsights(){
     if(!INV) return;
-    const bd = INV.brands?.[invstate.marca]; if(!bd) return;
+    const bd = invBrandData(); if(!bd) return;
     const insights = [];
     // 1. Modelos en déficit (basado en ventas mensuales)
     const deficits = Object.entries(bd.modelos).map(([m,d])=>{
