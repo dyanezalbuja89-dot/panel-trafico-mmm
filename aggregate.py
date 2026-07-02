@@ -443,6 +443,9 @@ MAR_FORD_METAS_FILE = BASE / "TRAFICO_DY/MAR_NUEVO_AI_FORD.xlsx"
 ABR_FORD_METAS_FILE = ABRIL_BASE / "TRAFICO_DY/ABR_NUEVO_AI_FORD.xlsx"
 MAY_FORD_METAS_FILE = BASE / "TRAFICO_DY/MAY_NUEVO_AI_FORD.xlsx"
 JUN_FORD_METAS_FILE = JUN_BASE / "TRAFICO_DY/JUNIO_NUEVO_AI_FORD.xlsx"
+JUL_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Julio")
+JUL_BRAND_METAS_FILE = JUL_BASE / "TRAFICO_DY/JULIO_NUEVO_AI_MARCAS.xlsx"
+JUL_FORD_METAS_FILE = JUL_BASE / "TRAFICO_DY/JULIO_NUEVO_AI_FORD.xlsx"
 
 # ---------------- SHORT NAMES ----------------
 SUCURSAL_TO_SHORT = {
@@ -1440,6 +1443,9 @@ MONTHS_CONFIG = [
      "prev_date": "28/06/2026",
      "ford_metas_file": str(JUN_FORD_METAS_FILE),
      "brand_metas_file": str(JUN_BRAND_METAS_FILE)},
+    {"key": "julio_2026", "label": "Julio 2026", "month": 7, "year": 2026, "cut_day": 31,
+     "ford_metas_file": str(JUL_FORD_METAS_FILE),
+     "brand_metas_file": str(JUL_BRAND_METAS_FILE)},
 ]
 
 def _marca_group(marca):
@@ -1466,6 +1472,8 @@ def _build_first_ym_index(months_config):
     """
     first_ym_by_id = {}
     for cfg in months_config:
+        if not cfg.get('curr_file'):
+            continue
         path = BASE / cfg['curr_file']
         try:
             df = load_raw(path)
@@ -1537,6 +1545,20 @@ def main():
     ford_meta_breakdown = {}  # {mk: {modelo: {meta_ventas, reservas_pre}}} para diagnóstico "cobertura por reservas"
     brand_meta_breakdown = {}  # {mk: {brand_key: {modelo: {meta_ventas, por_agencia}}}}
     for cfg in MONTHS_CONFIG:
+        # Meses sin BD de tráfico aún (ej. julio recién empezó): cargar solo metas
+        # y generar entradas mínimas para que aparezcan en Meta Ventas.
+        if not cfg.get("curr_file"):
+            if cfg.get("ford_metas_file"):
+                try:
+                    ford_meta_breakdown[cfg["key"]] = load_ford_meta_breakdown(cfg["ford_metas_file"])
+                except Exception as e:
+                    print(f'[metas] {cfg["key"]} ford breakdown fail: {e}')
+            if cfg.get("brand_metas_file"):
+                try:
+                    brand_meta_breakdown[cfg["key"]] = _parse_brand_meta_breakdown(cfg["brand_metas_file"])
+                except Exception as e:
+                    print(f'[metas] {cfg["key"]} brand breakdown fail: {e}')
+            continue
         curr_raw = load_raw(BASE / cfg["curr_file"])
         prev_raw = load_raw(BASE / cfg["prev_file"])
         # Si prev usa el mismo archivo acumulativo que curr, filtra prev a la fecha del corte anterior
@@ -1588,8 +1610,8 @@ def main():
                                  extra_non_working=extra_nw)
         brands_months[cfg["key"]] = bd
 
-    # Default = último mes (corte actual)
-    default_key = MONTHS_CONFIG[-1]["key"]
+    # Default = último mes con data de tráfico cargada (curr_file existente)
+    default_key = next((c["key"] for c in reversed(MONTHS_CONFIG) if c["key"] in ford_months), MONTHS_CONFIG[-1]["key"])
     ford = ford_months[default_key]
     brands_data = brands_months[default_key]
 
