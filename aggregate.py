@@ -23,9 +23,11 @@ def _parse_brand_meta_breakdown(file_path):
     El archivo lista total por marca seguido de sus modelos (Dong Feng total, Huge, Mage...).
     """
     try:
-        df = pd.read_excel(file_path, sheet_name='METAS_OM', header=1)
+        xl = pd.ExcelFile(file_path)
+        sheet = 'METAS_MARCAS' if 'METAS_MARCAS' in xl.sheet_names else 'METAS_OM'
+        df = pd.read_excel(file_path, sheet_name=sheet, header=1)
     except Exception as e:
-        print(f'[brand_meta_breakdown] WARN {file_path.name}: {e}')
+        print(f'[brand_meta_breakdown] WARN {file_path}: {e}')
         return {}
     AG_COLS = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo']
     # Mapping brand-header → brand_key (uppercase keyword search)
@@ -34,11 +36,13 @@ def _parse_brand_meta_breakdown(file_path):
         'MAZDA': 'MAZDA_ORGU', 'CHERY': 'CHERY_ORGU', 'RAM': 'RAM_ORGU',
     }
     # Mapping modelo → familia canónica (alineado con normalize_familia + ventas_mensual modeloKey)
+    # OJO: patrones más específicos PRIMERO (CX-30 antes que CX-3, RICH 7 antes que RICH)
     MODELO_FAM = {
         'HUGE':'HUGE','MAGE':'MAGE','PALADIN':'PALADIN',
         'RICH 6':'RICH 6','RICH 7':'RICH 7','Z9':'Z9',
-        'BT-50':'NEW BT-50','CX-3':'CX3','CX-30':'CX30','CX30':'CX30',
-        'CX-5':'CX5','CX-60':'CX60','CX60':'CX60','CX-90':'CX90','CX90':'CX90',
+        'BT-50':'NEW BT-50','BT50':'NEW BT-50',
+        'CX-30':'CX30','CX30':'CX30','CX-3':'CX3',
+        'CX-60':'CX60','CX60':'CX60','CX-90':'CX90','CX90':'CX90','CX-5':'CX5','CX5':'CX5',
         'ARRIZO':'ARRIZO','TIGGO 2':'TIGGO 2','TIGGO 4':'TIGGO 4',
         'TIGGO 7':'TIGGO 7','TIGGO 8':'TIGGO 8','HIMLA':'HIMLA',
         '1500':'RAM 1500','700':'RAM 700',
