@@ -3577,9 +3577,14 @@ HTML = r"""<!doctype html>
 
     <div class="filter-bar">
       <label>Marca
-        <select id="vt-marca">
-          <option value="FORD">FORD</option>
-        </select>
+        <div class="vt-marca-multi" style="position:relative;display:inline-block;min-width:180px">
+          <button type="button" id="vt-marca-btn" class="vt-marca-btn" style="width:100%;padding:8px 30px 8px 10px;background:#fff;border:1px solid var(--c-border);border-radius:6px;text-align:left;cursor:pointer;font-size:12px;position:relative">
+            <span id="vt-marca-label">Todas las marcas</span>
+            <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--c-muted);font-size:9px">▼</span>
+          </button>
+          <div id="vt-marca-panel" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--c-border);border-radius:6px;box-shadow:0 8px 20px rgba(0,0,0,0.12);z-index:100;padding:6px;margin-top:4px;max-height:280px;overflow-y:auto">
+          </div>
+        </div>
       </label>
       <label>Vista
         <select id="vt-view">
@@ -13739,7 +13744,23 @@ HTML = r"""<!doctype html>
   //              TAB VENTAS · NETOS MENSUALES
   // =========================================================
   const VENTAS_MENSUAL = DATA.ventas_mensual || {};
-  const vtstate = { marca:'FORD', view:'modelo', metric:'cantidad', modelo:'', agencia:'', zona:'', topN:'', sortKey:'_total', sortDir:'desc', expanded:new Set() };
+  // vtstate.marcas = array de marcas seleccionadas (default: todas). Vacío = ninguna.
+  const vtstate = { marcas: Object.keys(VENTAS_MENSUAL), view:'modelo', metric:'cantidad', modelo:'', agencia:'', zona:'', topN:'', sortKey:'_total', sortDir:'desc', expanded:new Set() };
+  // Alias legacy: vtstate.marca sigue leyéndose en algunos lugares (Meta Ventas Ford,
+  // filter-summary). Devuelve 'FORD' si solo Ford está seleccionado, '__MULTI__' si varias,
+  // primera marca si array de 1.
+  Object.defineProperty(vtstate, 'marca', {
+    get(){
+      if(!this.marcas || !this.marcas.length) return '__NONE__';
+      if(this.marcas.length === 1) return this.marcas[0];
+      if(this.marcas.length === Object.keys(VENTAS_MENSUAL).length) return '__ALL__';
+      return '__MULTI__';
+    },
+    set(v){
+      if(v === '__ALL__') this.marcas = Object.keys(VENTAS_MENSUAL);
+      else this.marcas = [v];
+    }
+  });
 
   // Helper formato $ y unidades.
   function vtFmtVal(v){
@@ -13800,54 +13821,103 @@ HTML = r"""<!doctype html>
   }
   let vtInited = false;
 
-  // Merge de todas las marcas en un pseudo-brand-data para filtro "Todas".
-  let _vtAllMerged = null;
-  function vtBrandDataAll(){
-    if(_vtAllMerged) return _vtAllMerged;
-    const brands = Object.values(VENTAS_MENSUAL);
-    if(!brands.length){ _vtAllMerged = {flat:[], months:[], months_labels:[], by_modelo:{}, by_agencia:{}, totals:{_total:0}}; return _vtAllMerged; }
+  // Merge de N marcas en pseudo-brand-data. Cache por conjunto activo.
+  const _vtMergedCache = new Map();
+  function vtBrandData(){
+    const marcas = (vtstate.marcas || []).slice().sort();
+    if(!marcas.length) return {flat:[], months:[], months_labels:[], by_modelo:{}, by_agencia:{}, totals:{_total:0}};
+    if(marcas.length === 1) return VENTAS_MENSUAL[marcas[0]] || null;
+    const key = marcas.join('|');
+    if(_vtMergedCache.has(key)) return _vtMergedCache.get(key);
+    const brands = marcas.map(m => VENTAS_MENSUAL[m]).filter(Boolean);
     const flat = brands.flatMap(b => b.flat || []);
-    // Union de meses
     const mesesSet = new Set();
     brands.forEach(b => (b.months||[]).forEach(m=>mesesSet.add(m)));
     const months = Array.from(mesesSet).sort();
-    // Reusa labels del primer brand que tenga (todos deberían coincidir por mes)
     const labelsMap = {};
     brands.forEach(b => (b.months||[]).forEach((m,i)=>{ if(!labelsMap[m]) labelsMap[m] = (b.months_labels||[])[i] || m; }));
     const months_labels = months.map(m => labelsMap[m] || m);
-    // by_modelo / by_agencia: union de keys
     const by_modelo = {}; const by_agencia = {};
     brands.forEach(b=>{
       Object.keys(b.by_modelo||{}).forEach(k=>{ by_modelo[k] = true; });
       Object.keys(b.by_agencia||{}).forEach(k=>{ by_agencia[k] = true; });
     });
-    _vtAllMerged = {flat, months, months_labels, by_modelo, by_agencia, totals:{_total:0}};
-    return _vtAllMerged;
-  }
-  function vtBrandData(){
-    if(vtstate.marca === '__ALL__') return vtBrandDataAll();
-    return VENTAS_MENSUAL[vtstate.marca] || null;
+    const merged = {flat, months, months_labels, by_modelo, by_agencia, totals:{_total:0}};
+    _vtMergedCache.set(key, merged);
+    return merged;
   }
 
-  function vtFillMarca(){
-    const sel = document.getElementById('vt-marca');
-    if(!sel || sel.dataset._filled) return;
-    sel.innerHTML = '';
+  function vtMarcaLabel(k){ return DATA.brand_display?.[k] || k.replace('_ORGU',''); }
+  function vtRefreshMarcaLabel(){
+    const lbl = document.getElementById('vt-marca-label');
+    if(!lbl) return;
     const keys = Object.keys(VENTAS_MENSUAL);
-    // Ford primero, brands ORGU, luego "Todas las marcas".
+    const n = vtstate.marcas.length;
+    if(n === 0) lbl.textContent = 'Ninguna marca';
+    else if(n === keys.length) lbl.textContent = 'Todas las marcas';
+    else if(n === 1) lbl.textContent = vtMarcaLabel(vtstate.marcas[0]);
+    else if(n <= 3) lbl.textContent = vtstate.marcas.map(vtMarcaLabel).join(', ');
+    else lbl.textContent = n + ' marcas';
+  }
+  function vtFillMarca(){
+    const panel = document.getElementById('vt-marca-panel');
+    if(!panel || panel.dataset._filled) { vtRefreshMarcaLabel(); return; }
+    const keys = Object.keys(VENTAS_MENSUAL);
     const ordered = keys.includes('FORD') ? ['FORD', ...keys.filter(k=>k!=='FORD')] : keys;
-    ordered.forEach(k=>{
-      const o = document.createElement('option');
-      o.value = k;
-      o.textContent = DATA.brand_display?.[k] || k.replace('_ORGU','');
-      sel.appendChild(o);
+    // "Todas" toggle + separator + marca items
+    const rows = [
+      `<label class="vt-marca-row" data-all="1" style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:4px;font-weight:600;border-bottom:1px solid var(--c-border);margin-bottom:4px"><input type="checkbox" id="vt-marca-all" style="cursor:pointer"><span>Todas las marcas</span></label>`,
+      ...ordered.map(k => `<label class="vt-marca-row" data-key="${k}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:4px"><input type="checkbox" class="vt-marca-chk" value="${k}" style="cursor:pointer"><span>${vtMarcaLabel(k)}</span></label>`)
+    ];
+    panel.innerHTML = rows.join('');
+    panel.dataset._filled = '1';
+    // Sync checked state con vtstate.marcas
+    const syncCheckboxes = ()=>{
+      panel.querySelectorAll('.vt-marca-chk').forEach(chk=>{ chk.checked = vtstate.marcas.includes(chk.value); });
+      const all = document.getElementById('vt-marca-all');
+      if(all) all.checked = vtstate.marcas.length === ordered.length;
+      vtRefreshMarcaLabel();
+    };
+    syncCheckboxes();
+    panel.querySelectorAll('.vt-marca-chk').forEach(chk=>{
+      chk.addEventListener('change', e=>{
+        e.stopPropagation();
+        const val = chk.value;
+        if(chk.checked && !vtstate.marcas.includes(val)) vtstate.marcas.push(val);
+        else if(!chk.checked) vtstate.marcas = vtstate.marcas.filter(x=>x!==val);
+        // Reset campos derivados si marca cambia el pool
+        vtstate.modelo = ''; vtstate.agencia = ''; vtstate.zona = ''; vtstate.expanded.clear();
+        syncCheckboxes();
+        vtFillZona(); vtFillAgencia(); vtFillModelo();
+        vtRenderAll();
+      });
     });
-    const oAll = document.createElement('option');
-    oAll.value = '__ALL__';
-    oAll.textContent = 'Todas las marcas';
-    sel.appendChild(oAll);
-    sel.value = vtstate.marca;
-    sel.dataset._filled = '1';
+    const allChk = document.getElementById('vt-marca-all');
+    if(allChk){
+      allChk.addEventListener('change', e=>{
+        e.stopPropagation();
+        vtstate.marcas = allChk.checked ? ordered.slice() : [];
+        vtstate.modelo = ''; vtstate.agencia = ''; vtstate.zona = ''; vtstate.expanded.clear();
+        syncCheckboxes();
+        vtFillZona(); vtFillAgencia(); vtFillModelo();
+        vtRenderAll();
+      });
+    }
+    // Button open/close
+    const btn = document.getElementById('vt-marca-btn');
+    if(btn){
+      btn.addEventListener('click', e=>{
+        e.stopPropagation();
+        panel.style.display = (panel.style.display === 'none' || !panel.style.display) ? 'block' : 'none';
+      });
+    }
+    // Click fuera cierra
+    document.addEventListener('click', e=>{
+      if(!panel.contains(e.target) && e.target !== btn){
+        panel.style.display = 'none';
+      }
+    });
+    vtRefreshMarcaLabel();
   }
 
   function vtFillModelo(){
@@ -14458,12 +14528,7 @@ HTML = r"""<!doctype html>
     vtFillZona();
     vtFillAgencia();
     vtFillModelo();
-    document.getElementById('vt-marca').addEventListener('change', e=>{
-      vtstate.marca = e.target.value;
-      vtstate.modelo = ''; vtstate.agencia = ''; vtstate.zona = ''; vtstate.expanded.clear();
-      vtFillZona(); vtFillAgencia(); vtFillModelo();
-      vtRenderAll();
-    });
+    // (marca handler ahora vive dentro de vtFillMarca — dropdown multi-check)
     document.getElementById('vt-view').addEventListener('change', e=>{
       vtstate.view = e.target.value; vtRenderAll();
     });
@@ -14484,14 +14549,18 @@ HTML = r"""<!doctype html>
     });
     document.getElementById('vt-export').addEventListener('click', vtExportCSV);
     document.getElementById('vt-reset').addEventListener('click', ()=>{
-      vtstate.marca = 'FORD'; vtstate.view = 'modelo'; vtstate.metric='cantidad';
+      vtstate.marcas = Object.keys(VENTAS_MENSUAL);
+      vtstate.view = 'modelo'; vtstate.metric='cantidad';
       vtstate.modelo = ''; vtstate.agencia = ''; vtstate.zona = '';
       vtstate.topN = ''; vtstate.sortKey = '_total'; vtstate.sortDir = 'desc';
       vtstate.expanded.clear();
-      ['vt-marca','vt-view','vt-metric','vt-zona','vt-agencia','vt-modelo','vt-topn'].forEach(id=>{
+      ['vt-view','vt-metric','vt-zona','vt-agencia','vt-modelo','vt-topn'].forEach(id=>{
         const el = document.getElementById(id);
-        if(el) el.value = id === 'vt-marca' ? 'FORD' : (id === 'vt-view' ? 'modelo' : (id === 'vt-metric' ? 'cantidad' : ''));
+        if(el) el.value = (id === 'vt-view' ? 'modelo' : (id === 'vt-metric' ? 'cantidad' : ''));
       });
+      // Repaint checkboxes de marca
+      const panel = document.getElementById('vt-marca-panel');
+      if(panel){ panel.dataset._filled = ''; vtFillMarca(); }
       vtFillZona(); vtFillAgencia(); vtFillModelo();
       vtRenderAll();
     });
