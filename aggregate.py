@@ -712,9 +712,13 @@ def get_dealer_df(df, dealer):
 
 # Mapeo modelo específico del Excel METAS_FORD → modelo del panel
 FORD_META_MODEL_MAP = {
+    'Territory Trend FHEV':           'TERRITORY',
     'Territory Titanium FHEV':        'TERRITORY',
+    'Territory Titanium Plus FHEV':   'TERRITORY',
     'Escape Titanium 1.5 GAS':        'ESCAPE',
     'Escape ST':                      'ESCAPE',
+    'Escape Titanium':                'ESCAPE',
+    'Escape Platinum':                'ESCAPE',
     'Everest Active':                 'EVEREST',
     'Explorer Active':                'EXPLORER',
     'Explorer Platinum':              'EXPLORER',
