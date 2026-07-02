@@ -1599,17 +1599,34 @@ def main():
                     # Metas de tráfico Ford para mes sin BD aún
                     tot_traf, mat_meta, per_ag_meta = _extract_traffic_meta_from_metas_ford(cfg["ford_metas_file"])
                     if tot_traf > 0:
+                        try:
+                            import calendar as _cal
+                            _y, _m = cfg["year"], cfg["month"]
+                            _days_in_month = _cal.monthrange(_y, _m)[1]
+                            _dl = sum(1 for d in range(1, _days_in_month+1)
+                                      if _cal.weekday(_y, _m, d) < 5)
+                        except Exception: _dl = 26
+                        AGS = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo']
                         ford_months[cfg["key"]] = {
-                            "cut_date": None, "prev_date": None, "days_lab": None,
-                            "total_curr": 0, "meta_total": tot_traf,
-                            "matrix_meta": mat_meta, "matrix_cnt": {}, "matrix_pct": {},
-                            "models": [], "dealers": [], "zones": [],
+                            "cut_date": None, "prev_date": None,
+                            "days_lab": _dl, "days_trans": 0,
+                            "total_curr": 0, "total_prev": 0, "delta_total": 0,
+                            "meta_total": tot_traf,
+                            "matrix_meta": mat_meta,
+                            "matrix_cnt": {m: {a: 0 for a in AGS} for m in MODEL_ORDER},
+                            "matrix_pct": {m: {a: 0 for a in AGS} for m in MODEL_ORDER},
+                            "models": {m: {"curr": 0, "prev": 0, "meta": sum(mat_meta.get(m,{}).values())} for m in MODEL_ORDER},
+                            "model_order": list(MODEL_ORDER),
+                            "dealers": {a: {"curr": 0, "prev": 0, "meta": per_ag_meta.get(a,0)} for a in AGS},
+                            "dealer_order": AGS,
+                            "zones": {},
                             "dominant_channel": None, "channel_pct": 0,
                             "avance_pct": 0, "velocity": 0, "projection_total": 0,
                             "at_risk_models": [], "at_risk_agencies": [],
                             "movements": [], "daily": {}, "daily_breakdown": {},
                             "daily_dealer_channel": {}, "dealer_model_channel": {},
                             "_traffic_meta_per_agencia": per_ag_meta,
+                            "_pending_bd": True,
                         }
                         print(f'[metas] {cfg["key"]} tráfico Ford meta cargada: {tot_traf} uds')
                 except Exception as e:
