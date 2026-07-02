@@ -785,6 +785,43 @@ def load_ford_meta_breakdown(path):
     read_section(h_reser,  'reservas_pre')
     return out
 
+def _extract_traffic_meta_from_metas_ford(path):
+    """Extrae la sección 'TRÁFICO POR CONCESIONARIO' de METAS_FORD.
+    Devuelve (meta_total, matrix_meta {modelo: {agencia: meta_trafico}}, per_agencia).
+    """
+    try:
+        df = pd.read_excel(path, sheet_name='METAS_FORD', header=None)
+    except Exception:
+        return 0, {}, {}
+    AGENCIAS_ORDER = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo']
+    # Find TRÁFICO POR CONCESIONARIO header
+    h = None
+    for i in range(min(200, len(df))):
+        v = df.iloc[i, 0]
+        if isinstance(v, str) and 'TRÁFICO POR CONCESIONARIO' in v.upper() and 'MARKETING' not in v.upper():
+            h = i; break
+    if h is None: return 0, {}, {}
+    total = 0
+    matrix_meta = {m: {a: 0 for a in AGENCIAS_ORDER} for m in MODEL_ORDER}
+    per_ag = {a: 0 for a in AGENCIAS_ORDER}
+    for i in range(h+2, min(h+30, len(df))):
+        label = df.iloc[i, 0]
+        if pd.isna(label): continue
+        label = str(label).strip()
+        if label.upper() == 'TOTAL': break
+        modelo = FORD_META_MODEL_MAP.get(label)
+        if not modelo or modelo not in MODEL_ORDER: continue
+        for ag_idx, ag in enumerate(AGENCIAS_ORDER, start=2):
+            v = df.iloc[i, ag_idx]
+            if pd.notna(v):
+                try:
+                    iv = int(round(float(v)))
+                    matrix_meta[modelo][ag] += iv
+                    per_ag[ag] += iv
+                    total += iv
+                except (ValueError, TypeError): pass
+    return total, matrix_meta, per_ag
+
 def load_ford_metas(path):
     """Load per-agency Ford metas from a workbook with sheets CJA/Orellana/LA Y/Tumbaco/Manta/Machala/Portoviejo.
     Sólo escanea el bloque inicial "CUMPLIMIENTO POR MODELO" (header 'Meta Mensual' en col[1]).
@@ -1559,6 +1596,22 @@ def main():
             if cfg.get("ford_metas_file"):
                 try:
                     ford_meta_breakdown[cfg["key"]] = load_ford_meta_breakdown(cfg["ford_metas_file"])
+                    # Metas de tráfico Ford para mes sin BD aún
+                    tot_traf, mat_meta, per_ag_meta = _extract_traffic_meta_from_metas_ford(cfg["ford_metas_file"])
+                    if tot_traf > 0:
+                        ford_months[cfg["key"]] = {
+                            "cut_date": None, "prev_date": None, "days_lab": None,
+                            "total_curr": 0, "meta_total": tot_traf,
+                            "matrix_meta": mat_meta, "matrix_cnt": {}, "matrix_pct": {},
+                            "models": [], "dealers": [], "zones": [],
+                            "dominant_channel": None, "channel_pct": 0,
+                            "avance_pct": 0, "velocity": 0, "projection_total": 0,
+                            "at_risk_models": [], "at_risk_agencies": [],
+                            "movements": [], "daily": {}, "daily_breakdown": {},
+                            "daily_dealer_channel": {}, "dealer_model_channel": {},
+                            "_traffic_meta_per_agencia": per_ag_meta,
+                        }
+                        print(f'[metas] {cfg["key"]} tráfico Ford meta cargada: {tot_traf} uds')
                 except Exception as e:
                     print(f'[metas] {cfg["key"]} ford breakdown fail: {e}')
             if cfg.get("brand_metas_file"):
@@ -1618,8 +1671,11 @@ def main():
                                  extra_non_working=extra_nw)
         brands_months[cfg["key"]] = bd
 
-    # Default = último mes con data de tráfico cargada (curr_file existente)
-    default_key = next((c["key"] for c in reversed(MONTHS_CONFIG) if c["key"] in ford_months), MONTHS_CONFIG[-1]["key"])
+    # Default = último mes con BD de tráfico completa (que tenga curr_file cargado
+    # y por tanto brands_months también). Evita entries "solo meta" (julio pending).
+    default_key = next((c["key"] for c in reversed(MONTHS_CONFIG)
+                        if c["key"] in ford_months and c["key"] in brands_months and c.get("curr_file")),
+                       MONTHS_CONFIG[-1]["key"])
     ford = ford_months[default_key]
     brands_data = brands_months[default_key]
 
