@@ -1628,6 +1628,8 @@ def main():
              'is_current': (datetime.now().year == c['year'] and datetime.now().month == c['month'])}
             for c in MONTHS_CONFIG
         ]) if DEFAULT_INVENTORY_PATH.exists() else None),
+        # Arribos supply-chain (ETD/ETA/FACT) — data de embarques futuros y históricos.
+        "arribos": (lambda: (__import__('arribos').load_arribos()))(),
         # Análisis competitivo de importaciones Ford: ORGU vs QM
         "competencia_data": compute_competencia_data(),
         # Embudo (funnel) de ventas por modelo y concesionario (CJA por ahora)

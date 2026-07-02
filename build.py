@@ -2837,7 +2837,7 @@ HTML = r"""<!doctype html>
   <div class="sidebar-section-label">Operación</div>
   <button class="tab-btn" data-tab="inv" title="Inventario Orgu">
     <svg class="tab-icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-    <span class="tab-label">Inventario</span>
+    <span class="tab-label">Inventario y Supply</span>
   </button>
   <button class="tab-btn" data-tab="xiy" title="Inversión Digital">
     <svg class="tab-icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -2878,7 +2878,7 @@ HTML = r"""<!doctype html>
           <option value="ventas">💵 Ventas Históricas</option>
         </optgroup>
         <optgroup label="Operación">
-          <option value="inv">📦 Inventario</option>
+          <option value="inv">📦 Inventario y Supply</option>
           <option value="xiy">💰 Inversión Digital</option>
           <option value="comp-imp">⚔️ Competencia</option>
         </optgroup>
@@ -3747,8 +3747,8 @@ HTML = r"""<!doctype html>
   <section id="tab-inv" class="tab-panel">
     <div class="otros-header theme-inv">
       <div>
-        <h2>📦 Inventario · Oferta vs Demanda</h2>
-        <div class="sub" id="inv-sub">Cobertura por modelo, reservas en cola y pipeline · snapshot del archivo</div>
+        <h2>📦 Inventario y Supply</h2>
+        <div class="sub" id="inv-sub">Cobertura oferta vs demanda + arribos programados · snapshot del archivo</div>
       </div>
     </div>
 
@@ -3942,6 +3942,34 @@ HTML = r"""<!doctype html>
             <th>Modalidad</th>
             <th>VIN</th>
           </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ARRIBOS · Supply chain -->
+    <div class="ford-section" id="inv-arribos-section" style="margin-top:18px;display:none">
+      <h3>🚢 Arribos & Supply Chain <span class="sub" id="inv-arribos-sub">embarques futuros con ETA · fuente: ARRIBOS.xlsx</span></h3>
+      <!-- KPIs supply -->
+      <div class="stat-hero" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:12px 0">
+        <div class="card-big"><div class="lbl">Próximos arribos</div><div class="val" id="inv-arr-k-total">—</div><div class="hint" id="inv-arr-k-total-hint">unidades en tránsito</div></div>
+        <div class="card-big"><div class="lbl">Embarques</div><div class="val" id="inv-arr-k-count">—</div><div class="hint">grupos únicos</div></div>
+        <div class="card-big"><div class="lbl">Puerto principal</div><div class="val" id="inv-arr-k-puerto">—</div><div class="hint" id="inv-arr-k-puerto-hint"></div></div>
+        <div class="card-big"><div class="lbl">Próximo ETA</div><div class="val" id="inv-arr-k-next">—</div><div class="hint" id="inv-arr-k-next-hint"></div></div>
+      </div>
+      <!-- Timeline mes × marca -->
+      <div style="overflow-x:auto;margin-top:10px">
+        <h4 style="margin:6px 0 4px 0;font-size:13px;color:var(--c-muted)">📅 Timeline por mes × marca</h4>
+        <table class="analysis" id="inv-arr-timeline">
+          <thead><tr><th>Mes ETA</th><th>Marca</th><th class="num">Unidades</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <!-- Detalle embarques -->
+      <div style="overflow-x:auto;margin-top:14px">
+        <h4 style="margin:6px 0 4px 0;font-size:13px;color:var(--c-muted)">📋 Detalle embarques próximos</h4>
+        <table class="analysis" id="inv-arr-detail">
+          <thead><tr><th>Marca</th><th>Modelo</th><th class="num">Uds</th><th>Puerto</th><th class="num">ETD</th><th class="num">ETA</th><th class="num">Facturación</th><th>Obs</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -15694,7 +15722,62 @@ HTML = r"""<!doctype html>
     renderInvWaitTimes();
     renderInvMatrix();
     renderInvAging();
+    renderInvArribos();
     renderInvInsights();
+  }
+
+  // ─── ARRIBOS / SUPPLY CHAIN ───────────────────────────
+  function renderInvArribos(){
+    const A = DATA.arribos;
+    const section = document.getElementById('inv-arribos-section');
+    if(!section) return;
+    if(!A || !A.available){ section.style.display = 'none'; return; }
+    section.style.display = '';
+    // Filter por marcas seleccionadas (invstate.marcas)
+    const activeMarcas = new Set(invstate.marcas || []);
+    const filterFn = r => activeMarcas.size === 0 || activeMarcas.has(r.marca);
+    const futuros = (A.futuros || []).filter(filterFn);
+    const byMes = (A.por_mes_marca_futuros || []).filter(filterFn);
+    const puertos = A.por_puerto_futuros || [];
+    // KPIs
+    const totalUds = futuros.reduce((s,r)=> s + (r.retail||0), 0);
+    document.getElementById('inv-arr-k-total').textContent = totalUds;
+    document.getElementById('inv-arr-k-count').textContent = futuros.length;
+    const topP = puertos[0];
+    document.getElementById('inv-arr-k-puerto').textContent = topP ? topP.puerto : '—';
+    document.getElementById('inv-arr-k-puerto-hint').textContent = topP ? (topP.unidades + ' uds') : '';
+    if(futuros.length){
+      const next = futuros[0];
+      document.getElementById('inv-arr-k-next').textContent = next.eta;
+      document.getElementById('inv-arr-k-next-hint').textContent = next.modelo.slice(0, 35);
+    } else {
+      document.getElementById('inv-arr-k-next').textContent = '—';
+      document.getElementById('inv-arr-k-next-hint').textContent = 'sin embarques pendientes';
+    }
+    // Timeline table
+    const tbT = document.querySelector('#inv-arr-timeline tbody');
+    const MES_LBL = {'01':'Ene','02':'Feb','03':'Mar','04':'Abr','05':'May','06':'Jun','07':'Jul','08':'Ago','09':'Sep','10':'Oct','11':'Nov','12':'Dic'};
+    const brandLbl = k => k === 'FORD' ? 'FORD' : (DATA.brand_display?.[k] || k.replace('_ORGU',''));
+    tbT.innerHTML = byMes.map(r=>{
+      const [y,m] = r.ym.split('-');
+      return `<tr><td>${MES_LBL[m]||m} ${y}</td><td>${brandLbl(r.marca)}</td><td class="num"><strong>${r.unidades}</strong></td></tr>`;
+    }).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--c-muted)">Sin arribos futuros para las marcas seleccionadas</td></tr>';
+    // Detail table
+    const tbD = document.querySelector('#inv-arr-detail tbody');
+    tbD.innerHTML = futuros.slice(0, 30).map(r=>{
+      const obs = (r.observaciones || '').slice(0, 80);
+      return `<tr>
+        <td>${brandLbl(r.marca)}</td>
+        <td>${r.modelo}</td>
+        <td class="num"><strong>${r.retail}</strong></td>
+        <td>${r.puerto || '—'}</td>
+        <td class="num">${r.etd || '—'}</td>
+        <td class="num"><strong>${r.eta}</strong></td>
+        <td class="num">${r.facturacion || '—'}</td>
+        <td style="font-size:10px;color:var(--c-muted)">${obs}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--c-muted)">Sin embarques</td></tr>';
+    document.getElementById('inv-arribos-sub').textContent = `snapshot ${A.snapshot_date} · ${totalUds} uds próximas`;
   }
 
   // Hook tab switch
