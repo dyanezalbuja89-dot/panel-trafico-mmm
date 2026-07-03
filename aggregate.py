@@ -1682,6 +1682,12 @@ def main():
                                                   extra_non_working=cfg.get("extra_non_working_days"))
                         except Exception: _dl = 26
                         AGS = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo']
+                        ZONE_TO_AGS = {'Quito':['La Y','Tumbaco'],'Guayaquil':['CJA','Orellana'],'Manta':['Manta','Portoviejo'],'Machala':['Machala']}
+                        _zones_dict = {}
+                        for _z, _ags_z in ZONE_TO_AGS.items():
+                            _zones_dict[_z] = {"curr": 0, "prev": 0,
+                                                "meta": sum(per_ag_meta.get(a,0) for a in _ags_z),
+                                                "dealers": list(_ags_z)}
                         ford_months[cfg["key"]] = {
                             "cut_date": None, "prev_date": None,
                             "days_lab": _dl, "days_trans": 0,
@@ -1690,11 +1696,15 @@ def main():
                             "matrix_meta": mat_meta,
                             "matrix_cnt": {m: {a: 0 for a in AGS} for m in MODEL_ORDER},
                             "matrix_pct": {m: {a: 0 for a in AGS} for m in MODEL_ORDER},
-                            "models": {m: {"curr": 0, "prev": 0, "meta": sum(mat_meta.get(m,{}).values())} for m in MODEL_ORDER},
+                            "models": {m: {"curr": 0, "prev": 0, "meta": sum(mat_meta.get(m,{}).values()),
+                                            "delta": 0, "projection": 0, "velocity": 0, "cumpl_proj": 0,
+                                            "byDealer": {a: 0 for a in AGS}} for m in MODEL_ORDER},
                             "model_order": list(MODEL_ORDER),
-                            "dealers": {a: {"curr": 0, "prev": 0, "meta": per_ag_meta.get(a,0)} for a in AGS},
+                            "dealers": {a: {"curr": 0, "prev": 0, "meta": per_ag_meta.get(a,0),
+                                            "delta": 0, "projection": 0, "velocity": 0, "cumpl_proj": 0} for a in AGS},
                             "dealer_order": AGS,
-                            "zones": {},
+                            "zones": _zones_dict,
+                            "zone_order": list(ZONE_TO_AGS.keys()),
                             "dominant_channel": None, "channel_pct": 0,
                             "avance_pct": 0, "velocity": 0, "projection_total": 0,
                             "at_risk_models": [], "at_risk_agencies": [],
