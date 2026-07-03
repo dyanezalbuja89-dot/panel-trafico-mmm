@@ -4626,23 +4626,21 @@ HTML = r"""<!doctype html>
         position: relative;
       }
       .cc26-stage-bar {
-        height: 100%; border-radius: 6px; position: relative;
-        display: flex; align-items: center; justify-content: flex-end;
-        padding-right: 8px; transition: width .35s ease; min-width: 4px;
+        height: 100%; border-radius: 6px;
+        display: flex; align-items: stretch; overflow: hidden;
+        transition: width .35s ease; min-width: 4px;
       }
       @media (prefers-reduced-motion: reduce) { .cc26-stage-bar { transition: none; } }
-      .cc26-stage-bar span {
-        font-size: 10px; font-weight: 700; color: #fff;
-        white-space: nowrap; position: relative; z-index: 1;
+      /* Segmentos del bar: verde = "este mes", ámbar (.arr) = "de otro mes"; cada uno con SU número */
+      .cc26-stage-seg {
+        display: flex; align-items: center; justify-content: center;
+        height: 100%; min-width: 0; overflow: hidden;
       }
-      /* Segmento "de otro mes" (arrastre): color ÁMBAR sólido (contrasta con el verde), a la derecha */
-      .cc26-bar-arr {
-        position: absolute; top: 0; bottom: 0; right: 0; z-index: 0;
-        border-left: 2px solid #fff;
-        background: #E8862B;
+      .cc26-stage-seg.arr { background: #E8862B; border-left: 2px solid #fff; }
+      .cc26-num {
+        font-size: 10px; font-weight: 700; color: #fff; white-space: nowrap;
+        padding: 0 3px; text-shadow: 0 1px 2px rgba(0,0,0,.45);
       }
-      /* el número del valor se lee sobre verde Y sobre ámbar gracias a la sombra */
-      .cc26-stage-bar span { text-shadow: 0 1px 2px rgba(0,0,0,.45); }
       /* Caption por etapa: "N de otro mes · X%" alineado a la derecha del nombre (ámbar oscuro, legible en blanco) */
       .cc26-stage-arr {
         font-size: 9px; font-weight: 700; color: #B45309;
@@ -10944,20 +10942,23 @@ HTML = r"""<!doctype html>
     function stage(name, val, widthPct, color, arr) {
       const w = Math.max(widthPct, 2);
       arr = arr || 0;
-      let arrSeg = '', cap = '';
+      const este = Math.max(val - arr, 0);   // "este mes" = total - arrastre
+      let cap = '', segs;
       if (arr > 0 && val > 0) {
-        const arrPct = Math.min(100, Math.round(100 * arr / val));   // % del ancho de ESTA barra
-        arrSeg = `<div class="cc26-bar-arr" style="width:${arrPct}%"></div>`;
+        const arrPct = Math.min(100, Math.round(100 * arr / val));
         cap = `<span class="cc26-stage-arr">${_cc26Fmt(arr)} de otro mes · ${arrPct}%</span>`;
+        // dos segmentos flex ∝ conteo: verde=este mes, ámbar=de otro mes; cada uno con SU número
+        segs = `<div class="cc26-stage-seg" style="flex:${este}">${este > 0 ? `<span class="cc26-num">${_cc26Fmt(este)}</span>` : ''}</div>`
+             + `<div class="cc26-stage-seg arr" style="flex:${arr}"><span class="cc26-num">${_cc26Fmt(arr)}</span></div>`;
+      } else {
+        segs = `<div class="cc26-stage-seg" style="flex:1"><span class="cc26-num">${_cc26Fmt(val)}</span></div>`;
       }
       return `<div class="cc26-stage">
         <div class="cc26-stage-name" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
           <span>${name}</span>${cap}
         </div>
         <div class="cc26-stage-bar-wrap">
-          <div class="cc26-stage-bar" style="width:${w}%;background:${color}">
-            ${arrSeg}<span>${_cc26Fmt(val)}</span>
-          </div>
+          <div class="cc26-stage-bar" style="width:${w}%;background:${color}">${segs}</div>
         </div>
       </div>`;
     }
@@ -11927,20 +11928,22 @@ HTML = r"""<!doctype html>
     function stage(name, val, widthPct, color, arr) {
       const w = Math.max(widthPct, 2);
       arr = arr || 0;
-      let arrSeg = '', cap = '';
+      const este = Math.max(val - arr, 0);   // "este mes" = total - arrastre
+      let cap = '', segs;
       if (arr > 0 && val > 0) {
-        const arrPct = Math.min(100, Math.round(100 * arr / val));   // % del ancho de ESTA barra
-        arrSeg = `<div class="cc26-bar-arr" style="width:${arrPct}%"></div>`;
+        const arrPct = Math.min(100, Math.round(100 * arr / val));
         cap = `<span class="cc26-stage-arr">${_df_cc26Fmt(arr)} de otro mes · ${arrPct}%</span>`;
+        segs = `<div class="cc26-stage-seg" style="flex:${este}">${este > 0 ? `<span class="cc26-num">${_df_cc26Fmt(este)}</span>` : ''}</div>`
+             + `<div class="cc26-stage-seg arr" style="flex:${arr}"><span class="cc26-num">${_df_cc26Fmt(arr)}</span></div>`;
+      } else {
+        segs = `<div class="cc26-stage-seg" style="flex:1"><span class="cc26-num">${_df_cc26Fmt(val)}</span></div>`;
       }
       return `<div class="cc26-stage">
         <div class="cc26-stage-name" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
           <span>${name}</span>${cap}
         </div>
         <div class="cc26-stage-bar-wrap">
-          <div class="cc26-stage-bar" style="width:${w}%;background:${color}">
-            ${arrSeg}<span>${_df_cc26Fmt(val)}</span>
-          </div>
+          <div class="cc26-stage-bar" style="width:${w}%;background:${color}">${segs}</div>
         </div>
       </div>`;
     }
