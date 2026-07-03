@@ -1600,11 +1600,8 @@ def main():
                     tot_traf, mat_meta, per_ag_meta = _extract_traffic_meta_from_metas_ford(cfg["ford_metas_file"])
                     if tot_traf > 0:
                         try:
-                            import calendar as _cal
-                            _y, _m = cfg["year"], cfg["month"]
-                            _days_in_month = _cal.monthrange(_y, _m)[1]
-                            _dl = sum(1 for d in range(1, _days_in_month+1)
-                                      if _cal.weekday(_y, _m, d) < 5)
+                            _dl, _ = working_days(cfg["month"], cfg["year"],
+                                                  extra_non_working=cfg.get("extra_non_working_days"))
                         except Exception: _dl = 26
                         AGS = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo']
                         ford_months[cfg["key"]] = {
