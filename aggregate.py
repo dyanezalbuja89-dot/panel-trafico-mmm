@@ -1688,8 +1688,14 @@ def main():
                             _zones_dict[_z] = {"curr": 0, "prev": 0,
                                                 "meta": sum(per_ag_meta.get(a,0) for a in _ags_z),
                                                 "dealers": list(_ags_z)}
+                        # Pace array (día 1..N) para que widget Avance día a día pinte eje X
+                        # y ritmo ideal (todo en 0 antes de que llegue BD).
+                        _pace = expected_pace_calendar(cfg["month"], cfg["year"], tot_traf, _dl,
+                                                        extra_non_working=cfg.get("extra_non_working_days"))
                         ford_months[cfg["key"]] = {
+                            "month": cfg["month"], "year": cfg["year"], "cut_day": 0,
                             "cut_date": None, "prev_date": None,
+                            "pace": _pace,
                             "days_lab": _dl, "days_trans": 0,
                             "total_curr": 0, "total_prev": 0, "delta_total": 0,
                             "meta_total": tot_traf,
