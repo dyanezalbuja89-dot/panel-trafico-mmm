@@ -786,20 +786,26 @@ def load_ford_meta_breakdown(path):
     return out
 
 def _extract_traffic_meta_from_metas_ford(path):
-    """Extrae la sección 'TRÁFICO POR CONCESIONARIO' de METAS_FORD.
-    Devuelve (meta_total, matrix_meta {modelo: {agencia: meta_trafico}}, per_agencia).
+    """Extrae la sección 'PRESUPUESTO DE TRÁFICO POR CONCESIONARIO MARKETING' de METAS_FORD.
+    Devuelve (meta_total, matrix_meta {modelo: {agencia: meta_trafico_marketing}}, per_agencia).
+    Regla ORGU: usar SIEMPRE la sección MARKETING (~80%), no la TOTAL.
     """
     try:
         df = pd.read_excel(path, sheet_name='METAS_FORD', header=None)
     except Exception:
         return 0, {}, {}
     AGENCIAS_ORDER = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo']
-    # Find TRÁFICO POR CONCESIONARIO header
+    # Priorizar sección MARKETING; fallback a total si no existe.
     h = None
     for i in range(min(200, len(df))):
         v = df.iloc[i, 0]
-        if isinstance(v, str) and 'TRÁFICO POR CONCESIONARIO' in v.upper() and 'MARKETING' not in v.upper():
+        if isinstance(v, str) and 'TRÁFICO' in v.upper() and 'MARKETING' in v.upper():
             h = i; break
+    if h is None:
+        for i in range(min(200, len(df))):
+            v = df.iloc[i, 0]
+            if isinstance(v, str) and 'TRÁFICO POR CONCESIONARIO' in v.upper():
+                h = i; break
     if h is None: return 0, {}, {}
     total = 0
     matrix_meta = {m: {a: 0 for a in AGENCIAS_ORDER} for m in MODEL_ORDER}
@@ -821,6 +827,72 @@ def _extract_traffic_meta_from_metas_ford(path):
                     total += iv
                 except (ValueError, TypeError): pass
     return total, matrix_meta, per_ag
+
+def _extract_traffic_meta_marcas(path):
+    """Lee sección 'PRESUPUESTO DE TRÁFICO POR CONCESIONARIO MARKETING' de METAS_MARCAS.
+    Devuelve {brand_key: {meta_total, matrix_meta {modelo: {ag: meta}}, per_agencia}}.
+    Regla ORGU: SIEMPRE usar sección MARKETING.
+    """
+    try:
+        xl = pd.ExcelFile(path)
+        sh = 'METAS_MARCAS' if 'METAS_MARCAS' in xl.sheet_names else 'METAS_OM'
+        df = pd.read_excel(path, sheet_name=sh, header=None)
+    except Exception:
+        return {}
+    AGS = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo']
+    # Find MARKETING header
+    h = None
+    for i in range(len(df)):
+        v = df.iloc[i, 0]
+        if isinstance(v, str) and 'TRÁFICO' in v.upper() and 'MARKETING' in v.upper():
+            h = i; break
+    if h is None: return {}
+    BRAND_KEY = {'DONG FENG':'DONGFENG_ORGU','DONGFENG':'DONGFENG_ORGU',
+                 'MAZDA':'MAZDA_ORGU','CHERY':'CHERY_ORGU','RAM':'RAM_ORGU'}
+    MODELO_FAM = {
+        'HUGE':'HUGE','MAGE':'MAGE','PALADIN':'PALADIN',
+        'RICH 6':'RICH 6','RICH 7':'RICH 7','Z9':'Z9',
+        'BT-50':'NEW BT-50','BT50':'NEW BT-50',
+        'CX-30':'CX30','CX30':'CX30','CX-3':'CX3',
+        'CX-60':'CX60','CX60':'CX60','CX-90':'CX90','CX90':'CX90','CX-5':'CX5','CX5':'CX5',
+        'ARRIZO':'ARRIZO','TIGGO 2':'TIGGO 2','TIGGO 4':'TIGGO 4',
+        'TIGGO 7':'TIGGO 7','TIGGO 8':'TIGGO 8','HIMLA':'HIMLA',
+        '1500':'RAM 1500','700':'RAM 700',
+    }
+    def model_to_fam(name):
+        u = str(name or '').upper().strip()
+        for kw, fam in MODELO_FAM.items():
+            if kw in u: return fam
+        return None
+    out = {}
+    current_brand = None
+    for i in range(h+2, min(h+50, len(df))):
+        label = df.iloc[i, 0]
+        if pd.isna(label): continue
+        u = str(label).strip().upper()
+        if u == 'TOTAL': break
+        matched = None
+        for kw, bk in BRAND_KEY.items():
+            if kw in u and len(u) <= len(kw) + 2:
+                matched = bk; break
+        if matched:
+            current_brand = matched
+            if current_brand not in out: out[current_brand] = {'meta_total':0,'matrix_meta':{},'per_agencia':{a:0 for a in AGS}}
+            continue
+        if not current_brand: continue
+        fam = model_to_fam(label)
+        if not fam: continue
+        row_matrix = out[current_brand]['matrix_meta'].setdefault(fam, {a:0 for a in AGS})
+        for ag_idx, ag in enumerate(AGS, start=2):
+            v = df.iloc[i, ag_idx]
+            if pd.notna(v):
+                try:
+                    iv = int(round(float(v)))
+                    row_matrix[ag] += iv
+                    out[current_brand]['per_agencia'][ag] += iv
+                    out[current_brand]['meta_total'] += iv
+                except (ValueError, TypeError): pass
+    return out
 
 def load_ford_metas(path):
     """Load per-agency Ford metas from a workbook with sheets CJA/Orellana/LA Y/Tumbaco/Manta/Machala/Portoviejo.
@@ -1203,9 +1275,14 @@ META_PARENT_PATTERNS = {
 def load_brand_metas(path):
     """Parse METAS_MARCAS: returns {brand: {modelo_display: {agency: meta}}}
     Sheet has 3 sections: VENTAS, PRESUPUESTO DE TRÁFICO, PRESUPUESTO DE TRÁFICO MARKETING.
-    We use PRESUPUESTO DE TRÁFICO (total traffic budget), consistent with Ford's MODEL_METAS.
+    We use PRESUPUESTO DE TRÁFICO MARKETING (80% marketing budget) — el que aplica al panel.
     """
-    df = pd.read_excel(path, sheet_name='METAS_MARCAS', header=None)
+    try:
+        xl = pd.ExcelFile(path)
+        sh = 'METAS_MARCAS' if 'METAS_MARCAS' in xl.sheet_names else 'METAS_OM'
+        df = pd.read_excel(path, sheet_name=sh, header=None)
+    except Exception:
+        return {b: {} for b in BRANDS}
     AGENCIES = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo']
     metas = {b: {} for b in BRANDS}
 
@@ -1219,16 +1296,17 @@ def load_brand_metas(path):
                 if t and t.lower() != 'nan':
                     title = t; break
             headers.append((i, title or ''))
-    # Pick "PRESUPUESTO DE TRÁFICO" (not MARKETING) — same semantics as Ford MODEL_METAS
+    # Pick "PRESUPUESTO DE TRÁFICO ... MARKETING" — regla ORGU (Daniel confirmó).
     start = None
     for i, title in headers:
         t = title.upper()
-        if 'PRESUPUESTO' in t and 'TRÁFICO' in t and 'MARKETING' not in t:
+        if 'PRESUPUESTO' in t and 'TRÁFICO' in t and 'MARKETING' in t:
             start = i + 1; break
     if start is None:
-        # fallback: first section with "PRESUPUESTO"
+        # fallback: first section con PRESUPUESTO DE TRÁFICO (no MARKETING)
         for i, title in headers:
-            if 'PRESUPUESTO' in title.upper():
+            t = title.upper()
+            if 'PRESUPUESTO' in t and 'TRÁFICO' in t:
                 start = i + 1; break
     if start is None:
         return metas
@@ -1632,21 +1710,21 @@ def main():
                 try:
                     bmb = _parse_brand_meta_breakdown(cfg["brand_metas_file"])
                     brand_meta_breakdown[cfg["key"]] = bmb
-                    # Entries brands_months vacías (0 curr, meta desde bmb) para que
-                    # widgets rendericen ceros al seleccionar el mes pending.
+                    # META TRÁFICO MARKETING para brands (sección MARKETING del archivo).
+                    brand_traf_meta = _extract_traffic_meta_marcas(cfg["brand_metas_file"])
                     try: _dl, _ = working_days(cfg["month"], cfg["year"],
                                                 extra_non_working=cfg.get("extra_non_working_days"))
                     except Exception: _dl = 26
                     AGS_ALL = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo']
                     brands_dict = {}
-                    for brand_key, model_map in bmb.items():
-                        meta_total = sum(v.get('meta_ventas',0) for v in model_map.values())
-                        per_ag = {a: 0 for a in AGS_ALL}
-                        matrix_meta_b = {}
-                        for mod, mv in model_map.items():
-                            row = {a: (mv.get('por_agencia',{}).get(a,{}).get('meta_ventas',0)) for a in AGS_ALL}
-                            matrix_meta_b[mod] = row
-                            for a, v in row.items(): per_ag[a] += v
+                    # Iterar sobre las brands que tengan meta traffic O meta_ventas (VENTAS breakdown)
+                    all_brand_keys = set(bmb.keys()) | set(brand_traf_meta.keys())
+                    for brand_key in all_brand_keys:
+                        traf = brand_traf_meta.get(brand_key, {'meta_total':0,'matrix_meta':{},'per_agencia':{a:0 for a in AGS_ALL}})
+                        # matrix_meta y per_agencia vienen de la sección TRÁFICO MARKETING
+                        matrix_meta_b = traf['matrix_meta'] or {}
+                        per_ag = traf['per_agencia']
+                        meta_total = traf['meta_total']
                         models_dict = {m: {"curr":0,"prev":0,"meta":sum(matrix_meta_b[m].values()),
                                             "delta":0,"projection":0,"velocity":0,"cumpl_proj":0,
                                             "byDealer":{a:0 for a in AGS_ALL}} for m in matrix_meta_b}
