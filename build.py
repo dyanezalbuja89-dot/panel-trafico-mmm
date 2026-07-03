@@ -11049,16 +11049,10 @@ HTML = r"""<!doctype html>
     // Render inicial embudo izquierdo
     _cc26RenderFunnel('cc26-funnel-left', _CC26_Q[selPeriodo.value] || _CC26_Q['Total']);
 
-    // Estado checkboxes: default = último mes con dato; pero si el último es INMADURO
-    // (mes en curso, <25% de los leads del mes previo), usa el previo → no abre en un mes
-    // recién empezado (ej. jul·26 con 13 leads vs jun 979).
-    let defaultMonth = _CC26_ORDER[_CC26_ORDER.length - 1];
-    if (_CC26_ORDER.length >= 2) {
-      const _last = _CC26_M[defaultMonth], _prev = _CC26_M[_CC26_ORDER[_CC26_ORDER.length - 2]];
-      if (_last && _prev && (_last.leads || 0) < 0.25 * (_prev.leads || 0)) {
-        defaultMonth = _CC26_ORDER[_CC26_ORDER.length - 2];
-      }
-    }
+    // Estado checkboxes: default = MES EN CURSO (último mes con dato = el mes actual; el pull
+    // genera hasta hoy). Pedido explícito del usuario — siempre pre-selecciona el mes en curso,
+    // aunque esté recién empezado (antes se bajaba al previo si estaba inmaduro <25%).
+    const defaultMonth = _CC26_ORDER[_CC26_ORDER.length - 1];
     _cc26PopulateMonths(defaultMonth);
     const selectedMonths = new Set([defaultMonth]);
     _cc26UpdateCbLabel(selectedMonths);
@@ -12034,14 +12028,10 @@ HTML = r"""<!doctype html>
     // Render inicial embudo izquierdo
     _df_cc26RenderFunnel('df-cc26-funnel-left', _DF2_CC26_Q[selPeriodo.value] || _DF2_CC26_Q['Total']);
 
-    // Estado checkboxes: default = ultimo mes presente
-    let defaultMonth = _DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 1];
-    if (_DF2_CC26_ORDER.length >= 2) {
-      const _last = _DF2_CC26_M[defaultMonth], _prev = _DF2_CC26_M[_DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 2]];
-      if (_last && _prev && (_last.leads || 0) < 0.25 * (_prev.leads || 0)) {
-        defaultMonth = _DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 2];
-      }
-    }
+    // Estado checkboxes: default = MES EN CURSO (último mes con dato = el mes actual).
+    // Pedido explícito del usuario — siempre pre-selecciona el mes en curso (antes bajaba al
+    // previo si el actual estaba inmaduro <25%).
+    const defaultMonth = _DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 1];
     _df_cc26PopulateMonths(defaultMonth);
     const selectedMonths = new Set([defaultMonth]);
     _df_cc26UpdateCbLabel(selectedMonths);
