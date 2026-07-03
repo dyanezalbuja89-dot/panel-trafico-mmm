@@ -16,6 +16,17 @@ HTML = r"""<!doctype html>
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>Dashboard Tráfico DY — ORGU / Maresa</title>
+<!-- Cache-buster: force fresh reload cuando URL no tiene ?v= param. Deploy hash inline. -->
+<script>
+(function(){
+  var DEPLOY = 'BUILD_HASH_PLACEHOLDER';
+  var u = new URL(location.href);
+  if (u.searchParams.get('v') !== DEPLOY) {
+    u.searchParams.set('v', DEPLOY);
+    location.replace(u.pathname + u.search + u.hash);
+  }
+})();
+</script>
 <!-- Cargar tema ANTES del CSS para evitar flash blanco al cambiar a dark -->
 <script>
 (function(){

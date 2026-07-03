@@ -116,6 +116,13 @@ fi
 echo "→ Ejecutando python3 build.py..."
 python3 build.py 2>&1 | tail -3
 
+# 3b. Cache-buster: reemplaza BUILD_HASH_PLACEHOLDER con hash único (timestamp).
+BUILD_HASH="$(date +%s)"
+if grep -q "BUILD_HASH_PLACEHOLDER" index.html; then
+  sed -i '' "s/BUILD_HASH_PLACEHOLDER/$BUILD_HASH/g" index.html
+  ok "cache-buster inyectado: v=$BUILD_HASH"
+fi
+
 # 4. Post-build: index.html mantiene las tabs
 echo "→ Verificando integridad post-build de index.html..."
 for marker in "${BUILD_PY_MARKERS[@]}"; do
