@@ -1826,13 +1826,20 @@ def main():
                                  extra_non_working=extra_nw)
         brands_months[cfg["key"]] = bd
 
-    # Default = último mes con BD de tráfico completa (que tenga curr_file cargado
-    # y por tanto brands_months también). Evita entries "solo meta" (julio pending).
-    default_key = next((c["key"] for c in reversed(MONTHS_CONFIG)
-                        if c["key"] in ford_months and c["key"] in brands_months and c.get("curr_file")),
-                       MONTHS_CONFIG[-1]["key"])
-    ford = ford_months[default_key]
-    brands_data = brands_months[default_key]
+    # `ford`/`brands_data` (usados en YTDs/summaries iniciales) = último con BD real.
+    _last_with_bd = next((c["key"] for c in reversed(MONTHS_CONFIG)
+                          if c["key"] in ford_months and c["key"] in brands_months and c.get("curr_file")),
+                         MONTHS_CONFIG[-1]["key"])
+    ford = ford_months[_last_with_bd]
+    brands_data = brands_months[_last_with_bd]
+    # default_month_key (front-end): mes ACTUAL por fecha si existe en ford_months.
+    # Si hoy es julio y julio_2026 tiene entry pending → default = julio (widgets en ceros).
+    _today = datetime.now()
+    _current_key = None
+    for c in MONTHS_CONFIG:
+        if c["year"] == _today.year and c["month"] == _today.month and c["key"] in ford_months:
+            _current_key = c["key"]; break
+    default_key = _current_key or _last_with_bd
 
     out = {
         "marzo": summarize(marzo, "Marzo 2026 (cierre)"),
