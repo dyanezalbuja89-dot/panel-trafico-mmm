@@ -1630,7 +1630,48 @@ def main():
                     print(f'[metas] {cfg["key"]} ford breakdown fail: {e}')
             if cfg.get("brand_metas_file"):
                 try:
-                    brand_meta_breakdown[cfg["key"]] = _parse_brand_meta_breakdown(cfg["brand_metas_file"])
+                    bmb = _parse_brand_meta_breakdown(cfg["brand_metas_file"])
+                    brand_meta_breakdown[cfg["key"]] = bmb
+                    # Entries brands_months vacías (0 curr, meta desde bmb) para que
+                    # widgets rendericen ceros al seleccionar el mes pending.
+                    try: _dl, _ = working_days(cfg["month"], cfg["year"],
+                                                extra_non_working=cfg.get("extra_non_working_days"))
+                    except Exception: _dl = 26
+                    AGS_ALL = ['CJA','Orellana','La Y','Tumbaco','Manta','Machala','Portoviejo']
+                    brands_dict = {}
+                    for brand_key, model_map in bmb.items():
+                        meta_total = sum(v.get('meta_ventas',0) for v in model_map.values())
+                        per_ag = {a: 0 for a in AGS_ALL}
+                        matrix_meta_b = {}
+                        for mod, mv in model_map.items():
+                            row = {a: (mv.get('por_agencia',{}).get(a,{}).get('meta_ventas',0)) for a in AGS_ALL}
+                            matrix_meta_b[mod] = row
+                            for a, v in row.items(): per_ag[a] += v
+                        models_dict = {m: {"curr":0,"prev":0,"meta":sum(matrix_meta_b[m].values()),
+                                            "delta":0,"projection":0,"velocity":0,"cumpl_proj":0,
+                                            "byDealer":{a:0 for a in AGS_ALL}} for m in matrix_meta_b}
+                        dealers_dict = {a: {"curr":0,"prev":0,"meta":per_ag[a],
+                                             "delta":0,"projection":0,"velocity":0,"cumpl_proj":0} for a in AGS_ALL}
+                        brands_dict[brand_key] = {
+                            "brand": brand_key, "display": BRAND_DISPLAY.get(brand_key, brand_key.replace('_ORGU','')),
+                            "cut_date": None, "prev_date": None,
+                            "days_lab": _dl, "days_trans": 0,
+                            "avance_pct": 0,
+                            "total_curr": 0, "total_prev": 0, "delta_total": 0,
+                            "velocity": 0, "projection_total": 0,
+                            "meta_total": meta_total, "cumpl_proj": 0,
+                            "dominant_channel": None, "channel_pct": 0,
+                            "models": models_dict, "dealers": dealers_dict,
+                            "matrix_pct": {m:{a:-1 for a in AGS_ALL} for m in matrix_meta_b},
+                            "matrix_cnt": {m:{a:0 for a in AGS_ALL} for m in matrix_meta_b},
+                            "matrix_meta": matrix_meta_b,
+                            "at_risk_models": [], "at_risk_agencies": [],
+                            "movements": [], "daily": {}, "daily_breakdown": {},
+                            "_pending_bd": True,
+                        }
+                    if brands_dict:
+                        brands_months[cfg["key"]] = brands_dict
+                        print(f'[metas] {cfg["key"]} brands_months entries vacías creadas ({len(brands_dict)} marcas)')
                 except Exception as e:
                     print(f'[metas] {cfg["key"]} brand breakdown fail: {e}')
             continue
