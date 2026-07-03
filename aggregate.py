@@ -1746,9 +1746,15 @@ def main():
                                             "byDealer":{a:0 for a in AGS_ALL}} for m in matrix_meta_b}
                         dealers_dict = {a: {"curr":0,"prev":0,"meta":per_ag[a],
                                              "delta":0,"projection":0,"velocity":0,"cumpl_proj":0} for a in AGS_ALL}
+                        _brand_pace = expected_pace_calendar(cfg["month"], cfg["year"], meta_total, _dl,
+                                                              extra_non_working=cfg.get("extra_non_working_days"))
                         brands_dict[brand_key] = {
                             "brand": brand_key, "display": BRAND_DISPLAY.get(brand_key, brand_key.replace('_ORGU','')),
+                            "month": cfg["month"], "year": cfg["year"], "cut_day": 0,
                             "cut_date": None, "prev_date": None,
+                            "pace": _brand_pace,
+                            "model_order": list(matrix_meta_b.keys()),
+                            "dealer_order": list(AGS_ALL),
                             "days_lab": _dl, "days_trans": 0,
                             "avance_pct": 0,
                             "total_curr": 0, "total_prev": 0, "delta_total": 0,
