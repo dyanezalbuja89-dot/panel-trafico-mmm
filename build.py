@@ -5816,12 +5816,15 @@ HTML = r"""<!doctype html>
   })();
 
   const MARZO = DATA.marzo, ABRIL = DATA.abril, META = DATA.meta;
-  let FORD = DATA.ford;
   const FORD_MONTHS = DATA.ford_months || {};
   const BRANDS_MONTHS = DATA.brands_months || {};
   const MONTHS_CONFIG = DATA.months_config || [];
   let currentMonthFF = DATA.default_month_key || (MONTHS_CONFIG[MONTHS_CONFIG.length-1]||{}).key || '';
   let currentMonthBR = currentMonthFF;
+  // FORD sigue al default_month_key (mes actual por fecha, ej. julio pending),
+  // no al DATA.ford snapshot (que apunta al último con BD). Sin esto los widgets
+  // renderizan mes viejo aunque el select muestre julio.
+  let FORD = FORD_MONTHS[currentMonthFF] || DATA.ford;
 
   // ── TOPBAR HERO rotativo · ciclo entre marcas cada 5s ──────────────
   // Sustituye el indicador "Cumplimiento Ford" fijo por una rotación que
@@ -7206,7 +7209,8 @@ HTML = r"""<!doctype html>
   // =========================================================
   const BRANDS = DATA.brand_list || [];
   const BRAND_DISPLAY = DATA.brand_display || {};
-  let BRANDS_DATA = DATA.brands || {};
+  // Igual que FORD: BRANDS_DATA sigue al default_month_key.
+  let BRANDS_DATA = BRANDS_MONTHS[currentMonthBR] || DATA.brands || {};
 
   // Populate month selector (Brand) — incluye YTD al inicio
   (function initBRMonth(){
