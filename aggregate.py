@@ -1694,6 +1694,8 @@ def main():
                                                         extra_non_working=cfg.get("extra_non_working_days"))
                         ford_months[cfg["key"]] = {
                             "month": cfg["month"], "year": cfg["year"], "cut_day": 0,
+                            "month_key": cfg["key"],
+                            "month_label": cfg.get("label", ""),
                             "cut_date": None, "prev_date": None,
                             "pace": _pace,
                             "days_lab": _dl, "days_trans": 0,
@@ -1701,7 +1703,10 @@ def main():
                             "meta_total": tot_traf,
                             "matrix_meta": mat_meta,
                             "matrix_cnt": {m: {a: 0 for a in AGS} for m in MODEL_ORDER},
+                            "matrix_cnt_prev": {m: {a: 0 for a in AGS} for m in MODEL_ORDER},
                             "matrix_pct": {m: {a: 0 for a in AGS} for m in MODEL_ORDER},
+                            "otros_prev_by_model": {m: 0 for m in MODEL_ORDER},
+                            "dealer_model_channel_prev": {a: {m: {} for m in MODEL_ORDER} for a in AGS + ['Otros']},
                             "models": {m: {"curr": 0, "prev": 0, "meta": sum(mat_meta.get(m,{}).values()),
                                             "delta": 0, "projection": 0, "velocity": 0, "cumpl_proj": 0,
                                             "byDealer": {a: 0 for a in AGS}} for m in MODEL_ORDER},
