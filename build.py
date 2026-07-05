@@ -10728,12 +10728,12 @@ HTML = r"""<!doctype html>
 
   // --- order: meses 2026 presentes CON DATO (leads>0), en orden cronológico ---
   // Excluye meses vacíos (ej. el mes en curso el día 1) → el default no abre en un mes sin dato.
-  const _CC26_ORDER = _CC26_MES
+  let _CC26_ORDER = _CC26_MES
     .map(mm => mm + '·26')
     .filter(lbl => _CC26_M[lbl] && (_CC26_M[lbl].leads || 0) > 0);
 
   // --- Q: trimestres construidos dinamicamente; solo los que tienen >=1 mes con dato ---
-  const _CC26_Q = (function(){
+  let _CC26_Q = (function(){
     const present = new Set(_CC26_ORDER);
     const groups = {
       'Q1·26': ['ene·26','feb·26','mar·26'],
@@ -11780,12 +11780,12 @@ HTML = r"""<!doctype html>
   const _DF2_CC26_M = _DF2_CC26_M_FALLBACK;
 
   // --- order: meses 2026 presentes en M, en orden cronologico ---
-  const _DF2_CC26_ORDER = _DF2_CC26_MES
+  let _DF2_CC26_ORDER = _DF2_CC26_MES
     .map(mm => mm + '·26')
     .filter(lbl => _DF2_CC26_M[lbl] && (_DF2_CC26_M[lbl].leads || 0) > 0);
 
   // --- Q: trimestres construidos dinamicamente; solo los que tienen >=1 mes con dato ---
-  const _DF2_CC26_Q = (function(){
+  let _DF2_CC26_Q = (function(){
     const present = new Set(_DF2_CC26_ORDER);
     const groups = {
       'Q1·26': ['ene·26','feb·26','mar·26'],
@@ -12597,6 +12597,22 @@ HTML = r"""<!doctype html>
           }
         }
       }
+      // RECOMPUTA order/Q de AMBAS marcas desde el M ya refrescado por el override. El ORDER
+      // inicial de DF salía del fallback estático (ene..jun) y NUNCA tenía julio; el runtime
+      // fetch trae el mes nuevo pero el const no se recomputaba. Además fuerza SIEMPRE el mes
+      // en curso (aunque tenga 0 leads) → "julio activo" pedido por el usuario. Ford + DF.
+      const _cur = _CC26_MES[new Date().getMonth()] + '·26';
+      const _mkOrder = (M, MES) => MES.map(mm => mm + '·26')
+        .filter(lbl => M[lbl] && (((M[lbl].leads || 0) > 0) || lbl === _cur));
+      const _mkQ = (order) => {
+        const present = new Set(order);
+        const groups = { 'Q1·26':['ene·26','feb·26','mar·26'], 'Q2·26':['abr·26','may·26','jun·26'], 'Q3·26':['jul·26','ago·26','sep·26'], 'Q4·26':['oct·26','nov·26','dic·26'] };
+        const Q = { 'Total': order.slice() };
+        for (const [n, ms] of Object.entries(groups)) { const g = ms.filter(mm => present.has(mm)); if (g.length) Q[n] = g; }
+        return Q;
+      };
+      _CC26_ORDER = _mkOrder(_CC26_M, _CC26_MES);   _CC26_Q = _mkQ(_CC26_ORDER);
+      _DF2_CC26_ORDER = _mkOrder(_DF2_CC26_M, _DF2_CC26_MES);   _DF2_CC26_Q = _mkQ(_DF2_CC26_ORDER);
     } catch (e) { console.error("live override", e); }
     try { if (typeof renderDigital === "function") renderDigital(); } catch(e) { console.error("renderDigital init", e); }
     try { if (typeof renderDigitalDF === "function") renderDigitalDF(); } catch(e) { console.error("renderDigitalDF init", e); }
