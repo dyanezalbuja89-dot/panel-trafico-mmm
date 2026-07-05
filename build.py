@@ -4928,7 +4928,7 @@ HTML = r"""<!doctype html>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6a6 6 0 1 0 6 6"/><path d="M12 10a2 2 0 1 0 2 2"/><path d="M20 2l2 2-10 10"/></svg>
             Control CC · 2026 · Dong Feng
           </div>
-          <div class="cc-section-sub">Dong Feng · pipeline Ventas-Dongfeng · cohorte por createdate · datos a jun-2026</div>
+          <div class="cc-section-sub">Dong Feng · pipeline Ventas-Dongfeng · cohorte COALESCE ingreso-DF/createdate · 2026</div>
         </div>
         <div style="display:flex; gap:10px; align-items:flex-end">
           <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
@@ -4981,7 +4981,7 @@ HTML = r"""<!doctype html>
 
       <!-- ── NOTA AL PIE ── -->
       <div class="cc26-footnote">
-        Leads y contactados = leads que ingresaron en el periodo · citas/confirmadas/efectivas = por fecha de cita · Citas confirmadas = cita_confirmada='Confirma' · No-show s/conf = confirmadas que no asistieron ÷ confirmadas · % Tope-12 = leads que llegaron a las 12 llamadas · jun·26 parcial · datos a jun-2026.
+        Leads y contactados = leads que ingresaron en el periodo · citas/efectivas = por fecha de cita · No-show s/agend. = asistió=No ÷ agendadas · Confirma s/agend. = cita_confirmada='Confirma' ÷ agendadas (en DF la confirmación casi no se gestiona → no es etapa del embudo) · DF no llega al tope de 12 llamadas ni registra reactivación · mes en curso parcial.
       </div>
 
       <!-- ============== DESPERDICIO POR FASE ============== -->
@@ -5103,7 +5103,7 @@ HTML = r"""<!doctype html>
           <div id="df-desp-scope" class="cc26-funnel-title" style="text-align:right; white-space:nowrap" title="Filtro activo (se controla con 'Mes(es) seleccionados' y 'Agencia' arriba)"></div>
         </div>
         <div class="desp-cards" id="df-desp-cards"></div>
-        <div class="cc26-footnote" id="df-desp-footnote">% calculado sobre el total de cada fase. Dong Feng · cohorte por createdate (ene–jun) · no-show = deals pipeline Ventas-Dongfeng con cita 2026 y asistió=No. ⚠ Confirmación poco gestionada en DF (alto "Sin gestión") y sin registro de reactivación.</div>
+        <div class="cc26-footnote" id="df-desp-footnote">% calculado sobre el total de cada fase. Dong Feng · cohorte COALESCE ingreso-DF/createdate · no-show = deals pipeline Ventas-Dongfeng con cita 2026 y asistió=No (medido sobre agendadas). ⚠ Confirmación poco gestionada en DF (alto "Sin gestión") y sin registro de reactivación.</div>
       </div>
 
     </div>
@@ -11820,14 +11820,14 @@ HTML = r"""<!doctype html>
   function _df_confForMonths(months, agency, model) {
     const src = (model && model !== 'Todas') ? (_DF2_CONF_MOD[model] || {})
               : (agency && agency !== 'Todas') ? (_DF2_CONF_AG[agency] || {}) : _DF2_CONF_M;
-    let agendadas = 0, confirmadas = 0, efec = 0;
+    let agendadas = 0, confirmadas = 0, efec = 0, nos = 0;
     const m = new Map();
     (months || []).forEach(mo => {
       const d = src[mo]; if (!d) return;
-      agendadas += d.agendadas || 0; confirmadas += d.confirmadas || 0; efec += d.efec || 0;
+      agendadas += d.agendadas || 0; confirmadas += d.confirmadas || 0; efec += d.efec || 0; nos += d.nos || 0;
       (d.conf || []).forEach(([k, v]) => m.set(k, (m.get(k) || 0) + v));
     });
-    return { agendadas, confirmadas, efec, conf: [...m.entries()].sort((a, b) => b[1] - a[1]) };
+    return { agendadas, confirmadas, efec, nos, conf: [...m.entries()].sort((a, b) => b[1] - a[1]) };
   }
   // ARRASTRE DF (mismo criterio que Ford): cita cuyo lead ingresó en un mes anterior.
   // live.dongfeng: months=Todas, ag=agencia, mod=modelo (todos con agen_arr/conf_arr/efec_arr).
@@ -11900,7 +11900,7 @@ HTML = r"""<!doctype html>
     }
     const cf = _df_confForMonths(months, ag, mod);
     const ar = _df_arrForMonths(months, ag, mod);   // arrastre (de otro mes) por etapa
-    return { leads, cont, tope, agen: cf.agendadas, conf: cf.confirmadas, efec: cf.efec,
+    return { leads, cont, tope, agen: cf.agendadas, conf: cf.confirmadas, efec: cf.efec, nos: cf.nos,
              agen_arr: ar.agen_arr, conf_arr: ar.conf_arr, efec_arr: ar.efec_arr };
   }
 
@@ -11921,14 +11921,15 @@ HTML = r"""<!doctype html>
     const VERDE_OSC  = '#0F6E56';
     const base       = Math.max(s.leads, 1);
 
-    // % conversiones (cada etapa sobre la anterior)
-    const noShow = Math.max(s.conf - s.efec, 0);  // confirmadas que NO asistieron
-    const pCont  = _df_cc26Pct(s.cont, s.leads);
-    const pAgen  = _df_cc26Pct(s.agen, s.cont);   // agendan cita (de contactados)
-    const pConf  = _df_cc26Pct(s.conf, s.agen);   // confirman (de agendadas)
-    const pEfec  = _df_cc26Pct(s.efec, s.conf);   // asisten (de confirmadas)
-    const pNos   = _df_cc26Pct(noShow, s.conf);   // no-show SOBRE confirmadas
-    const pTope  = _df_cc26Pct(s.tope, s.leads);
+    // % conversiones — DF: la confirmación casi no se gestiona (muchos asisten SIN confirmar →
+    // efec puede pasar a confirmadas). Por eso el embudo DF va agendadas→efectivas DIRECTO y el
+    // no-show se mide sobre AGENDADAS (no sobre confirmadas, que daría 0% falso). Confirmación = chip.
+    const nos     = s.nos || 0;                    // asistió=No real (NO 'agen−efec', que contaría citas pendientes)
+    const pCont   = _df_cc26Pct(s.cont, s.leads);
+    const pAgen   = _df_cc26Pct(s.agen, s.cont);   // agendan cita (de contactados)
+    const pEfec   = _df_cc26Pct(s.efec, s.agen);   // asisten (de AGENDADAS)
+    const pNos    = _df_cc26Pct(nos, s.agen);      // no-show SOBRE agendadas
+    const pConfir = _df_cc26Pct(s.conf, s.agen);   // confirmación gestionada (de agendadas) — chip ámbar
 
     function stage(name, val, widthPct, color, arr) {
       const w = Math.max(widthPct, 2);
@@ -11957,36 +11958,41 @@ HTML = r"""<!doctype html>
       return `<div class="cc26-conv">&#8595; ${txt}${redTxt ? ' &nbsp;<span class="cc26-conv-red">· ' + redTxt + '</span>' : ''}</div>`;
     }
 
-    function chips(tPct, nPct) {
+    function chips(cPct, nPct) {
       return `<div class="cc26-chips">
         <div class="cc26-chip amber">
-          <div class="cc26-chip-pct">${tPct}%</div>
-          <div class="cc26-chip-label">Tope-12</div>
+          <div class="cc26-chip-pct">${cPct}%</div>
+          <div class="cc26-chip-label">Confirma s/agend.</div>
         </div>
         <div class="cc26-chip red">
           <div class="cc26-chip-pct">${nPct}%</div>
-          <div class="cc26-chip-label">No-show s/conf</div>
+          <div class="cc26-chip-label">No-show s/agend.</div>
         </div>
       </div>`;
     }
 
-    const arrAny = (s.agen_arr || 0) + (s.conf_arr || 0) + (s.efec_arr || 0) > 0;
+    const arrAny = (s.agen_arr || 0) + (s.efec_arr || 0) > 0;
     const legend = arrAny
       ? `<div class="cc26-arr-legend"><span class="sw"></span>
            <span><b>de otro mes</b> = la cita cae en este mes pero el lead ingresó en un mes anterior (arrastre). Leads y Contactados son 100% de este mes.</span>
          </div>`
       : '';
+    // DF SIN etapa 'Confirmadas' en el embudo (la confirmación casi no se gestiona → efec>conf
+    // invertía el embudo y daba no-show 0% falso). Va agendadas→efectivas directo; la confirmación
+    // queda como chip + la tarjeta «Confirmación de cita».
+    const dfNote = `<div style="font-size:10px;color:var(--c-muted,#64748b);line-height:1.45;margin-top:8px">
+      En DF la confirmación casi no se gestiona (muchos asisten sin confirmar) → el embudo va directo de <b>agendadas</b> a <b>efectivas</b> y el no-show se mide sobre <b>agendadas</b>. La confirmación (${_df_cc26Fmt(s.conf)} · ${pConfir}% de agendadas) se detalla en la tarjeta «Confirmación de cita».
+    </div>`;
     el.innerHTML =
       stage('Leads recibidos', s.leads, 100, VERDE)
       + conv(pCont + '% · contactamos')
       + stage('Contactados', s.cont, _df_cc26Pct(s.cont, s.leads), VERDE)
       + conv(pAgen + '% · agendan cita')
       + stage('Citas agendadas', s.agen, _df_cc26Pct(s.agen, s.leads), VERDE, s.agen_arr)
-      + conv(pConf + '% · confirman')
-      + stage('Citas confirmadas', s.conf, _df_cc26Pct(s.conf, s.leads), VERDE, s.conf_arr)
-      + conv(pEfec + '% · asisten', pNos + '% no-show s/ confirmadas')
+      + conv(pEfec + '% · asisten', pNos + '% no-show s/ agendadas')
       + stage('Citas efectivas', s.efec, _df_cc26Pct(s.efec, s.leads), VERDE_OSC, s.efec_arr)
-      + chips(pTope, pNos)
+      + chips(pConfir, pNos)
+      + dfNote
       + legend;
   }
 
@@ -12446,15 +12452,16 @@ HTML = r"""<!doctype html>
 
     // ── Card 1: No contactados (barras por nº de llamada, orden 1ª→12ª) ──
     const nc = D.no_contactados || { total:0, by_llamada:[] };
-    const ncTope = (nc.by_llamada || []).find(r => r[0] === '12ª');
-    const ncTopePct = _df_cc26Pct(ncTope ? ncTope[1] : 0, nc.total);
-    const ncLlamadas = Math.round((nc.total || 0) * 10.25);  // ~10.25 llamadas/lead promedio al tope
+    // DF: la cadencia NO llega a 12 (máx ~7ª) → "tope de 12" no aplica (era framing Ford). Estimo
+    // las llamadas gastadas desde la distribución real: nº de llamada alcanzado × leads.
+    const _dfCallN = (lbl) => parseInt(lbl, 10) || 0;   // '1ª'→1 … '12ª'→12
+    const ncLlamadas = (nc.by_llamada || []).reduce((s, r) => s + _dfCallN(r[0]) * (r[1] || 0), 0);
     const card1 = `<div class="desp-card desp-red">
       <div class="desp-card-head">
         <div class="desp-card-name">No contactados</div>
         <div class="desp-card-total">${_df_cc26Fmt(nc.total)}</div>
       </div>
-      <div class="desp-tagline">~<b>${_df_cc26Fmt(ncLlamadas)} llamadas</b> en leads que nunca contestaron · <b>${ncTopePct}%</b> llegó al tope de 12</div>
+      <div class="desp-tagline">~<b>${_df_cc26Fmt(ncLlamadas)} llamadas</b> gastadas en <b>${_df_cc26Fmt(nc.total)}</b> leads que nunca contestaron</div>
       ${_df_despBars(_df_despByCallOrder(nc.by_llamada), nc.total, RED)}
     </div>`;
 
@@ -12486,41 +12493,29 @@ HTML = r"""<!doctype html>
       <div id="df-desp-conf-drill"></div>
     </div>`;
 
-    // ── Card 3: No-show (drill etapa → llamadas de reactivación; solo en vista Todas) ──
+    // ── Card 3: No-show ── DF NO registra reactivación (100% "Sin react.") → quito el "% recibió
+    // reactivación" (siempre 0%, falso) y el drill de reactivación (era framing Ford/Genesys).
+    // Solo se muestra DÓNDE están atascados los no-show.
     const ns = D.no_show || { total:0, by_estatus:[] };
     const nsAtasc = (ns.by_estatus || []).find(r => /Cita agendada/i.test(r[0]));
     const nsAtascPct = _df_cc26Pct(nsAtasc ? nsAtasc[1] : 0, ns.total);
-    let c3hint = '';
-    if (isTodas) {
-      // % que recibió ≥1 llamada de reactivación (1ª+2ª+3ª) sobre el cruce del periodo.
-      let nsReact = 0, nsAll = 0;
-      Object.values(cruce.no_show || {}).forEach(arr => {
-        nsReact += (arr[0] || 0) + (arr[1] || 0) + (arr[2] || 0);
-        nsAll += arr.reduce((a, b) => a + b, 0);
-      });
-      c3hint = ` · <b>${_df_cc26Pct(nsReact, nsAll)}%</b> recibió llamadas de reactivación y aun así no volvió · <b>clic en una etapa</b> para ver sus llamadas`;
-    }
     const card3 = `<div class="desp-card desp-slate" id="df-desp-card-ns">
       <div class="desp-card-head">
         <div class="desp-card-name">No-show</div>
         <div class="desp-card-total">${_df_cc26Fmt(ns.total)}</div>
       </div>
-      <div class="desp-tagline"><b>${nsAtascPct}%</b> atascados en Cita agendada${c3hint}</div>
-      ${_df_despTable(ns.by_estatus || [], ns.total, false, isTodas ? 'no_show' : null)}
-      <div id="df-desp-ns-drill"></div>
+      <div class="desp-tagline"><b>${nsAtascPct}%</b> atascados en Cita agendada · <span style="color:var(--c-muted,#64748b)">DF no registra llamadas de reactivación</span></div>
+      ${_df_despTable(ns.by_estatus || [], ns.total, false, null)}
     </div>`;
 
     host.innerHTML = card1 + card2 + cardConf + card3;
 
     // Contactados: drill categoría → sub-estatus granular (disponible en TODAS las vistas).
     _df_despWireCatDrill(document.getElementById('df-desp-card-c'), 'df-desp-c-drill', c.cat_detalle, c.cat_llamada, c.cat_notask);
-    // No-show + Confirmación: drills que usan el cruce (solo Todas).
+    // Confirmación: drill que usa el cruce (solo Todas). (No-show DF sin drill: no registra reactivación.)
     if (isTodas) {
-      _df_despWireDrill(document.getElementById('df-desp-card-ns'), 'df-desp-ns-drill', cruce.no_show, SLATE, _DF2_DESP_REACT_LBL, 'Llamadas de reactivación de');
       _df_confWireDrill(document.getElementById('df-desp-card-conf'), 'df-desp-conf-drill', cruce.conf, BLUE);
     } else {
-      const nd = document.getElementById('df-desp-ns-drill');
-      if (nd) nd.innerHTML = '<div class="desp-drill"><div class="desp-drill-empty">Detalle de reactivación: disponible en vista <b>Todas las agencias</b>.</div></div>';
       const cd = document.getElementById('df-desp-conf-drill');
       if (cd) cd.innerHTML = '<div class="desp-drill"><div class="desp-drill-empty">Detalle de llamadas de confirmación: disponible en vista <b>Todas las agencias</b>.</div></div>';
     }
@@ -12586,7 +12581,7 @@ HTML = r"""<!doctype html>
         if (_L.dongfeng) {
           const G = _L.dongfeng;
           Object.assign(_DF2_CC26_M, _mm(G.months, ['leads', 'cont', 'tope']));
-          Object.assign(_DF2_CONF_M, _mm(G.months, ['agendadas', 'confirmadas', 'efec', 'conf']));
+          Object.assign(_DF2_CONF_M, _mm(G.months, ['agendadas', 'confirmadas', 'efec', 'conf', 'nos']));
           if (G.ag) { Object.assign(_DF2_CC26_AG, G.ag); Object.assign(_DF2_CONF_AG, G.ag); }
           if (G.mod) { Object.assign(_DF2_CC26_MOD, G.mod); Object.assign(_DF2_CONF_MOD, G.mod); }
           if (G.desperdicio) {
