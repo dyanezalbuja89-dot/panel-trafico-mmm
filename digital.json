@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-07-05T21:15:51.364334+00:00",
+  "updated_at": "2026-07-05T22:22:47.657215+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -194,7 +194,7 @@
       "label": "jul-26",
       "year": 2026,
       "month": 7,
-      "leads": 74,
+      "leads": 75,
       "cont": 36,
       "agen": 39,
       "efec": 8,
@@ -348,12 +348,12 @@
     ]
   },
   "kpis": {
-    "period_leads": 4946,
+    "period_leads": 4947,
     "period_cont": 4207,
     "period_agen": 1837,
     "period_efec": 605,
     "period_vent": 16,
-    "rate_cont": 85.1,
+    "rate_cont": 85.0,
     "rate_agen": 37.1,
     "rate_show": 32.9,
     "rate_no_show": 67.1,
@@ -1151,7 +1151,7 @@
           "label": "jul·26",
           "year": 2026,
           "month": 7,
-          "leads": 74,
+          "leads": 75,
           "cont": 36,
           "tope": 12,
           "agen": 39,
@@ -1972,7 +1972,7 @@
             "efec_arr": 2
           },
           "jul·26": {
-            "leads": 30,
+            "leads": 31,
             "cont": 13,
             "tope": 6,
             "agen": 8,
@@ -3837,7 +3837,7 @@
             "efec_arr": 5
           },
           "jul·26": {
-            "leads": 30,
+            "leads": 31,
             "cont": 15,
             "tope": 3,
             "agen": 11,
@@ -22885,8 +22885,8 @@
           "label": "jul·26",
           "year": 2026,
           "month": 7,
-          "leads": 19,
-          "cont": 0,
+          "leads": 21,
+          "cont": 1,
           "tope": 0,
           "agen": 10,
           "agendadas": 10,
@@ -23121,7 +23121,7 @@
             "efec_arr": 5
           },
           "jul·26": {
-            "leads": 17,
+            "leads": 18,
             "cont": 0,
             "tope": 0,
             "agen": 8,
@@ -23336,8 +23336,8 @@
             "efec_arr": 1
           },
           "jul·26": {
-            "leads": 2,
-            "cont": 0,
+            "leads": 3,
+            "cont": 1,
             "tope": 0,
             "agen": 2,
             "agendadas": 2,
@@ -23537,7 +23537,7 @@
             "efec_arr": 1
           },
           "jul·26": {
-            "leads": 12,
+            "leads": 13,
             "cont": 0,
             "tope": 0,
             "agen": 4,
@@ -24199,8 +24199,8 @@
             "efec_arr": 2
           },
           "jul·26": {
-            "leads": 7,
-            "cont": 0,
+            "leads": 8,
+            "cont": 1,
             "tope": 0,
             "agen": 3,
             "agendadas": 3,
@@ -25691,12 +25691,46 @@
               "by_llamada": []
             },
             "contactados": {
-              "total": 0,
-              "by_estatus": [],
-              "by_categoria": [],
-              "cat_detalle": {},
-              "cat_llamada": {},
-              "cat_notask": {}
+              "total": 1,
+              "by_estatus": [
+                [
+                  "Contactado",
+                  1
+                ]
+              ],
+              "by_categoria": [
+                [
+                  "En gestión activa",
+                  1
+                ]
+              ],
+              "cat_detalle": {
+                "En gestión activa": [
+                  [
+                    "Seguimiento por Whatsapp",
+                    1
+                  ]
+                ]
+              },
+              "cat_llamada": {
+                "En gestión activa": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              },
+              "cat_notask": {
+                "En gestión activa": 1
+              }
             },
             "no_show": {
               "total": 0,
@@ -28238,12 +28272,46 @@
                 "by_llamada": []
               },
               "contactados": {
-                "total": 0,
-                "by_estatus": [],
-                "by_categoria": [],
-                "cat_detalle": {},
-                "cat_llamada": {},
-                "cat_notask": {}
+                "total": 1,
+                "by_estatus": [
+                  [
+                    "Contactado",
+                    1
+                  ]
+                ],
+                "by_categoria": [
+                  [
+                    "En gestión activa",
+                    1
+                  ]
+                ],
+                "cat_detalle": {
+                  "En gestión activa": [
+                    [
+                      "Seguimiento por Whatsapp",
+                      1
+                    ]
+                  ]
+                },
+                "cat_llamada": {
+                  "En gestión activa": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                "cat_notask": {
+                  "En gestión activa": 1
+                }
               },
               "no_show": {
                 "total": 0,
@@ -32702,12 +32770,46 @@
                 "by_llamada": []
               },
               "contactados": {
-                "total": 0,
-                "by_estatus": [],
-                "by_categoria": [],
-                "cat_detalle": {},
-                "cat_llamada": {},
-                "cat_notask": {}
+                "total": 1,
+                "by_estatus": [
+                  [
+                    "Contactado",
+                    1
+                  ]
+                ],
+                "by_categoria": [
+                  [
+                    "En gestión activa",
+                    1
+                  ]
+                ],
+                "cat_detalle": {
+                  "En gestión activa": [
+                    [
+                      "Seguimiento por Whatsapp",
+                      1
+                    ]
+                  ]
+                },
+                "cat_llamada": {
+                  "En gestión activa": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                "cat_notask": {
+                  "En gestión activa": 1
+                }
               },
               "no_show": {
                 "total": 0,
@@ -33586,7 +33688,22 @@
             }
           },
           "jul·26": {
-            "contactados": {},
+            "contactados": {
+              "Contactado": [
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            },
             "no_show": {},
             "conf": {
               "Sin gestión": [
