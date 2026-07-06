@@ -10942,12 +10942,17 @@ HTML = r"""<!doctype html>
     const base       = Math.max(s.leads, 1);
 
     // % conversiones (cada etapa sobre la anterior)
-    const noShow = Math.max(s.conf - s.efec, 0);  // confirmadas que NO asistieron
+    const _coh = (s.view === 'coh');
+    // no-show: en cohorte usa asistió=No REAL (nos_coh) sobre citas OCURRIDAS (efec+nos); en actividad,
+    // confirmadas−efec sobre confirmadas (conf−efec cuenta pendientes → en cohorte del mes en curso mentiría).
+    const noShow = _coh ? (s.nos || 0) : Math.max(s.conf - s.efec, 0);
+    const _nosBase = _coh ? ((s.efec || 0) + (s.nos || 0)) : s.conf;
+    const _nosLbl  = _coh ? 'no-show s/ citas ocurridas' : 'no-show s/ confirmadas';
     const pCont  = _cc26Pct(s.cont, s.leads);
     const pAgen  = _cc26Pct(s.agen, s.cont);   // agendan cita (de contactados)
     const pConf  = _cc26Pct(s.conf, s.agen);   // confirman (de agendadas)
     const pEfec  = _cc26Pct(s.efec, s.conf);   // asisten (de confirmadas)
-    const pNos   = _cc26Pct(noShow, s.conf);   // no-show SOBRE confirmadas
+    const pNos   = _cc26Pct(noShow, _nosBase); // no-show
     const pTope  = _cc26Pct(s.tope, s.leads);
 
     function stage(name, val, widthPct, color, arr) {
@@ -10978,7 +10983,7 @@ HTML = r"""<!doctype html>
       return `<div class="cc26-conv">&#8595; ${txt}${redTxt ? ' &nbsp;<span class="cc26-conv-red">· ' + redTxt + '</span>' : ''}</div>`;
     }
 
-    function chips(tPct, nPct) {
+    function chips(tPct, nPct, nLbl) {
       return `<div class="cc26-chips">
         <div class="cc26-chip amber">
           <div class="cc26-chip-pct">${tPct}%</div>
@@ -10986,17 +10991,19 @@ HTML = r"""<!doctype html>
         </div>
         <div class="cc26-chip red">
           <div class="cc26-chip-pct">${nPct}%</div>
-          <div class="cc26-chip-label">No-show s/conf</div>
+          <div class="cc26-chip-label">${nLbl}</div>
         </div>
       </div>`;
     }
 
     const arrAny = (s.agen_arr || 0) + (s.conf_arr || 0) + (s.efec_arr || 0) > 0;
-    const legend = arrAny
-      ? `<div class="cc26-arr-legend"><span class="sw"></span>
-           <span><b>de otro mes</b> = la cita cae en este mes pero el lead ingresó en un mes anterior (arrastre). Leads y Contactados son 100% de este mes.</span>
-         </div>`
-      : '';
+    const legend = _coh
+      ? `<div style="font-size:10px;color:var(--c-muted,#64748b);line-height:1.45;margin-top:10px"><b style="color:#0F6E56">Conversión (cohorte)</b> · agendadas/confirmadas/efectivas = de los <b>leads que ingresaron el mes</b> (cita en cualquier fecha) → conversiones ≤100%. ⚠️ El mes en curso <b>madura</b>: los leads con cita futura aún no cuentan. Cambia a «Actividad» para ver las citas ocurridas en el mes.</div>`
+      : (arrAny
+        ? `<div class="cc26-arr-legend"><span class="sw"></span>
+             <span><b>de otro mes</b> = la cita cae en este mes pero el lead ingresó en un mes anterior (arrastre). Leads y Contactados son 100% de este mes.</span>
+           </div>`
+        : '');
     el.innerHTML =
       stage('Leads recibidos', s.leads, 100, VERDE)
       + conv(pCont + '% · contactamos')
@@ -11005,9 +11012,9 @@ HTML = r"""<!doctype html>
       + stage('Citas agendadas', s.agen, _cc26Pct(s.agen, s.leads), VERDE, s.agen_arr)
       + conv(pConf + '% · confirman')
       + stage('Citas confirmadas', s.conf, _cc26Pct(s.conf, s.leads), VERDE, s.conf_arr)
-      + conv(pEfec + '% · asisten', pNos + '% no-show s/ confirmadas')
+      + conv(pEfec + '% · asisten', pNos + '% ' + _nosLbl)
       + stage('Citas efectivas', s.efec, _cc26Pct(s.efec, s.leads), VERDE_OSC, s.efec_arr)
-      + chips(pTope, pNos)
+      + chips(pTope, pNos, _coh ? 'No-show s/ocurr.' : 'No-show s/conf')
       + legend;
   }
 
@@ -11140,6 +11147,19 @@ HTML = r"""<!doctype html>
         const fb = _CC26_ORDER[_CC26_ORDER.length - 1];
         _cc26RenderFunnel('cc26-funnel-right', arr.length > 0 ? arr : (fb ? [fb] : []));
         renderDesperdicio();
+      });
+    }
+
+    // Toggle VISTA (cohorte/actividad): re-renderiza SOLO los embudos (el desperdicio ya es por cohorte de ingreso).
+    const vwSel = document.getElementById('cc26-sel-view');
+    if (vwSel) {
+      const freshVw = vwSel.cloneNode(true);
+      vwSel.replaceWith(freshVw);
+      freshVw.addEventListener('change', () => {
+        _cc26RenderFunnel('cc26-funnel-left', _CC26_Q[freshSel.value] || _CC26_Q['Total']);
+        const arr = _CC26_ORDER.filter(m => selectedMonths.has(m));
+        const fb = _CC26_ORDER[_CC26_ORDER.length - 1];
+        _cc26RenderFunnel('cc26-funnel-right', arr.length > 0 ? arr : (fb ? [fb] : []));
       });
     }
   }
@@ -11844,6 +11864,20 @@ HTML = r"""<!doctype html>
     });
     return { agen_arr, conf_arr, efec_arr };
   }
+  // COHORTE DF: citas por mes de INGRESO del lead (agen_coh/conf_coh/efec_coh/nos_coh) desde live.dongfeng.
+  function _df_cohForMonths(months, agency, model) {
+    const L = (typeof DATA !== 'undefined' && DATA.digital && DATA.digital.live && DATA.digital.live.dongfeng) || {};
+    let src = {};
+    if (model && model !== 'Todas') { src = (L.mod && L.mod[model]) || _DF2_CONF_MOD[model] || {}; }
+    else if (agency && agency !== 'Todas') { src = (L.ag && L.ag[agency]) || _DF2_CONF_AG[agency] || {}; }
+    else { for (const mm of (L.months || [])) src[mm.label] = mm; }
+    let agen = 0, conf = 0, efec = 0, nos = 0;
+    (months || []).forEach(mo => {
+      const d = src[mo]; if (!d) return;
+      agen += d.agen_coh || 0; conf += d.conf_coh || 0; efec += d.efec_coh || 0; nos += d.nos_coh || 0;
+    });
+    return { agen, conf, efec, nos };
+  }
 
   // Agencia activa (lee el dropdown; 'Todas' por defecto).
   function _df_ccCurAgency() {
@@ -11853,6 +11887,10 @@ HTML = r"""<!doctype html>
   function _df_ccCurModel() {
     const s = document.getElementById('df-cc26-sel-model');
     return (s && s.value) || 'Todas';
+  }
+  function _df_ccCurView() {
+    const s = document.getElementById('df-cc26-sel-view');
+    return (s && s.value) || 'coh';
   }
   // Meses marcados en el dropdown de casillas (el mismo que maneja el embudo derecho).
   // Fallback: ultimo mes si no hay ninguno marcado.
@@ -11898,10 +11936,17 @@ HTML = r"""<!doctype html>
                  : (ag === 'Todas') ? _DF2_CC26_M[m] : (_DF2_CC26_AG[ag] && _DF2_CC26_AG[ag][m]);
       if (base) { leads += base.leads; cont += base.cont; tope += base.tope; }
     }
+    // Vista COHORTE (default) vs ACTIVIDAD (igual que Ford).
+    const view = _df_ccCurView();
+    if (view === 'coh') {
+      const co = _df_cohForMonths(months, ag, mod);
+      return { leads, cont, tope, agen: co.agen, conf: co.conf, efec: co.efec, nos: co.nos,
+               agen_arr: 0, conf_arr: 0, efec_arr: 0, view: 'coh' };
+    }
     const cf = _df_confForMonths(months, ag, mod);
     const ar = _df_arrForMonths(months, ag, mod);   // arrastre (de otro mes) por etapa
     return { leads, cont, tope, agen: cf.agendadas, conf: cf.confirmadas, efec: cf.efec, nos: cf.nos,
-             agen_arr: ar.agen_arr, conf_arr: ar.conf_arr, efec_arr: ar.efec_arr };
+             agen_arr: ar.agen_arr, conf_arr: ar.conf_arr, efec_arr: ar.efec_arr, view: 'act' };
   }
 
   // Formatea miles con punto
@@ -11971,12 +12016,15 @@ HTML = r"""<!doctype html>
       </div>`;
     }
 
+    const _coh = (s.view === 'coh');
     const arrAny = (s.agen_arr || 0) + (s.efec_arr || 0) > 0;
-    const legend = arrAny
-      ? `<div class="cc26-arr-legend"><span class="sw"></span>
-           <span><b>de otro mes</b> = la cita cae en este mes pero el lead ingresó en un mes anterior (arrastre). Leads y Contactados son 100% de este mes.</span>
-         </div>`
-      : '';
+    const legend = _coh
+      ? `<div style="font-size:10px;color:var(--c-muted,#64748b);line-height:1.45;margin-top:6px"><b style="color:#0F6E56">Conversión (cohorte)</b> · agendadas/efectivas = de los <b>leads que ingresaron el mes</b> (cita en cualquier fecha) → conversiones ≤100%. ⚠️ El mes en curso <b>madura</b>: leads con cita futura aún no cuentan. Cambia a «Actividad» para ver las citas ocurridas en el mes.</div>`
+      : (arrAny
+        ? `<div class="cc26-arr-legend"><span class="sw"></span>
+             <span><b>de otro mes</b> = la cita cae en este mes pero el lead ingresó en un mes anterior (arrastre). Leads y Contactados son 100% de este mes.</span>
+           </div>`
+        : '');
     // DF SIN etapa 'Confirmadas' en el embudo (la confirmación casi no se gestiona → efec>conf
     // invertía el embudo y daba no-show 0% falso). Va agendadas→efectivas directo; la confirmación
     // queda como chip + la tarjeta «Confirmación de cita».
@@ -12125,6 +12173,19 @@ HTML = r"""<!doctype html>
         const fb = _DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 1];
         _df_cc26RenderFunnel('df-cc26-funnel-right', arr.length > 0 ? arr : (fb ? [fb] : []));
         renderDesperdicioDF();
+      });
+    }
+
+    // Toggle VISTA (cohorte/actividad): re-renderiza SOLO los embudos.
+    const vwSel = document.getElementById('df-cc26-sel-view');
+    if (vwSel) {
+      const freshVw = vwSel.cloneNode(true);
+      vwSel.replaceWith(freshVw);
+      freshVw.addEventListener('change', () => {
+        _df_cc26RenderFunnel('df-cc26-funnel-left', _DF2_CC26_Q[freshSel.value] || _DF2_CC26_Q['Total']);
+        const arr = _DF2_CC26_ORDER.filter(m => selectedMonths.has(m));
+        const fb = _DF2_CC26_ORDER[_DF2_CC26_ORDER.length - 1];
+        _df_cc26RenderFunnel('df-cc26-funnel-right', arr.length > 0 ? arr : (fb ? [fb] : []));
       });
     }
   }
