@@ -14194,11 +14194,12 @@ HTML = r"""<!doctype html>
     if(sel.value !== prev) vtstate.zona = sel.value;
   }
 
-  // Filter flat rows según los filtros activos (agencia / zona / modelo).
+  // Filter flat rows según los filtros activos (año / agencia / zona / modelo).
   function vtFilterFlat(){
     const d = vtBrandData();
     if(!d) return [];
     return (d.flat || []).filter(r=>{
+      if(!vtMatchAnio(r.mes)) return false;
       if(vtstate.modelo && r.modelo !== vtstate.modelo) return false;
       if(vtstate.agencia && r.agencia !== vtstate.agencia) return false;
       if(vtstate.zona && r.zona !== vtstate.zona) return false;

@@ -12,7 +12,7 @@
 <!-- Cache-buster: force fresh reload cuando URL no tiene ?v= param. Deploy hash inline. -->
 <script>
 (function(){
-  var DEPLOY = '1783356978';
+  var DEPLOY = '1783357277';
   var u = new URL(location.href);
   if (u.searchParams.get('v') !== DEPLOY) {
     u.searchParams.set('v', DEPLOY);
@@ -14187,11 +14187,12 @@
     if(sel.value !== prev) vtstate.zona = sel.value;
   }
 
-  // Filter flat rows según los filtros activos (agencia / zona / modelo).
+  // Filter flat rows según los filtros activos (año / agencia / zona / modelo).
   function vtFilterFlat(){
     const d = vtBrandData();
     if(!d) return [];
     return (d.flat || []).filter(r=>{
+      if(!vtMatchAnio(r.mes)) return false;
       if(vtstate.modelo && r.modelo !== vtstate.modelo) return false;
       if(vtstate.agencia && r.agencia !== vtstate.agencia) return false;
       if(vtstate.zona && r.zona !== vtstate.zona) return false;
