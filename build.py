@@ -3611,6 +3611,13 @@ HTML = r"""<!doctype html>
           <option value="revenue">Facturación ($)</option>
         </select>
       </label>
+      <label>Año
+        <select id="vt-anio">
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+          <option value="">Todos</option>
+        </select>
+      </label>
       <label>Zona<select id="vt-zona"><option value="">Todas</option></select></label>
       <label>Agencia<select id="vt-agencia"><option value="">Todas</option></select></label>
       <label>Modelo<select id="vt-modelo"><option value="">Todos</option></select></label>
@@ -13959,7 +13966,9 @@ HTML = r"""<!doctype html>
   // =========================================================
   const VENTAS_MENSUAL = DATA.ventas_mensual || {};
   // vtstate.marcas = array de marcas seleccionadas (default: todas). Vacío = ninguna.
-  const vtstate = { marcas: Object.keys(VENTAS_MENSUAL), view:'modelo', metric:'cantidad', modelo:'', agencia:'', zona:'', topN:'', sortKey:'_total', sortDir:'desc', expanded:new Set() };
+  const vtstate = { marcas: Object.keys(VENTAS_MENSUAL), view:'modelo', metric:'cantidad', modelo:'', agencia:'', zona:'', topN:'', sortKey:'_total', sortDir:'desc', expanded:new Set(), anio:'2026' };
+  // Helper: predicate para filtrar mes por año activo. '' = todos.
+  function vtMatchAnio(mes){ return !vtstate.anio || (mes||'').startsWith(vtstate.anio + '-'); }
   // Alias legacy: vtstate.marca sigue leyéndose en algunos lugares (Meta Ventas Ford,
   // filter-summary). Devuelve 'FORD' si solo Ford está seleccionado, '__MULTI__' si varias,
   // primera marca si array de 1.
@@ -14226,10 +14235,10 @@ HTML = r"""<!doctype html>
       document.getElementById('vt-k-leader').textContent = '—';
       return;
     }
-    // Hero/KPIs: solo 2026 (YTD año en curso).
+    // Hero/KPIs: filtro por año activo (vtstate.anio).
     const allMonths = d.months || [];
-    const months = allMonths.filter(m => m.startsWith('2026-'));
-    const rows = vtFilterFlat().filter(r => (r.mes||'').startsWith('2026-'));
+    const months = allMonths.filter(vtMatchAnio);
+    const rows = vtFilterFlat().filter(r => vtMatchAnio(r.mes));
     const mk = vtMetricKey();
     const perMes = {}; months.forEach(m=> perMes[m] = 0);
     let total = 0, totalUnits = 0, totalRev = 0;
@@ -14282,12 +14291,12 @@ HTML = r"""<!doctype html>
       if(tbody) tbody.innerHTML = '<tr><td>Sin data</td></tr>';
       return;
     }
-    // Tablas históricas: solo 2026 (año en curso). El chart sí incluye 2025.
+    // Tablas históricas: filtrado por año activo (vtstate.anio).
     const allMonths = d.months || [];
     const allLabels = d.months_labels || [];
-    const idx2026 = allMonths.map((m,i)=> m.startsWith('2026-') ? i : -1).filter(i=>i>=0);
-    const months = idx2026.map(i => allMonths[i]);
-    const labels = idx2026.map(i => allLabels[i]);
+    const idxAnio = allMonths.map((m,i)=> vtMatchAnio(m) ? i : -1).filter(i=>i>=0);
+    const months = idxAnio.map(i => allMonths[i]);
+    const labels = idxAnio.map(i => allLabels[i]);
     const metricLbl = vtstate.metric === 'revenue' ? '$' : 'Unid';
     if(titleEl) titleEl.innerHTML = '📋 Ventas mes a mes <span class="sub">' + dimLbl + ' × Mes · ' + metricLbl + '</span>';
     const monthHdrs = labels.map((l,i)=>`<th class="num vt-sort-h" data-sort="${months[i]}" style="cursor:pointer" title="Click para ordenar">${l}</th>`).join('');
@@ -14761,16 +14770,22 @@ HTML = r"""<!doctype html>
     document.getElementById('vt-topn').addEventListener('change', e=>{
       vtstate.topN = e.target.value; vtRenderAll();
     });
+    const anioEl = document.getElementById('vt-anio');
+    if(anioEl){
+      anioEl.value = vtstate.anio;
+      anioEl.addEventListener('change', e=>{ vtstate.anio = e.target.value; vtRenderAll(); });
+    }
     document.getElementById('vt-export').addEventListener('click', vtExportCSV);
     document.getElementById('vt-reset').addEventListener('click', ()=>{
       vtstate.marcas = Object.keys(VENTAS_MENSUAL);
       vtstate.view = 'modelo'; vtstate.metric='cantidad';
       vtstate.modelo = ''; vtstate.agencia = ''; vtstate.zona = '';
       vtstate.topN = ''; vtstate.sortKey = '_total'; vtstate.sortDir = 'desc';
+      vtstate.anio = '2026';
       vtstate.expanded.clear();
-      ['vt-view','vt-metric','vt-zona','vt-agencia','vt-modelo','vt-topn'].forEach(id=>{
+      ['vt-view','vt-metric','vt-zona','vt-agencia','vt-modelo','vt-topn','vt-anio'].forEach(id=>{
         const el = document.getElementById(id);
-        if(el) el.value = (id === 'vt-view' ? 'modelo' : (id === 'vt-metric' ? 'cantidad' : ''));
+        if(el) el.value = (id === 'vt-view' ? 'modelo' : (id === 'vt-metric' ? 'cantidad' : (id === 'vt-anio' ? '2026' : '')));
       });
       // Repaint checkboxes de marca
       const panel = document.getElementById('vt-marca-panel');
