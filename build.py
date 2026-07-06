@@ -10876,6 +10876,20 @@ HTML = r"""<!doctype html>
     });
     return { agen_arr, conf_arr, efec_arr };
   }
+  // COHORTE: citas por mes de INGRESO del lead (agen_coh/conf_coh/efec_coh/nos_coh) desde live.ford.
+  function _cohForMonths(months, agency, model) {
+    const L = (typeof DATA !== 'undefined' && DATA.digital && DATA.digital.live && DATA.digital.live.ford) || {};
+    let src = {};
+    if (model && model !== 'Todas') { src = (L.mod && L.mod[model]) || _CONF_MOD[model] || {}; }
+    else if (agency && agency !== 'Todas') { src = (L.ag && L.ag[agency]) || _CONF_AG[agency] || {}; }
+    else { for (const mm of (L.months || [])) src[mm.label] = mm; }
+    let agen = 0, conf = 0, efec = 0, nos = 0;
+    (months || []).forEach(mo => {
+      const d = src[mo]; if (!d) return;
+      agen += d.agen_coh || 0; conf += d.conf_coh || 0; efec += d.efec_coh || 0; nos += d.nos_coh || 0;
+    });
+    return { agen, conf, efec, nos };
+  }
 
   // Agencia activa (lee el dropdown; 'Todas' por defecto).
   function _ccCurAgency() {
@@ -10885,6 +10899,11 @@ HTML = r"""<!doctype html>
   function _ccCurModel() {
     const s = document.getElementById('cc26-sel-model');
     return (s && s.value) || 'Todas';
+  }
+  // Vista activa: 'coh' (cohorte, default) | 'act' (actividad).
+  function _ccCurView() {
+    const s = document.getElementById('cc26-sel-view');
+    return (s && s.value) || 'coh';
   }
   // Meses marcados en el dropdown de casillas (el mismo que maneja el embudo derecho).
   // Fallback: ultimo mes si no hay ninguno marcado.
@@ -10931,11 +10950,18 @@ HTML = r"""<!doctype html>
                  : (ag === 'Todas') ? _CC26_M[m] : (_CC26_AG[ag] && _CC26_AG[ag][m]);
       if (base) { leads += base.leads; cont += base.cont; tope += base.tope; }
     }
-    // agendadas/confirmadas/efectivas vienen de la Etapa 2 (_CONF), mismo scope.
+    // Vista COHORTE (default): citas de los leads del mes (agen_coh…) → embudo cierra ≤100%, sin arrastre.
+    // Vista ACTIVIDAD: citas ocurridas en el mes (por fecha de cita), con split de arrastre.
+    const view = _ccCurView();
+    if (view === 'coh') {
+      const co = _cohForMonths(months, ag, mod);
+      return { leads, cont, tope, agen: co.agen, conf: co.conf, efec: co.efec, nos: co.nos,
+               agen_arr: 0, conf_arr: 0, efec_arr: 0, view: 'coh' };
+    }
     const cf = _confForMonths(months, ag, mod);
     const ar = _arrForMonths(months, ag, mod);   // arrastre (de otro mes) por etapa
     return { leads, cont, tope, agen: cf.agendadas, conf: cf.confirmadas, efec: cf.efec,
-             agen_arr: ar.agen_arr, conf_arr: ar.conf_arr, efec_arr: ar.efec_arr };
+             agen_arr: ar.agen_arr, conf_arr: ar.conf_arr, efec_arr: ar.efec_arr, view: 'act' };
   }
 
   // Formatea miles con punto
