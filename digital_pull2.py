@@ -273,7 +273,8 @@ def fetch_brand_full(cfg):
         return {'leads': 0, 'cont': 0, 'tope': 0, 'agen': 0, 'confirmadas': 0, 'efec': 0, 'nos': 0,
                 'nc_by': {}, 'c_est': {}, 'c_cross': {}, 'ns_est': {}, 'conf_d': {}, 'ns_react': {},
                 'c_cat': {}, 'c_cat_det': {}, 'c_cat_llam': {}, 'c_cat_notask': {}, 'conf_cross': {},
-                'agen_arr': 0, 'conf_arr': 0, 'efec_arr': 0}  # arrastre: cita este mes de lead de OTRO mes
+                'agen_arr': 0, 'conf_arr': 0, 'efec_arr': 0,   # arrastre: cita este mes de lead de OTRO mes
+                'agen_coh': 0, 'conf_coh': 0, 'efec_coh': 0, 'nos_coh': 0}  # COHORTE: cita atribuida al mes de INGRESO del lead
     # cells[(scope, label)] donde scope = 'T' o agencia-corta
     cells = {}
 
@@ -392,13 +393,26 @@ def fetch_brand_full(cfg):
             idx = _REACT_INTERNAL_TO_IDX.get(a.get('numero_de_llamada_reactivacion'), 3)  # default Sin react.
             arr = c['ns_react'].setdefault(stlbl, [0, 0, 0, 0])
             arr[idx] += 1
-        # arrastre PER-SCOPE: la cita cae en 'lbl' pero el lead (contacto) ingresó en OTRO mes
+        # c_lbl = mes de INGRESO del lead (contacto). Sirve a COHORTE + arrastre.
         c_lbl = _label_from_ms((a.get(ingreso) or a.get('createdate')) if ingreso else a.get(cohort))
+        _ag = p.get('agencia')
+        _mod = _model_family(p.get(model_field), model_families) if model_field else None
+        _scopes = ['T'] + ([ag_short[_ag]] if _ag in ag_internal else []) + (['M|' + _mod] if _mod else [])
+        _asis = p.get('asistio_a_la_cita')
+        # COHORTE: cita atribuida al mes de INGRESO del lead (cita en CUALQUIER fecha del window) →
+        # embudo de "conversión de los leads del mes" (≤100%, madura el mes en curso).
+        if c_lbl:
+            for _sc in _scopes:
+                cch = cell(_sc, c_lbl)
+                cch['agen_coh'] += 1
+                if confv == 'Confirma':
+                    cch['conf_coh'] += 1
+                if _asis == 'Si':
+                    cch['efec_coh'] += 1
+                elif _asis == 'No':
+                    cch['nos_coh'] += 1
+        # ARRASTRE (vista ACTIVIDAD): la cita cae en 'lbl' pero el lead ingresó en OTRO mes.
         if c_lbl != lbl:
-            _ag = p.get('agencia')
-            _mod = _model_family(p.get(model_field), model_families) if model_field else None
-            _scopes = ['T'] + ([ag_short[_ag]] if _ag in ag_internal else []) + (['M|' + _mod] if _mod else [])
-            _asis = p.get('asistio_a_la_cita')
             for _sc in _scopes:
                 cc = cell(_sc, lbl)
                 cc['agen_arr'] += 1
@@ -414,7 +428,8 @@ def fetch_brand_full(cfg):
         return {'leads': c['leads'], 'cont': c['cont'], 'tope': c['tope'],
                 'agen': c['agen'], 'agendadas': c['agen'],  # ambos nombres (panel usa 'agendadas')
                 'confirmadas': c['confirmadas'], 'efec': c['efec'], 'nos': c['nos'], 'conf': conf,
-                'agen_arr': c['agen_arr'], 'conf_arr': c['conf_arr'], 'efec_arr': c['efec_arr']}  # arrastre
+                'agen_arr': c['agen_arr'], 'conf_arr': c['conf_arr'], 'efec_arr': c['efec_arr'],  # arrastre (actividad)
+                'agen_coh': c['agen_coh'], 'conf_coh': c['conf_coh'], 'efec_coh': c['efec_coh'], 'nos_coh': c['nos_coh']}  # cohorte
     def desp_obj(c):
         by_cat = [[k, c['c_cat'][k]] for k in _CAT_ORDER if c['c_cat'].get(k)]
         cat_det = {k: _sorted_pairs(v) for k, v in c['c_cat_det'].items()}
