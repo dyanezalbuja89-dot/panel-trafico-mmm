@@ -4733,6 +4733,13 @@ HTML = r"""<!doctype html>
         </div>
         <div style="display:flex; gap:10px; align-items:flex-end">
           <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
+            <div class="cc26-funnel-title">Vista</div>
+            <select id="cc26-sel-view" class="cc26-select" title="Cohorte = conversión de los leads que ingresaron el mes (≤100%, el mes en curso madura). Actividad = citas ocurridas en el mes (incluye arrastre de leads de otros meses).">
+              <option value="coh">Conversión (cohorte)</option>
+              <option value="act">Actividad (citas del mes)</option>
+            </select>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
             <div class="cc26-funnel-title">Agencia</div>
             <select id="cc26-sel-agency" class="cc26-select" title="Filtra todo el Control CC (embudos + desperdicio) por agencia"></select>
           </div>
@@ -4931,6 +4938,13 @@ HTML = r"""<!doctype html>
           <div class="cc-section-sub">Dong Feng · pipeline Ventas-Dongfeng · cohorte COALESCE ingreso-DF/createdate · 2026</div>
         </div>
         <div style="display:flex; gap:10px; align-items:flex-end">
+          <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
+            <div class="cc26-funnel-title">Vista</div>
+            <select id="df-cc26-sel-view" class="cc26-select" title="Cohorte = conversión de los leads que ingresaron el mes (≤100%, el mes en curso madura). Actividad = citas ocurridas en el mes (incluye arrastre de leads de otros meses).">
+              <option value="coh">Conversión (cohorte)</option>
+              <option value="act">Actividad (citas del mes)</option>
+            </select>
+          </div>
           <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
             <div class="cc26-funnel-title">Agencia</div>
             <select id="df-cc26-sel-agency" class="cc26-select" title="Filtra todo el Control CC (embudos + desperdicio) por agencia"></select>
