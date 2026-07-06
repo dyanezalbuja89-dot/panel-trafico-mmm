@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-07-06T12:32:34.771784+00:00",
+  "updated_at": "2026-07-06T14:34:11.916837+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -166,11 +166,11 @@
       "vent": 2,
       "tope": 334,
       "nos": 208,
-      "confirmadas": 131,
+      "confirmadas": 132,
       "conf": [
         [
           "Confirma",
-          131
+          132
         ],
         [
           "No contesta",
@@ -182,7 +182,7 @@
         ],
         [
           "Reagenda",
-          4
+          3
         ],
         [
           "Sin gestión",
@@ -194,9 +194,9 @@
       "label": "jul-26",
       "year": 2026,
       "month": 7,
-      "leads": 81,
-      "cont": 36,
-      "agen": 39,
+      "leads": 82,
+      "cont": 42,
+      "agen": 45,
       "efec": 8,
       "vent": 0,
       "tope": 12,
@@ -208,12 +208,12 @@
           23
         ],
         [
-          "No contesta",
-          7
+          "Sin gestión",
+          12
         ],
         [
-          "Sin gestión",
-          6
+          "No contesta",
+          7
         ],
         [
           "Desiste",
@@ -348,15 +348,15 @@
     ]
   },
   "kpis": {
-    "period_leads": 4953,
-    "period_cont": 4207,
-    "period_agen": 1837,
+    "period_leads": 4954,
+    "period_cont": 4213,
+    "period_agen": 1843,
     "period_efec": 605,
     "period_vent": 16,
-    "rate_cont": 84.9,
-    "rate_agen": 37.1,
-    "rate_show": 32.9,
-    "rate_no_show": 67.1,
+    "rate_cont": 85.0,
+    "rate_agen": 37.2,
+    "rate_show": 32.8,
+    "rate_no_show": 67.2,
     "rate_close": 2.6,
     "rate_lead_to_sale": 0.3
   },
@@ -979,7 +979,11 @@
           ],
           "agen_arr": 65,
           "conf_arr": 34,
-          "efec_arr": 16
+          "efec_arr": 16,
+          "agen_coh": 259,
+          "conf_coh": 127,
+          "efec_coh": 86,
+          "nos_coh": 153
         },
         {
           "label": "feb·26",
@@ -1009,7 +1013,11 @@
           ],
           "agen_arr": 55,
           "conf_arr": 33,
-          "efec_arr": 21
+          "efec_arr": 21,
+          "agen_coh": 234,
+          "conf_coh": 128,
+          "efec_coh": 90,
+          "nos_coh": 114
         },
         {
           "label": "mar·26",
@@ -1043,7 +1051,11 @@
           ],
           "agen_arr": 98,
           "conf_arr": 51,
-          "efec_arr": 33
+          "efec_arr": 33,
+          "agen_coh": 255,
+          "conf_coh": 105,
+          "efec_coh": 78,
+          "nos_coh": 173
         },
         {
           "label": "abr·26",
@@ -1073,7 +1085,11 @@
           ],
           "agen_arr": 46,
           "conf_arr": 26,
-          "efec_arr": 14
+          "efec_arr": 14,
+          "agen_coh": 344,
+          "conf_coh": 186,
+          "efec_coh": 124,
+          "nos_coh": 216
         },
         {
           "label": "may·26",
@@ -1107,7 +1123,11 @@
           ],
           "agen_arr": 60,
           "conf_arr": 25,
-          "efec_arr": 18
+          "efec_arr": 18,
+          "agen_coh": 345,
+          "conf_coh": 171,
+          "efec_coh": 106,
+          "nos_coh": 229
         },
         {
           "label": "jun·26",
@@ -1118,13 +1138,13 @@
           "tope": 334,
           "agen": 321,
           "agendadas": 321,
-          "confirmadas": 131,
+          "confirmadas": 132,
           "efec": 99,
           "nos": 208,
           "conf": [
             [
               "Confirma",
-              131
+              132
             ],
             [
               "No contesta",
@@ -1136,7 +1156,7 @@
             ],
             [
               "Reagenda",
-              4
+              3
             ],
             [
               "Sin gestión",
@@ -1145,17 +1165,21 @@
           ],
           "agen_arr": 83,
           "conf_arr": 28,
-          "efec_arr": 22
+          "efec_arr": 22,
+          "agen_coh": 282,
+          "conf_coh": 128,
+          "efec_coh": 84,
+          "nos_coh": 172
         },
         {
           "label": "jul·26",
           "year": 2026,
           "month": 7,
-          "leads": 81,
-          "cont": 36,
+          "leads": 82,
+          "cont": 43,
           "tope": 12,
-          "agen": 39,
-          "agendadas": 39,
+          "agen": 45,
+          "agendadas": 45,
           "confirmadas": 23,
           "efec": 8,
           "nos": 1,
@@ -1165,12 +1189,12 @@
               23
             ],
             [
-              "No contesta",
-              7
+              "Sin gestión",
+              12
             ],
             [
-              "Sin gestión",
-              6
+              "No contesta",
+              7
             ],
             [
               "Desiste",
@@ -1183,7 +1207,11 @@
           ],
           "agen_arr": 24,
           "conf_arr": 14,
-          "efec_arr": 6
+          "efec_arr": 6,
+          "agen_coh": 22,
+          "conf_coh": 10,
+          "efec_coh": 2,
+          "nos_coh": 0
         }
       ],
       "ag": {
@@ -1217,7 +1245,11 @@
             ],
             "agen_arr": 16,
             "conf_arr": 9,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 71,
+            "conf_coh": 39,
+            "efec_coh": 24,
+            "nos_coh": 42
           },
           "feb·26": {
             "leads": 146,
@@ -1244,7 +1276,11 @@
             ],
             "agen_arr": 18,
             "conf_arr": 14,
-            "efec_arr": 7
+            "efec_arr": 7,
+            "agen_coh": 78,
+            "conf_coh": 43,
+            "efec_coh": 27,
+            "nos_coh": 36
           },
           "mar·26": {
             "leads": 196,
@@ -1271,7 +1307,11 @@
             ],
             "agen_arr": 29,
             "conf_arr": 14,
-            "efec_arr": 8
+            "efec_arr": 8,
+            "agen_coh": 88,
+            "conf_coh": 31,
+            "efec_coh": 21,
+            "nos_coh": 66
           },
           "abr·26": {
             "leads": 323,
@@ -1298,7 +1338,11 @@
             ],
             "agen_arr": 18,
             "conf_arr": 9,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 104,
+            "conf_coh": 57,
+            "efec_coh": 36,
+            "nos_coh": 66
           },
           "may·26": {
             "leads": 357,
@@ -1329,7 +1373,11 @@
             ],
             "agen_arr": 26,
             "conf_arr": 9,
-            "efec_arr": 10
+            "efec_arr": 10,
+            "agen_coh": 118,
+            "conf_coh": 55,
+            "efec_coh": 30,
+            "nos_coh": 83
           },
           "jun·26": {
             "leads": 360,
@@ -1360,14 +1408,18 @@
             ],
             "agen_arr": 28,
             "conf_arr": 8,
-            "efec_arr": 8
+            "efec_arr": 8,
+            "agen_coh": 99,
+            "conf_coh": 30,
+            "efec_coh": 14,
+            "nos_coh": 71
           },
           "jul·26": {
             "leads": 18,
-            "cont": 4,
+            "cont": 6,
             "tope": 6,
-            "agen": 11,
-            "agendadas": 11,
+            "agen": 13,
+            "agendadas": 13,
             "confirmadas": 8,
             "efec": 2,
             "nos": 0,
@@ -1379,11 +1431,19 @@
               [
                 "No contesta",
                 3
+              ],
+              [
+                "Sin gestión",
+                2
               ]
             ],
             "agen_arr": 9,
             "conf_arr": 6,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 4,
+            "conf_coh": 2,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Orellana": {
@@ -1416,7 +1476,11 @@
             ],
             "agen_arr": 14,
             "conf_arr": 5,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 61,
+            "conf_coh": 29,
+            "efec_coh": 23,
+            "nos_coh": 38
           },
           "feb·26": {
             "leads": 137,
@@ -1443,7 +1507,11 @@
             ],
             "agen_arr": 13,
             "conf_arr": 6,
-            "efec_arr": 4
+            "efec_arr": 4,
+            "agen_coh": 74,
+            "conf_coh": 39,
+            "efec_coh": 29,
+            "nos_coh": 44
           },
           "mar·26": {
             "leads": 159,
@@ -1474,7 +1542,11 @@
             ],
             "agen_arr": 24,
             "conf_arr": 14,
-            "efec_arr": 8
+            "efec_arr": 8,
+            "agen_coh": 68,
+            "conf_coh": 26,
+            "efec_coh": 16,
+            "nos_coh": 52
           },
           "abr·26": {
             "leads": 208,
@@ -1501,7 +1573,11 @@
             ],
             "agen_arr": 13,
             "conf_arr": 9,
-            "efec_arr": 7
+            "efec_arr": 7,
+            "agen_coh": 68,
+            "conf_coh": 39,
+            "efec_coh": 27,
+            "nos_coh": 40
           },
           "may·26": {
             "leads": 243,
@@ -1532,7 +1608,11 @@
             ],
             "agen_arr": 13,
             "conf_arr": 4,
-            "efec_arr": 3
+            "efec_arr": 3,
+            "agen_coh": 87,
+            "conf_coh": 47,
+            "efec_coh": 29,
+            "nos_coh": 57
           },
           "jun·26": {
             "leads": 295,
@@ -1559,11 +1639,15 @@
             ],
             "agen_arr": 19,
             "conf_arr": 7,
-            "efec_arr": 5
+            "efec_arr": 5,
+            "agen_coh": 78,
+            "conf_coh": 44,
+            "efec_coh": 22,
+            "nos_coh": 50
           },
           "jul·26": {
             "leads": 15,
-            "cont": 8,
+            "cont": 9,
             "tope": 0,
             "agen": 11,
             "agendadas": 11,
@@ -1590,7 +1674,11 @@
             ],
             "agen_arr": 6,
             "conf_arr": 4,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 5,
+            "conf_coh": 1,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "La Y": {
@@ -1627,7 +1715,11 @@
             ],
             "agen_arr": 17,
             "conf_arr": 8,
-            "efec_arr": 4
+            "efec_arr": 4,
+            "agen_coh": 68,
+            "conf_coh": 27,
+            "efec_coh": 19,
+            "nos_coh": 41
           },
           "feb·26": {
             "leads": 124,
@@ -1654,7 +1746,11 @@
             ],
             "agen_arr": 16,
             "conf_arr": 7,
-            "efec_arr": 5
+            "efec_arr": 5,
+            "agen_coh": 34,
+            "conf_coh": 19,
+            "efec_coh": 13,
+            "nos_coh": 15
           },
           "mar·26": {
             "leads": 148,
@@ -1681,7 +1777,11 @@
             ],
             "agen_arr": 23,
             "conf_arr": 10,
-            "efec_arr": 9
+            "efec_arr": 9,
+            "agen_coh": 56,
+            "conf_coh": 27,
+            "efec_coh": 23,
+            "nos_coh": 31
           },
           "abr·26": {
             "leads": 248,
@@ -1708,7 +1808,11 @@
             ],
             "agen_arr": 4,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 92,
+            "conf_coh": 42,
+            "efec_coh": 31,
+            "nos_coh": 60
           },
           "may·26": {
             "leads": 255,
@@ -1739,7 +1843,11 @@
             ],
             "agen_arr": 7,
             "conf_arr": 2,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 82,
+            "conf_coh": 38,
+            "efec_coh": 27,
+            "nos_coh": 55
           },
           "jun·26": {
             "leads": 121,
@@ -1770,14 +1878,18 @@
             ],
             "agen_arr": 16,
             "conf_arr": 7,
-            "efec_arr": 6
+            "efec_arr": 6,
+            "agen_coh": 43,
+            "conf_coh": 19,
+            "efec_coh": 18,
+            "nos_coh": 23
           },
           "jul·26": {
-            "leads": 9,
-            "cont": 9,
+            "leads": 11,
+            "cont": 11,
             "tope": 0,
-            "agen": 6,
-            "agendadas": 6,
+            "agen": 9,
+            "agendadas": 9,
             "confirmadas": 5,
             "efec": 2,
             "nos": 0,
@@ -1788,12 +1900,16 @@
               ],
               [
                 "Sin gestión",
-                1
+                4
               ]
             ],
             "agen_arr": 2,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 7,
+            "conf_coh": 4,
+            "efec_coh": 1,
+            "nos_coh": 0
           }
         },
         "Tumbaco": {
@@ -1826,7 +1942,11 @@
             ],
             "agen_arr": 9,
             "conf_arr": 7,
-            "efec_arr": 5
+            "efec_arr": 5,
+            "agen_coh": 32,
+            "conf_coh": 17,
+            "efec_coh": 9,
+            "nos_coh": 18
           },
           "feb·26": {
             "leads": 59,
@@ -1853,7 +1973,11 @@
             ],
             "agen_arr": 6,
             "conf_arr": 4,
-            "efec_arr": 3
+            "efec_arr": 3,
+            "agen_coh": 25,
+            "conf_coh": 16,
+            "efec_coh": 15,
+            "nos_coh": 8
           },
           "mar·26": {
             "leads": 76,
@@ -1880,7 +2004,11 @@
             ],
             "agen_arr": 9,
             "conf_arr": 7,
-            "efec_arr": 6
+            "efec_arr": 6,
+            "agen_coh": 28,
+            "conf_coh": 14,
+            "efec_coh": 12,
+            "nos_coh": 15
           },
           "abr·26": {
             "leads": 141,
@@ -1907,7 +2035,11 @@
             ],
             "agen_arr": 4,
             "conf_arr": 3,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 47,
+            "conf_coh": 29,
+            "efec_coh": 17,
+            "nos_coh": 30
           },
           "may·26": {
             "leads": 106,
@@ -1938,7 +2070,11 @@
             ],
             "agen_arr": 10,
             "conf_arr": 6,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 31,
+            "conf_coh": 13,
+            "efec_coh": 10,
+            "nos_coh": 20
           },
           "jun·26": {
             "leads": 191,
@@ -1946,13 +2082,13 @@
             "tope": 57,
             "agen": 43,
             "agendadas": 43,
-            "confirmadas": 16,
+            "confirmadas": 17,
             "efec": 17,
             "nos": 26,
             "conf": [
               [
                 "Confirma",
-                16
+                17
               ],
               [
                 "No contesta",
@@ -1964,19 +2100,23 @@
               ],
               [
                 "Reagenda",
-                3
+                2
               ]
             ],
             "agen_arr": 10,
             "conf_arr": 3,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 38,
+            "conf_coh": 16,
+            "efec_coh": 16,
+            "nos_coh": 20
           },
           "jul·26": {
-            "leads": 34,
-            "cont": 13,
+            "leads": 33,
+            "cont": 14,
             "tope": 6,
-            "agen": 8,
-            "agendadas": 8,
+            "agen": 9,
+            "agendadas": 9,
             "confirmadas": 3,
             "efec": 1,
             "nos": 1,
@@ -1990,21 +2130,25 @@
                 2
               ],
               [
+                "Sin gestión",
+                2
+              ],
+              [
                 "Desiste",
                 1
               ],
               [
                 "Reagenda",
                 1
-              ],
-              [
-                "Sin gestión",
-                1
               ]
             ],
             "agen_arr": 6,
             "conf_arr": 2,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 4,
+            "conf_coh": 2,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Manta": {
@@ -2033,7 +2177,11 @@
             ],
             "agen_arr": 6,
             "conf_arr": 3,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 21,
+            "conf_coh": 11,
+            "efec_coh": 8,
+            "nos_coh": 11
           },
           "feb·26": {
             "leads": 32,
@@ -2060,7 +2208,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 2,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 12,
+            "conf_coh": 5,
+            "efec_coh": 3,
+            "nos_coh": 5
           },
           "mar·26": {
             "leads": 34,
@@ -2087,7 +2239,11 @@
             ],
             "agen_arr": 6,
             "conf_arr": 3,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 7,
+            "conf_coh": 4,
+            "efec_coh": 3,
+            "nos_coh": 4
           },
           "abr·26": {
             "leads": 35,
@@ -2114,7 +2270,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 2,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 17,
+            "conf_coh": 11,
+            "efec_coh": 7,
+            "nos_coh": 10
           },
           "may·26": {
             "leads": 24,
@@ -2137,7 +2297,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 3,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 10,
+            "conf_coh": 7,
+            "efec_coh": 3,
+            "nos_coh": 6
           },
           "jun·26": {
             "leads": 35,
@@ -2164,11 +2328,15 @@
             ],
             "agen_arr": 6,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 8,
+            "conf_coh": 6,
+            "efec_coh": 6,
+            "nos_coh": 1
           },
           "jul·26": {
             "leads": 3,
-            "cont": 1,
+            "cont": 2,
             "tope": 0,
             "agen": 0,
             "agendadas": 0,
@@ -2178,7 +2346,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Machala": {
@@ -2199,7 +2371,11 @@
             ],
             "agen_arr": 1,
             "conf_arr": 1,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 4,
+            "conf_coh": 4,
+            "efec_coh": 3,
+            "nos_coh": 1
           },
           "feb·26": {
             "leads": 7,
@@ -2222,7 +2398,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 6,
+            "conf_coh": 4,
+            "efec_coh": 2,
+            "nos_coh": 2
           },
           "mar·26": {
             "leads": 10,
@@ -2249,7 +2429,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 2,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 6,
+            "conf_coh": 3,
+            "efec_coh": 3,
+            "nos_coh": 3
           },
           "abr·26": {
             "leads": 22,
@@ -2276,7 +2460,11 @@
             ],
             "agen_arr": 1,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 10,
+            "conf_coh": 3,
+            "efec_coh": 3,
+            "nos_coh": 7
           },
           "may·26": {
             "leads": 17,
@@ -2303,7 +2491,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 9,
+            "conf_coh": 6,
+            "efec_coh": 2,
+            "nos_coh": 5
           },
           "jun·26": {
             "leads": 19,
@@ -2334,7 +2526,11 @@
             ],
             "agen_arr": 4,
             "conf_arr": 2,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 11,
+            "conf_coh": 8,
+            "efec_coh": 5,
+            "nos_coh": 5
           },
           "jul·26": {
             "leads": 2,
@@ -2357,7 +2553,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 2,
+            "conf_coh": 1,
+            "efec_coh": 1,
+            "nos_coh": 0
           }
         },
         "Portoviejo": {
@@ -2386,7 +2586,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 2,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 2
           },
           "feb·26": {
             "leads": 5,
@@ -2405,7 +2609,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 5,
+            "conf_coh": 2,
+            "efec_coh": 1,
+            "nos_coh": 4
           },
           "mar·26": {
             "leads": 2,
@@ -2432,7 +2640,11 @@
             ],
             "agen_arr": 4,
             "conf_arr": 1,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 2,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 2
           },
           "abr·26": {
             "leads": 10,
@@ -2455,7 +2667,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 1,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 6,
+            "conf_coh": 5,
+            "efec_coh": 3,
+            "nos_coh": 3
           },
           "may·26": {
             "leads": 11,
@@ -2478,7 +2694,11 @@
             ],
             "agen_arr": 1,
             "conf_arr": 1,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 8,
+            "conf_coh": 5,
+            "efec_coh": 5,
+            "nos_coh": 3
           },
           "jun·26": {
             "leads": 7,
@@ -2497,7 +2717,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 5,
+            "conf_coh": 5,
+            "efec_coh": 3,
+            "nos_coh": 2
           },
           "jul·26": {
             "leads": 0,
@@ -2516,7 +2740,11 @@
             ],
             "agen_arr": 1,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         }
       },
@@ -2539,7 +2767,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 2,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           },
           "feb·26": {
             "leads": 1,
@@ -2558,7 +2790,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 1,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 1
           },
           "mar·26": {
             "leads": 1,
@@ -2572,7 +2808,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           },
           "abr·26": {
             "leads": 1,
@@ -2586,7 +2826,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           },
           "may·26": {
             "leads": 2,
@@ -2600,7 +2844,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           },
           "jun·26": {
             "leads": 146,
@@ -2627,7 +2875,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 31,
+            "conf_coh": 11,
+            "efec_coh": 9,
+            "nos_coh": 20
           },
           "jul·26": {
             "leads": 1,
@@ -2641,7 +2893,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Escape": {
@@ -2670,7 +2926,11 @@
             ],
             "agen_arr": 8,
             "conf_arr": 6,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 34,
+            "conf_coh": 14,
+            "efec_coh": 11,
+            "nos_coh": 22
           },
           "feb·26": {
             "leads": 116,
@@ -2697,7 +2957,11 @@
             ],
             "agen_arr": 8,
             "conf_arr": 4,
-            "efec_arr": 3
+            "efec_arr": 3,
+            "agen_coh": 66,
+            "conf_coh": 32,
+            "efec_coh": 21,
+            "nos_coh": 40
           },
           "mar·26": {
             "leads": 224,
@@ -2724,7 +2988,11 @@
             ],
             "agen_arr": 49,
             "conf_arr": 22,
-            "efec_arr": 15
+            "efec_arr": 15,
+            "agen_coh": 103,
+            "conf_coh": 38,
+            "efec_coh": 28,
+            "nos_coh": 72
           },
           "abr·26": {
             "leads": 297,
@@ -2751,7 +3019,11 @@
             ],
             "agen_arr": 21,
             "conf_arr": 12,
-            "efec_arr": 6
+            "efec_arr": 6,
+            "agen_coh": 98,
+            "conf_coh": 56,
+            "efec_coh": 39,
+            "nos_coh": 58
           },
           "may·26": {
             "leads": 344,
@@ -2782,7 +3054,11 @@
             ],
             "agen_arr": 36,
             "conf_arr": 12,
-            "efec_arr": 10
+            "efec_arr": 10,
+            "agen_coh": 131,
+            "conf_coh": 56,
+            "efec_coh": 39,
+            "nos_coh": 89
           },
           "jun·26": {
             "leads": 178,
@@ -2813,11 +3089,15 @@
             ],
             "agen_arr": 19,
             "conf_arr": 7,
-            "efec_arr": 5
+            "efec_arr": 5,
+            "agen_coh": 47,
+            "conf_coh": 25,
+            "efec_coh": 11,
+            "nos_coh": 32
           },
           "jul·26": {
             "leads": 11,
-            "cont": 4,
+            "cont": 5,
             "tope": 4,
             "agen": 9,
             "agendadas": 9,
@@ -2840,7 +3120,11 @@
             ],
             "agen_arr": 6,
             "conf_arr": 4,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 3,
+            "conf_coh": 1,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Everest": {
@@ -2873,7 +3157,11 @@
             ],
             "agen_arr": 18,
             "conf_arr": 8,
-            "efec_arr": 3
+            "efec_arr": 3,
+            "agen_coh": 70,
+            "conf_coh": 34,
+            "efec_coh": 25,
+            "nos_coh": 41
           },
           "feb·26": {
             "leads": 167,
@@ -2900,7 +3188,11 @@
             ],
             "agen_arr": 13,
             "conf_arr": 7,
-            "efec_arr": 5
+            "efec_arr": 5,
+            "agen_coh": 61,
+            "conf_coh": 29,
+            "efec_coh": 18,
+            "nos_coh": 36
           },
           "mar·26": {
             "leads": 192,
@@ -2927,7 +3219,11 @@
             ],
             "agen_arr": 21,
             "conf_arr": 12,
-            "efec_arr": 6
+            "efec_arr": 6,
+            "agen_coh": 68,
+            "conf_coh": 24,
+            "efec_coh": 17,
+            "nos_coh": 50
           },
           "abr·26": {
             "leads": 185,
@@ -2954,7 +3250,11 @@
             ],
             "agen_arr": 6,
             "conf_arr": 2,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 65,
+            "conf_coh": 36,
+            "efec_coh": 20,
+            "nos_coh": 45
           },
           "may·26": {
             "leads": 6,
@@ -2981,7 +3281,11 @@
             ],
             "agen_arr": 8,
             "conf_arr": 4,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 6,
+            "conf_coh": 3,
+            "efec_coh": 3,
+            "nos_coh": 3
           },
           "jun·26": {
             "leads": 148,
@@ -2989,13 +3293,13 @@
             "tope": 53,
             "agen": 48,
             "agendadas": 48,
-            "confirmadas": 22,
+            "confirmadas": 23,
             "efec": 16,
             "nos": 29,
             "conf": [
               [
                 "Confirma",
-                22
+                23
               ],
               [
                 "Desiste",
@@ -3004,29 +3308,29 @@
               [
                 "No contesta",
                 12
-              ],
-              [
-                "Reagenda",
-                1
               ]
             ],
             "agen_arr": 11,
             "conf_arr": 5,
-            "efec_arr": 4
+            "efec_arr": 4,
+            "agen_coh": 48,
+            "conf_coh": 23,
+            "efec_coh": 12,
+            "nos_coh": 29
           },
           "jul·26": {
-            "leads": 27,
-            "cont": 10,
+            "leads": 28,
+            "cont": 14,
             "tope": 5,
-            "agen": 8,
-            "agendadas": 8,
+            "agen": 10,
+            "agendadas": 10,
             "confirmadas": 2,
             "efec": 0,
             "nos": 0,
             "conf": [
               [
                 "Sin gestión",
-                3
+                5
               ],
               [
                 "Confirma",
@@ -3043,7 +3347,11 @@
             ],
             "agen_arr": 4,
             "conf_arr": 1,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 6,
+            "conf_coh": 1,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Expedition": {
@@ -3064,7 +3372,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 1,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 1
           },
           "feb·26": {
             "leads": 3,
@@ -3083,7 +3395,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 3,
+            "conf_coh": 2,
+            "efec_coh": 1,
+            "nos_coh": 1
           },
           "mar·26": {
             "leads": 2,
@@ -3106,7 +3422,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 2,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 1,
+            "conf_coh": 1,
+            "efec_coh": 1,
+            "nos_coh": 0
           },
           "abr·26": {
             "leads": 2,
@@ -3120,7 +3440,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 1,
+            "conf_coh": 1,
+            "efec_coh": 1,
+            "nos_coh": 0
           },
           "may·26": {
             "leads": 1,
@@ -3139,7 +3463,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 1,
+            "conf_coh": 1,
+            "efec_coh": 1,
+            "nos_coh": 0
           }
         },
         "Explorer": {
@@ -3164,7 +3492,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 2,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 4,
+            "conf_coh": 3,
+            "efec_coh": 4,
+            "nos_coh": 0
           },
           "feb·26": {
             "leads": 4,
@@ -3178,7 +3510,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 1,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 1
           },
           "mar·26": {
             "leads": 5,
@@ -3192,7 +3528,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           },
           "abr·26": {
             "leads": 12,
@@ -3215,7 +3555,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 3,
+            "conf_coh": 2,
+            "efec_coh": 1,
+            "nos_coh": 2
           },
           "may·26": {
             "leads": 143,
@@ -3242,7 +3586,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 49,
+            "conf_coh": 24,
+            "efec_coh": 10,
+            "nos_coh": 36
           },
           "jun·26": {
             "leads": 105,
@@ -3269,7 +3617,11 @@
             ],
             "agen_arr": 8,
             "conf_arr": 2,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 22,
+            "conf_coh": 8,
+            "efec_coh": 5,
+            "nos_coh": 15
           },
           "jul·26": {
             "leads": 1,
@@ -3292,7 +3644,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 2,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 1,
+            "conf_coh": 1,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "F150": {
@@ -3321,7 +3677,11 @@
             ],
             "agen_arr": 25,
             "conf_arr": 13,
-            "efec_arr": 6
+            "efec_arr": 6,
+            "agen_coh": 80,
+            "conf_coh": 43,
+            "efec_coh": 25,
+            "nos_coh": 51
           },
           "feb·26": {
             "leads": 9,
@@ -3348,7 +3708,11 @@
             ],
             "agen_arr": 10,
             "conf_arr": 7,
-            "efec_arr": 5
+            "efec_arr": 5,
+            "agen_coh": 7,
+            "conf_coh": 7,
+            "efec_coh": 5,
+            "nos_coh": 1
           },
           "mar·26": {
             "leads": 6,
@@ -3375,7 +3739,11 @@
             ],
             "agen_arr": 8,
             "conf_arr": 5,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 3,
+            "conf_coh": 3,
+            "efec_coh": 2,
+            "nos_coh": 1
           },
           "abr·26": {
             "leads": 9,
@@ -3398,7 +3766,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 5,
+            "conf_coh": 5,
+            "efec_coh": 3,
+            "nos_coh": 1
           },
           "may·26": {
             "leads": 13,
@@ -3421,7 +3793,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 2,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 4,
+            "conf_coh": 2,
+            "efec_coh": 1,
+            "nos_coh": 3
           },
           "jun·26": {
             "leads": 8,
@@ -3444,7 +3820,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 6,
+            "conf_coh": 3,
+            "efec_coh": 2,
+            "nos_coh": 4
           },
           "jul·26": {
             "leads": 1,
@@ -3463,7 +3843,11 @@
             ],
             "agen_arr": 1,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Maverick": {
@@ -3479,7 +3863,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Ranger": {
@@ -3512,7 +3900,11 @@
             ],
             "agen_arr": 8,
             "conf_arr": 3,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 66,
+            "conf_coh": 29,
+            "efec_coh": 18,
+            "nos_coh": 38
           },
           "feb·26": {
             "leads": 22,
@@ -3539,7 +3931,11 @@
             ],
             "agen_arr": 18,
             "conf_arr": 9,
-            "efec_arr": 5
+            "efec_arr": 5,
+            "agen_coh": 7,
+            "conf_coh": 4,
+            "efec_coh": 2,
+            "nos_coh": 5
           },
           "mar·26": {
             "leads": 24,
@@ -3570,7 +3966,11 @@
             ],
             "agen_arr": 6,
             "conf_arr": 3,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 12,
+            "conf_coh": 6,
+            "efec_coh": 3,
+            "nos_coh": 9
           },
           "abr·26": {
             "leads": 450,
@@ -3597,7 +3997,11 @@
             ],
             "agen_arr": 10,
             "conf_arr": 7,
-            "efec_arr": 3
+            "efec_arr": 3,
+            "agen_coh": 159,
+            "conf_coh": 78,
+            "efec_coh": 52,
+            "nos_coh": 105
           },
           "may·26": {
             "leads": 461,
@@ -3624,7 +4028,11 @@
             ],
             "agen_arr": 10,
             "conf_arr": 6,
-            "efec_arr": 5
+            "efec_arr": 5,
+            "agen_coh": 126,
+            "conf_coh": 63,
+            "efec_coh": 34,
+            "nos_coh": 88
           },
           "jun·26": {
             "leads": 257,
@@ -3655,14 +4063,18 @@
             ],
             "agen_arr": 35,
             "conf_arr": 9,
-            "efec_arr": 7
+            "efec_arr": 7,
+            "agen_coh": 75,
+            "conf_coh": 31,
+            "efec_coh": 24,
+            "nos_coh": 49
           },
           "jul·26": {
             "leads": 7,
             "cont": 5,
             "tope": 0,
-            "agen": 6,
-            "agendadas": 6,
+            "agen": 7,
+            "agendadas": 7,
             "confirmadas": 6,
             "efec": 2,
             "nos": 0,
@@ -3670,11 +4082,19 @@
               [
                 "Confirma",
                 6
+              ],
+              [
+                "Sin gestión",
+                1
               ]
             ],
             "agen_arr": 4,
             "conf_arr": 4,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 4,
+            "conf_coh": 3,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Territory": {
@@ -3699,7 +4119,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 4,
+            "conf_coh": 4,
+            "efec_coh": 3,
+            "nos_coh": 0
           },
           "feb·26": {
             "leads": 189,
@@ -3726,7 +4150,11 @@
             ],
             "agen_arr": 6,
             "conf_arr": 6,
-            "efec_arr": 3
+            "efec_arr": 3,
+            "agen_coh": 88,
+            "conf_coh": 54,
+            "efec_coh": 43,
+            "nos_coh": 29
           },
           "mar·26": {
             "leads": 170,
@@ -3753,7 +4181,11 @@
             ],
             "agen_arr": 11,
             "conf_arr": 7,
-            "efec_arr": 7
+            "efec_arr": 7,
+            "agen_coh": 68,
+            "conf_coh": 33,
+            "efec_coh": 27,
+            "nos_coh": 41
           },
           "abr·26": {
             "leads": 31,
@@ -3776,7 +4208,11 @@
             ],
             "agen_arr": 6,
             "conf_arr": 4,
-            "efec_arr": 3
+            "efec_arr": 3,
+            "agen_coh": 13,
+            "conf_coh": 8,
+            "efec_coh": 8,
+            "nos_coh": 5
           },
           "may·26": {
             "leads": 43,
@@ -3803,7 +4239,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 28,
+            "conf_coh": 22,
+            "efec_coh": 18,
+            "nos_coh": 10
           },
           "jun·26": {
             "leads": 187,
@@ -3834,14 +4274,18 @@
             ],
             "agen_arr": 10,
             "conf_arr": 5,
-            "efec_arr": 5
+            "efec_arr": 5,
+            "agen_coh": 53,
+            "conf_coh": 27,
+            "efec_coh": 21,
+            "nos_coh": 23
           },
           "jul·26": {
             "leads": 33,
-            "cont": 15,
+            "cont": 17,
             "tope": 3,
-            "agen": 11,
-            "agendadas": 11,
+            "agen": 14,
+            "agendadas": 14,
             "confirmadas": 6,
             "efec": 3,
             "nos": 1,
@@ -3851,21 +4295,25 @@
                 6
               ],
               [
+                "Sin gestión",
+                4
+              ],
+              [
                 "No contesta",
                 3
               ],
               [
                 "Desiste",
                 1
-              ],
-              [
-                "Sin gestión",
-                1
               ]
             ],
             "agen_arr": 6,
             "conf_arr": 2,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 8,
+            "conf_coh": 4,
+            "efec_coh": 2,
+            "nos_coh": 0
           }
         }
       },
@@ -4823,7 +5271,7 @@
                 "Sin tipificar": 17,
                 "Salida legítima": 67,
                 "Desperdicio": 169,
-                "En gestión activa": 308,
+                "En gestión activa": 309,
                 "Citó": 297
               }
             },
@@ -5330,14 +5778,18 @@
           },
           "jul·26": {
             "no_contactados": {
-              "total": 13,
+              "total": 18,
               "by_llamada": [
                 [
                   "12ª",
                   10
                 ],
                 [
-                  "2ª",
+                  "1ª",
+                  5
+                ],
+                [
+                  "3ª",
                   2
                 ],
                 [
@@ -5347,19 +5799,23 @@
               ]
             },
             "contactados": {
-              "total": 36,
+              "total": 43,
               "by_estatus": [
                 [
                   "Contactado",
-                  23
-                ],
-                [
-                  "Posponer contacto",
-                  5
+                  29
                 ],
                 [
                   "Barreras técnicas/No contesta",
+                  4
+                ],
+                [
+                  "Posponer contacto",
                   3
+                ],
+                [
+                  "Errores operativos",
+                  2
                 ],
                 [
                   "Sin recursos económicos",
@@ -5370,18 +5826,18 @@
                   2
                 ],
                 [
-                  "Errores operativos",
+                  "Sin tipificar",
                   1
                 ]
               ],
               "by_categoria": [
                 [
                   "Citó",
-                  15
+                  20
                 ],
                 [
                   "En gestión activa",
-                  14
+                  13
                 ],
                 [
                   "Salida legítima",
@@ -5389,42 +5845,26 @@
                 ],
                 [
                   "Desperdicio",
-                  6
+                  8
+                ],
+                [
+                  "Sin tipificar",
+                  1
                 ]
               ],
               "cat_detalle": {
-                "Citó": [
-                  [
-                    "Aceptaciones auditadas",
-                    15
-                  ]
-                ],
-                "En gestión activa": [
-                  [
-                    "Seguimiento por Whatsapp",
-                    8
-                  ],
-                  [
-                    "Interesado a futuro",
-                    2
-                  ],
-                  [
-                    "Llamar después",
-                    2
-                  ],
-                  [
-                    "Se cortó llamada",
-                    1
-                  ],
-                  [
-                    "No contesta",
-                    1
-                  ]
-                ],
                 "Desperdicio": [
+                  [
+                    "Línea no existe/Suspendida/Fuera de servicio",
+                    2
+                  ],
                   [
                     "Fuera de presupuesto",
                     2
+                  ],
+                  [
+                    "Equivocado",
+                    1
                   ],
                   [
                     "Información cruzada",
@@ -5437,9 +5877,33 @@
                   [
                     "Sin interés",
                     1
+                  ]
+                ],
+                "Citó": [
+                  [
+                    "Aceptaciones auditadas",
+                    20
+                  ]
+                ],
+                "En gestión activa": [
+                  [
+                    "Seguimiento por Whatsapp",
+                    9
                   ],
                   [
-                    "Línea no existe/Suspendida/Fuera de servicio",
+                    "Interesado a futuro",
+                    1
+                  ],
+                  [
+                    "Se cortó llamada",
+                    1
+                  ],
+                  [
+                    "Llamar después",
+                    1
+                  ],
+                  [
+                    "No contesta",
                     1
                   ]
                 ],
@@ -5448,16 +5912,36 @@
                     "Ya compró un vehículo usado",
                     1
                   ]
+                ],
+                "Sin tipificar": [
+                  [
+                    "Sin tipificar",
+                    1
+                  ]
                 ]
               },
               "cat_llamada": {
-                "Citó": [
+                "Desperdicio": [
                   6,
-                  2,
                   1,
                   1,
                   0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "Citó": [
+                  9,
                   2,
+                  2,
+                  1,
+                  0,
+                  3,
                   1,
                   0,
                   2,
@@ -5466,11 +5950,11 @@
                   0
                 ],
                 "En gestión activa": [
-                  4,
-                  6,
+                  5,
+                  5,
                   0,
                   0,
-                  2,
+                  1,
                   0,
                   0,
                   0,
@@ -5479,11 +5963,11 @@
                   0,
                   2
                 ],
-                "Desperdicio": [
-                  4,
-                  1,
-                  1,
+                "Salida legítima": [
                   0,
+                  0,
+                  0,
+                  1,
                   0,
                   0,
                   0,
@@ -5493,11 +5977,11 @@
                   0,
                   0
                 ],
-                "Salida legítima": [
-                  0,
-                  0,
-                  0,
+                "Sin tipificar": [
                   1,
+                  0,
+                  0,
+                  0,
                   0,
                   0,
                   0,
@@ -5509,10 +5993,11 @@
                 ]
               },
               "cat_notask": {
-                "Citó": 15,
-                "En gestión activa": 14,
-                "Desperdicio": 6,
-                "Salida legítima": 1
+                "Desperdicio": 8,
+                "Citó": 20,
+                "En gestión activa": 13,
+                "Salida legítima": 1,
+                "Sin tipificar": 1
               }
             },
             "no_show": {
@@ -6367,7 +6852,7 @@
                 "cat_notask": {
                   "Sin tipificar": 5,
                   "Salida legítima": 19,
-                  "En gestión activa": 97,
+                  "En gestión activa": 98,
                   "Citó": 91,
                   "Desperdicio": 57
                 }
@@ -6823,24 +7308,28 @@
             },
             "jul·26": {
               "no_contactados": {
-                "total": 7,
+                "total": 9,
                 "by_llamada": [
                   [
                     "12ª",
                     6
                   ],
                   [
-                    "2ª",
+                    "1ª",
+                    2
+                  ],
+                  [
+                    "3ª",
                     1
                   ]
                 ]
               },
               "contactados": {
-                "total": 4,
+                "total": 6,
                 "by_estatus": [
                   [
                     "Contactado",
-                    3
+                    5
                   ],
                   [
                     "Posponer contacto",
@@ -6850,7 +7339,7 @@
                 "by_categoria": [
                   [
                     "Citó",
-                    2
+                    4
                   ],
                   [
                     "En gestión activa",
@@ -6865,7 +7354,7 @@
                   "Citó": [
                     [
                       "Aceptaciones auditadas",
-                      2
+                      4
                     ]
                   ],
                   "Desperdicio": [
@@ -6883,7 +7372,7 @@
                 },
                 "cat_llamada": {
                   "Citó": [
-                    0,
+                    2,
                     1,
                     1,
                     0,
@@ -6926,7 +7415,7 @@
                   ]
                 },
                 "cat_notask": {
-                  "Citó": 2,
+                  "Citó": 4,
                   "Desperdicio": 1,
                   "En gestión activa": 1
                 }
@@ -8252,7 +8741,7 @@
                 "total": 2,
                 "by_llamada": [
                   [
-                    "2ª",
+                    "3ª",
                     1
                   ],
                   [
@@ -8262,11 +8751,15 @@
                 ]
               },
               "contactados": {
-                "total": 8,
+                "total": 9,
                 "by_estatus": [
                   [
                     "Contactado",
                     7
+                  ],
+                  [
+                    "Barreras técnicas/No contesta",
+                    1
                   ],
                   [
                     "Errores operativos",
@@ -8284,7 +8777,7 @@
                   ],
                   [
                     "Desperdicio",
-                    1
+                    2
                   ]
                 ],
                 "cat_detalle": {
@@ -8295,6 +8788,10 @@
                     ]
                   ],
                   "Desperdicio": [
+                    [
+                      "Línea no existe/Suspendida/Fuera de servicio",
+                      1
+                    ],
                     [
                       "Información cruzada",
                       1
@@ -8323,7 +8820,7 @@
                     0
                   ],
                   "Desperdicio": [
-                    1,
+                    2,
                     0,
                     0,
                     0,
@@ -8353,7 +8850,7 @@
                 },
                 "cat_notask": {
                   "Citó": 6,
-                  "Desperdicio": 1,
+                  "Desperdicio": 2,
                   "En gestión activa": 1
                 }
               },
@@ -9683,32 +10180,40 @@
                 "by_llamada": []
               },
               "contactados": {
-                "total": 9,
+                "total": 11,
                 "by_estatus": [
                   [
                     "Contactado",
-                    6
-                  ],
-                  [
-                    "Posponer contacto",
-                    2
+                    8
                   ],
                   [
                     "Sin recursos económicos",
+                    1
+                  ],
+                  [
+                    "Posponer contacto",
+                    1
+                  ],
+                  [
+                    "Sin tipificar",
                     1
                   ]
                 ],
                 "by_categoria": [
                   [
                     "Citó",
-                    4
+                    6
                   ],
                   [
                     "En gestión activa",
-                    4
+                    3
                   ],
                   [
                     "Desperdicio",
+                    1
+                  ],
+                  [
+                    "Sin tipificar",
                     1
                   ]
                 ],
@@ -9722,7 +10227,7 @@
                   "Citó": [
                     [
                       "Aceptaciones auditadas",
-                      4
+                      6
                     ]
                   ],
                   "En gestión activa": [
@@ -9733,9 +10238,11 @@
                     [
                       "Llamar después",
                       1
-                    ],
+                    ]
+                  ],
+                  "Sin tipificar": [
                     [
-                      "Interesado a futuro",
+                      "Sin tipificar",
                       1
                     ]
                   ]
@@ -9758,10 +10265,10 @@
                   "Citó": [
                     2,
                     0,
-                    0,
+                    1,
                     1,
                     0,
-                    1,
+                    2,
                     0,
                     0,
                     0,
@@ -9771,7 +10278,21 @@
                   ],
                   "En gestión activa": [
                     0,
-                    4,
+                    3,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "Sin tipificar": [
+                    1,
+                    0,
                     0,
                     0,
                     0,
@@ -9786,8 +10307,9 @@
                 },
                 "cat_notask": {
                   "Desperdicio": 1,
-                  "Citó": 4,
-                  "En gestión activa": 4
+                  "Citó": 6,
+                  "En gestión activa": 3,
+                  "Sin tipificar": 1
                 }
               },
               "no_show": {
@@ -10990,32 +11512,36 @@
             },
             "jul·26": {
               "no_contactados": {
-                "total": 4,
+                "total": 7,
                 "by_llamada": [
                   [
                     "12ª",
                     4
+                  ],
+                  [
+                    "1ª",
+                    3
                   ]
                 ]
               },
               "contactados": {
-                "total": 13,
+                "total": 14,
                 "by_estatus": [
                   [
                     "Contactado",
-                    6
+                    8
                   ],
                   [
                     "No interesado",
                     2
                   ],
                   [
-                    "Posponer contacto",
+                    "Barreras técnicas/No contesta",
                     2
                   ],
                   [
-                    "Barreras técnicas/No contesta",
-                    2
+                    "Posponer contacto",
+                    1
                   ],
                   [
                     "Sin recursos económicos",
@@ -11025,7 +11551,7 @@
                 "by_categoria": [
                   [
                     "Citó",
-                    2
+                    3
                   ],
                   [
                     "En gestión activa",
@@ -11044,7 +11570,7 @@
                   "En gestión activa": [
                     [
                       "Seguimiento por Whatsapp",
-                      4
+                      5
                     ],
                     [
                       "Interesado a futuro",
@@ -11052,10 +11578,6 @@
                     ],
                     [
                       "Se cortó llamada",
-                      1
-                    ],
-                    [
-                      "Llamar después",
                       1
                     ],
                     [
@@ -11072,7 +11594,7 @@
                   "Citó": [
                     [
                       "Aceptaciones auditadas",
-                      2
+                      3
                     ]
                   ],
                   "Desperdicio": [
@@ -11088,11 +11610,11 @@
                 },
                 "cat_llamada": {
                   "En gestión activa": [
-                    3,
+                    4,
                     1,
                     0,
                     0,
-                    2,
+                    1,
                     0,
                     0,
                     0,
@@ -11116,7 +11638,7 @@
                     0
                   ],
                   "Citó": [
-                    1,
+                    2,
                     0,
                     0,
                     0,
@@ -11147,7 +11669,7 @@
                 "cat_notask": {
                   "En gestión activa": 8,
                   "Salida legítima": 1,
-                  "Citó": 2,
+                  "Citó": 3,
                   "Desperdicio": 2
                 }
               },
@@ -12247,8 +12769,12 @@
                 "by_llamada": []
               },
               "contactados": {
-                "total": 1,
+                "total": 2,
                 "by_estatus": [
+                  [
+                    "Errores operativos",
+                    1
+                  ],
                   [
                     "Barreras técnicas/No contesta",
                     1
@@ -12257,11 +12783,15 @@
                 "by_categoria": [
                   [
                     "Desperdicio",
-                    1
+                    2
                   ]
                 ],
                 "cat_detalle": {
                   "Desperdicio": [
+                    [
+                      "Equivocado",
+                      1
+                    ],
                     [
                       "Línea no existe/Suspendida/Fuera de servicio",
                       1
@@ -12270,7 +12800,7 @@
                 },
                 "cat_llamada": {
                   "Desperdicio": [
-                    1,
+                    2,
                     0,
                     0,
                     0,
@@ -12285,7 +12815,7 @@
                   ]
                 },
                 "cat_notask": {
-                  "Desperdicio": 1
+                  "Desperdicio": 2
                 }
               },
               "no_show": {
@@ -15502,24 +16032,28 @@
             },
             "jul·26": {
               "no_contactados": {
-                "total": 4,
+                "total": 5,
                 "by_llamada": [
                   [
                     "12ª",
                     4
+                  ],
+                  [
+                    "1ª",
+                    1
                   ]
                 ]
               },
               "contactados": {
-                "total": 4,
+                "total": 5,
                 "by_estatus": [
                   [
-                    "Contactado",
+                    "Errores operativos",
                     2
                   ],
                   [
-                    "Errores operativos",
-                    1
+                    "Contactado",
+                    2
                   ],
                   [
                     "Barreras técnicas/No contesta",
@@ -15533,17 +16067,15 @@
                   ],
                   [
                     "Desperdicio",
-                    2
+                    3
                   ]
                 ],
                 "cat_detalle": {
-                  "Citó": [
-                    [
-                      "Aceptaciones auditadas",
-                      2
-                    ]
-                  ],
                   "Desperdicio": [
+                    [
+                      "Equivocado",
+                      1
+                    ],
                     [
                       "Información cruzada",
                       1
@@ -15552,12 +16084,18 @@
                       "Línea no existe/Suspendida/Fuera de servicio",
                       1
                     ]
+                  ],
+                  "Citó": [
+                    [
+                      "Aceptaciones auditadas",
+                      2
+                    ]
                   ]
                 },
                 "cat_llamada": {
-                  "Citó": [
-                    1,
-                    1,
+                  "Desperdicio": [
+                    3,
+                    0,
                     0,
                     0,
                     0,
@@ -15569,9 +16107,9 @@
                     0,
                     0
                   ],
-                  "Desperdicio": [
-                    2,
-                    0,
+                  "Citó": [
+                    1,
+                    1,
                     0,
                     0,
                     0,
@@ -15585,8 +16123,8 @@
                   ]
                 },
                 "cat_notask": {
-                  "Citó": 2,
-                  "Desperdicio": 2
+                  "Desperdicio": 3,
+                  "Citó": 2
                 }
               },
               "no_show": {
@@ -16452,7 +16990,7 @@
                   "Desperdicio": 32,
                   "Sin tipificar": 3,
                   "Citó": 54,
-                  "En gestión activa": 60,
+                  "En gestión activa": 61,
                   "Salida legítima": 8
                 }
               },
@@ -16793,24 +17331,28 @@
             },
             "jul·26": {
               "no_contactados": {
-                "total": 3,
+                "total": 4,
                 "by_llamada": [
                   [
                     "12ª",
                     3
+                  ],
+                  [
+                    "1ª",
+                    1
                   ]
                 ]
               },
               "contactados": {
-                "total": 10,
+                "total": 14,
                 "by_estatus": [
                   [
                     "Contactado",
-                    7
+                    10
                   ],
                   [
                     "Barreras técnicas/No contesta",
-                    2
+                    3
                   ],
                   [
                     "Sin recursos económicos",
@@ -16820,28 +17362,38 @@
                 "by_categoria": [
                   [
                     "Citó",
-                    5
+                    7
                   ],
                   [
                     "En gestión activa",
-                    4
+                    5
                   ],
                   [
                     "Desperdicio",
-                    1
+                    2
                   ]
                 ],
                 "cat_detalle": {
                   "Citó": [
                     [
                       "Aceptaciones auditadas",
-                      5
+                      7
+                    ]
+                  ],
+                  "Desperdicio": [
+                    [
+                      "Línea no existe/Suspendida/Fuera de servicio",
+                      1
+                    ],
+                    [
+                      "Fuera de presupuesto",
+                      1
                     ]
                   ],
                   "En gestión activa": [
                     [
                       "Seguimiento por Whatsapp",
-                      2
+                      3
                     ],
                     [
                       "Se cortó llamada",
@@ -16851,17 +17403,11 @@
                       "No contesta",
                       1
                     ]
-                  ],
-                  "Desperdicio": [
-                    [
-                      "Fuera de presupuesto",
-                      1
-                    ]
                   ]
                 },
                 "cat_llamada": {
                   "Citó": [
-                    3,
+                    5,
                     0,
                     0,
                     0,
@@ -16874,8 +17420,22 @@
                     0,
                     0
                   ],
+                  "Desperdicio": [
+                    2,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
                   "En gestión activa": [
-                    1,
+                    2,
                     1,
                     0,
                     0,
@@ -16887,26 +17447,12 @@
                     0,
                     0,
                     2
-                  ],
-                  "Desperdicio": [
-                    1,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0
                   ]
                 },
                 "cat_notask": {
-                  "Citó": 5,
-                  "En gestión activa": 4,
-                  "Desperdicio": 1
+                  "Citó": 7,
+                  "Desperdicio": 2,
+                  "En gestión activa": 5
                 }
               },
               "no_show": {
@@ -20308,7 +20854,7 @@
                 "total": 2,
                 "by_llamada": [
                   [
-                    "2ª",
+                    "3ª",
                     2
                   ]
                 ]
@@ -20317,26 +20863,26 @@
                 "total": 5,
                 "by_estatus": [
                   [
-                    "Posponer contacto",
-                    2
-                  ],
-                  [
                     "Contactado",
-                    2
+                    3
                   ],
                   [
                     "Sin recursos económicos",
+                    1
+                  ],
+                  [
+                    "Posponer contacto",
                     1
                   ]
                 ],
                 "by_categoria": [
                   [
                     "Citó",
-                    1
+                    2
                   ],
                   [
                     "En gestión activa",
-                    3
+                    2
                   ],
                   [
                     "Desperdicio",
@@ -20358,16 +20904,12 @@
                     [
                       "Seguimiento por Whatsapp",
                       1
-                    ],
-                    [
-                      "Interesado a futuro",
-                      1
                     ]
                   ],
                   "Citó": [
                     [
                       "Aceptaciones auditadas",
-                      1
+                      2
                     ]
                   ]
                 },
@@ -20388,7 +20930,7 @@
                   ],
                   "En gestión activa": [
                     0,
-                    3,
+                    2,
                     0,
                     0,
                     0,
@@ -20403,7 +20945,7 @@
                   "Citó": [
                     1,
                     0,
-                    0,
+                    1,
                     0,
                     0,
                     0,
@@ -20417,8 +20959,8 @@
                 },
                 "cat_notask": {
                   "Desperdicio": 1,
-                  "En gestión activa": 3,
-                  "Citó": 1
+                  "En gestión activa": 2,
+                  "Citó": 2
                 }
               },
               "no_show": {
@@ -21528,10 +22070,14 @@
             },
             "jul·26": {
               "no_contactados": {
-                "total": 4,
+                "total": 7,
                 "by_llamada": [
                   [
                     "12ª",
+                    3
+                  ],
+                  [
+                    "1ª",
                     3
                   ],
                   [
@@ -21541,29 +22087,33 @@
                 ]
               },
               "contactados": {
-                "total": 15,
+                "total": 17,
                 "by_estatus": [
                   [
                     "Contactado",
-                    11
+                    13
                   ],
                   [
                     "Posponer contacto",
-                    3
+                    2
                   ],
                   [
                     "No interesado",
+                    1
+                  ],
+                  [
+                    "Sin tipificar",
                     1
                   ]
                 ],
                 "by_categoria": [
                   [
                     "Citó",
-                    6
+                    8
                   ],
                   [
                     "En gestión activa",
-                    7
+                    6
                   ],
                   [
                     "Salida legítima",
@@ -21571,6 +22121,10 @@
                   ],
                   [
                     "Desperdicio",
+                    1
+                  ],
+                  [
+                    "Sin tipificar",
                     1
                   ]
                 ],
@@ -21583,10 +22137,6 @@
                     [
                       "Interesado a futuro",
                       1
-                    ],
-                    [
-                      "Llamar después",
-                      1
                     ]
                   ],
                   "Salida legítima": [
@@ -21595,16 +22145,22 @@
                       1
                     ]
                   ],
+                  "Citó": [
+                    [
+                      "Aceptaciones auditadas",
+                      8
+                    ]
+                  ],
                   "Desperdicio": [
                     [
                       "Curiosos",
                       1
                     ]
                   ],
-                  "Citó": [
+                  "Sin tipificar": [
                     [
-                      "Aceptaciones auditadas",
-                      6
+                      "Sin tipificar",
+                      1
                     ]
                   ]
                 },
@@ -21614,7 +22170,7 @@
                     2,
                     0,
                     0,
-                    2,
+                    1,
                     0,
                     0,
                     0,
@@ -21637,6 +22193,20 @@
                     0,
                     0
                   ],
+                  "Citó": [
+                    2,
+                    1,
+                    0,
+                    1,
+                    0,
+                    2,
+                    1,
+                    0,
+                    1,
+                    0,
+                    0,
+                    0
+                  ],
                   "Desperdicio": [
                     0,
                     0,
@@ -21651,26 +22221,27 @@
                     0,
                     0
                   ],
-                  "Citó": [
-                    1,
-                    1,
-                    0,
+                  "Sin tipificar": [
                     1,
                     0,
-                    1,
-                    1,
                     0,
-                    1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
                     0,
                     0,
                     0
                   ]
                 },
                 "cat_notask": {
-                  "En gestión activa": 7,
+                  "En gestión activa": 6,
                   "Salida legítima": 1,
+                  "Citó": 8,
                   "Desperdicio": 1,
-                  "Citó": 6
+                  "Sin tipificar": 1
                 }
               },
               "no_show": {
@@ -22489,13 +23060,13 @@
             },
             "conf": {
               "No contesta": [
-                52,
-                16,
+                53,
+                15,
                 49,
                 0
               ],
               "Confirma": [
-                88,
+                89,
                 28,
                 15,
                 0
@@ -22503,7 +23074,7 @@
               "Reagenda": [
                 3,
                 0,
-                1,
+                0,
                 0
               ],
               "Desiste": [
@@ -22522,19 +23093,47 @@
           },
           "jul·26": {
             "contactados": {
+              "Errores operativos": [
+                2,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
               "Contactado": [
-                10,
+                14,
                 6,
-                1,
+                2,
                 1,
                 0,
-                2,
+                3,
                 1,
                 0,
                 2,
                 0,
                 0,
                 0
+              ],
+              "Barreras técnicas/No contesta": [
+                2,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                2
               ],
               "Sin recursos económicos": [
                 2,
@@ -22566,10 +23165,10 @@
               ],
               "Posponer contacto": [
                 0,
-                2,
+                1,
                 1,
                 0,
-                2,
+                1,
                 0,
                 0,
                 0,
@@ -22578,21 +23177,7 @@
                 0,
                 0
               ],
-              "Barreras técnicas/No contesta": [
-                1,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                2
-              ],
-              "Errores operativos": [
+              "Sin tipificar": [
                 1,
                 0,
                 0,
@@ -22617,8 +23202,8 @@
             },
             "conf": {
               "Confirma": [
-                10,
-                5,
+                9,
+                6,
                 8,
                 0
               ],
@@ -22644,7 +23229,7 @@
                 0,
                 0,
                 0,
-                6
+                12
               ]
             }
           }
@@ -22689,7 +23274,11 @@
           ],
           "agen_arr": 14,
           "conf_arr": 7,
-          "efec_arr": 7
+          "efec_arr": 7,
+          "agen_coh": 67,
+          "conf_coh": 22,
+          "efec_coh": 22,
+          "nos_coh": 39
         },
         {
           "label": "feb·26",
@@ -22727,7 +23316,11 @@
           ],
           "agen_arr": 7,
           "conf_arr": 2,
-          "efec_arr": 2
+          "efec_arr": 2,
+          "agen_coh": 51,
+          "conf_coh": 25,
+          "efec_coh": 24,
+          "nos_coh": 15
         },
         {
           "label": "mar·26",
@@ -22765,7 +23358,11 @@
           ],
           "agen_arr": 5,
           "conf_arr": 4,
-          "efec_arr": 4
+          "efec_arr": 4,
+          "agen_coh": 76,
+          "conf_coh": 20,
+          "efec_coh": 27,
+          "nos_coh": 41
         },
         {
           "label": "abr·26",
@@ -22803,7 +23400,11 @@
           ],
           "agen_arr": 9,
           "conf_arr": 2,
-          "efec_arr": 2
+          "efec_arr": 2,
+          "agen_coh": 77,
+          "conf_coh": 26,
+          "efec_coh": 27,
+          "nos_coh": 23
         },
         {
           "label": "may·26",
@@ -22841,7 +23442,11 @@
           ],
           "agen_arr": 10,
           "conf_arr": 4,
-          "efec_arr": 3
+          "efec_arr": 3,
+          "agen_coh": 69,
+          "conf_coh": 24,
+          "efec_coh": 20,
+          "nos_coh": 26
         },
         {
           "label": "jun·26",
@@ -22879,7 +23484,11 @@
           ],
           "agen_arr": 10,
           "conf_arr": 4,
-          "efec_arr": 6
+          "efec_arr": 6,
+          "agen_coh": 96,
+          "conf_coh": 27,
+          "efec_coh": 27,
+          "nos_coh": 36
         },
         {
           "label": "jul·26",
@@ -22909,7 +23518,11 @@
           ],
           "agen_arr": 10,
           "conf_arr": 1,
-          "efec_arr": 1
+          "efec_arr": 1,
+          "agen_coh": 0,
+          "conf_coh": 0,
+          "efec_coh": 0,
+          "nos_coh": 0
         }
       ],
       "ag": {
@@ -22943,7 +23556,11 @@
             ],
             "agen_arr": 12,
             "conf_arr": 7,
-            "efec_arr": 7
+            "efec_arr": 7,
+            "agen_coh": 52,
+            "conf_coh": 16,
+            "efec_coh": 17,
+            "nos_coh": 30
           },
           "feb·26": {
             "leads": 149,
@@ -22978,7 +23595,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 38,
+            "conf_coh": 19,
+            "efec_coh": 18,
+            "nos_coh": 11
           },
           "mar·26": {
             "leads": 163,
@@ -23013,7 +23634,11 @@
             ],
             "agen_arr": 4,
             "conf_arr": 4,
-            "efec_arr": 4
+            "efec_arr": 4,
+            "agen_coh": 49,
+            "conf_coh": 13,
+            "efec_coh": 16,
+            "nos_coh": 25
           },
           "abr·26": {
             "leads": 176,
@@ -23048,7 +23673,11 @@
             ],
             "agen_arr": 5,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 61,
+            "conf_coh": 19,
+            "efec_coh": 21,
+            "nos_coh": 17
           },
           "may·26": {
             "leads": 248,
@@ -23083,7 +23712,11 @@
             ],
             "agen_arr": 7,
             "conf_arr": 3,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 66,
+            "conf_coh": 23,
+            "efec_coh": 19,
+            "nos_coh": 25
           },
           "jun·26": {
             "leads": 238,
@@ -23118,7 +23751,11 @@
             ],
             "agen_arr": 9,
             "conf_arr": 4,
-            "efec_arr": 5
+            "efec_arr": 5,
+            "agen_coh": 75,
+            "conf_coh": 19,
+            "efec_coh": 20,
+            "nos_coh": 24
           },
           "jul·26": {
             "leads": 21,
@@ -23137,7 +23774,11 @@
             ],
             "agen_arr": 8,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Machala": {
@@ -23166,7 +23807,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 15,
+            "conf_coh": 6,
+            "efec_coh": 5,
+            "nos_coh": 9
           },
           "feb·26": {
             "leads": 72,
@@ -23201,7 +23846,11 @@
             ],
             "agen_arr": 4,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 13,
+            "conf_coh": 6,
+            "efec_coh": 6,
+            "nos_coh": 4
           },
           "mar·26": {
             "leads": 105,
@@ -23236,7 +23885,11 @@
             ],
             "agen_arr": 1,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 27,
+            "conf_coh": 7,
+            "efec_coh": 11,
+            "nos_coh": 16
           },
           "abr·26": {
             "leads": 51,
@@ -23271,7 +23924,11 @@
             ],
             "agen_arr": 4,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 16,
+            "conf_coh": 7,
+            "efec_coh": 6,
+            "nos_coh": 6
           },
           "may·26": {
             "leads": 25,
@@ -23302,7 +23959,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 3,
+            "conf_coh": 1,
+            "efec_coh": 1,
+            "nos_coh": 1
           },
           "jun·26": {
             "leads": 63,
@@ -23333,7 +23994,11 @@
             ],
             "agen_arr": 1,
             "conf_arr": 0,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 21,
+            "conf_coh": 8,
+            "efec_coh": 7,
+            "nos_coh": 12
           },
           "jul·26": {
             "leads": 4,
@@ -23356,7 +24021,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         }
       },
@@ -23391,7 +24060,11 @@
             ],
             "agen_arr": 7,
             "conf_arr": 4,
-            "efec_arr": 4
+            "efec_arr": 4,
+            "agen_coh": 27,
+            "conf_coh": 8,
+            "efec_coh": 7,
+            "nos_coh": 17
           },
           "feb·26": {
             "leads": 41,
@@ -23426,7 +24099,11 @@
             ],
             "agen_arr": 5,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 13,
+            "conf_coh": 6,
+            "efec_coh": 6,
+            "nos_coh": 3
           },
           "mar·26": {
             "leads": 11,
@@ -23449,7 +24126,11 @@
             ],
             "agen_arr": 1,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 1,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 1
           },
           "abr·26": {
             "leads": 89,
@@ -23480,7 +24161,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 31,
+            "conf_coh": 9,
+            "efec_coh": 11,
+            "nos_coh": 12
           },
           "may·26": {
             "leads": 8,
@@ -23503,7 +24188,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           },
           "jun·26": {
             "leads": 131,
@@ -23534,7 +24223,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 0,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 44,
+            "conf_coh": 17,
+            "efec_coh": 17,
+            "nos_coh": 14
           },
           "jul·26": {
             "leads": 13,
@@ -23557,7 +24250,11 @@
             ],
             "agen_arr": 4,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Mage": {
@@ -23590,7 +24287,11 @@
             ],
             "agen_arr": 4,
             "conf_arr": 2,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 28,
+            "conf_coh": 12,
+            "efec_coh": 13,
+            "nos_coh": 13
           },
           "feb·26": {
             "leads": 31,
@@ -23621,7 +24322,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 2,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 6,
+            "conf_coh": 3,
+            "efec_coh": 3,
+            "nos_coh": 1
           },
           "mar·26": {
             "leads": 11,
@@ -23648,7 +24353,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 2,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 5,
+            "conf_coh": 2,
+            "efec_coh": 3,
+            "nos_coh": 2
           },
           "abr·26": {
             "leads": 88,
@@ -23683,7 +24392,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 29,
+            "conf_coh": 12,
+            "efec_coh": 13,
+            "nos_coh": 6
           },
           "may·26": {
             "leads": 87,
@@ -23718,7 +24431,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 2,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 34,
+            "conf_coh": 12,
+            "efec_coh": 10,
+            "nos_coh": 12
           },
           "jun·26": {
             "leads": 0,
@@ -23741,7 +24458,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 2,
-            "efec_arr": 3
+            "efec_arr": 3,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Paladin": {
@@ -23757,7 +24478,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           },
           "feb·26": {
             "leads": 1,
@@ -23771,7 +24496,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           },
           "abr·26": {
             "leads": 1,
@@ -23785,7 +24514,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           },
           "may·26": {
             "leads": 2,
@@ -23799,7 +24532,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           },
           "jun·26": {
             "leads": 61,
@@ -23834,7 +24571,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 16,
+            "conf_coh": 1,
+            "efec_coh": 1,
+            "nos_coh": 6
           },
           "jul·26": {
             "leads": 0,
@@ -23853,7 +24594,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Rich": {
@@ -23890,7 +24635,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 12,
+            "conf_coh": 2,
+            "efec_coh": 2,
+            "nos_coh": 9
           },
           "feb·26": {
             "leads": 85,
@@ -23921,7 +24670,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 17,
+            "conf_coh": 7,
+            "efec_coh": 7,
+            "nos_coh": 4
           },
           "mar·26": {
             "leads": 221,
@@ -23956,7 +24709,11 @@
             ],
             "agen_arr": 1,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 70,
+            "conf_coh": 18,
+            "efec_coh": 24,
+            "nos_coh": 38
           },
           "abr·26": {
             "leads": 35,
@@ -23987,7 +24744,11 @@
             ],
             "agen_arr": 5,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 12,
+            "conf_coh": 3,
+            "efec_coh": 2,
+            "nos_coh": 4
           },
           "may·26": {
             "leads": 62,
@@ -24018,7 +24779,11 @@
             ],
             "agen_arr": 1,
             "conf_arr": 1,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 9,
+            "conf_coh": 2,
+            "efec_coh": 1,
+            "nos_coh": 6
           },
           "jun·26": {
             "leads": 0,
@@ -24041,7 +24806,11 @@
             ],
             "agen_arr": 2,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Z9": {
@@ -24057,7 +24826,11 @@
             "conf": [],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           },
           "feb·26": {
             "leads": 56,
@@ -24084,7 +24857,11 @@
             ],
             "agen_arr": 0,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 15,
+            "conf_coh": 9,
+            "efec_coh": 8,
+            "nos_coh": 7
           },
           "mar·26": {
             "leads": 5,
@@ -24103,7 +24880,11 @@
             ],
             "agen_arr": 1,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           },
           "abr·26": {
             "leads": 13,
@@ -24130,7 +24911,11 @@
             ],
             "agen_arr": 1,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 5,
+            "conf_coh": 2,
+            "efec_coh": 1,
+            "nos_coh": 1
           },
           "may·26": {
             "leads": 106,
@@ -24161,7 +24946,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 1,
-            "efec_arr": 1
+            "efec_arr": 1,
+            "agen_coh": 23,
+            "conf_coh": 9,
+            "efec_coh": 8,
+            "nos_coh": 6
           },
           "jun·26": {
             "leads": 111,
@@ -24196,7 +24985,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 2,
-            "efec_arr": 2
+            "efec_arr": 2,
+            "agen_coh": 36,
+            "conf_coh": 9,
+            "efec_coh": 9,
+            "nos_coh": 16
           },
           "jul·26": {
             "leads": 12,
@@ -24219,7 +25012,11 @@
             ],
             "agen_arr": 3,
             "conf_arr": 0,
-            "efec_arr": 0
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         }
       },
@@ -24966,7 +25763,7 @@
               },
               "cat_notask": {
                 "Citó": 65,
-                "En gestión activa": 79,
+                "En gestión activa": 80,
                 "Desperdicio": 62,
                 "Salida legítima": 12,
                 "Sin tipificar": 1
@@ -25663,7 +26460,7 @@
               "cat_notask": {
                 "Citó": 107,
                 "Desperdicio": 96,
-                "En gestión activa": 73,
+                "En gestión activa": 76,
                 "Salida legítima": 13
               }
             },
@@ -27077,7 +27874,7 @@
                 "cat_notask": {
                   "Citó": 83,
                   "Desperdicio": 74,
-                  "En gestión activa": 58,
+                  "En gestión activa": 61,
                   "Salida legítima": 11
                 }
               },
@@ -29372,7 +30169,7 @@
                 "cat_notask": {
                   "Citó": 46,
                   "Desperdicio": 39,
-                  "En gestión activa": 36,
+                  "En gestión activa": 38,
                   "Salida legítima": 4
                 }
               },
@@ -31429,7 +32226,7 @@
                 },
                 "cat_notask": {
                   "Citó": 56,
-                  "En gestión activa": 70,
+                  "En gestión activa": 71,
                   "Desperdicio": 56,
                   "Salida legítima": 11,
                   "Sin tipificar": 1
@@ -32742,7 +33539,7 @@
                 "cat_notask": {
                   "Citó": 41,
                   "Desperdicio": 29,
-                  "En gestión activa": 27,
+                  "En gestión activa": 28,
                   "Salida legítima": 6
                 }
               },
