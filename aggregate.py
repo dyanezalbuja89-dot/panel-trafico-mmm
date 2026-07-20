@@ -610,7 +610,22 @@ def _infer_marca_from_sucursal(sucursal):
     return None
 
 def load_raw(path):
-    df = pd.read_excel(path, sheet_name="Negocios")
+    # Retry: OneDrive puede timeoutear en archivos históricos si el sync se durmió.
+    import time as _t
+    _last_err = None
+    for _attempt in range(4):
+        try:
+            df = pd.read_excel(path, sheet_name="Negocios")
+            break
+        except (TimeoutError, OSError) as _e:
+            _last_err = _e
+            print(f'[load_raw] timeout {path.name} attempt {_attempt+1}/4, warming up sync...')
+            try:
+                with open(path, 'rb') as _fh: _fh.read(4096)
+            except Exception: pass
+            _t.sleep(3 + _attempt * 5)
+    else:
+        raise _last_err
     df["AGENCIA"] = df["SUCURSAL"].apply(short_agency)
     df["CANAL"] = df["CANAL"].apply(norm_channel)
     df["MODELO"] = df["MODELO"].astype(str).str.strip().str.upper()
@@ -1566,10 +1581,10 @@ MONTHS_CONFIG = [
      "prev_date": "28/06/2026",
      "ford_metas_file": str(JUN_FORD_METAS_FILE),
      "brand_metas_file": str(JUN_BRAND_METAS_FILE)},
-    {"key": "julio_2026", "label": "Julio 2026", "month": 7, "year": 2026, "cut_day": 16,
-     "curr_file": "../Julio/BD_JULIO/BD_JUL_16_07_26.xlsx",
-     "prev_file": "../Julio/BD_JULIO/BD_JUL_14_07_26.xlsx",
-     "prev_date": "14/07/2026",
+    {"key": "julio_2026", "label": "Julio 2026", "month": 7, "year": 2026, "cut_day": 19,
+     "curr_file": "../Julio/BD_JULIO/BD_JUL_19_07_26.xlsx",
+     "prev_file": "../Julio/BD_JULIO/BD_JUL_16_07_26.xlsx",
+     "prev_date": "16/07/2026",
      "ford_metas_file": str(JUL_FORD_METAS_FILE),
      "brand_metas_file": str(JUL_BRAND_METAS_FILE)},
 ]
