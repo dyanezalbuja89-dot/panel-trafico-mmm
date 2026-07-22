@@ -432,9 +432,9 @@ def _compute_ventas_mensual(sales_df):
 BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Mayo")
 ABRIL_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Abril")
 # Files used for Dashboard tab "Marzo (cierre) vs Abril (cierre)" comparison
-MARZO  = BASE / "BD_MAYO/BD_MARZO_31_03_26.xlsx"
-ABRIL  = BASE / "BD_MAYO/BD_ABR_30_04_26.xlsx"
-ABRIL_PREV = BASE / "BD_MAYO/BD_ABR_29_04_26.xlsx"
+MARZO  = BASE / "../Julio/BD_JULIO/BD_MARZO_31_03_26.xlsx"
+ABRIL  = BASE / "../Julio/BD_JULIO/BD_ABR_30_04_26.xlsx"
+ABRIL_PREV = BASE / "../Julio/BD_JULIO/BD_ABR_29_04_26.xlsx"
 # Brand metas file: default (Abril) for prior months, Mayo file for Mayo, Junio for Junio
 DEFAULT_BRAND_METAS_FILE = ABRIL_BASE / "TRAFICO_DY/ABR_NUEVO_AI_MARCAS.xlsx"
 MAY_BRAND_METAS_FILE = BASE / "TRAFICO_DY/MAY_NUEVO_AI_MARCAS.xlsx"
@@ -1536,40 +1536,40 @@ def brand_report(brand, curr_raw, prev_raw, brand_metas, month=4, year=2026, up_
 # El último de la lista es el corte "actual" (default seleccionado).
 MONTHS_CONFIG = [
     {"key": "octubre_2025", "label": "Octubre 2025", "month": 10, "year": 2025, "cut_day": 31,
-     "curr_file": "BD_MAYO/BD_OCT_31_10_25.xlsx",
-     "prev_file": "BD_MAYO/BD_OCT_31_10_25.xlsx",
+     "curr_file": "../Julio/BD_JULIO/BD_OCT_31_10_25.xlsx",
+     "prev_file": "../Julio/BD_JULIO/BD_OCT_31_10_25.xlsx",
      "prev_date": "31/10/2025", "no_metas": True},
     {"key": "noviembre_2025", "label": "Noviembre 2025", "month": 11, "year": 2025, "cut_day": 30,
-     "curr_file": "BD_MAYO/BD_NOV_30_11_25.xlsx",
-     "prev_file": "BD_MAYO/BD_OCT_31_10_25.xlsx",
+     "curr_file": "../Julio/BD_JULIO/BD_NOV_30_11_25.xlsx",
+     "prev_file": "../Julio/BD_JULIO/BD_OCT_31_10_25.xlsx",
      "prev_date": "31/10/2025", "no_metas": True},
     {"key": "diciembre_2025", "label": "Diciembre 2025", "month": 12, "year": 2025, "cut_day": 31,
-     "curr_file": "BD_MAYO/BD_DIC_31_12_25.xlsx",
-     "prev_file": "BD_MAYO/BD_NOV_30_11_25.xlsx",
+     "curr_file": "../Julio/BD_JULIO/BD_DIC_31_12_25.xlsx",
+     "prev_file": "../Julio/BD_JULIO/BD_NOV_30_11_25.xlsx",
      "prev_date": "30/11/2025", "no_metas": True},
     {"key": "enero_2026", "label": "Enero 2026", "month": 1, "year": 2026, "cut_day": 31,
-     "curr_file": "BD_MAYO/BD_ENE_31_01_26.xlsx",
-     "prev_file": "BD_MAYO/BD_DIC_31_12_25.xlsx",
+     "curr_file": "../Julio/BD_JULIO/BD_ENE_31_01_26.xlsx",
+     "prev_file": "../Julio/BD_JULIO/BD_DIC_31_12_25.xlsx",
      "prev_date": "31/12/2025",
      "ford_metas_file": str(ENE_FORD_METAS_FILE)},
     {"key": "febrero_2026", "label": "Febrero 2026", "month": 2, "year": 2026, "cut_day": 28,
-     "curr_file": "BD_MAYO/BD_FEB_28_02_26.xlsx",
-     "prev_file": "BD_MAYO/BD_FEB_28_02_26.xlsx",
+     "curr_file": "../Julio/BD_JULIO/BD_FEB_28_02_26.xlsx",
+     "prev_file": "../Julio/BD_JULIO/BD_FEB_28_02_26.xlsx",
      "prev_date": "28/02/2026",
      "ford_metas_file": str(FEB_FORD_METAS_FILE)},
     {"key": "marzo_2026", "label": "Marzo 2026", "month": 3, "year": 2026, "cut_day": 31,
-     "curr_file": "BD_MAYO/BD_MARZO_31_03_26.xlsx",
-     "prev_file": "BD_MAYO/BD_MARZO_30_03_26.xlsx",
+     "curr_file": "../Julio/BD_JULIO/BD_MARZO_31_03_26.xlsx",
+     "prev_file": "../Julio/BD_JULIO/BD_MARZO_30_03_26.xlsx",
      "prev_date": "30/03/2026",
      "ford_metas_file": str(MAR_FORD_METAS_FILE)},
     {"key": "abril_2026", "label": "Abril 2026", "month": 4, "year": 2026, "cut_day": 30,
-     "curr_file": "BD_MAYO/BD_ABR_30_04_26.xlsx",
-     "prev_file": "BD_MAYO/BD_ABR_29_04_26.xlsx",
+     "curr_file": "../Julio/BD_JULIO/BD_ABR_30_04_26.xlsx",
+     "prev_file": "../Julio/BD_JULIO/BD_ABR_29_04_26.xlsx",
      "prev_date": "29/04/2026",
      "ford_metas_file": str(ABR_FORD_METAS_FILE)},
     {"key": "mayo_2026", "label": "Mayo 2026", "month": 5, "year": 2026, "cut_day": 31,
-     "curr_file": "BD_MAYO/BD_MAY_31_05_26.xlsx",
-     "prev_file": "BD_MAYO/BD_MAY_29_05_26.xlsx",
+     "curr_file": "../Julio/BD_JULIO/BD_MAY_31_05_26.xlsx",
+     "prev_file": "../Julio/BD_JULIO/BD_MAY_29_05_26.xlsx",
      "prev_date": "29/05/2026",
      "ford_metas_file": str(MAY_FORD_METAS_FILE),
      "brand_metas_file": str(MAY_BRAND_METAS_FILE),
@@ -1581,10 +1581,10 @@ MONTHS_CONFIG = [
      "prev_date": "28/06/2026",
      "ford_metas_file": str(JUN_FORD_METAS_FILE),
      "brand_metas_file": str(JUN_BRAND_METAS_FILE)},
-    {"key": "julio_2026", "label": "Julio 2026", "month": 7, "year": 2026, "cut_day": 19,
-     "curr_file": "../Julio/BD_JULIO/BD_JUL_19_07_26.xlsx",
-     "prev_file": "../Julio/BD_JULIO/BD_JUL_16_07_26.xlsx",
-     "prev_date": "16/07/2026",
+    {"key": "julio_2026", "label": "Julio 2026", "month": 7, "year": 2026, "cut_day": 22,
+     "curr_file": "../Julio/BD_JULIO/BD_JUL_22_07_26.xlsx",
+     "prev_file": "../Julio/BD_JULIO/BD_JUL_19_07_26.xlsx",
+     "prev_date": "19/07/2026",
      "ford_metas_file": str(JUL_FORD_METAS_FILE),
      "brand_metas_file": str(JUL_BRAND_METAS_FILE)},
 ]
@@ -1913,7 +1913,7 @@ def main():
                 # pero compute_conversion_metrics filtra por columna 'marca' de ventas que
                 # contiene los nombres limpios (DONGFENG, CHERY, MAZDA, RAM).
                 k: compute_conversion_metrics(
-                    bd_dir=str(BASE / 'BD_MAYO'),
+                    bd_dir=str(BASE / '../Julio/BD_JULIO'),
                     sales_df=_ventas,
                     marca_filter=mf,
                 )
