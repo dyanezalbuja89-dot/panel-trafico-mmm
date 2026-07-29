@@ -11,10 +11,10 @@ from competencia import compute_competencia_data
 from embudo import compute_embudo_data
 
 def _compute_embudo_safe():
-    # Skip embudo si no hay cache local (evita colgar por OneDrive on-demand)
     _emb_local = Path.home() / 'dev' / 'panel-datos' / 'embudo'
-    if not _emb_local.exists() or not any(_emb_local.rglob('*.xlsx')):
-        print("WARN: embudo skipped (cache local ~/dev/panel-datos/embudo/ vacío)")
+    _emb_count = len(list(_emb_local.rglob('*.xlsx'))) if _emb_local.exists() else 0
+    if _emb_count < 30:
+        print(f"WARN: embudo skipped (cache local solo tiene {_emb_count} archivos, min 30)")
         return None
     try:
         return compute_embudo_data()
