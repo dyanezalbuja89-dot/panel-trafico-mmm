@@ -106,6 +106,22 @@ COMPANY_STOPWORDS = {
     'de', 'del', 'la', 'el', 'los', 'las', 'y', 'e',
 }
 
+def norm_asesor(s):
+    """Normaliza nombre de asesor. BDs Kombat suelen traer NOMBRES+APELLIDOS
+    concatenando el apellido dos veces (ej: 'LUIS RODRIGO HILANO CARRILLO
+    HILANO CARRILLO'). Detecta y elimina la duplicación final."""
+    if s is None or (isinstance(s, float)):
+        return s
+    parts = str(s).strip().upper().split()
+    n = len(parts)
+    # Buscar la mayor k tal que los últimos k tokens == k anteriores
+    for k in range(n // 2, 0, -1):
+        if parts[-k:] == parts[-2*k:-k]:
+            parts = parts[:-k]
+            break
+    return ' '.join(parts)
+
+
 def name_tokens(s):
     """Tokens normalizados de un nombre, sin stopwords ni puntuación."""
     if not s:
@@ -254,6 +270,9 @@ def cross_traffic_sales(traffic_df, sales_df):
     """
     # Construir client_key para tráfico
     traffic_df = traffic_df.copy()
+    # Normalizar ASESOR — BD suele traer duplicación de apellido
+    if 'ASESOR' in traffic_df.columns:
+        traffic_df['ASESOR'] = traffic_df['ASESOR'].apply(norm_asesor)
     traffic_df['client_key'] = build_client_keys(traffic_df, 'CEDULA', 'CORREO', 'CELULAR')
 
     # Para ventas, el "cliente" es la cédula del comprador. Construimos client_key con
@@ -842,10 +861,7 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     n_clients_2026_cerro = sum(1 for c in clientes_flat if c['cerro'])
     conv_2026 = round(100 * n_clients_2026_cerro / n_clients_2026, 1) if n_clients_2026 else 0
 
-    # Recomputar agencia_breakdown desde clientes_flat (consistente con la regla
-    # multi-agencia: cada venta se atribuye a la agencia+mes de facturación).
-    # Denominador (traffic) = entries del cohorte con esa agencia (incluye clientes
-    # de otras agencias que facturaron aquí).
+    # Recomputar agencia_breakdown desde clientes_flat (traffic + matched cohorte 2026).
     agencia_breakdown = {}
     for c in clientes_flat:
         k = c['agencia']
@@ -853,7 +869,18 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
         agencia_breakdown[k]['traffic'] += 1
         if c.get('cerro'):
             agencia_breakdown[k]['matched'] += 1
-            agencia_breakdown[k]['ventas'] += c.get('n_ventas', 0)
+    # Ventas totales por agencia = TODAS las facturas del período (ya filtradas por marca
+    # arriba en `facturas`), atribuidas a AGENCIA_FACTURACION independiente de cohorte.
+    # Alinea con Ventas Históricas: incluye clientes cohorte pre-2026 que facturaron
+    # en 2026 + ventas B2B sin cotización previa en Kombat.
+    if len(facturas):
+        _fact_copy = facturas.copy()
+        _fact_copy['_ag_short'] = _fact_copy['AGENCIA_FACTURACION'].apply(_ag_fact_short)
+        _fact_copy['Cantidad'] = _fact_copy.get('Cantidad', 1).fillna(0).astype(int)
+        for ag_s, grp in _fact_copy.groupby('_ag_short'):
+            if not ag_s: continue
+            agencia_breakdown.setdefault(ag_s, {'traffic': 0, 'matched': 0, 'ventas': 0})
+            agencia_breakdown[ag_s]['ventas'] = int(grp['Cantidad'].sum())
     for k in agencia_breakdown:
         d = agencia_breakdown[k]
         d['conv_pct'] = round(100 * d['matched'] / d['traffic'], 1) if d['traffic'] else 0
