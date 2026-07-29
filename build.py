@@ -10747,8 +10747,8 @@ HTML = r"""<!doctype html>
     }
     return out;
   }
-  const _CC26_liveM = _cc26BuildLiveM();
-  const _CC26_M = (_CC26_liveM && Object.keys(_CC26_liveM).length) ? _CC26_liveM : _CC26_M_FALLBACK;
+  let _CC26_liveM = _cc26BuildLiveM();
+  let _CC26_M = (_CC26_liveM && Object.keys(_CC26_liveM).length) ? _CC26_liveM : _CC26_M_FALLBACK;
 
   // --- order: meses 2026 presentes CON DATO (leads>0), en orden cronológico ---
   // Excluye meses vacíos (ej. el mes en curso el día 1) → el default no abre en un mes sin dato.
@@ -12703,6 +12703,12 @@ HTML = r"""<!doctype html>
           }
         }
       }
+      // RECOMPUTA _CC26_M (Ford) desde DATA.digital.months ya reemplazado por el fetch. Es 'let':
+      // si el HTML deployado embebió un digital vacío/roto (p.ej. cron pisó data.json entre merge
+      // y build), el fetch trae el dato bueno de GitHub raw y aquí se rearma leads/cont/tope; antes
+      // era const del arranque → se quedaba en el fallback estático (síntoma: jun=624, agendadas 0).
+      _CC26_liveM = _cc26BuildLiveM();
+      _CC26_M = (_CC26_liveM && Object.keys(_CC26_liveM).length) ? _CC26_liveM : _CC26_M_FALLBACK;
       // RECOMPUTA order/Q de AMBAS marcas desde el M ya refrescado por el override. El ORDER
       // inicial de DF salía del fallback estático (ene..jun) y NUNCA tenía julio; el runtime
       // fetch trae el mes nuevo pero el const no se recomputaba. Además fuerza SIEMPRE el mes
@@ -12742,7 +12748,11 @@ HTML = r"""<!doctype html>
     fetch(_RAW + '?t=' + Date.now(), { cache: 'no-store' })
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(j){
-        if (j && j.months && j.updated_at !== DATA.digital.updated_at) { DATA.digital = j; _initDigital(); }
+        // Pisa si el dato de GitHub es más nuevo O si el embebido vino roto/vacío (sin months) —
+        // así un deploy con digital vacío (cron pisó data.json en el build) se auto-corrige en runtime.
+        var _emb = DATA.digital || {};
+        var _embRoto = !(_emb.months && _emb.months.length) || !(_emb.live && _emb.live.ford);
+        if (j && j.months && (j.updated_at !== _emb.updated_at || _embRoto)) { DATA.digital = j; _initDigital(); }
       })
       .catch(function(){ /* fallback: queda el dato embebido */ });
   })();
