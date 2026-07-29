@@ -336,7 +336,11 @@ def cross_traffic_sales(traffic_df, sales_df):
             toks = name_tokens(row['name_full'])
             if not toks: continue
             ck_name_tokens.setdefault(ck, set()).update(toks)
-            for t in toks:
+        # Frecuencia POR CLIENTE ÚNICO (no por fila) — evita que un cliente B2B con
+        # decenas de cotizaciones (Mareauto, Q2 Saloon) contamine el conteo y
+        # oculte tokens verdaderamente raros.
+        for _ck, _toks in ck_name_tokens.items():
+            for t in _toks:
                 token_freq[t] = token_freq.get(t, 0) + 1
 
         # Un token es "raro" si tiene >=6 letras Y aparece en <=5 client_keys
@@ -546,8 +550,9 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     traffic_df = result['traffic_df']
     matched_sales = result['matched_sales']
     first_touch = result['first_touch_by_ck']
-    # FILTRO ESTRICTO 2026: solo clientes cuyo first_touch fue en 2026
-    # (clientes pre-2026 que compraron en 2026 no son "leads generados en 2026").
+    # FILTRO 2026: sólo cohortes cuyo primer toque fue en 2026. Clientes pre-2026 que
+    # facturaron en 2026 NO se cuentan aquí (Daniel: "Solo estamos evaluando 2026").
+    # Las ventas 2026 de esos clientes se reflejan en Ventas Históricas, no en Conversión.
     first_touch = {ck: ft for ck, ft in first_touch.items()
                    if pd.notna(ft.get('first_fecha')) and ft['first_fecha'].year >= 2026}
     # Asignar zona a cada first_touch — primero normalizar el sufijo de marca de la agencia.
@@ -702,15 +707,33 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
                                   .groupby('client_key').size().to_dict()
 
     clientes_flat = []
-    # Normalización del sufijo de marca en agencia: 'La Y (DF)' → 'La Y', 'Machala (Chery)' → 'Machala'.
-    # Para Ford, las agencias ya vienen limpias ('CJA', 'Orellana', ...).
-    # Para brand ORGU, short_agency les agrega sufijo para evitar colisión cross-marca.
-    # En el panel queremos mostrar el nombre corto, sin sufijo de marca.
     import re as _re
     def _strip_brand_suffix(a):
         if not a: return a
         m = _re.match(r'^(.+?)\s*\([A-Za-z]+\)\s*$', a)
         return m.group(1).strip() if m else a
+    # Mapeo AGENCIA_FACTURACION (formato "1016 VEHICULOS LA Y") → nombre corto ("La Y")
+    from inventario import fact_agency_norm as _fact_ag_norm
+    _AG_FACT_MAP = {
+        'CJA':'CJA','Orellana':'Orellana','La Y':'La Y','Tumbaco':'Tumbaco',
+        'Manta':'Manta','Portoviejo':'Portoviejo','Machala':'Machala',
+    }
+    def _ag_fact_short(raw):
+        n = _fact_ag_norm(raw) if raw else None
+        return _AG_FACT_MAP.get(n, n)
+
+    # Pre-agregar facturas por client_key (para poder emitir 1 entry por factura
+    # cuando el cliente facturó en agencia distinta a su primer toque — típico
+    # multi-agencia B2B como Mareauto).
+    sales_by_ck_agmes = {}
+    for _, r in matched_sales.iterrows():
+        ck_r = r.get('matched_ck')
+        if pd.isna(r.get('fecha_fact')) or not ck_r: continue
+        ag_f = _ag_fact_short(r.get('AGENCIA_FACTURACION'))
+        ym_f = r['fecha_fact'].strftime('%Y-%m')
+        qty  = int(r.get('Cantidad', 1) or 1)
+        sales_by_ck_agmes.setdefault(ck_r, []).append({'ag':ag_f,'ym':ym_f,'qty':qty,'fecha':r['fecha_fact']})
+
     for ck, ft in first_touch.items():
         ag_raw = ft.get('first_agencia')
         ag = _strip_brand_suffix(ag_raw)
@@ -756,22 +779,84 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
         # tráfico, asumimos 1 (la "venta" cuenta como un toque atendido).
         n_toques = int(toques_mensuales.get(ck, 1)) if str(ck).startswith('r') else 1
         first_ym = ft['first_fecha'].strftime('%Y-%m') if pd.notna(ft.get('first_fecha')) else None
-        clientes_flat.append({
-            'canal':    ft.get('first_canal'),
-            'modelo':   (ft.get('first_modelo') or '').upper().strip() or 'Por definir',
-            'agencia':  ag or 'Sin agencia',
-            'zona':     ft.get('first_zona') or 'Otra',
-            'asesor':   ft.get('first_asesor') or 'Sin asesor',
-            'first_ym': first_ym,
-            'cerro':    bool(cerro),
-            'n_ventas': n_ventas,
-            'n_toques': n_toques,
-            'ciclo_dias': ciclo_d,
-        })
+        # ► REGLA MULTI-AGENCIA (Daniel): cuando un cliente facturó en agencias distintas
+        # a la de su primer toque (típico B2B/flotas como Mareauto), atribuir cada venta
+        # a la AGENCIA + MES de facturación, no al cohorte de primer toque. Cada factura
+        # se emite como una entry independiente en clientes_flat.
+        _facts_all = sales_by_ck_agmes.get(ck, []) if cerro else []
+        # Fix #1 auditoría: filtrar facturas anteriores al primer toque (imposibles causalmente).
+        _first_t = ft.get('first_fecha')
+        _facts = [f for f in _facts_all
+                  if pd.notna(f.get('fecha')) and (pd.isna(_first_t) or f['fecha'] >= _first_t)]
+        _ags_facturadas = {f['ag'] for f in _facts if f.get('ag')}
+        # Fix #2: cliente que facturó en MISMA agencia varias veces se agrupa;
+        # solo se split por-factura si son agencias DISTINTAS entre sí (>1 única).
+        _multi_ag = cerro and len(_ags_facturadas) > 1
+        if _multi_ag:
+            # Cliente facturó en >1 agencias — emitir una entry por factura con agencia+mes de facturación.
+            for f in _facts:
+                if not f.get('ag'): continue
+                clientes_flat.append({
+                    '_ck':      str(ck),
+                    'canal':    ft.get('first_canal'),
+                    'modelo':   (ft.get('first_modelo') or '').upper().strip() or 'Por definir',
+                    'agencia':  f['ag'],
+                    'zona':     ft.get('first_zona') or 'Otra',
+                    'asesor':   ft.get('first_asesor') or 'Sin asesor',
+                    'first_ym': f['ym'],
+                    'cerro':    True,
+                    'n_ventas': f['qty'],
+                    'n_toques': n_toques,
+                    'ciclo_dias': ciclo_d,
+                })
+        else:
+            # Cliente facturó en 1 sola agencia (o no facturó). Si facturó, usar la agencia
+            # de facturación (no first_touch) — resuelve caso "primer toque otra agencia,
+            # cerró en X" para que la venta cuente en X.
+            _ag_final = ag or 'Sin agencia'
+            _ym_final = first_ym
+            _n_ventas_final = n_ventas
+            if cerro and _facts:
+                _the_ag = next(iter(_ags_facturadas), None)
+                if _the_ag:
+                    _ag_final = _the_ag
+                _n_ventas_final = sum(f.get('qty', 0) for f in _facts)
+                _min_fecha = min((f['fecha'] for f in _facts if pd.notna(f.get('fecha'))), default=None)
+                if _min_fecha is not None:
+                    _ym_final = _min_fecha.strftime('%Y-%m')
+            clientes_flat.append({
+                '_ck':      str(ck),
+                'canal':    ft.get('first_canal'),
+                'modelo':   (ft.get('first_modelo') or '').upper().strip() or 'Por definir',
+                'agencia':  _ag_final,
+                'zona':     ft.get('first_zona') or 'Otra',
+                'asesor':   ft.get('first_asesor') or 'Sin asesor',
+                'first_ym': _ym_final,
+                'cerro':    bool(cerro),
+                'n_ventas': _n_ventas_final,
+                'n_toques': n_toques,
+                'ciclo_dias': ciclo_d,
+            })
 
     n_clients_2026 = len(clientes_flat)
     n_clients_2026_cerro = sum(1 for c in clientes_flat if c['cerro'])
     conv_2026 = round(100 * n_clients_2026_cerro / n_clients_2026, 1) if n_clients_2026 else 0
+
+    # Recomputar agencia_breakdown desde clientes_flat (consistente con la regla
+    # multi-agencia: cada venta se atribuye a la agencia+mes de facturación).
+    # Denominador (traffic) = entries del cohorte con esa agencia (incluye clientes
+    # de otras agencias que facturaron aquí).
+    agencia_breakdown = {}
+    for c in clientes_flat:
+        k = c['agencia']
+        agencia_breakdown.setdefault(k, {'traffic': 0, 'matched': 0, 'ventas': 0})
+        agencia_breakdown[k]['traffic'] += 1
+        if c.get('cerro'):
+            agencia_breakdown[k]['matched'] += 1
+            agencia_breakdown[k]['ventas'] += c.get('n_ventas', 0)
+    for k in agencia_breakdown:
+        d = agencia_breakdown[k]
+        d['conv_pct'] = round(100 * d['matched'] / d['traffic'], 1) if d['traffic'] else 0
     # ► Vehículos atribuidos: suma cohort-aware (solo facturas ≥ first_fecha)
     # Antes usábamos n_facturas_atribuidas (count crudo de matched_sales) que
     # incluía facturas anteriores al primer toque — inconsistente con clientes_flat.

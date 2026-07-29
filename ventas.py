@@ -134,6 +134,112 @@ def get_ventas_neta(marca=None, year=None, month=None):
     return df
 
 
+def load_ventas_completo():
+    """Devuelve ventas combinando Base de ventas YTD + DATOS 2 del inventario más reciente,
+    para cubrir el gap donde Base YTD no incluye los últimos meses.
+
+    Prioriza DATOS 2 (más completo, con FACT+NC signados) para meses que cubre;
+    complementa con Base YTD para el resto. IDENTIFICACION se traen por VIN
+    joineando con hoja DATOS (histórica de reservas) del inventario.
+    """
+    import warnings as _w
+    from pathlib import Path as _P
+    from inventario import _INVENTORY_DIRS, DEFAULT_INVENTORY_PATH
+
+    base = load_ventas()
+    if base is None:
+        base = pd.DataFrame(columns=['fecha de facturacion','marca','familia','AGENCIA_FACTURACION',
+                                      'ASESOR_FACTURACION','IDENTIFICACION','CLIENTE_FACTURACION',
+                                      'Chasis','Cantidad'])
+    base = base.copy()
+    base['fecha_fact'] = pd.to_datetime(base['fecha de facturacion'], errors='coerce')
+
+    # DATOS 2 concat de todos los snapshots
+    inv_frames, seen = [], set()
+    for d in _INVENTORY_DIRS:
+        if not d.exists(): continue
+        _found_here = False
+        for ext in ('*.xlsm','*.xlsx'):
+            for p in d.glob(ext):
+                if p.name.startswith('~$'): continue
+                if 'INVENTARIO' not in p.name.upper(): continue
+                if p in seen: continue
+                seen.add(p)
+                try:
+                    with _w.catch_warnings():
+                        _w.simplefilter('ignore')
+                        inv_frames.append(pd.read_excel(p, sheet_name='DATOS 2', header=0))
+                        _found_here = True
+                except Exception: pass
+        if _found_here: break
+    if not inv_frames:
+        return base
+
+    d2 = pd.concat(inv_frames, ignore_index=True, sort=False)
+    if 'Vin' in d2.columns and 'Fecha' in d2.columns and 'Cantidad' in d2.columns:
+        d2 = d2.drop_duplicates(subset=['Vin','Fecha','Cantidad'], keep='first')
+    d2['fecha_fact'] = pd.to_datetime(d2['Fecha'], errors='coerce')
+    d2 = d2.dropna(subset=['fecha_fact']).copy()
+    d2 = d2[d2['fecha_fact'].dt.year==2026]
+
+    # IDENTIFICACION desde múltiples hojas del inventario (por VIN)
+    # Preferencia: DATOS (histórico reservas) > DISPONIBLE > RES-COLA.
+    # DATOS suele tener 0.0 para facturas B2B → complementar con las otras hojas.
+    id_map = {}
+    _VIN_CANDS = ['vin','VIN','Vin','CHASIS ASIGANDO','Chasis','CHASIS','chasis']
+    _ID_CANDS  = ['IDENTIFICACION','Identificacion','IDENTIFICACIÓN','Identificación','CEDULA','Cedula','Cedula/Ruc','RUC']
+    for sh_name in ('DATOS','RES-COLA','RE-COLA','EXONERADOS','CONSIGNACIÓN','FACT Y NC','PROC-NAC-JUL'):
+        try:
+            with _w.catch_warnings():
+                _w.simplefilter('ignore')
+                dat = pd.read_excel(DEFAULT_INVENTORY_PATH, sheet_name=sh_name, header=0)
+        except Exception:
+            continue
+        vin_col = next((c for c in _VIN_CANDS if c in dat.columns), None)
+        id_col  = next((c for c in _ID_CANDS  if c in dat.columns), None)
+        if not vin_col or not id_col: continue
+        dat['vin_u'] = dat[vin_col].astype(str).str.upper().str.strip()
+        for _,r in dat.iterrows():
+            v = r['vin_u']
+            iden = r[id_col]
+            if not v or pd.isna(iden): continue
+            # Rechazar 0/0.0/vacío como ID válido
+            s_iden = str(iden).strip()
+            if s_iden in ('0','0.0','','nan'): continue
+            # Solo llenar si no había ID válido antes
+            if v not in id_map:
+                id_map[v] = iden
+
+    d2['vin_u'] = d2['Vin'].astype(str).str.upper().str.strip()
+    d2['IDENTIFICACION'] = d2['vin_u'].map(id_map)
+    d2['marca'] = d2.get('Marca','').astype(str).str.strip()
+    d2['familia'] = d2.get('Descripción Modelo','').astype(str).str.strip()
+    d2['AGENCIA_FACTURACION'] = d2.get('Descripcion Bodega','').astype(str).str.strip()
+    d2['ASESOR_FACTURACION'] = ''  # DATOS 2 no trae asesor
+    d2['CLIENTE_FACTURACION'] = d2.get('Nombres','').astype(str).str.strip()
+    d2['CLIENTE_RESERVA'] = None
+    d2['Chasis'] = d2['vin_u']
+    d2['fecha de facturacion'] = d2['fecha_fact']
+    d2['Cantidad'] = d2['Cantidad'].fillna(0).astype(int)
+
+    # Meses cubiertos por DATOS 2 — prevalecen sobre base
+    d2_meses = set(d2['fecha_fact'].dt.strftime('%Y-%m').unique())
+    if len(base):
+        base['_ym'] = base['fecha_fact'].dt.strftime('%Y-%m')
+        base = base[~base['_ym'].isin(d2_meses)].drop(columns=['_ym'], errors='ignore')
+
+    # Alinear columnas
+    keep = ['fecha de facturacion','fecha_fact','marca','familia','AGENCIA_FACTURACION',
+            'ASESOR_FACTURACION','IDENTIFICACION','CLIENTE_FACTURACION','CLIENTE_RESERVA',
+            'Chasis','Cantidad']
+    for c in keep:
+        if c not in base.columns: base[c] = None
+        if c not in d2.columns: d2[c] = None
+    combined = pd.concat([base[keep], d2[keep]], ignore_index=True)
+    print(f'[load_ventas_completo] base={len(base)} + DATOS2={len(d2)} = {len(combined)} (meses DATOS2 override: {sorted(d2_meses)})')
+    return combined
+
+
 if __name__ == '__main__':
     df = load_ventas()
     print(f'Path: {DEFAULT_VENTAS_PATH}')

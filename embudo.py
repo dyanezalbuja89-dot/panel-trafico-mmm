@@ -17,8 +17,11 @@ import pandas as pd
 
 from inventario import DEFAULT_INVENTORY_PATH, normalize_familia, normalize_version
 
-EMBUDO_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/"
-                   "Marketing/2026/Análisis de embudo")
+# Cache local prioridad, OneDrive fallback
+_EMBUDO_LOCAL = Path.home() / 'dev' / 'panel-datos' / 'embudo'
+_EMBUDO_ONEDRIVE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/"
+                        "Marketing/2026/Análisis de embudo")
+EMBUDO_BASE = _EMBUDO_LOCAL if _EMBUDO_LOCAL.exists() else _EMBUDO_ONEDRIVE
 
 # Agencia embudo → keyword en AGENCIA_FACTURACION del inventario
 AGENCY_INV_KEYWORD = {

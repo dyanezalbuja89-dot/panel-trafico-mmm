@@ -13,6 +13,8 @@ import glob as _glob
 # Carpeta oficial donde se sube el archivo de inventario.
 # Busca automáticamente el archivo más reciente (.xlsm/.xlsx) con "INVENTARIO" en el nombre.
 _INVENTORY_DIRS = [
+    # PRIORIDAD 1: cache local (~/dev/panel-datos/inv/) — evita OneDrive on-demand.
+    Path.home() / 'dev' / 'panel-datos' / 'inv',
     Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Inventrario"),
     # Fallback histórico
     Path("/Users/danielyanezalbuja/Downloads"),
@@ -720,7 +722,8 @@ def load_inventario(path=None, today=None, months_config=None):
     df['f_reserva_inv'] = pd.to_datetime(df['FECHA_DE_RESERVA'], errors='coerce')
     df['f_factura_inv'] = pd.to_datetime(df['fecha de facturacion'], errors='coerce')
     # Fallback: si no hay fecha de arribo, usar Fecha Registro (cuándo entró al sistema)
-    df['f_arribo'] = df['f_arribo'].fillna(pd.to_datetime(df['Fecha Registro'], errors='coerce'))
+    if 'Fecha Registro' in df.columns:
+        df['f_arribo'] = df['f_arribo'].fillna(pd.to_datetime(df['Fecha Registro'], errors='coerce'))
     # Agencia normalizada para reserva y facturación (para filtrado en monthly_cross)
     df['AGENCIA_RES_N']  = df['AGENCIA_DE_RESERVA'].apply(res_agency_norm)
     df['AGENCIA_FACT_N'] = df['AGENCIA_FACTURACION'].apply(fact_agency_norm)

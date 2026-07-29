@@ -9159,9 +9159,12 @@ HTML = r"""<!doctype html>
     convInitFilters();
     const clientes = convFilterClientes();
     // Definición B: personas únicas. Un cliente único = 1 unidad de tráfico.
-    const n_traf  = clientes.length;
-    const n_cerraron = clientes.filter(c => c.cerro).length;
-    const n_ventas = clientes.filter(c => c.cerro).reduce((s,c) => s + (c.n_ventas || 1), 0);
+    // Personas únicas: dedup por _ck (un cliente multi-agencia genera varias entries).
+    const _uniq = arr => new Set(arr.map(c => c._ck || c.asesor + '|' + c.first_ym)).size;
+    const n_traf  = _uniq(clientes);
+    const cerraron = clientes.filter(c => c.cerro);
+    const n_cerraron = _uniq(cerraron);
+    const n_ventas = cerraron.reduce((s,c) => s + (c.n_ventas || 1), 0);
     const conv = n_traf > 0 ? +(100*n_cerraron/n_traf).toFixed(1) : 0;
     const ciclo = convCalcCiclo(clientes);
 

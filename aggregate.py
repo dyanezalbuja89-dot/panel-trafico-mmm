@@ -11,13 +11,38 @@ from competencia import compute_competencia_data
 from embudo import compute_embudo_data
 
 def _compute_embudo_safe():
+    # Skip embudo si no hay cache local (evita colgar por OneDrive on-demand)
+    _emb_local = Path.home() / 'dev' / 'panel-datos' / 'embudo'
+    if not _emb_local.exists() or not any(_emb_local.rglob('*.xlsx')):
+        print("WARN: embudo skipped (cache local ~/dev/panel-datos/embudo/ vacío)")
+        return None
     try:
         return compute_embudo_data()
     except Exception as e:
         print(f"WARN: embudo no disponible: {e}")
         return None
 
+# ============================================================
+# Cache local de datos (evita depender de OneDrive on-demand)
+# Ver ~/dev/panel-datos/ para snapshot local de BDs, inventario y metas.
+# ============================================================
+LOCAL_DATA_DIR = Path.home() / 'dev' / 'panel-datos'
+
+def _resolve_local(path):
+    """Redirige lectura a copia local si existe. OneDrive queda como fallback."""
+    try:
+        p = Path(path)
+        name = p.name
+        for sub in ('bd', 'inv', 'metas'):
+            local = LOCAL_DATA_DIR / sub / name
+            if local.exists():
+                return local
+    except Exception:
+        pass
+    return path
+
 def _parse_brand_meta_breakdown(file_path):
+    file_path = _resolve_local(file_path)
     """Parsea hoja METAS_OM del archivo NUEVO_AI_MARCAS y devuelve:
        {brand_key: {modelo_canonico: {meta_ventas, por_agencia: {ag: meta_ventas}}}}.
     El archivo lista total por marca seguido de sus modelos (Dong Feng total, Huge, Mage...).
@@ -189,6 +214,7 @@ def _compute_ventas_mensual(sales_df):
             _seen_paths = set()
             for _inv_dir in _INVENTORY_DIRS:
                 if not _inv_dir.exists(): continue
+                _found_here = False
                 for _ext in ('*.xlsm','*.xlsx'):
                     for _p in _inv_dir.glob(_ext):
                         if _p.name.startswith('~$'): continue
@@ -199,8 +225,10 @@ def _compute_ventas_mensual(sales_df):
                             _df = pd.read_excel(_p, sheet_name='DATOS 2', header=0)
                             _df['_src'] = _p.name
                             inv_tx_frames.append(_df)
+                            _found_here = True
                         except Exception as _e:
                             pass
+                if _found_here: break  # ► Stop en primer dir con matches (cache local vs OneDrive)
             if inv_tx_frames:
                 inv_tx = pd.concat(inv_tx_frames, ignore_index=True, sort=False)
                 if 'Vin' in inv_tx.columns and 'Fecha' in inv_tx.columns and 'Cantidad' in inv_tx.columns:
@@ -280,6 +308,7 @@ def _compute_ventas_mensual(sales_df):
             _seen_p = set()
             for _inv_dir in _INVENTORY_DIRS:
                 if not _inv_dir.exists(): continue
+                _found_here = False
                 for _ext in ('*.xlsm','*.xlsx'):
                     for _p in _inv_dir.glob(_ext):
                         if _p.name.startswith('~$'): continue
@@ -291,7 +320,9 @@ def _compute_ventas_mensual(sales_df):
                             _df['_src'] = _p.name
                             _df['_mtime'] = _p.stat().st_mtime
                             _hist_frames.append(_df)
+                            _found_here = True
                         except Exception: pass
+                if _found_here: break
             if _hist_frames:
                 inv_hist = pd.concat(_hist_frames, ignore_index=True, sort=False)
                 # Filter FACTURADO primero (evita quedarnos con row DISPONIBLE de snapshot reciente)
@@ -610,7 +641,8 @@ def _infer_marca_from_sucursal(sucursal):
     return None
 
 def load_raw(path):
-    # Retry: OneDrive puede timeoutear en archivos históricos si el sync se durmió.
+    # Preferir cache local ~/dev/panel-datos/bd/ sobre OneDrive
+    path = _resolve_local(path)
     import time as _t
     _last_err = None
     for _attempt in range(4):
@@ -619,7 +651,7 @@ def load_raw(path):
             break
         except (TimeoutError, OSError) as _e:
             _last_err = _e
-            print(f'[load_raw] timeout {path.name} attempt {_attempt+1}/4, warming up sync...')
+            print(f'[load_raw] timeout {Path(path).name} attempt {_attempt+1}/4, warming up sync...')
             try:
                 with open(path, 'rb') as _fh: _fh.read(4096)
             except Exception: pass
@@ -753,6 +785,7 @@ FORD_META_MODEL_MAP = {
 }
 
 def load_ford_meta_breakdown(path):
+    path = _resolve_local(path)
     """Extrae del tab METAS_FORD los cuadros 'PRESUPUESTO NACIONAL' (meta ventas)
     y 'RESERVAS POR CONCESIONARIO' (reservas pre-mes) agrupados por modelo.
     Devuelve {modelo: {meta_ventas: int, reservas_pre: int, por_agencia: {ag: {meta_ventas, reservas_pre}}}}.
@@ -801,6 +834,7 @@ def load_ford_meta_breakdown(path):
     return out
 
 def _extract_traffic_meta_from_metas_ford(path):
+    path = _resolve_local(path)
     """Extrae la sección 'PRESUPUESTO DE TRÁFICO POR CONCESIONARIO MARKETING' de METAS_FORD.
     Devuelve (meta_total, matrix_meta {modelo: {agencia: meta_trafico_marketing}}, per_agencia).
     Regla ORGU: usar SIEMPRE la sección MARKETING (~80%), no la TOTAL.
@@ -844,6 +878,7 @@ def _extract_traffic_meta_from_metas_ford(path):
     return total, matrix_meta, per_ag
 
 def _extract_traffic_meta_marcas(path):
+    path = _resolve_local(path)
     """Lee sección 'PRESUPUESTO DE TRÁFICO POR CONCESIONARIO MARKETING' de METAS_MARCAS.
     Devuelve {brand_key: {meta_total, matrix_meta {modelo: {ag: meta}}, per_agencia}}.
     Regla ORGU: SIEMPRE usar sección MARKETING.
@@ -910,6 +945,7 @@ def _extract_traffic_meta_marcas(path):
     return out
 
 def load_ford_metas(path):
+    path = _resolve_local(path)
     """Load per-agency Ford metas from a workbook with sheets CJA/Orellana/LA Y/Tumbaco/Manta/Machala/Portoviejo.
     Sólo escanea el bloque inicial "CUMPLIMIENTO POR MODELO" (header 'Meta Mensual' en col[1]).
     Para evitar leer tablas posteriores como MATRIZ MODELO×CANAL que reusan los mismos BD Keys.
@@ -1233,14 +1269,16 @@ BRAND_DISPLAY = {
 BRAND_DEALERS = {
     'DONGFENG_ORGU': ['La Y', 'Machala'],
     'CHERY_ORGU':    ['Machala'],
-    'MAZDA_ORGU':    ['Machala', 'Portoviejo'],
-    'RAM_ORGU':      ['Machala', 'Portoviejo'],
+    # MAZDA y RAM: sí venden en Portoviejo pero no gestionan tráfico → solo Machala
+    # en el reporte para no distorsionar cumplimiento (Daniel 2026-07-24).
+    'MAZDA_ORGU':    ['Machala'],
+    'RAM_ORGU':      ['Machala'],
 }
 BRAND_DEALER_PATTERNS = {
     'DONGFENG_ORGU': {'La Y': 'LA Y',   'Machala': 'MACHALA'},
     'CHERY_ORGU':    {'Machala': 'MACHALA'},
-    'MAZDA_ORGU':    {'Machala': 'MACHALA', 'Portoviejo': 'PORTOVIEJO'},
-    'RAM_ORGU':      {'Machala': 'MACHALA', 'Portoviejo': 'PORTOVIEJO'},
+    'MAZDA_ORGU':    {'Machala': 'MACHALA'},
+    'RAM_ORGU':      {'Machala': 'MACHALA'},
 }
 # Keyword en SUCURSAL que confirma que el record pertenece a la marca (filtro estricto).
 # Aplicado en process_bd_brand para excluir records mal clasificados (e.g. MARCA=DONGFENG_ORGU
@@ -1288,6 +1326,7 @@ META_PARENT_PATTERNS = {
 }
 
 def load_brand_metas(path):
+    path = _resolve_local(path)
     """Parse METAS_MARCAS: returns {brand: {modelo_display: {agency: meta}}}
     Sheet has 3 sections: VENTAS, PRESUPUESTO DE TRÁFICO, PRESUPUESTO DE TRÁFICO MARKETING.
     We use PRESUPUESTO DE TRÁFICO MARKETING (80% marketing budget) — el que aplica al panel.
@@ -1581,10 +1620,10 @@ MONTHS_CONFIG = [
      "prev_date": "28/06/2026",
      "ford_metas_file": str(JUN_FORD_METAS_FILE),
      "brand_metas_file": str(JUN_BRAND_METAS_FILE)},
-    {"key": "julio_2026", "label": "Julio 2026", "month": 7, "year": 2026, "cut_day": 23,
-     "curr_file": "../Julio/BD_JULIO/BD_JUL_23_07_26.xlsx",
-     "prev_file": "../Julio/BD_JULIO/BD_JUL_22_07_26.xlsx",
-     "prev_date": "22/07/2026",
+    {"key": "julio_2026", "label": "Julio 2026", "month": 7, "year": 2026, "cut_day": 26,
+     "curr_file": "../Julio/BD_JULIO/BD_JUL_26_07_26.xlsx",
+     "prev_file": "../Julio/BD_JULIO/BD_JUL_23_07_26.xlsx",
+     "prev_date": "23/07/2026",
      "ford_metas_file": str(JUL_FORD_METAS_FILE),
      "brand_metas_file": str(JUL_BRAND_METAS_FILE)},
 ]
@@ -1804,6 +1843,29 @@ def main():
                 except Exception as e:
                     print(f'[metas] {cfg["key"]} brand breakdown fail: {e}')
             continue
+        # ► CACHE INCREMENTAL: si el mes ya fue procesado y los BDs no cambiaron, reusar.
+        # Cache key: (curr_file_mtime, prev_file_mtime, cfg["cut_day"]). Miss ⇒ compute.
+        _cache_path = LOCAL_DATA_DIR / 'cache' / 'months_cache.json'
+        _cache = {}
+        if _cache_path.exists():
+            try: _cache = json.loads(_cache_path.read_text())
+            except Exception: _cache = {}
+        _cp = _resolve_local(BASE / cfg["curr_file"])
+        _pp = _resolve_local(BASE / cfg["prev_file"])
+        try:
+            _cache_key = f"{Path(_cp).stat().st_mtime_ns}|{Path(_pp).stat().st_mtime_ns}|{cfg['cut_day']}"
+        except Exception:
+            _cache_key = None
+        _cached_entry = _cache.get(cfg['key']) if _cache_key else None
+        if _cached_entry and _cached_entry.get('_key') == _cache_key:
+            print(f'[cache] {cfg["key"]} hit — reusando reporte cacheado')
+            ford_months[cfg['key']] = _cached_entry['ford']
+            brands_months[cfg['key']] = _cached_entry['brands']
+            if _cached_entry.get('ford_meta_breakdown'):
+                ford_meta_breakdown[cfg['key']] = _cached_entry['ford_meta_breakdown']
+            if _cached_entry.get('brand_meta_breakdown'):
+                brand_meta_breakdown[cfg['key']] = _cached_entry['brand_meta_breakdown']
+            continue
         curr_raw = load_raw(BASE / cfg["curr_file"])
         prev_raw = load_raw(BASE / cfg["prev_file"])
         # Si prev usa el mismo archivo acumulativo que curr, filtra prev a la fecha del corte anterior
@@ -1854,6 +1916,17 @@ def main():
                                  up_to_day=cfg["cut_day"], prev_date=cfg["prev_date"],
                                  extra_non_working=extra_nw)
         brands_months[cfg["key"]] = bd
+        # Persistir en cache incremental (evita recomputar meses sin cambios en próxima corrida)
+        if _cache_key:
+            _cache[cfg['key']] = {
+                '_key': _cache_key,
+                'ford': f,
+                'brands': bd,
+                'ford_meta_breakdown': ford_meta_breakdown.get(cfg['key']),
+                'brand_meta_breakdown': brand_meta_breakdown.get(cfg['key']),
+            }
+            _cache_path.parent.mkdir(parents=True, exist_ok=True)
+            _cache_path.write_text(json.dumps(_cache, ensure_ascii=False, default=str))
 
     # Default = último mes con BD (evita entries pending como default seguro).
     default_key = next((c["key"] for c in reversed(MONTHS_CONFIG)
@@ -1913,7 +1986,7 @@ def main():
                 # pero compute_conversion_metrics filtra por columna 'marca' de ventas que
                 # contiene los nombres limpios (DONGFENG, CHERY, MAZDA, RAM).
                 k: compute_conversion_metrics(
-                    bd_dir=str(BASE / '../Julio/BD_JULIO'),
+                    bd_dir=str(LOCAL_DATA_DIR / 'bd') if (LOCAL_DATA_DIR / 'bd').exists() else str(BASE / '../Julio/BD_JULIO'),
                     sales_df=_ventas,
                     marca_filter=mf,
                 )
@@ -1924,7 +1997,7 @@ def main():
                     ('MAZDA_ORGU',    'MAZDA'),
                     ('RAM_ORGU',      'RAM'),
                 ]
-            }) if _ventas is not None else None)(__import__('ventas').load_ventas())
+            }) if _ventas is not None else None)(__import__('ventas').load_ventas_completo())
         ),
         # Panel de Ventas mensual · pivot por marca/modelo/asesor con NETOS (sum Cantidad).
         # Permite ver ventas mes a mes y desplegar por modelo o por asesor comercial.
@@ -1990,7 +2063,8 @@ def main():
     else:
         print(f"INFO: no digital.json at {digital_path}; tab Seguimiento Digital quedará vacío")
 
-    outpath = ABRIL_BASE / "panel-trafico/data.json"
+    # Escribir data.json al directorio del script (~/dev/panel-trafico/), no a OneDrive
+    outpath = Path(__file__).parent / "data.json"
     # ► Sanea NaN/Infinity antes de serializar. Python json.dump por default
     # escribe los tokens literales NaN/Infinity (no son JSON válido). El
     # navegador (JSON.parse) los rechaza con SyntaxError y rompe el IIFE

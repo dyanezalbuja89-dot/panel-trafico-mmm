@@ -18,6 +18,7 @@ import pandas as pd
 
 # Carpeta donde busca el archivo (más reciente)
 _IMPORT_DIRS = [
+    Path.home() / 'dev' / 'panel-datos' / 'inv',  # cache local prioridad
     Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Inventrario"),
     Path("/Users/danielyanezalbuja/Downloads"),
 ]
@@ -120,6 +121,7 @@ _ADUANA_FILES = [
     ('BD QM', 'QM'),
 ]
 _ADUANA_DIRS = [
+    Path.home() / 'dev' / 'panel-datos' / 'inv',
     Path("/Users/danielyanezalbuja/Downloads"),
     Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Inventrario"),
 ]
