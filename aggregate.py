@@ -2095,7 +2095,11 @@ def main():
         print(f"INFO: no data_xiy.json at {xiy_path}; tab Inversión quedará vacío")
 
     # ─── Digital · HubSpot · pipeline Ventas-Ford ───
-    digital_path = ABRIL_BASE / "panel-trafico/digital.json"
+    # Lee digital.json del directorio del script (lo escribe el cron horario
+    # digital_hourly.sh). Antes apuntaba a la carpeta de OneDrive: tras la mudanza a
+    # ~/dev/ dejó de encontrarlo y las pestañas Seguimiento Digital (Ford y DF)
+    # quedaron sin DATA.digital — lo que además desactiva el re-fetch en runtime.
+    digital_path = Path(__file__).resolve().parent / "digital.json"
     if digital_path.exists():
         try:
             with open(digital_path, "r", encoding="utf-8") as f:

@@ -7,7 +7,9 @@
 # NO commitea data.json/index.html (los maneja el flujo de inventario; evita conflictos).
 # ⚠️ La otra sesión NO debe commitear digital.json (habría conflicto de dos escritores).
 set -e
-REPO="/Users/danielyanezalbuja/dev/panel-trafico-mmm"
+# Carpeta de trabajo ÚNICA del panel (consolidado 30-jul-2026: antes este cron corría
+# en ~/dev/panel-trafico-mmm y los deploys de la otra carpeta se pisaban entre sí).
+REPO="/Users/danielyanezalbuja/dev/panel-trafico"
 LOG="$HOME/panel_digital_hourly.log"
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
@@ -34,8 +36,14 @@ trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
 
 log "═══ refresco digital horario ═══"
 
-# 1. Sync al canónico (descarta el merge de la hora previa; trae data.json de otras pestañas)
+# 1. Sync al canónico (descarta el merge de la hora previa; trae data.json de otras pestañas).
+#    Ahora esta carpeta es también donde se edita el panel, así que NO se puede hacer
+#    reset --hard a ciegas: si hay trabajo sin commitear se guarda en stash primero.
 git fetch origin main >> "$LOG" 2>&1 || log "WARN git fetch"
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  git stash push -u -m "digital_hourly autostash $(date '+%F %H:%M')" >> "$LOG" 2>&1 \
+    && log "⚠ trabajo sin commitear guardado en stash (recuperar: git stash list/pop)"
+fi
 git reset --hard origin/main >> "$LOG" 2>&1 || log "WARN git reset"
 
 # 2. Pull HubSpot → digital.json
