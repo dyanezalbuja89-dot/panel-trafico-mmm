@@ -9161,10 +9161,36 @@ HTML = r"""<!doctype html>
     // Definición B: personas únicas. Un cliente único = 1 unidad de tráfico.
     // Personas únicas: dedup por _ck (un cliente multi-agencia genera varias entries).
     const _uniq = arr => new Set(arr.map(c => c._ck || c.asesor + '|' + c.first_ym)).size;
-    const n_traf  = _uniq(clientes);
+    // Hero: TODO desde master_facturas para cuadre perfecto con widgets.
+    const _mst = CONV.master_facturas || [];
+    const _mstF = _mst.filter(m => {
+      if (convState.agencia && m.agencia !== convState.agencia) return false;
+      if (convState.mes) {
+        const ym = m.cohorte_ym || (m.fecha ? m.fecha.slice(0,7) : null);
+        if (ym !== convState.mes) return false;
+      }
+      return true;
+    });
+    const _mpaX = CONV.master_por_agencia || {};
+    let n_traf, n_cerraron;
+    if (convState.agencia && _mpaX[convState.agencia]) {
+      n_traf = _mpaX[convState.agencia].traffic || 0;
+    } else {
+      n_traf = _uniq(clientes);
+    }
+    // Compradores reales = pid con al menos un (pid,VIN) neto > 0.
+    const _pvQtyH = {};
+    _mstF.forEach(m => {
+      if (!m.persona_id || !m.qty) return;
+      const pv = m.persona_id + '||' + (m.vin || '');
+      _pvQtyH[pv] = (_pvQtyH[pv] || 0) + m.qty;
+    });
+    const _compH = new Set();
+    Object.entries(_pvQtyH).forEach(([pv,q]) => { if (q > 0) _compH.add(pv.split('||')[0]); });
+    n_cerraron = _compH.size;
     const cerraron = clientes.filter(c => c.cerro);
-    const n_cerraron = _uniq(cerraron);
-    const n_ventas = cerraron.reduce((s,c) => s + (c.n_ventas || 1), 0);
+    // Ventas totales desde master_facturas (fuente única) — suma CON SIGNO (FACT + NC = neto).
+    const n_ventas = _mstF.reduce((s, m) => s + (m.qty || 0), 0);
     const conv = n_traf > 0 ? +(100*n_cerraron/n_traf).toFixed(1) : 0;
     const ciclo = convCalcCiclo(clientes);
 
@@ -9230,10 +9256,91 @@ HTML = r"""<!doctype html>
     }
 
     // Recalcular breakdowns desde clientes filtrados
-    const aggCanal   = convAggregate(clientes, 'canal');
-    const aggModelo  = convAggregate(clientes, 'modelo');
-    const aggAgencia = convAggregate(clientes, 'agencia');
-    const aggAsesor  = convAggregate(clientes, 'asesor');
+    // ═══ FUENTE ÚNICA DE VERDAD: master_facturas del backend ═══
+    // Todos los breakdowns (canal/modelo/agencia) se derivan de la misma lista de
+    // facturas — cuadre matemático garantizado.
+    const _master = CONV.master_facturas || [];
+    const _mFilt = _master.filter(m => {
+      if (convState.agencia && m.agencia !== convState.agencia) return false;
+      if (convState.mes) {
+        const ym = m.cohorte_ym || (m.fecha ? m.fecha.slice(0,7) : null);
+        if (ym !== convState.mes) return false;
+      }
+      if (convState.canal && (m.canal_lead || 'Sin canal atribuido') !== convState.canal) return false;
+      if (convState.modelo && (m.modelo_lead || m.modelo_fact) !== convState.modelo) return false;
+      return true;
+    });
+    const _bucketMaster = (getKey) => {
+      // Compradores = pid con al menos un (pid,VIN) neto > 0. Ventas = suma con signo.
+      const b = {};
+      _mFilt.forEach(m => {
+        if (!m.qty || m.qty === 0) return;
+        const k = getKey(m) || 'Sin categoría';
+        if (!b[k]) b[k] = {_pvQty: {}, ventas: 0};
+        b[k].ventas += m.qty;
+        if (m.persona_id) {
+          const pv = m.persona_id + '||' + (m.vin || '');
+          b[k]._pvQty[pv] = (b[k]._pvQty[pv] || 0) + m.qty;
+        }
+      });
+      const out = {};
+      Object.entries(b).forEach(([k,v]) => {
+        const comp = new Set();
+        Object.entries(v._pvQty).forEach(([pv,q]) => { if (q > 0) comp.add(pv.split('||')[0]); });
+        out[k] = {traffic: comp.size, matched: comp.size, ventas: v.ventas, conv_pct: 0};
+      });
+      return out;
+    };
+    // Canal/Modelo: traffic = TODOS los clientes cohorte 2026 con ese canal/modelo
+    // (universo de leads); matched/ventas desde master (compradores facturados).
+    const aggCanalT   = convAggregate(clientes, 'canal');
+    const aggModeloT  = convAggregate(clientes, 'modelo');
+    const aggAgenciaT = convAggregate(clientes, 'agencia');
+    const _mCanal  = _bucketMaster(m => m.canal_lead || 'Gestión Externa');
+    const _mModelo = _bucketMaster(m => m.modelo_lead || m.modelo_fact || 'Por definir');
+    const _mAgencia = _bucketMaster(m => m.agencia);
+    const aggCanal = {};
+    const aggModelo = {};
+    const aggAgencia = {};
+    const _merge = (target, src_traf, src_master) => {
+      const keys = new Set([...Object.keys(src_traf), ...Object.keys(src_master)]);
+      keys.forEach(k => {
+        const t = src_traf[k] ? (src_traf[k].traffic || 0) : 0;
+        const m = src_master[k] ? (src_master[k].matched || 0) : 0;
+        const v = src_master[k] ? (src_master[k].ventas || 0) : 0;
+        target[k] = {
+          traffic: t,
+          matched: m,
+          ventas: v,
+          conv_pct: t > 0 ? +(100*m/t).toFixed(1) : 0,
+        };
+      });
+    };
+    _merge(aggCanal,   aggCanalT,   _mCanal);
+    _merge(aggModelo,  aggModeloT,  _mModelo);
+    // Agencia: traffic desde master_por_agencia. Solo agencias en _mAgencia (respeta filtro).
+    const _mpa = CONV.master_por_agencia || {};
+    Object.keys(_mAgencia).forEach(ag => {
+      const t = _mpa[ag] ? (_mpa[ag].traffic || 0) : 0;
+      const m = _mAgencia[ag].matched;
+      const v = _mAgencia[ag].ventas;
+      aggAgencia[ag] = {
+        traffic: t,
+        matched: m,
+        ventas: v,
+        conv_pct: t > 0 ? +(100*m/t).toFixed(1) : 0,
+      };
+    });
+    // Top asesores: SOLO asesores comerciales del PDV — cierres del cohorte 2026 por
+    // first_asesor. Excluye jefes, entries sintéticas y asesores cuyo HOME PDV
+    // (agencia con más tráfico propio) no es la agencia filtrada.
+    const _homeAg = CONV.asesor_home_agencia || {};
+    const aggAsesor = convAggregate(
+      clientes.filter(c => {
+        if (c._is_jefe || c._is_sinlead) return false;
+        if (convState.agencia && _homeAg[c.asesor] && _homeAg[c.asesor] !== convState.agencia) return false;
+        return true;
+      }), 'asesor');
     // Filtrar asesores con <5 leads (ruido)
     const aggAsesorFilt = {};
     Object.entries(aggAsesor).forEach(([k,v]) => { if(v.traffic >= 5) aggAsesorFilt[k] = v; });
@@ -9243,7 +9350,7 @@ HTML = r"""<!doctype html>
     renderTable('#conv-tbl-canal tbody',   aggCanal,   'canal',   true);
     renderTable('#conv-tbl-modelo tbody',  aggModelo,  'modelo',  true);
     renderTable('#conv-tbl-agencia tbody', aggAgencia, 'agencia', true);
-    renderTable('#conv-tbl-asesor tbody',  aggAsesorFilt, 'rank',  false, 5, 20);
+    renderTable('#conv-tbl-asesor tbody',  aggAsesorFilt, 'rank',  false, 0, 20);
     renderConvBulletsAgency(aggAgencia);   // ← nuevo: bullets % conversión vs promedio
     renderConvChartEvol();
     renderConvChartModelos();
@@ -9256,12 +9363,24 @@ HTML = r"""<!doctype html>
   function renderConvBulletsAgency(agg){
     const wrap = document.getElementById('conv-bullets-agency');
     if(!wrap) return;
-    // Calcular promedio ORGU global
     const entries = Object.entries(agg).filter(([,v])=>v.traffic >= 5);
     if(entries.length === 0){ wrap.innerHTML = ''; return; }
-    const totT = entries.reduce((s,[,v])=>s+v.traffic, 0);
-    const totM = entries.reduce((s,[,v])=>s+v.matched, 0);
-    const avg = totT>0 ? 100*totM/totT : 0;
+    // Promedio ORGU GLOBAL: siempre desde el breakdown backend completo (todas las
+    // agencias), no del subset filtrado — si filtras 1 agencia el "promedio" no puede
+    // ser esa misma agencia.
+    const CONVg = (DATA.conversion_data||{})[convState.marca] || {};
+    const _mpaAll = CONVg.master_por_agencia || {};
+    let avg;
+    const _allEntries = Object.values(_mpaAll).filter(v => (v.traffic||0) >= 5);
+    if (_allEntries.length) {
+      const gT = _allEntries.reduce((s,v)=>s+(v.traffic||0), 0);
+      const gM = _allEntries.reduce((s,v)=>s+(v.personas||0), 0);
+      avg = gT>0 ? 100*gM/gT : 0;
+    } else {
+      const totT = entries.reduce((s,[,v])=>s+v.traffic, 0);
+      const totM = entries.reduce((s,[,v])=>s+v.matched, 0);
+      avg = totT>0 ? 100*totM/totT : 0;
+    }
     // Construir filas estilo bullet (reusamos ffRenderBullet)
     const rows = entries.map(([name, v])=>{
       const conv = v.conv_pct || 0;

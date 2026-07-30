@@ -215,7 +215,24 @@ def load_ventas_completo():
     d2['marca'] = d2.get('Marca','').astype(str).str.strip()
     d2['familia'] = d2.get('Descripción Modelo','').astype(str).str.strip()
     d2['AGENCIA_FACTURACION'] = d2.get('Descripcion Bodega','').astype(str).str.strip()
-    d2['ASESOR_FACTURACION'] = ''  # DATOS 2 no trae asesor
+    # ASESOR_FACTURACION viene de hoja DATOS por VIN (DATOS 2 no lo trae).
+    # Concat DATOS de TODOS los snapshots — cada inventario captura ASESOR para VINs
+    # nuevos que llegan. Sin esto, junio/julio facturas nuevas quedan sin asesor.
+    ase_map = {}
+    for _inv_p in seen:
+        try:
+            with _w.catch_warnings():
+                _w.simplefilter('ignore')
+                _dat_ase = pd.read_excel(_inv_p, sheet_name='DATOS', header=0)
+            if 'vin' in _dat_ase.columns and 'ASESOR_FACTURACION' in _dat_ase.columns:
+                _dat_ase['vin_u'] = _dat_ase['vin'].astype(str).str.upper().str.strip()
+                for _, r in _dat_ase.iterrows():
+                    v = r['vin_u']; a = r['ASESOR_FACTURACION']
+                    if v and pd.notna(a) and str(a).strip():
+                        if v not in ase_map:
+                            ase_map[v] = str(a).strip()
+        except Exception: pass
+    d2['ASESOR_FACTURACION'] = d2['vin_u'].map(ase_map).fillna('')
     d2['CLIENTE_FACTURACION'] = d2.get('Nombres','').astype(str).str.strip()
     d2['CLIENTE_RESERVA'] = None
     d2['Chasis'] = d2['vin_u']

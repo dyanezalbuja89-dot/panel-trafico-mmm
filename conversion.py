@@ -106,6 +106,42 @@ COMPANY_STOPWORDS = {
     'de', 'del', 'la', 'el', 'los', 'las', 'y', 'e',
 }
 
+# Jefes de venta — se EXCLUYEN del cálculo de conversión (atienden poco pero venden
+# mucho como B2B/decisor, distorsionan tasa por agencia). Daniel confirmó 2026-07-29.
+# Match por normalización sin tildes y busca substring de "nombre + apellido" en el
+# ASESOR completo (que puede traer nombre compuesto tipo "ANDY JIMENEZ LEON").
+JEFES_VENTA_RAW = [
+    'Andy Jimenez',
+    'Jose Hervas',
+    'Jaime Loor',
+    'Marilu Brito',
+    'Paola Erazo',
+    'Damian Proaño',
+    'Margarita Molina',
+    'Tatiana Salinas',   # ex-jefa La Y (ya salió) — Daniel 2026-07-29
+]
+
+def _norm_jefe(s):
+    """Lowercase sin tildes, un solo espacio."""
+    if not s: return ''
+    n = unicodedata.normalize('NFD', str(s)).encode('ascii', 'ignore').decode('ascii')
+    return ' '.join(n.lower().strip().split())
+
+_JEFES_NORM = [_norm_jefe(x) for x in JEFES_VENTA_RAW]
+
+def is_jefe_venta(asesor):
+    """True si asesor coincide con algún jefe de venta (match tokens ambos)."""
+    if asesor is None or (isinstance(asesor, float) and pd.isna(asesor)):
+        return False
+    n = _norm_jefe(asesor)
+    if not n: return False
+    for jefe in _JEFES_NORM:
+        j_toks = jefe.split()
+        if all(tok in n for tok in j_toks):
+            return True
+    return False
+
+
 def norm_asesor(s):
     """Normaliza nombre de asesor. BDs Kombat suelen traer NOMBRES+APELLIDOS
     concatenando el apellido dos veces (ej: 'LUIS RODRIGO HILANO CARRILLO
@@ -273,6 +309,7 @@ def cross_traffic_sales(traffic_df, sales_df):
     # Normalizar ASESOR — BD suele traer duplicación de apellido
     if 'ASESOR' in traffic_df.columns:
         traffic_df['ASESOR'] = traffic_df['ASESOR'].apply(norm_asesor)
+    sales_df = sales_df.copy()
     traffic_df['client_key'] = build_client_keys(traffic_df, 'CEDULA', 'CORREO', 'CELULAR')
 
     # Para ventas, el "cliente" es la cédula del comprador. Construimos client_key con
@@ -564,6 +601,10 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     if period_start is not None:
         facturas = facturas[facturas['fecha_fact'] >= period_start]
     facturas_in_period = int(len(facturas))
+    # ► COPIA de facturas SIN filtro de jefes — se usa SOLO para el conteo
+    # agencia_breakdown.ventas (Daniel: ventas de jefes SÍ deben aparecer en las cifras
+    # de venta, pero NO en tráfico ni tasa de conversión).
+    facturas_full = facturas.copy()
 
     result = cross_traffic_sales(traffic, facturas)
     traffic_df = result['traffic_df']
@@ -672,7 +713,34 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     asesor_breakdown = _build_breakdown(lambda ft: ft.get('first_asesor') or 'Sin asesor')
 
     # Quedarnos con asesores que tienen al menos 5 leads (filtrar ruido)
-    asesor_breakdown = {k: v for k, v in asesor_breakdown.items() if v['traffic'] >= 5}
+    # Ventas por asesor desde facturas (ASESOR_FACTURACION). Semántica única:
+    # ventas = facturas emitidas. Aplica a TODOS los asesores (jefes y regulares).
+    jefes_por_agencia = {}                 # legacy — solo jefes
+    facturas_por_asesor_agencia = {}       # NUEVO — todos los asesores {asesor: {ag: ventas}}
+    from inventario import fact_agency_norm as _fact_ag_norm_local
+    _AG_MAP_LOCAL = {'CJA':'CJA','Orellana':'Orellana','La Y':'La Y','Tumbaco':'Tumbaco','Manta':'Manta','Portoviejo':'Portoviejo','Machala':'Machala'}
+    def _ag_short_local(raw):
+        n = _fact_ag_norm_local(raw) if raw else None
+        return _AG_MAP_LOCAL.get(n, n)
+    if len(facturas):
+        _fa = facturas.copy()
+        _fa['_ase_norm'] = _fa['ASESOR_FACTURACION'].apply(lambda s: norm_asesor(s) if pd.notna(s) else None)
+        _fa['_ag_short'] = _fa['AGENCIA_FACTURACION'].apply(_ag_short_local)
+        _fa['Cantidad'] = _fa.get('Cantidad', 1).fillna(0).astype(int)
+        for ase_s, grp in _fa.groupby('_ase_norm'):
+            if not ase_s: continue
+            _tot = int(grp['Cantidad'].sum())
+            asesor_breakdown.setdefault(ase_s, {'traffic': 0, 'matched': 0, 'ventas': 0})
+            asesor_breakdown[ase_s]['ventas'] = _tot
+            asesor_breakdown[ase_s]['matched'] = _tot
+            _by_ag = {ag: int(g['Cantidad'].sum()) for ag, g in grp.groupby('_ag_short') if ag}
+            facturas_por_asesor_agencia[ase_s] = _by_ag
+            if is_jefe_venta(ase_s):
+                asesor_breakdown[ase_s]['_is_jefe'] = True
+                jefes_por_agencia[ase_s] = _by_ag
+    # Filtro ruido: mostrar TODOS los asesores con ventas > 0 o con traffic >= 5.
+    asesor_breakdown = {k: v for k, v in asesor_breakdown.items()
+                        if v['traffic'] >= 5 or v.get('ventas', 0) > 0 or is_jefe_venta(k)}
 
     # =========================================================
     #  BREAKDOWN FILTRADO POR CANALES DE MARKETING
@@ -815,18 +883,20 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
             # Cliente facturó en >1 agencias — emitir una entry por factura con agencia+mes de facturación.
             for f in _facts:
                 if not f.get('ag'): continue
+                _ase = ft.get('first_asesor') or 'Sin asesor'
                 clientes_flat.append({
                     '_ck':      str(ck),
                     'canal':    ft.get('first_canal'),
                     'modelo':   (ft.get('first_modelo') or '').upper().strip() or 'Por definir',
                     'agencia':  f['ag'],
                     'zona':     ft.get('first_zona') or 'Otra',
-                    'asesor':   ft.get('first_asesor') or 'Sin asesor',
+                    'asesor':   _ase,
                     'first_ym': f['ym'],
                     'cerro':    True,
                     'n_ventas': f['qty'],
                     'n_toques': n_toques,
                     'ciclo_dias': ciclo_d,
+                    '_is_jefe': is_jefe_venta(_ase),
                 })
         else:
             # Cliente facturó en 1 sola agencia (o no facturó). Si facturó, usar la agencia
@@ -843,18 +913,20 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
                 _min_fecha = min((f['fecha'] for f in _facts if pd.notna(f.get('fecha'))), default=None)
                 if _min_fecha is not None:
                     _ym_final = _min_fecha.strftime('%Y-%m')
+            _ase = ft.get('first_asesor') or 'Sin asesor'
             clientes_flat.append({
                 '_ck':      str(ck),
                 'canal':    ft.get('first_canal'),
                 'modelo':   (ft.get('first_modelo') or '').upper().strip() or 'Por definir',
                 'agencia':  _ag_final,
                 'zona':     ft.get('first_zona') or 'Otra',
-                'asesor':   ft.get('first_asesor') or 'Sin asesor',
+                'asesor':   _ase,
                 'first_ym': _ym_final,
                 'cerro':    bool(cerro),
                 'n_ventas': _n_ventas_final,
                 'n_toques': n_toques,
                 'ciclo_dias': ciclo_d,
+                '_is_jefe': is_jefe_venta(_ase),
             })
 
     n_clients_2026 = len(clientes_flat)
@@ -862,25 +934,46 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     conv_2026 = round(100 * n_clients_2026_cerro / n_clients_2026, 1) if n_clients_2026 else 0
 
     # Recomputar agencia_breakdown desde clientes_flat (traffic + matched cohorte 2026).
+    # DEDUP por _ck para que un cliente multi-agencia cuente 1 sola vez en traffic/matched.
+    # INCLUIR jefes: los clientes atendidos por jefes también llegaron por algún canal.
+    # (Solo el ranking de asesores separa jefes vs regulares.)
     agencia_breakdown = {}
+    _seen_traffic = {}
+    _seen_matched = {}
     for c in clientes_flat:
         k = c['agencia']
         agencia_breakdown.setdefault(k, {'traffic': 0, 'matched': 0, 'ventas': 0})
-        agencia_breakdown[k]['traffic'] += 1
+        _key_t = (k, c.get('_ck'))
+        if _key_t not in _seen_traffic:
+            _seen_traffic[_key_t] = True
+            agencia_breakdown[k]['traffic'] += 1
         if c.get('cerro'):
-            agencia_breakdown[k]['matched'] += 1
+            _key_m = (k, c.get('_ck'))
+            if _key_m not in _seen_matched:
+                _seen_matched[_key_m] = True
+                agencia_breakdown[k]['matched'] += 1
     # Ventas totales por agencia = TODAS las facturas del período (ya filtradas por marca
     # arriba en `facturas`), atribuidas a AGENCIA_FACTURACION independiente de cohorte.
     # Alinea con Ventas Históricas: incluye clientes cohorte pre-2026 que facturaron
     # en 2026 + ventas B2B sin cotización previa en Kombat.
-    if len(facturas):
-        _fact_copy = facturas.copy()
+    if len(facturas_full):
+        _fact_copy = facturas_full.copy()
         _fact_copy['_ag_short'] = _fact_copy['AGENCIA_FACTURACION'].apply(_ag_fact_short)
         _fact_copy['Cantidad'] = _fact_copy.get('Cantidad', 1).fillna(0).astype(int)
         for ag_s, grp in _fact_copy.groupby('_ag_short'):
             if not ag_s: continue
             agencia_breakdown.setdefault(ag_s, {'traffic': 0, 'matched': 0, 'ventas': 0})
             agencia_breakdown[ag_s]['ventas'] = int(grp['Cantidad'].sum())
+            # Personas únicas que facturaron en esta agencia (compradores reales).
+            # Dedup por IDENTIFICACION si existe válida, sino por CLIENTE_FACTURACION.
+            _key_cli = grp['IDENTIFICACION'].apply(
+                lambda x: str(x).strip() if pd.notna(x) and str(x).strip() not in ('0','0.0','','nan') else None
+            )
+            _cli_fallback = grp['CLIENTE_FACTURACION'].apply(
+                lambda x: str(x).strip().upper() if pd.notna(x) else None
+            )
+            _keys = _key_cli.fillna(_cli_fallback).dropna().unique()
+            agencia_breakdown[ag_s]['personas_reales'] = int(len(_keys))
     for k in agencia_breakdown:
         d = agencia_breakdown[k]
         d['conv_pct'] = round(100 * d['matched'] / d['traffic'], 1) if d['traffic'] else 0
@@ -888,6 +981,171 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     # Antes usábamos n_facturas_atribuidas (count crudo de matched_sales) que
     # incluía facturas anteriores al primer toque — inconsistente con clientes_flat.
     n_vehiculos_atribuidos = sum(c['n_ventas'] for c in clientes_flat if c['cerro'])
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # LISTA MAESTRA DE FACTURAS — fuente única de verdad para TODOS los widgets
+    # de conversión. Cada widget deriva de esta lista aplicando group_by distintos.
+    # Garantiza que suma de cualquier breakdown = total de facturas.
+    # ═══════════════════════════════════════════════════════════════════════════
+    master_facturas = []
+    # Normalizador de familia → modelo corto (TERRITORY, F-150...). Import perezoso
+    # para evitar ciclos. Fallback: primera palabra de la familia.
+    try:
+        from inventario import normalize_familia as _norm_fam_inv
+        def _norm_fam_master(familia, marca):
+            try:
+                out = _norm_fam_inv(familia, marca or '')
+                if out: return str(out).upper()
+            except Exception: pass
+            return (str(familia).split()[0].upper() if familia else 'Por definir')
+    except Exception:
+        def _norm_fam_master(familia, marca):
+            return (str(familia).split()[0].upper() if familia else 'Por definir')
+    if len(facturas_full):
+        _mf = facturas_full.copy()
+        _mf['_ag_short'] = _mf['AGENCIA_FACTURACION'].apply(_ag_fact_short)
+        _mf['_qty'] = _mf.get('Cantidad', 1).fillna(0).astype(int)
+        _mf['_ase_norm'] = _mf['ASESOR_FACTURACION'].apply(lambda s: norm_asesor(s) if pd.notna(s) else None)
+        # persona_id CONSOLIDADO: si el mismo nombre de cliente aparece con cédula en
+        # alguna factura, TODAS sus facturas usan esa cédula como pid (caso Nathaly
+        # Carrion: 2 autos, una factura con cédula y otra con nombre → 1 persona).
+        def _ced_of(r):
+            i = r.get('IDENTIFICACION')
+            if pd.notna(i):
+                s = str(i).replace('.0','').strip()
+                if s and s not in ('0','nan'): return s
+            return None
+        def _nom_of(r):
+            n = r.get('CLIENTE_FACTURACION')
+            return str(n).strip().upper() if pd.notna(n) else None
+        _nombre_a_ced = {}
+        for _, r in _mf.iterrows():
+            ced, nom = _ced_of(r), _nom_of(r)
+            if ced and nom and nom not in _nombre_a_ced:
+                _nombre_a_ced[nom] = ced
+        def _pid_mf(r):
+            ced, nom = _ced_of(r), _nom_of(r)
+            if ced: return ced
+            if nom: return _nombre_a_ced.get(nom, nom)
+            return None
+        _mf['_pid'] = _mf.apply(_pid_mf, axis=1)
+        # Cross-reference con matched_sales para obtener cohorte (canal/modelo/asesor de tráfico)
+        _mch_map = {}  # (VIN, fecha_iso) → (client_key, first_ym, first_canal, first_modelo, first_agencia, first_asesor)
+        for _, r in matched_sales.iterrows():
+            _v = str(r.get('Chasis','')).upper().strip()
+            _fd = r.get('fecha_fact')
+            if not _v or pd.isna(_fd): continue
+            _ck = r.get('matched_ck')
+            _ft = first_touch.get(_ck, {}) if _ck else {}
+            _mch_map[(_v, _fd.strftime('%Y-%m-%d'))] = {
+                'ck': _ck,
+                'first_ym': _ft.get('first_fecha').strftime('%Y-%m') if pd.notna(_ft.get('first_fecha')) else None,
+                'first_canal': _ft.get('first_canal'),
+                'first_modelo': (_ft.get('first_modelo') or '').upper().strip() or 'Por definir',
+                'first_agencia': _ft.get('first_agencia'),
+                'first_asesor': _ft.get('first_asesor'),
+                'first_zona': _ft.get('first_zona'),
+            }
+        # Emit lista maestra
+        for _, r in _mf.iterrows():
+            _v = str(r.get('Chasis','')).upper().strip()
+            _fd = r.get('fecha_fact')
+            _fd_key = _fd.strftime('%Y-%m-%d') if pd.notna(_fd) else None
+            _match = _mch_map.get((_v, _fd_key), {})
+            _es_cohorte_2026 = bool(_match) and (_match.get('first_ym','') or '').startswith('2026')
+            master_facturas.append({
+                'vin': _v,
+                'fecha': _fd_key,
+                'agencia': r.get('_ag_short') or 'Sin agencia',
+                'qty': int(r.get('_qty', 0)),
+                'persona_id': r.get('_pid'),
+                'cliente': str(r.get('CLIENTE_FACTURACION','')).strip() if pd.notna(r.get('CLIENTE_FACTURACION')) else None,
+                'asesor_fact': r.get('_ase_norm') or 'Sin asesor',
+                'is_jefe_fact': bool(is_jefe_venta(r.get('_ase_norm'))),
+                # Modelo SIEMPRE atribuido: familia normalizada del vehículo facturado
+                # (el modelo vendido siempre se conoce — nunca "Sin modelo").
+                'modelo_fact': _norm_fam_master(str(r.get('familia','')).strip(), r.get('marca_up')),
+                # atribución tráfico si el lead está matched cohorte 2026
+                'cohorte_ym': _match.get('first_ym'),
+                # Canal SIEMPRE atribuido: lead conocido → su canal; sin lead → venta
+                # gestionada directa = "Gestión Externa" (B2B/flotas/referidos internos).
+                'canal_lead': (_match.get('first_canal') if _es_cohorte_2026 else None) or 'Gestión Externa',
+                'modelo_lead': _match.get('first_modelo') if _es_cohorte_2026 else None,
+                'agencia_lead': _match.get('first_agencia') if _es_cohorte_2026 else None,
+                'asesor_lead': _match.get('first_asesor') if _es_cohorte_2026 else None,
+                'zona_lead': _match.get('first_zona') if _es_cohorte_2026 else None,
+                'ck_lead': _match.get('ck') if _es_cohorte_2026 else None,
+                'es_cohorte_2026': _es_cohorte_2026,
+            })
+
+    # Breakdowns derivados desde master_facturas — cada uno GARANTIZA que su suma = total
+    def _build_from_master(get_key, master):
+        """Group by get_key; ventas = sum qty con signo (neto real).
+        personas = COMPRADORES: pid con al menos un (pid, VIN) de neto > 0.
+        - NC de compra vieja + compra nueva del mismo cliente → sigue siendo comprador
+          (caso Vallejo: neto global 0 pero su VIN nuevo es +1).
+        - VIN devuelto por A y revendido a B → ambos eventos reales: B comprador,
+          A no (su (pid,vin) queda ≤0)."""
+        bucket = {}
+        for m in master:
+            qty = m.get('qty', 0)
+            if qty == 0: continue
+            k = get_key(m) or 'Sin categoría'
+            b = bucket.setdefault(k, {'pv_qty': {}, 'ventas': 0})
+            b['ventas'] += qty
+            pid = m.get('persona_id')
+            if pid:
+                pv = (pid, m.get('vin'))
+                b['pv_qty'][pv] = b['pv_qty'].get(pv, 0) + qty
+        out = {}
+        for k, v in bucket.items():
+            compradores = {pid for (pid, vin), q in v['pv_qty'].items() if q > 0}
+            out[k] = {'personas': len(compradores), 'ventas': v['ventas']}
+        return out
+
+    master_por_agencia = _build_from_master(lambda m: m['agencia'], master_facturas)
+    master_por_canal   = _build_from_master(lambda m: m.get('canal_lead') or 'Sin canal atribuido', master_facturas)
+    master_por_modelo  = _build_from_master(lambda m: m.get('modelo_lead') or (m.get('modelo_fact') or 'Sin modelo'), master_facturas)
+    master_por_asesor  = _build_from_master(lambda m: m.get('asesor_fact') or 'Sin asesor', master_facturas)
+    # (Asesor por agencia — para top asesores filtrado por agencia)
+    master_por_asesor_agencia = {}
+    for m in master_facturas:
+        if not m.get('qty') or m['qty'] <= 0: continue
+        ase = m.get('asesor_fact') or 'Sin asesor'
+        ag = m.get('agencia') or 'Sin agencia'
+        d = master_por_asesor_agencia.setdefault(ase, {}).setdefault(ag, {'personas': set(), 'ventas': 0})
+        if m.get('persona_id'): d['personas'].add(m['persona_id'])
+        d['ventas'] += m['qty']
+    for ase, ags in master_por_asesor_agencia.items():
+        for ag, v in ags.items():
+            v['personas'] = len(v['personas'])
+    # HOME AGENCY por asesor: agencia donde el asesor tiene MÁS tráfico cohorte 2026.
+    # Sirve para que el ranking por agencia solo muestre asesores DE ese PDV
+    # (ej. Carlos Moncayo y Venus Monge son de Tumbaco aunque tengan leads La Y).
+    _asesor_ag_count = {}
+    for ck, ft in first_touch.items():
+        ase = ft.get('first_asesor')
+        ag = ft.get('first_agencia')
+        if not ase or not ag: continue
+        _asesor_ag_count.setdefault(ase, {}).setdefault(ag, 0)
+        _asesor_ag_count[ase][ag] += 1
+    asesor_home_agencia = {ase: max(ags.items(), key=lambda kv: kv[1])[0]
+                           for ase, ags in _asesor_ag_count.items()}
+
+    # Traffic (para tasa conversión) — clientes cohorte 2026 en tráfico (ya lo tenemos: n_clients_2026)
+    # Ese denominador aplica global. Para por-agencia, personas cohorte 2026 con primer toque en cada agencia.
+    master_traffic_por_agencia = {}
+    for ck, ft in first_touch.items():
+        ag = ft.get('first_agencia')
+        if not ag: continue
+        master_traffic_por_agencia[ag] = master_traffic_por_agencia.get(ag, 0) + 1
+    # Combinar traffic + ventas en un breakdown final
+    for ag in set(list(master_por_agencia.keys()) + list(master_traffic_por_agencia.keys())):
+        master_por_agencia.setdefault(ag, {'personas': 0, 'ventas': 0})
+        master_por_agencia[ag]['traffic'] = master_traffic_por_agencia.get(ag, 0)
+        t = master_por_agencia[ag]['traffic']
+        p = master_por_agencia[ag]['personas']
+        master_por_agencia[ag]['conv_pct'] = round(100*p/t, 1) if t > 0 else 0
 
     return {
         'global': {
@@ -912,6 +1170,16 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
         'por_modelo':  modelo_breakdown,
         'por_agencia': agencia_breakdown,
         'por_asesor':  asesor_breakdown,
+        'jefes_por_agencia': jefes_por_agencia,
+        'facturas_por_asesor_agencia': facturas_por_asesor_agencia,
+        'asesor_home_agencia': asesor_home_agencia,
+        # ► FUENTE ÚNICA DE VERDAD para widgets de conversión (fase 2 refactor):
+        'master_facturas': master_facturas,
+        'master_por_agencia': master_por_agencia,
+        'master_por_canal': master_por_canal,
+        'master_por_modelo': master_por_modelo,
+        'master_por_asesor': master_por_asesor,
+        'master_por_asesor_agencia': master_por_asesor_agencia,
         # Breakdown filtrado SOLO por canales atribuibles a marketing
         # (Showroom + Hubspot + Ferias + Llamada In + Mailing)
         'por_modelo_mkt':   modelo_mkt,
