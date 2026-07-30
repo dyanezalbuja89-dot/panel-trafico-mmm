@@ -10890,6 +10890,9 @@ HTML = r"""<!doctype html>
       const got = months.filter(mm => present.has(mm));
       if (got.length) Q[name] = got;
     }
+    // Cada mes individual también es un periodo válido → permite comparar mes contra
+    // mes en el embudo izquierdo, no solo trimestres (pedido de Daniel 30-jul).
+    for (const m of _CC26_ORDER) if (!Q[m]) Q[m] = [m];
     return Q;
   })();
 
@@ -11196,11 +11199,15 @@ HTML = r"""<!doctype html>
     const desc = { 'Total': 'Total', 'Q1·26': 'Q1·26', 'Q2·26': 'Q2·26', 'Q3·26': 'Q3·26', 'Q4·26': 'Q4·26' };
     const order = ['Total','Q1·26','Q2·26','Q3·26','Q4·26'].filter(k => _CC26_Q[k]);
     const prev = sel.value;
-    sel.innerHTML = order.map(k => {
+    const optsAcum = order.map(k => {
       const lbls = _CC26_Q[k] || [];
       return `<option value="${k}">${desc[k]} (${span(lbls)})</option>`;
     }).join('');
-    if (order.includes(prev)) sel.value = prev;
+    // Meses individuales: para comparar un mes concreto contra la selección de la derecha.
+    const optsMes = _CC26_ORDER.map(m => `<option value="${m}">${m}</option>`).join('');
+    sel.innerHTML = `<optgroup label="Acumulado">${optsAcum}</optgroup>`
+                  + `<optgroup label="Mes individual">${optsMes}</optgroup>`;
+    if (prev && (order.includes(prev) || _CC26_ORDER.includes(prev))) sel.value = prev;
   }
 
   // Rellena el panel de checkboxes SOLO con los meses presentes en _CC26_M.
@@ -11988,6 +11995,8 @@ HTML = r"""<!doctype html>
       const got = months.filter(mm => present.has(mm));
       if (got.length) Q[name] = got;
     }
+    // Cada mes individual también es periodo válido (comparar mes a mes). Ver Ford.
+    for (const m of _DF2_CC26_ORDER) if (!Q[m]) Q[m] = [m];
     return Q;
   })();
 
@@ -12222,11 +12231,14 @@ HTML = r"""<!doctype html>
     const desc = { 'Total': 'Total', 'Q1·26': 'Q1·26', 'Q2·26': 'Q2·26', 'Q3·26': 'Q3·26', 'Q4·26': 'Q4·26' };
     const order = ['Total','Q1·26','Q2·26','Q3·26','Q4·26'].filter(k => _DF2_CC26_Q[k]);
     const prev = sel.value;
-    sel.innerHTML = order.map(k => {
+    const optsAcum = order.map(k => {
       const lbls = _DF2_CC26_Q[k] || [];
       return `<option value="${k}">${desc[k]} (${span(lbls)})</option>`;
     }).join('');
-    if (order.includes(prev)) sel.value = prev;
+    const optsMes = _DF2_CC26_ORDER.map(m => `<option value="${m}">${m}</option>`).join('');
+    sel.innerHTML = `<optgroup label="Acumulado">${optsAcum}</optgroup>`
+                  + `<optgroup label="Mes individual">${optsMes}</optgroup>`;
+    if (prev && (order.includes(prev) || _DF2_CC26_ORDER.includes(prev))) sel.value = prev;
   }
 
   // Rellena el panel de checkboxes SOLO con los meses presentes en _DF2_CC26_M.
@@ -12841,6 +12853,10 @@ HTML = r"""<!doctype html>
         const groups = { 'Q1·26':['ene·26','feb·26','mar·26'], 'Q2·26':['abr·26','may·26','jun·26'], 'Q3·26':['jul·26','ago·26','sep·26'], 'Q4·26':['oct·26','nov·26','dic·26'] };
         const Q = { 'Total': order.slice() };
         for (const [n, ms] of Object.entries(groups)) { const g = ms.filter(mm => present.has(mm)); if (g.length) Q[n] = g; }
+        // Cada mes individual también es periodo válido (comparar mes a mes en el
+        // embudo izquierdo). Debe estar TAMBIÉN aquí: este _mkQ recomputa Q cuando
+        // llega el dato vivo y pisa el Q del arranque.
+        for (const m of order) if (!Q[m]) Q[m] = [m];
         return Q;
       };
       _CC26_ORDER = _mkOrder(_CC26_M, _CC26_MES);   _CC26_Q = _mkQ(_CC26_ORDER);
