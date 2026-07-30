@@ -362,10 +362,14 @@ def _compute_ventas_mensual(sales_df):
     df['Cantidad'] = df['Cantidad'].fillna(1).astype(int)
     # Revenue por fila — Total Factura ya viene signado en el archivo de origen
     # (NC trae Total Factura negativo). Sumar columna directo da el NETO.
+    # NO sobrescribir el rev_signed que ya trajeron las filas de DATOS 2 ('Valor Total',
+    # negativo en NC). Antes esta línea lo ponía en 0 y la columna "$ Reversado" del
+    # detalle de NC salía siempre vacía (bug 29-jul).
+    _rev_prev = df['rev_signed'].astype(float) if 'rev_signed' in df.columns else pd.Series(0.0, index=df.index)
     if 'Total Factura' in df.columns:
-        df['rev_signed'] = df['Total Factura'].fillna(0).astype(float)
+        df['rev_signed'] = df['Total Factura'].astype(float).fillna(_rev_prev).fillna(0.0)
     else:
-        df['rev_signed'] = 0.0
+        df['rev_signed'] = _rev_prev.fillna(0.0)
     df['marca_up'] = df['marca'].astype(str).str.strip().str.upper()
     df['modelo_up'] = df['familia'].astype(str).str.strip().str.upper()
     df['asesor'] = df['ASESOR_FACTURACION'].astype(str).str.strip().str.upper().replace({'NAN': 'Sin asesor', '': 'Sin asesor'})
@@ -1290,6 +1294,28 @@ BRAND_SUCURSAL_KEYWORDS = {
     'RAM_ORGU':      'STELLANTIS',
 }
 # Meta row label (as in METAS_MARCAS) → display model label
+def _brand_meta_row_lookup(brand, label):
+    """Resuelve el label de una fila del Excel de metas a su modelo del panel.
+    1) match exacto; 2) prefijo más largo (el archivo agrega variantes al final:
+    'Mage EV'/'Mage FHEV' → 'Mage'). Sin esto esas filas se perdían y la meta
+    de DongFeng salía 157 en vez de 170 (bug 29-jul).
+    """
+    rows = BRAND_META_ROWS.get(brand) or {}
+    if label in rows:
+        return rows[label]
+    lab_u = label.upper()
+    best_k = None
+    for k in rows:
+        ku = k.upper()
+        if lab_u.startswith(ku) and (best_k is None or len(ku) > len(best_k)):
+            best_k = ku
+    if best_k:
+        for k, v in rows.items():
+            if k.upper() == best_k:
+                return v
+    return None
+
+
 BRAND_META_ROWS = {
     'DONGFENG_ORGU': {
         'Huge': 'HUGE', 'Mage': 'MAGE', 'Paladin': 'PALADIN',
@@ -1383,15 +1409,32 @@ def load_brand_metas(path):
         if hit:
             active = hit; continue
         if active and active in BRAND_META_ROWS:
-            display = BRAND_META_ROWS[active].get(label)
+            display = _brand_meta_row_lookup(active, label)
             if display is None: continue
             if display not in metas[active]:
-                metas[active][display] = {a: 0 for a in AGENCIES}
+                metas[active][display] = {a: 0.0 for a in AGENCIES}
             for col_idx, ag in enumerate(AGENCIES, start=2):
                 val = df.iloc[i, col_idx]
                 if pd.notna(val):
-                    try: metas[active][display][ag] += int(round(float(val)))
+                    # Acumular FLOAT y redondear al final: el archivo trae fracciones
+                    # (5.333 por celda) y redondear celda a celda pierde unidades.
+                    try: metas[active][display][ag] += float(val)
                     except (ValueError, TypeError): pass
+    # Redondeo que PRESERVA EL TOTAL por agencia (método del mayor residuo):
+    # el archivo trae fracciones (5.333 por modelo) y redondear cada una por separado
+    # perdía unidades — Mazda Machala daba 31 en vez de 32 (bug 29-jul).
+    for b in metas:
+        for ag in AGENCIES:
+            vals = {disp: float(metas[b][disp].get(ag, 0) or 0) for disp in metas[b]}
+            total_exacto = int(round(sum(vals.values())))
+            base = {d: int(v // 1) for d, v in vals.items()}
+            faltan = total_exacto - sum(base.values())
+            # Repartir las unidades faltantes a los modelos con mayor parte decimal
+            orden = sorted(vals, key=lambda d: (vals[d] - base[d]), reverse=True)
+            for d in orden[:max(0, faltan)]:
+                base[d] += 1
+            for d in metas[b]:
+                metas[b][d][ag] = base[d]
     return metas
 
 def process_bd_brand(df, brand, channels=None):

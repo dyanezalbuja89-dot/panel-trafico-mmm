@@ -5930,7 +5930,8 @@ HTML = r"""<!doctype html>
     }
     if(tab === 'conv'){
       const g = (DATA.conversion_data||{})[convState.marca]?.global;
-      return g ? `${g.n_ventas_atribuidas} de ${g.n_ventas_clientes_total} ventas atribuidas a tráfico (${g.cov_rate_pct}%)` : 'Conversión tráfico → venta';
+      // Ambos lados en UNIDADES (antes el denominador eran personas → "532 de 331").
+      return g ? `${g.n_vehiculos_atribuidos ?? g.n_ventas_atribuidas} de ${g.n_vehiculos_total ?? g.n_facturas_total} unidades atribuidas a tráfico (${g.cov_rate_pct}%)` : 'Conversión tráfico → venta';
     }
     if(tab === 'comp-imp'){
       const c = DATA.competencia_data;
@@ -14594,8 +14595,11 @@ HTML = r"""<!doctype html>
       // Normalizar a familia Ford. ventas_mensual trae nombres como "F150 PLATINUM HEV..."
       // Buscar match con MODEL_ORDER conocidos.
       const FAM = ['TERRITORY','ESCAPE','EVEREST','EXPLORER','EXPEDITION','BRONCO','F-150','F150','RANGER'];
-      const u = (fullName||'').toUpperCase();
+      // Quitar prefijos comerciales: "NEW EXPEDITION PLATINIUM" y "ALL NEW RANGER XL"
+      // no empiezan por la familia y antes caían en OTROS (bug 29-jul).
+      const u = (fullName||'').toUpperCase().trim().replace(/^(ALL\s+NEW|NEW)\s+/, '');
       for(const f of FAM){ if(u.startsWith(f)) return f === 'F150' ? 'F-150' : f; }
+      for(const f of FAM){ if(u.includes(f)) return f === 'F150' ? 'F-150' : f; }
       return 'OTROS';
     }
     const realPerMM = {}; // {modelo: {ym: neto}}
@@ -15008,8 +15012,11 @@ HTML = r"""<!doctype html>
 
   function mvModeloFamily(fullName){
     const FAM = ['TERRITORY','ESCAPE','EVEREST','EXPLORER','EXPEDITION','BRONCO','F-150','F150','RANGER'];
-    const u = (fullName||'').toUpperCase();
+    // Quitar prefijos comerciales: "NEW EXPEDITION PLATINIUM" / "ALL NEW RANGER XL"
+    // no empiezan por la familia y antes caían en OTROS (bug 29-jul).
+    const u = (fullName||'').toUpperCase().trim().replace(/^(ALL\s+NEW|NEW)\s+/, '');
     for(const f of FAM){ if(u.startsWith(f)) return f === 'F150' ? 'F-150' : f; }
+    for(const f of FAM){ if(u.includes(f)) return f === 'F150' ? 'F-150' : f; }
     return 'OTROS';
   }
 

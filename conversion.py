@@ -1103,6 +1103,22 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
             out[k] = {'personas': len(compradores), 'ventas': v['ventas']}
         return out
 
+    # ► Métricas globales recalculadas desde master (netean NC y nunca superan el total).
+    # Antes n_vehiculos_atribuidos venía de clientes_flat sin netear → Chery daba
+    # cov_rate 103% y "sin atribuir" negativo (bug 29-jul).
+    n_facturas_total_master = sum(m.get('qty', 0) for m in master_facturas)
+    n_vehiculos_atribuidos = sum(m.get('qty', 0) for m in master_facturas if m.get('es_cohorte_2026'))
+    _pv_all, _pv_coh = {}, {}
+    for m in master_facturas:
+        pid, q = m.get('persona_id'), m.get('qty', 0)
+        if not pid or q == 0: continue
+        key = (pid, m.get('vin'))
+        _pv_all[key] = _pv_all.get(key, 0) + q
+        if m.get('es_cohorte_2026'):
+            _pv_coh[key] = _pv_coh.get(key, 0) + q
+    n_clientes_unicos_total = len({pid for (pid, _v), q in _pv_all.items() if q > 0})
+    n_clientes_unicos_matched = len({pid for (pid, _v), q in _pv_coh.items() if q > 0})
+
     master_por_agencia = _build_from_master(lambda m: m['agencia'], master_facturas)
     master_por_canal   = _build_from_master(lambda m: m.get('canal_lead') or 'Sin canal atribuido', master_facturas)
     master_por_modelo  = _build_from_master(lambda m: m.get('modelo_lead') or (m.get('modelo_fact') or 'Sin modelo'), master_facturas)
@@ -1153,14 +1169,18 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
             'n_clientes_traffic': n_clients_2026,
             'n_clientes_matched': n_clients_2026_cerro,
             'conv_rate_pct': conv_2026,
-            'n_facturas_total': n_facturas_total,
-            'n_facturas_atribuidas': n_vehiculos_atribuidos,  # cohort-aware
-            'n_facturas_sin_atribuir': n_facturas_total - n_vehiculos_atribuidos,
-            'cov_rate_pct': round(100*n_vehiculos_atribuidos/n_facturas_total, 1) if n_facturas_total else 0,
+            # Todo desde master_facturas: vehículos netos (FACT−NC), nunca >100%.
+            'n_facturas_total': n_facturas_total_master,
+            'n_facturas_atribuidas': n_vehiculos_atribuidos,
+            'n_facturas_sin_atribuir': n_facturas_total_master - n_vehiculos_atribuidos,
+            'cov_rate_pct': round(100*n_vehiculos_atribuidos/n_facturas_total_master, 1) if n_facturas_total_master else 0,
             'n_clientes_unicos_total': n_clientes_unicos_total,
             'n_clientes_unicos_matched': n_clientes_unicos_matched,
+            # OJO unidades: *_vehiculos_* son unidades; *_clientes_* son personas.
+            'n_vehiculos_total': n_facturas_total_master,
+            'n_vehiculos_atribuidos': n_vehiculos_atribuidos,
             'n_ventas_clientes_total': n_clientes_unicos_total,
-            'n_ventas_atribuidas': n_vehiculos_atribuidos,  # cohort-aware
+            'n_ventas_atribuidas': n_vehiculos_atribuidos,
             'n_facturas_en_periodo': facturas_in_period,
             'n_facturas_total_historico': facturas_all_count,
             'ciclo': ciclo,

@@ -20,30 +20,42 @@ _INVENTORY_DIRS = [
     Path("/Users/danielyanezalbuja/Downloads"),
 ]
 
+import re as _re_inv
+
+def _inv_date_from_name(p):
+    """Extrae la fecha del NOMBRE del archivo 'REPORTE DE INVENTARIO D-M-YYYY.xlsm'.
+    Devuelve (yyyy, mm, dd) o None si el nombre no trae fecha."""
+    m = _re_inv.search(r'(\d{1,2})-(\d{1,2})-(\d{4})', p.name)
+    if not m:
+        return None
+    d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    return (y, mo, d)
+
 def _find_latest_inventory():
-    """Devuelve el path al archivo de inventario más reciente, buscando en las carpetas
-    configuradas en orden de prioridad. Filtra por nombre que contenga 'INVENTARIO' y
-    extensión .xlsm/.xlsx. Selecciona por fecha de modificación (mtime)."""
+    """Devuelve el path al archivo de inventario más reciente. Selecciona por la FECHA
+    DEL NOMBRE del archivo (no mtime — el mtime cambia al copiar entre carpetas y
+    elegía snapshots viejos; bug 29-jul: panel usó 29-5 en vez de 25-7).
+    Archivos sin fecha en el nombre desempatan por mtime."""
     candidates = []
     for d in _INVENTORY_DIRS:
         if not d.exists():
             continue
         for ext in ('*.xlsm', '*.xlsx'):
             for p in d.glob(ext):
-                # Excluir archivos temporales de Excel (~$...)
                 if p.name.startswith('~$'):
                     continue
                 if 'INVENTARIO' in p.name.upper():
                     candidates.append(p)
         if candidates:
-            # Si encontramos en la carpeta de prioridad alta, no seguimos buscando
             break
     if not candidates:
-        # Último fallback: nombre fijo antiguo
         legacy = Path("/Users/danielyanezalbuja/Downloads/REPORTE DE INVENTARIO.xlsm")
         return legacy if legacy.exists() else None
-    # Ordenar por mtime descendente
-    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    def _sort_key(p):
+        nd = _inv_date_from_name(p)
+        # Con fecha en nombre → prioridad 1, orden por fecha. Sin fecha → prioridad 0, por mtime.
+        return (1, nd) if nd else (0, (0, 0, p.stat().st_mtime))
+    candidates.sort(key=_sort_key, reverse=True)
     return candidates[0]
 
 DEFAULT_INVENTORY_PATH = _find_latest_inventory() or Path("/Users/danielyanezalbuja/Downloads/REPORTE DE INVENTARIO.xlsm")
@@ -315,7 +327,10 @@ def load_inventario(path=None, today=None, months_config=None):
     # con cliente identificado, listo para facturar cuando llegue / cuando el cliente pague.
     _f_res_calc = pd.to_datetime(df['FECHA_DE_RESERVA'], errors='coerce')
     _has_real_reservation = _f_res_calc.notna() & (_f_res_calc.dt.year > 2020)
-    _cliente_res = df['CLIENTE_RESERVA'].astype(str).str.strip() if 'CLIENTE_RESERVA' in df.columns else pd.Series(['']*len(df))
+    # fillna('') ANTES de astype(str): en pandas 3 astype(str) ya no convierte NaN a
+    # 'nan', y sin esto TODO el stock quedaría marcado RESERVADO (disponible=0).
+    _cliente_res = (df['CLIENTE_RESERVA'].fillna('').astype(str).str.strip()
+                    if 'CLIENTE_RESERVA' in df.columns else pd.Series(['']*len(df)))
     _has_cliente_res = (_cliente_res != '') & (_cliente_res.str.lower() != 'nan') & (_cliente_res.str.lower() != 'none')
     _is_reserved = _has_real_reservation | _has_cliente_res
     def _derive_status(row_idx):

@@ -24,14 +24,22 @@ _EMBUDO_ONEDRIVE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-
 EMBUDO_BASE = _EMBUDO_LOCAL if _EMBUDO_LOCAL.exists() else _EMBUDO_ONEDRIVE
 
 # Agencia embudo → keyword en AGENCIA_FACTURACION del inventario
+# Portoviejo NO factura con su propio nombre: sus ventas salen como
+# "1013 VEHICULOS MANTA II" (confirmado por Daniel: Manta 2 = Portoviejo).
+# Antes 'PORTOVIEJO' no matcheaba nada → Portoviejo mostraba Cierre=0 los 5 meses
+# y sus 33 ventas se contaban en Manta (bug 29-jul).
 AGENCY_INV_KEYWORD = {
     'CJA':       'CARLOS JULIO',
-    'Manta':     'MANTA',       # captura 1002 Manta y 1013 Manta II
+    'Manta':     'MANTA',        # solo 1002; MANTA II se excluye abajo
     'Orellana':  'ORELLANA',
-    'Portoviejo':'PORTOVIEJO',  # aún sin agencia propia → cierres = 0
+    'Portoviejo':'MANTA II',     # 1013 VEHICULOS MANTA II = Portoviejo
     'La Y':      'LA Y',
     'Tumbaco':   'TUMBACO',
     'Machala':   'MACHALA',
+}
+# Agencias cuyo keyword es substring del de otra: hay que excluir explícitamente.
+AGENCY_INV_EXCLUDE = {
+    'Manta': ['MANTA II'],   # 'MANTA' matchearía también MANTA II (=Portoviejo)
 }
 
 # Asesores que tienen una sucursal "home" real distinta a donde aparecen
@@ -125,7 +133,10 @@ def _ventas_inventario(agencia_short, mes, asesores_canonicos=None, anio=2026):
     mnum = MES_NUM.get(mes)
     if inv is None or not kw or not mnum:
         return {}, {}, {}, {}, 0
-    sub = inv[inv['AGENCIA_FACTURACION'].astype(str).str.contains(kw, case=False, na=False)]
+    _agf = inv['AGENCIA_FACTURACION'].astype(str)
+    sub = inv[_agf.str.contains(kw, case=False, na=False)]
+    for _excl in AGENCY_INV_EXCLUDE.get(agencia_short, []):
+        sub = sub[~sub['AGENCIA_FACTURACION'].astype(str).str.contains(_excl, case=False, na=False)]
     sub = sub[(sub['fac_dt'].dt.year == anio) & (sub['fac_dt'].dt.month == mnum)]
     canonicos = asesores_canonicos or []
     por_modelo, por_version, por_asesor, por_asesor_modelo = {}, {}, {}, {}
