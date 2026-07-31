@@ -4384,7 +4384,7 @@ HTML = r"""<!doctype html>
 
       <!-- TOP ASESORES -->
       <div class="ford-section" style="margin-top:18px">
-        <h3>🏆 Top asesores — ranking por cierres <span class="sub">Solo asesores con ≥5 clientes en tráfico (filtra ruido)</span></h3>
+        <h3>🏆 Top asesores — ranking por cierres <span class="sub" id="conv-asesor-sub">Solo asesores con ≥5 clientes en tráfico · clic en una fila para filtrar toda la pestaña</span></h3>
         <div style="overflow-x:auto">
           <table class="analysis" id="conv-tbl-asesor">
             <thead><tr>
@@ -9020,7 +9020,9 @@ HTML = r"""<!doctype html>
   });
 
   // Estado de filtros de Conversión
-  const convState = { mes:'', agencia:'', zona:'', modelo:'', canal:'', marca:'FORD' };
+  // `asesor` no tiene <select> propio: se activa haciendo clic en una fila del
+  // ranking "Top asesores" y se limpia con otro clic o con el botón Limpiar.
+  const convState = { mes:'', agencia:'', zona:'', modelo:'', canal:'', asesor:'', marca:'FORD' };
   function convFilterClientes(){
     const CONV = (DATA.conversion_data||{})[convState.marca];
     if(!CONV || !CONV.clientes_flat) return [];
@@ -9030,6 +9032,7 @@ HTML = r"""<!doctype html>
       if(convState.zona    && c.zona    !== convState.zona)    return false;
       if(convState.modelo  && c.modelo  !== convState.modelo)  return false;
       if(convState.canal   && c.canal   !== convState.canal)   return false;
+      if(convState.asesor  && c.asesor  !== convState.asesor)  return false;
       return true;
     });
   }
@@ -9170,11 +9173,15 @@ HTML = r"""<!doctype html>
         const ym = m.cohorte_ym || (m.fecha ? m.fecha.slice(0,7) : null);
         if (ym !== convState.mes) return false;
       }
+      // Filtro por asesor: mismo criterio que el ranking (asesor del primer toque).
+      if (convState.asesor && m.asesor_lead !== convState.asesor) return false;
       return true;
     });
     const _mpaX = CONV.master_por_agencia || {};
     let n_traf, n_cerraron;
-    if (convState.agencia && _mpaX[convState.agencia]) {
+    // Con filtro de asesor el tráfico sale de los clientes ya filtrados; el total de
+    // la agencia incluiría a los demás asesores.
+    if (convState.agencia && !convState.asesor && _mpaX[convState.agencia]) {
       n_traf = _mpaX[convState.agencia].traffic || 0;
     } else {
       n_traf = _uniq(clientes);
@@ -9236,9 +9243,14 @@ HTML = r"""<!doctype html>
       tbody.innerHTML = slice.map(([k,d], i)=>{
         const cls = pillColor(d.conv_pct);
         const rankCol = isRank ? `<td class="num" style="font-weight:700;color:var(--muted)">${i+1}</td>` : '';
-        return `<tr>
+        // El ranking de asesores es clickeable: filtra toda la pestaña por ese asesor.
+        const sel = isRank && convState.asesor === k;
+        const trAttrs = isRank
+          ? ` data-asesor="${String(k).replace(/"/g,'&quot;')}" style="cursor:pointer${sel ? ';background:rgba(4,112,239,.10);box-shadow:inset 3px 0 0 var(--ford-2)' : ''}" title="Clic para ${sel ? 'quitar el filtro' : 'filtrar la pestaña por este asesor'}"`
+          : '';
+        return `<tr${trAttrs}>
           ${rankCol}
-          <td class="left"><strong>${k}</strong></td>
+          <td class="left"><strong>${k}</strong>${sel ? ' <span style="font-size:10px;color:var(--ford-2);font-weight:700">● filtrando</span>' : ''}</td>
           <td class="num">${fmt(d.traffic)}</td>
           <td class="num" style="font-weight:700">${fmt(d.matched||0)}</td>
           <td class="num" style="color:var(--ford-2)">${fmt(d.ventas||0)}</td>
@@ -9269,6 +9281,7 @@ HTML = r"""<!doctype html>
       }
       if (convState.canal && (m.canal_lead || 'Sin canal atribuido') !== convState.canal) return false;
       if (convState.modelo && (m.modelo_lead || m.modelo_fact) !== convState.modelo) return false;
+      if (convState.asesor && m.asesor_lead !== convState.asesor) return false;
       return true;
     });
     const _bucketMaster = (getKey) => {
@@ -9322,7 +9335,11 @@ HTML = r"""<!doctype html>
     // Agencia: traffic desde master_por_agencia. Solo agencias en _mAgencia (respeta filtro).
     const _mpa = CONV.master_por_agencia || {};
     Object.keys(_mAgencia).forEach(ag => {
-      const t = _mpa[ag] ? (_mpa[ag].traffic || 0) : 0;
+      // Con filtro de asesor, el tráfico de la agencia sale de los clientes filtrados
+      // (el del backend es el total de la agencia, con todos sus asesores).
+      const t = convState.asesor
+        ? (aggAgenciaT[ag] ? aggAgenciaT[ag].traffic : 0)
+        : (_mpa[ag] ? (_mpa[ag].traffic || 0) : 0);
       const m = _mAgencia[ag].matched;
       const v = _mAgencia[ag].ventas;
       aggAgencia[ag] = {
@@ -9352,6 +9369,29 @@ HTML = r"""<!doctype html>
     renderTable('#conv-tbl-modelo tbody',  aggModelo,  'modelo',  true);
     renderTable('#conv-tbl-agencia tbody', aggAgencia, 'agencia', true);
     renderTable('#conv-tbl-asesor tbody',  aggAsesorFilt, 'rank',  false, 0, 20);
+    // Aviso visible de si hay un asesor filtrando
+    (function(){
+      const sub = document.getElementById('conv-asesor-sub');
+      if (!sub) return;
+      sub.innerHTML = convState.asesor
+        ? `<span style="color:var(--ford-2);font-weight:700">● Filtrando toda la pestaña por ${convState.asesor}</span> — clic de nuevo en su fila (o «Limpiar») para quitarlo`
+        : 'Solo asesores con ≥5 clientes en tráfico · clic en una fila para filtrar toda la pestaña';
+    })();
+    // Clic en una fila del ranking → filtra toda la pestaña por ese asesor.
+    // Delegado en el tbody (se re-renderiza en cada pasada) y con guard para no
+    // registrar el listener dos veces.
+    (function(){
+      const tb = document.querySelector('#conv-tbl-asesor tbody');
+      if (!tb || tb.dataset._asesorBound) return;
+      tb.dataset._asesorBound = '1';
+      tb.addEventListener('click', (e) => {
+        const tr = e.target.closest('tr[data-asesor]');
+        if (!tr) return;
+        const nombre = tr.dataset.asesor;
+        convState.asesor = (convState.asesor === nombre) ? '' : nombre;  // toggle
+        renderConversion();
+      });
+    })();
     renderConvBulletsAgency(aggAgencia);   // ← nuevo: bullets % conversión vs promedio
     renderConvChartEvol();
     renderConvChartModelos();
@@ -9564,6 +9604,7 @@ HTML = r"""<!doctype html>
       if(convState.agencia && c.agencia !== convState.agencia) return false;
       if(convState.zona    && c.zona    !== convState.zona)    return false;
       if(convState.canal   && c.canal   !== convState.canal)   return false;
+      if(convState.asesor  && c.asesor  !== convState.asesor)  return false;
       return true;
     });
 
@@ -9689,6 +9730,7 @@ HTML = r"""<!doctype html>
       if(convState.zona    && c.zona    !== convState.zona)    return false;
       if(convState.modelo  && c.modelo  !== convState.modelo)  return false;
       if(convState.canal   && c.canal   !== convState.canal)   return false;
+      if(convState.asesor  && c.asesor  !== convState.asesor)  return false;
       return true;
     });
 
