@@ -9193,6 +9193,14 @@ HTML = r"""<!doctype html>
       // Solo cohorte_ym: sin fallback a la fecha de factura. El filtro es de
       // COHORTE de primer toque; una factura sin cohorte no pertenece a ningún mes.
       if (convState.mes && m.cohorte_ym !== convState.mes) return false;
+      // Modelo, canal y zona faltaban: el denominador (clientes_flat) sí los
+      // aplicaba y el numerador no, así que filtrar por un modelo daba el total
+      // de ventas de la marca sobre el tráfico de ese modelo (Bronco: 1390%).
+      // Se usan los campos del PRIMER TOQUE, igual que el denominador: el
+      // cliente puede haber entrado por Territory y facturado un Escape.
+      if (convState.modelo && m.modelo_lead !== convState.modelo) return false;
+      if (convState.canal  && m.canal_lead  !== convState.canal)  return false;
+      if (convState.zona   && m.zona_lead   !== convState.zona)   return false;
       // Filtro por asesor: mismo criterio que el ranking (asesor del primer toque).
       if (convState.asesor && m.asesor_lead !== convState.asesor) return false;
       return true;
