@@ -92,11 +92,15 @@ RES_AGENCY_NORM = {
 }
 
 # AGENCIA_FACTURACION viene como "1001 VEHICULOS CARLOS JULIO AROSEMENA". Mapeamos por keyword.
+# MANTA II va ANTES que MANTA: es la operación de Portoviejo (misma regla que
+# embudo e inventario) y el keyword corto se la tragaba — 36 uds Ford 2026
+# aparecían en Manta y Portoviejo quedaba en cero.
 FACT_AGENCY_KEYWORDS = [
     ('CARLOS JULIO',  'CJA'),
     ('ORELLANA',      'Orellana'),
     ('LA Y',          'La Y'),
     ('TUMBACO',       'Tumbaco'),
+    ('MANTA II',      'Portoviejo'),
     ('MANTA',         'Manta'),
     ('MACHALA',       'Machala'),
     ('PORTOVIEJO',    'Portoviejo'),
