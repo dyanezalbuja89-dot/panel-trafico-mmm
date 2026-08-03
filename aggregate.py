@@ -2045,6 +2045,9 @@ def main():
         # Panel de Ventas mensual · pivot por marca/modelo/asesor con NETOS (sum Cantidad).
         # Permite ver ventas mes a mes y desplegar por modelo o por asesor comercial.
         "ventas_mensual": _compute_ventas_mensual(__import__('ventas').load_ventas()),
+        # Presupuestos BP2026 (financiero = piso, comercial = techo) por
+        # marca/agencia/mes. Alimenta la banda y el cumplimiento en Ventas Históricas.
+        "presupuesto": __import__('presupuesto').load_presupuesto(),
         # matrix_meta carga la meta marketing (80%). Para escalar la meta cuando se
         # filtra por categoría de canal en la pestaña Otros, JS aplica estos ratios.
         "meta_split": {

@@ -3649,6 +3649,19 @@ HTML = r"""<!doctype html>
       <div style="position:relative;height:330px"><canvas id="vt-chart-cierre"></canvas></div>
     </div>
 
+    <!-- CUMPLIMIENTO VS PRESUPUESTO BP2026 -->
+    <div class="ford-section" id="vt-bp-section" style="display:none">
+      <h3>🎯 Cumplimiento vs Presupuesto BP2026 <span class="sub" id="vt-bp-sub"></span></h3>
+      <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
+        <b>Financiero</b> = piso comprometido · <b>Comercial</b> = techo de ventas ·
+        🟥 bajo el piso · banda = sano · 🟦 sobre el techo. Respeta el filtro de marca;
+        ignora modelo/zona (el presupuesto no baja a ese nivel).
+      </div>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="vt-bp-tbl"><thead></thead><tbody></tbody></table>
+      </div>
+    </div>
+
     <!-- TABLA PIVOT -->
     <div class="ford-section">
       <h3 id="vt-tbl-title">📋 Ventas mes a mes</h3>
@@ -14989,6 +15002,33 @@ HTML = r"""<!doctype html>
         summary.innerHTML = `<span style="color:${col};font-weight:700">${arrow} ${sign}${d} uds${pctTxt}</span>&nbsp;de ${labels[0]} a ${labels[labels.length-1]}`;
       } else summary.innerHTML = '';
     }
+    // Banda de presupuesto BP2026: financiero (piso) y comercial (techo).
+    // Solo meses 2026 y solo cuando el corte es comparable: sin filtro de
+    // modelo/zona (el presupuesto no baja a ese nivel). Con filtro de agencia
+    // se usa el bloque de esa agencia; sin filtro, el total de cada marca.
+    const _BP = (DATA.presupuesto || {}).tipos || null;
+    const _bpSerie = (tipo) => MONTHS_CONFIG.map(c => {
+      const ym = vtMonthKeyToYM(c.key);
+      if(!ym || !ym.startsWith('2026')) return null;
+      const mi = +ym.slice(5,7) - 1;
+      let s = 0, any = false;
+      (vtstate.marcas || []).forEach(mk => {
+        const b = (_BP[tipo] || {})[mk];
+        if(!b) return;
+        const blk = vtstate.agencia ? b[vtstate.agencia] : b['_total'];
+        if(blk){ s += blk.uds[mi] || 0; any = true; }
+      });
+      return any ? s : null;
+    });
+    const _bpOn = _BP && !vtstate.modelo && !vtstate.zona && vtstate.anio !== '2025';
+    const _dsBP = _bpOn ? [
+      {label:'Ppto. comercial (techo)', data:_bpSerie('comercial'),
+       borderColor:'#0470ef', borderDash:[7,5], borderWidth:1.8, pointRadius:0,
+       fill:false, tension:0, spanGaps:false, datalabels:{display:false}},
+      {label:'Ppto. financiero (piso)', data:_bpSerie('financiero'),
+       borderColor:'#b45309', borderDash:[3,4], borderWidth:1.8, pointRadius:0,
+       fill:false, tension:0, spanGaps:false, datalabels:{display:false}},
+    ] : [];
     charts['vt-chart-cierre'] = new Chart(canvas,{
       type:'line',
       data:{labels, datasets:[{
@@ -14996,13 +15036,13 @@ HTML = r"""<!doctype html>
         data: ventasPlot,
         borderColor:'#003478', backgroundColor:'rgba(0,52,120,.15)',
         fill:true, tension:.25, pointRadius:5, pointBackgroundColor:'#003478', borderWidth:2.5, spanGaps:true,
-      }]},
+      }, ..._dsBP]},
       options:{
         layout:{padding:{top:28}},
         plugins:{
-          legend:{display:false},
-          tooltip:{callbacks:{label:c=> ' ' + (c.parsed.y==null?'—':c.parsed.y+' uds')}},
-          datalabels:{display:true,anchor:'end',align:'top',offset:6,clip:false,
+          legend:{display:_dsBP.length>0, labels:{boxWidth:18, font:{size:11}}},
+          tooltip:{callbacks:{label:c=> ' ' + c.dataset.label + ': ' + (c.parsed.y==null?'—':c.parsed.y+' uds')}},
+          datalabels:{display:(ctx)=>ctx.datasetIndex===0,anchor:'end',align:'top',offset:6,clip:false,
             font:{size:12,weight:'700'},color:'#003478',
             formatter:v=>v==null?'':v}
         },
@@ -15017,6 +15057,68 @@ HTML = r"""<!doctype html>
     });
   }
 
+  function vtRenderPresupuesto(){
+    const sec = document.getElementById('vt-bp-section');
+    if(!sec) return;
+    const BP = (DATA.presupuesto || {}).tipos;
+    if(!BP || vtstate.anio === '2025'){ sec.style.display = 'none'; return; }
+    // Meses 2026 ya transcurridos según el panel (el corte manda).
+    const yms = MONTHS_CONFIG.map(c => vtMonthKeyToYM(c.key)).filter(y => y && y.startsWith('2026'));
+    const nM = yms.length;
+    if(!nM){ sec.style.display = 'none'; return; }
+    sec.style.display = '';
+    const NOMM = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    document.getElementById('vt-bp-sub').textContent =
+      `real 2026 vs piso/techo · ene–${NOMM[nM]} (${nM} meses) · ` +
+      ((vtstate.marcas||[]).length > 1 ? 'marcas seleccionadas' : (vtstate.marcas||[])[0]);
+
+    // Real por agencia: solo 2026, solo marcas seleccionadas; ignora los
+    // filtros de modelo/zona/agencia para que la tabla siempre compare completo.
+    const real = {};
+    (vtstate.marcas || []).forEach(mk => {
+      const d = (VENTAS_MENSUAL || {})[mk];
+      (d && d.flat || []).forEach(r => {
+        if(!(r.mes||'').startsWith('2026')) return;
+        if(!r.agencia) return;
+        real[r.agencia] = (real[r.agencia] || 0) + (r.cantidad || 0);
+      });
+    });
+    // Presupuesto YTD por agencia (suma de marcas seleccionadas)
+    const bp = (tipo) => {
+      const out = {};
+      (vtstate.marcas || []).forEach(mk => {
+        const b = (BP[tipo] || {})[mk] || {};
+        Object.keys(b).forEach(ag => {
+          if(ag === '_total') return;
+          out[ag] = (out[ag] || 0) + b[ag].uds.slice(0, nM).reduce((s,x)=>s+x, 0);
+        });
+      });
+      return out;
+    };
+    const fin = bp('financiero'), com = bp('comercial');
+    const ags = [...new Set([...Object.keys(real), ...Object.keys(fin)])].sort();
+    const pct = (a,b) => b > 0 ? Math.round(100*a/b) : null;
+    const fila = (ag, r, f, c, esTotal) => {
+      const pf = pct(r, f), pc = pct(r, c);
+      // 🟥 bajo el piso · banda = sano · 🟦 sobre el techo
+      const estado = f == null || !f ? '—'
+        : r < f ? '<span style="color:var(--neg);font-weight:700">🟥 bajo piso</span>'
+        : (c && r >= c) ? '<span style="color:#0470ef;font-weight:700">🟦 sobre techo</span>'
+        : '<span style="color:var(--pos);font-weight:600">en banda</span>';
+      const st = esTotal ? 'font-weight:700;border-top:2px solid var(--c-line)' : '';
+      const cf = pf != null && pf < 100 ? 'color:var(--neg);font-weight:700' : '';
+      return `<tr style="${st}"><td style="text-align:left">${ag}</td>
+        <td>${r}</td><td>${f || '—'}</td><td style="${cf}">${pf == null ? '—' : pf + '%'}</td>
+        <td>${c || '—'}</td><td>${pc == null ? '—' : pc + '%'}</td><td>${estado}</td></tr>`;
+    };
+    const thead = `<tr><th style="text-align:left">Agencia</th><th>Real YTD</th>
+      <th>Ppto. financiero</th><th>% vs piso</th><th>Ppto. comercial</th><th>% vs techo</th><th>Estado</th></tr>`;
+    const body = ags.map(ag => fila(ag, real[ag] || 0, fin[ag] || 0, com[ag] || 0, false)).join('');
+    const tR = ags.reduce((s,a)=>s+(real[a]||0),0), tF = ags.reduce((s,a)=>s+(fin[a]||0),0), tC = ags.reduce((s,a)=>s+(com[a]||0),0);
+    document.querySelector('#vt-bp-tbl thead').innerHTML = thead;
+    document.querySelector('#vt-bp-tbl tbody').innerHTML = body + fila('TOTAL', tR, tF, tC, true);
+  }
+
   function vtRenderAll(){
     vtFillMarca();
     vtFillZona();
@@ -15025,6 +15127,7 @@ HTML = r"""<!doctype html>
     vtRenderFilterSummary();
     vtRenderHero();
     vtRenderCierreChart();
+    vtRenderPresupuesto();
     vtRenderTable();
     vtRenderAsesorDetail();
     vtRenderMetaVentas();
