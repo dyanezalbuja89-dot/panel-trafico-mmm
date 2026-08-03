@@ -9190,10 +9190,9 @@ HTML = r"""<!doctype html>
     const _mst = CONV.master_facturas || [];
     const _mstF = _mst.filter(m => {
       if (convState.agencia && m.agencia !== convState.agencia) return false;
-      if (convState.mes) {
-        const ym = m.cohorte_ym || (m.fecha ? m.fecha.slice(0,7) : null);
-        if (ym !== convState.mes) return false;
-      }
+      // Solo cohorte_ym: sin fallback a la fecha de factura. El filtro es de
+      // COHORTE de primer toque; una factura sin cohorte no pertenece a ningún mes.
+      if (convState.mes && m.cohorte_ym !== convState.mes) return false;
       // Filtro por asesor: mismo criterio que el ranking (asesor del primer toque).
       if (convState.asesor && m.asesor_lead !== convState.asesor) return false;
       return true;
@@ -9296,10 +9295,9 @@ HTML = r"""<!doctype html>
     const _master = CONV.master_facturas || [];
     const _mFilt = _master.filter(m => {
       if (convState.agencia && m.agencia !== convState.agencia) return false;
-      if (convState.mes) {
-        const ym = m.cohorte_ym || (m.fecha ? m.fecha.slice(0,7) : null);
-        if (ym !== convState.mes) return false;
-      }
+      // Solo cohorte_ym: sin fallback a la fecha de factura. El filtro es de
+      // COHORTE de primer toque; una factura sin cohorte no pertenece a ningún mes.
+      if (convState.mes && m.cohorte_ym !== convState.mes) return false;
       if (convState.canal && (m.canal_lead || 'Sin canal atribuido') !== convState.canal) return false;
       if (convState.modelo && (m.modelo_lead || m.modelo_fact) !== convState.modelo) return false;
       if (convState.asesor && m.asesor_lead !== convState.asesor) return false;
@@ -9714,6 +9712,25 @@ HTML = r"""<!doctype html>
   }
 
   // Gráfica de evolución mensual de conversión (respeta todos los filtros excepto mes)
+  // Compradores de una cohorte, desde master_facturas: pid con al menos un
+  // (pid, VIN) de neto positivo. Misma definición que usan los KPIs — el gráfico
+  // contaba con clientes_flat.cerro y por eso no cuadraba con las tarjetas.
+  function convCompradoresCohorte(CONV, ym){
+    const pv = {};
+    (CONV.master_facturas || []).forEach(m => {
+      if (m.cohorte_ym !== ym || !m.persona_id || !m.qty) return;
+      if (convState.agencia && m.agencia !== convState.agencia) return;
+      if (convState.asesor  && m.asesor_lead !== convState.asesor) return;
+      if (convState.modelo  && m.modelo_lead !== convState.modelo) return;
+      if (convState.canal   && m.canal_lead  !== convState.canal)  return;
+      const k = m.persona_id + '||' + (m.vin || '');
+      pv[k] = (pv[k] || 0) + m.qty;
+    });
+    const comp = new Set();
+    Object.entries(pv).forEach(([k, q]) => { if (q > 0) comp.add(k.split('||')[0]); });
+    return comp.size;
+  }
+
   // Meses del eje X de los gráficos de cohorte. Salen de clientes_flat: con la
   // lista escrita a mano había que editarla cada mes y el gráfico se quedaba corto.
   function convMesesEje(CONV){
@@ -9766,9 +9783,17 @@ HTML = r"""<!doctype html>
     const { meses, labels } = convMesesEje(CONV);
     const stats = meses.map(m => {
       const sub = filtered.filter(c => c.first_ym === m);
-      const total = sub.length;
-      const cerraron = sub.filter(c => c.cerro).length;
-      const ventas = sub.filter(c => c.cerro).reduce((s,c) => s + (c.n_ventas || 1), 0);
+      // Personas únicas: dedup por _ck, igual que el KPI (un cliente que tocó dos
+      // agencias aparece dos veces en clientes_flat).
+      const total = new Set(sub.map(c => c._ck || c.asesor + '|' + c.first_ym)).size;
+      const cerraron = convCompradoresCohorte(CONV, m);
+      const ventas = (CONV.master_facturas || [])
+        .filter(f => f.cohorte_ym === m
+          && (!convState.agencia || f.agencia === convState.agencia)
+          && (!convState.asesor  || f.asesor_lead === convState.asesor)
+          && (!convState.modelo  || f.modelo_lead === convState.modelo)
+          && (!convState.canal   || f.canal_lead  === convState.canal))
+        .reduce((s,f) => s + (f.qty || 0), 0);
       const pct = total > 0 ? Math.round(100*cerraron/total*10)/10 : null;
       return { total, cerraron, ventas, pct };
     });
