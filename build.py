@@ -9209,7 +9209,11 @@ HTML = r"""<!doctype html>
     let n_traf, n_cerraron;
     // Con filtro de asesor el tráfico sale de los clientes ya filtrados; el total de
     // la agencia incluiría a los demás asesores.
-    if (convState.agencia && !convState.asesor && _mpaX[convState.agencia]) {
+    // El total del backend solo vale cuando el único filtro es la agencia:
+    // cualquier otro filtro achica el universo y hay que contar el subset.
+    const _soloAgencia = convState.agencia && !convState.mes && !convState.zona &&
+                         !convState.modelo && !convState.canal && !convState.asesor;
+    if (_soloAgencia && _mpaX[convState.agencia]) {
       n_traf = _mpaX[convState.agencia].traffic || 0;
     } else {
       n_traf = _uniq(clientes);
@@ -9308,9 +9312,15 @@ HTML = r"""<!doctype html>
       if (convState.mes && m.cohorte_ym !== convState.mes) return false;
       if (convState.canal && (m.canal_lead || 'Sin canal atribuido') !== convState.canal) return false;
       if (convState.modelo && (m.modelo_lead || m.modelo_fact) !== convState.modelo) return false;
+      if (convState.zona && m.zona_lead !== convState.zona) return false;
       if (convState.asesor && m.asesor_lead !== convState.asesor) return false;
       return true;
     });
+    // ¿Hay algún filtro que achique el universo? Decide dos cosas más abajo:
+    // si el tráfico por agencia puede salir del total del backend, y si el
+    // umbral de ≥5 leads del ranking tiene sentido.
+    const _hayFiltroFino = !!(convState.mes || convState.zona || convState.modelo ||
+                              convState.canal || convState.asesor);
     const _bucketMaster = (getKey) => {
       // Compradores = pid con al menos un (pid,VIN) neto > 0. Ventas = suma con signo.
       const b = {};
@@ -9362,9 +9372,11 @@ HTML = r"""<!doctype html>
     // Agencia: traffic desde master_por_agencia. Solo agencias en _mAgencia (respeta filtro).
     const _mpa = CONV.master_por_agencia || {};
     Object.keys(_mAgencia).forEach(ag => {
-      // Con filtro de asesor, el tráfico de la agencia sale de los clientes filtrados
-      // (el del backend es el total de la agencia, con todos sus asesores).
-      const t = convState.asesor
+      // El total del backend es TODO el tráfico de la agencia. Solo sirve cuando
+      // ningún filtro achica el universo; con mes/zona/modelo/canal/asesor activo
+      // hay que contar desde los clientes filtrados, o la conversión sale contra
+      // un denominador inflado.
+      const t = _hayFiltroFino
         ? (aggAgenciaT[ag] ? aggAgenciaT[ag].traffic : 0)
         : (_mpa[ag] ? (_mpa[ag].traffic || 0) : 0);
       const m = _mAgencia[ag].matched;
@@ -9386,9 +9398,24 @@ HTML = r"""<!doctype html>
         if (convState.agencia && _homeAg[c.asesor] && _homeAg[c.asesor] !== convState.agencia) return false;
         return true;
       }), 'asesor');
-    // Filtrar asesores con <5 leads (ruido)
+    // Cierres desde master_facturas (fuente única), no desde clientes_flat.cerro:
+    // eran las dos definiciones distintas otra vez — en la cohorte de julio el
+    // ranking mostraba 112 cierres cuando master da 61. El tráfico se mantiene
+    // del subset filtrado (universo de leads del asesor).
+    const _mAsesor = _bucketMaster(m => m.asesor_lead || 'Sin asesor');
+    Object.keys(aggAsesor).forEach(a => {
+      const t = aggAsesor[a].traffic || 0;
+      const m = _mAsesor[a] ? (_mAsesor[a].matched || 0) : 0;
+      const v = _mAsesor[a] ? (_mAsesor[a].ventas  || 0) : 0;
+      aggAsesor[a] = { traffic: t, matched: m, ventas: v,
+                       conv_pct: t > 0 ? +(100*m/t).toFixed(1) : 0 };
+    });
+    // Umbral anti-ruido de ≥5 leads: solo aplica sin filtros finos. Con un
+    // modelo/canal/mes filtrado casi nadie llega a 5 y el ranking escondía a
+    // la mayoría (Bronco: solo aparecían 2 asesores de los que tocaron 43 leads).
+    const _minLeads = _hayFiltroFino ? 1 : 5;
     const aggAsesorFilt = {};
-    Object.entries(aggAsesor).forEach(([k,v]) => { if(v.traffic >= 5) aggAsesorFilt[k] = v; });
+    Object.entries(aggAsesor).forEach(([k,v]) => { if(v.traffic >= _minLeads) aggAsesorFilt[k] = v; });
 
     // Sin minTraffic en canal/modelo/agencia (mostrar todos para que cuadre TOTAL).
     // Asesores sí filtramos a >=5 leads para evitar ruido individual.
@@ -9402,7 +9429,9 @@ HTML = r"""<!doctype html>
       if (!sub) return;
       sub.innerHTML = convState.asesor
         ? `<span style="color:var(--ford-2);font-weight:700">● Filtrando toda la pestaña por ${convState.asesor}</span> — clic de nuevo en su fila (o «Limpiar») para quitarlo`
-        : 'Solo asesores con ≥5 clientes en tráfico · clic en una fila para filtrar toda la pestaña';
+        : (_hayFiltroFino
+            ? 'Todos los asesores del filtro activo · clic en una fila para filtrar toda la pestaña'
+            : 'Solo asesores con ≥5 clientes en tráfico · clic en una fila para filtrar toda la pestaña');
     })();
     // Clic en una fila del ranking → filtra toda la pestaña por ese asesor.
     // Delegado en el tbody (se re-renderiza en cada pasada) y con guard para no
@@ -9431,7 +9460,9 @@ HTML = r"""<!doctype html>
   function renderConvBulletsAgency(agg){
     const wrap = document.getElementById('conv-bullets-agency');
     if(!wrap) return;
-    const entries = Object.entries(agg).filter(([,v])=>v.traffic >= 5);
+    const _minB = (convState.mes || convState.zona || convState.modelo ||
+                   convState.canal || convState.asesor) ? 1 : 5;
+    const entries = Object.entries(agg).filter(([,v])=>v.traffic >= _minB);
     if(entries.length === 0){ wrap.innerHTML = ''; return; }
     // Promedio ORGU GLOBAL: siempre desde el breakdown backend completo (todas las
     // agencias), no del subset filtrado — si filtras 1 agencia el "promedio" no puede
