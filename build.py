@@ -15006,11 +15006,14 @@ HTML = r"""<!doctype html>
     destroy('vt-chart-cierre');
     const canvas = document.getElementById('vt-chart-cierre');
     if(!canvas || typeof Chart === 'undefined') return;
-    const labels = MONTHS_CONFIG.map(c=>c.label);
+    // El eje X respeta el filtro de año: con 2026 activo los meses de 2025
+    // aparecían como ceros falsos y la curva parecía arrancar de la nada.
+    const CFG = MONTHS_CONFIG.filter(c => vtMatchAnio(vtMonthKeyToYM(c.key)));
+    const labels = CFG.map(c=>c.label);
     const rows = vtFilterFlat();
     const ventasByMes = {};
     rows.forEach(r=>{ ventasByMes[r.mes] = (ventasByMes[r.mes]||0) + (r.cantidad||0); });
-    const ventas = MONTHS_CONFIG.map(c => ventasByMes[vtMonthKeyToYM(c.key)] || 0);
+    const ventas = CFG.map(c => ventasByMes[vtMonthKeyToYM(c.key)] || 0);
     // 0 = 0 ventas reales (no missing). Históricos 2025 ahora se llenan desde DATOS.
     const ventasPlot = ventas.slice();
     const valid = ventasPlot;
@@ -15032,7 +15035,7 @@ HTML = r"""<!doctype html>
     // modelo/zona (el presupuesto no baja a ese nivel). Con filtro de agencia
     // se usa el bloque de esa agencia; sin filtro, el total de cada marca.
     const _BP = (DATA.presupuesto || {}).tipos || null;
-    const _bpSerie = (tipo) => MONTHS_CONFIG.map(c => {
+    const _bpSerie = (tipo) => CFG.map(c => {
       const ym = vtMonthKeyToYM(c.key);
       if(!ym || !ym.startsWith('2026')) return null;
       const mi = +ym.slice(5,7) - 1;
