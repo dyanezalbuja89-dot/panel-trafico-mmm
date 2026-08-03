@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-08-02T17:20:29.293084+00:00",
+  "updated_at": "2026-08-03T00:27:52.447213+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -194,7 +194,7 @@
       "label": "ago-26",
       "year": 2026,
       "month": 8,
-      "leads": 10,
+      "leads": 21,
       "cont": 0,
       "agen": 21,
       "efec": 0,
@@ -344,13 +344,13 @@
     ]
   },
   "kpis": {
-    "period_leads": 4726,
+    "period_leads": 4737,
     "period_cont": 4037,
     "period_agen": 1810,
     "period_efec": 619,
     "period_vent": 18,
-    "rate_cont": 85.4,
-    "rate_agen": 38.3,
+    "rate_cont": 85.2,
+    "rate_agen": 38.2,
     "rate_show": 34.2,
     "rate_no_show": 65.8,
     "rate_close": 2.9,
@@ -1217,7 +1217,7 @@
           "label": "ago·26",
           "year": 2026,
           "month": 8,
-          "leads": 10,
+          "leads": 21,
           "cont": 0,
           "tope": 0,
           "agen": 21,
@@ -1484,7 +1484,7 @@
             "nos_coh": 25
           },
           "ago·26": {
-            "leads": 3,
+            "leads": 7,
             "cont": 0,
             "tope": 0,
             "agen": 6,
@@ -1746,7 +1746,7 @@
             "nos_coh": 27
           },
           "ago·26": {
-            "leads": 5,
+            "leads": 6,
             "cont": 0,
             "tope": 0,
             "agen": 5,
@@ -2008,7 +2008,7 @@
             "nos_coh": 16
           },
           "ago·26": {
-            "leads": 2,
+            "leads": 3,
             "cont": 0,
             "tope": 0,
             "agen": 7,
@@ -2270,7 +2270,7 @@
             "nos_coh": 19
           },
           "ago·26": {
-            "leads": 0,
+            "leads": 1,
             "cont": 0,
             "tope": 0,
             "agen": 3,
@@ -2510,6 +2510,24 @@
             "conf_coh": 13,
             "efec_coh": 10,
             "nos_coh": 2
+          },
+          "ago·26": {
+            "leads": 4,
+            "cont": 0,
+            "tope": 0,
+            "agen": 0,
+            "agendadas": 0,
+            "confirmadas": 0,
+            "efec": 0,
+            "nos": 0,
+            "conf": [],
+            "agen_arr": 0,
+            "conf_arr": 0,
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         },
         "Machala": {
@@ -3303,7 +3321,7 @@
             "nos_coh": 14
           },
           "ago·26": {
-            "leads": 6,
+            "leads": 9,
             "cont": 0,
             "tope": 0,
             "agen": 2,
@@ -3491,8 +3509,8 @@
             "nos_coh": 3
           },
           "jun·26": {
-            "leads": 151,
-            "cont": 133,
+            "leads": 152,
+            "cont": 134,
             "tope": 55,
             "agen": 48,
             "agendadas": 48,
@@ -3557,7 +3575,7 @@
             "nos_coh": 26
           },
           "ago·26": {
-            "leads": 0,
+            "leads": 6,
             "cont": 0,
             "tope": 0,
             "agen": 1,
@@ -4130,7 +4148,7 @@
             "nos_coh": 1
           },
           "ago·26": {
-            "leads": 1,
+            "leads": 2,
             "cont": 0,
             "tope": 0,
             "agen": 0,
@@ -4333,8 +4351,8 @@
             "nos_coh": 88
           },
           "jun·26": {
-            "leads": 256,
-            "cont": 214,
+            "leads": 255,
+            "cont": 213,
             "tope": 76,
             "agen": 102,
             "agendadas": 102,
@@ -4403,7 +4421,7 @@
             "nos_coh": 8
           },
           "ago·26": {
-            "leads": 2,
+            "leads": 3,
             "cont": 0,
             "tope": 0,
             "agen": 7,
@@ -13741,6 +13759,24 @@
                   ]
                 ]
               }
+            },
+            "ago·26": {
+              "no_contactados": {
+                "total": 0,
+                "by_llamada": []
+              },
+              "contactados": {
+                "total": 0,
+                "by_estatus": [],
+                "by_categoria": [],
+                "cat_detalle": {},
+                "cat_llamada": {},
+                "cat_notask": {}
+              },
+              "no_show": {
+                "total": 0,
+                "by_estatus": []
+              }
             }
           },
           "Machala": {
@@ -18435,11 +18471,11 @@
                 ]
               },
               "contactados": {
-                "total": 133,
+                "total": 134,
                 "by_estatus": [
                   [
                     "Contactado",
-                    46
+                    47
                   ],
                   [
                     "Barreras técnicas/No contesta",
@@ -18465,7 +18501,7 @@
                 "by_categoria": [
                   [
                     "Citó",
-                    40
+                    41
                   ],
                   [
                     "En gestión activa",
@@ -18536,7 +18572,7 @@
                   "Citó": [
                     [
                       "Aceptaciones auditadas",
-                      40
+                      41
                     ]
                   ],
                   "Salida legítima": [
@@ -18584,7 +18620,7 @@
                     2,
                     9,
                     1,
-                    2,
+                    3,
                     2,
                     2,
                     1,
@@ -18611,7 +18647,7 @@
                 "cat_notask": {
                   "En gestión activa": 41,
                   "Desperdicio": 38,
-                  "Citó": 39,
+                  "Citó": 40,
                   "Salida legítima": 14
                 }
               },
@@ -22269,11 +22305,11 @@
                 ]
               },
               "contactados": {
-                "total": 214,
+                "total": 213,
                 "by_estatus": [
                   [
                     "Contactado",
-                    89
+                    88
                   ],
                   [
                     "Barreras técnicas/No contesta",
@@ -22299,7 +22335,7 @@
                 "by_categoria": [
                   [
                     "Citó",
-                    76
+                    75
                   ],
                   [
                     "En gestión activa",
@@ -22318,7 +22354,7 @@
                   "Citó": [
                     [
                       "Aceptaciones auditadas",
-                      76
+                      75
                     ]
                   ],
                   "En gestión activa": [
@@ -22386,7 +22422,7 @@
                     22,
                     10,
                     5,
-                    5,
+                    4,
                     4,
                     0,
                     2,
@@ -22439,7 +22475,7 @@
                   ]
                 },
                 "cat_notask": {
-                  "Citó": 76,
+                  "Citó": 75,
                   "En gestión activa": 71,
                   "Desperdicio": 51,
                   "Salida legítima": 16
@@ -25309,7 +25345,7 @@
           "label": "ago·26",
           "year": 2026,
           "month": 8,
-          "leads": 4,
+          "leads": 6,
           "cont": 0,
           "tope": 0,
           "agen": 3,
@@ -25604,7 +25640,7 @@
             "nos_coh": 33
           },
           "ago·26": {
-            "leads": 4,
+            "leads": 5,
             "cont": 0,
             "tope": 0,
             "agen": 3,
@@ -25880,6 +25916,24 @@
             "conf_coh": 3,
             "efec_coh": 3,
             "nos_coh": 1
+          },
+          "ago·26": {
+            "leads": 1,
+            "cont": 0,
+            "tope": 0,
+            "agen": 0,
+            "agendadas": 0,
+            "confirmadas": 0,
+            "efec": 0,
+            "nos": 0,
+            "conf": [],
+            "agen_arr": 0,
+            "conf_arr": 0,
+            "efec_arr": 0,
+            "agen_coh": 0,
+            "conf_coh": 0,
+            "efec_coh": 0,
+            "nos_coh": 0
           }
         }
       },
@@ -26131,7 +26185,7 @@
             "nos_coh": 17
           },
           "ago·26": {
-            "leads": 4,
+            "leads": 6,
             "cont": 0,
             "tope": 0,
             "agen": 3,
@@ -31656,6 +31710,24 @@
                     1
                   ]
                 ]
+              }
+            },
+            "ago·26": {
+              "no_contactados": {
+                "total": 0,
+                "by_llamada": []
+              },
+              "contactados": {
+                "total": 0,
+                "by_estatus": [],
+                "by_categoria": [],
+                "cat_detalle": {},
+                "cat_llamada": {},
+                "cat_notask": {}
+              },
+              "no_show": {
+                "total": 0,
+                "by_estatus": []
               }
             }
           }
