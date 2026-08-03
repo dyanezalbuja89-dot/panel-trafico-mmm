@@ -124,3 +124,136 @@ if __name__ == '__main__':
             for marca in ('FORD', 'DONGFENG_ORGU'):
                 t = marcas[marca].get('_total', {})
                 print(tipo, marca, 'FY', sum(t.get('uds', [])), '· ene-jul', sum(t.get('uds', [0]*12)[:7]))
+
+
+# ═══════════════ Mix por versión ═══════════════
+# Diccionario de matching entre el nombre de versión del presupuesto y el string
+# de la factura. Ford baja a trim; Dongfeng necesita eje+combustible en los Rich
+# y separar Mage EV/HEV; Chery/Mazda/RAM van a nivel modelo (volumen chico).
+
+_MODELOS = {
+    'FORD':          ['TERRITORY', 'ESCAPE', 'EVEREST', 'EXPEDITION', 'EXPLORER', 'BRONCO', 'F150', 'F-150', 'RANGER'],
+    'DONGFENG_ORGU': ['HUGE', 'MAGE', 'PALADIN', 'RICH 6', 'RICH 7', 'Z9', 'AX7'],
+    'CHERY_ORGU':    ['ARRIZO', 'TIGGO 2', 'TIGGO 4', 'TIGGO 7', 'TIGGO 8', 'HIMLA'],
+    'MAZDA_ORGU':    ['BT-50', 'BT50', 'CX-90', 'CX90', 'CX-60', 'CX60', 'CX-30', 'CX30',
+                      'CX-5', 'CX5', 'CX-3', 'CX3', 'MAZDA 2', 'MAZDA 3'],
+    'RAM_ORGU':      ['RAM 1500', '1500', 'RAM 700', '700', 'COMPASS', 'GRAND CHEROKEE', 'PULSE'],
+}
+# Alias para que las dos grafías caigan en la misma llave
+_MODELO_CANON = {'F-150': 'F150', 'BT50': 'BT-50', 'CX90': 'CX-90', 'CX60': 'CX-60',
+                 'CX30': 'CX-30', 'CX5': 'CX-5', 'CX3': 'CX-3', '1500': 'RAM 1500', '700': 'RAM 700'}
+# Orden importa: el trim más largo primero (XLT antes que XL, ST LINE antes que nada).
+_TRIMS_FORD = ['ST LINE', 'BADLANDS', 'TITANIUM', 'TREND', 'ACTIVE', 'PLATIN', 'LARIAT', 'RAPTOR', 'XLT', 'XL']
+
+
+def version_key(marca, texto):
+    """Llave canónica de versión. None si no se reconoce el modelo."""
+    t = ' ' + ' '.join(str(texto).upper().replace('+', ' ').split()) + ' '
+    modelo = None
+    for m in _MODELOS.get(marca, []):
+        if f' {m} ' in t or t.strip().startswith(m + ' '):
+            modelo = _MODELO_CANON.get(m, m)
+            break
+    if not modelo:
+        return None
+    if marca == 'FORD':
+        for tr in _TRIMS_FORD:
+            if tr in t:
+                return f'{modelo}|{tr}'
+        return modelo
+    if marca == 'DONGFENG_ORGU':
+        if modelo == 'MAGE':
+            es_ev = ' EV ' in t and 'HEV' not in t and 'HYBRID' not in t
+            return 'MAGE|EV' if es_ev else 'MAGE|HEV'
+        if modelo in ('RICH 6', 'RICH 7'):
+            eje = '4X4' if '4X4' in t else '4X2'
+            fuel = 'DIESEL' if 'DIESEL' in t else 'GAS'
+            return f'{modelo}|{eje}|{fuel}' if modelo == 'RICH 6' else f'{modelo}|{eje}'
+        return modelo
+    return modelo   # Chery / Mazda / RAM: nivel modelo
+
+
+def build_mix(bp, ventas_mensual):
+    """Cruza presupuesto por versión contra ventas reales 2026.
+
+    Devuelve {marca: {'versiones': [...], 'extras': [...], 'meses_ytd': N}}.
+    Cada versión: nombre del presupuesto, PVP, ppto fin/com YTD y FY, real YTD.
+    'extras' = versiones facturadas que el presupuesto no contempla.
+    """
+    if not bp or not bp.get('tipos'):
+        return None
+    out = {}
+    for marca in _MODELOS:
+        # ── presupuesto por versión (releyendo los archivos, ahora sin agregar) ──
+        vers = {}
+        for tipo, fname in BP_FILES.items():
+            path = BP_DIR / fname
+            if not path.exists():
+                continue
+            hoja = [h for h, mk in BP_MARCAS.items() if mk == marca]
+            if not hoja:
+                continue
+            df = pd.read_excel(path, sheet_name=hoja[0], header=None)
+            agencia = None
+            for i in range(len(df)):
+                c1 = df.iloc[i, 1]
+                if pd.isna(c1):
+                    continue
+                v = str(c1).strip()
+                if v in BP_AGENCIAS:
+                    agencia = BP_AGENCIAS[v]
+                    continue
+                if v in ('Modelo', 'Total') or agencia in (None, '_total'):
+                    continue
+                pvp = df.iloc[i, 2]
+                if pd.isna(pvp):
+                    continue
+                k = version_key(marca, v)
+                if k is None:
+                    print(f'[mix] WARN versión de presupuesto sin modelo: {marca} · {v!r}')
+                    continue
+                if k not in vers:
+                    vers[k] = {'nombre': v, 'pvp': float(pvp), '_noms': set(),
+                               'financiero': [0] * 12, 'comercial': [0] * 12}
+                vers[k]['_noms'].add(v)
+                for m in range(12):
+                    q = df.iloc[i, 3 + m]
+                    if pd.notna(q) and q != 0:
+                        vers[k][tipo][m] += int(q)
+        # ── real 2026 por versión ──
+        vm = (ventas_mensual or {}).get(marca) or {}
+        meses26 = sorted({str(r.get('mes')) for r in vm.get('flat', [])
+                          if str(r.get('mes', '')).startswith('2026')})
+        n_ytd = len(meses26)
+        real = {}
+        extras = {}
+        for r in vm.get('flat', []):
+            if not str(r.get('mes', '')).startswith('2026'):
+                continue
+            q = r.get('cantidad', 0) or 0
+            k = version_key(marca, r.get('modelo', ''))
+            if k in vers:
+                real[k] = real.get(k, 0) + q
+            else:
+                nom = ' '.join(str(r.get('modelo', '')).split())
+                extras[nom] = extras.get(nom, 0) + q
+        filas = []
+        for k, v in vers.items():
+            # Si varias versiones del presupuesto caen en la misma llave (CX-90
+            # Core/High/High+, RAM 1500 Full/Premium...) el nombre de una sola
+            # engaña: se etiqueta por la llave y se dice cuántas agrupa.
+            _n = len(v['_noms'])
+            _nom = v['nombre'] if _n == 1 else f"{k.replace('|', ' ')} · {_n} versiones ppto"
+            filas.append({
+                'nombre': _nom, 'pvp': round(v['pvp']),
+                'fin_ytd': sum(v['financiero'][:n_ytd]), 'com_ytd': sum(v['comercial'][:n_ytd]),
+                'fin_fy': sum(v['financiero']), 'com_fy': sum(v['comercial']),
+                'real': real.get(k, 0),
+            })
+        filas.sort(key=lambda x: -x['fin_fy'])
+        out[marca] = {
+            'versiones': filas,
+            'extras': sorted(([n, q] for n, q in extras.items() if q != 0), key=lambda x: -x[1]),
+            'meses_ytd': n_ytd,
+        }
+    return out

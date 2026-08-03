@@ -3662,6 +3662,31 @@ HTML = r"""<!doctype html>
       </div>
     </div>
 
+    <!-- PROYECCIÓN DE CIERRE FY -->
+    <div class="ford-section" id="vt-fy-section" style="display:none">
+      <h3>📐 Proyección de cierre FY 2026 <span class="sub">al ritmo actual · por marca · no depende de los filtros</span></h3>
+      <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
+        Proyección = real YTD ÷ meses transcurridos × 12. Lineal a propósito: no asume
+        estacionalidad ni recuperación, dice dónde termina el año si nada cambia.
+      </div>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="vt-fy-tbl"><thead></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <!-- MIX POR VERSIÓN VS PRESUPUESTO -->
+    <div class="ford-section" id="vt-mix-section" style="display:none">
+      <h3>🧩 Mix por versión vs presupuesto <span class="sub" id="vt-mix-sub"></span></h3>
+      <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
+        Qué versiones sostienen el año y cuáles no rotan. Ford y Dongfeng bajan a versión;
+        Chery/Mazda/RAM comparan a nivel modelo. «Fuera de presupuesto» = se factura pero
+        el BP2026 no lo contempla. Respeta el filtro de marca.
+      </div>
+      <div style="overflow-x:auto">
+        <table class="analysis" id="vt-mix-tbl"><thead></thead><tbody></tbody></table>
+      </div>
+    </div>
+
     <!-- TABLA PIVOT -->
     <div class="ford-section">
       <h3 id="vt-tbl-title">📋 Ventas mes a mes</h3>
@@ -15119,6 +15144,91 @@ HTML = r"""<!doctype html>
     document.querySelector('#vt-bp-tbl tbody').innerHTML = body + fila('TOTAL', tR, tF, tC, true);
   }
 
+  const VT_MARCA_LBL = {FORD:'Ford', DONGFENG_ORGU:'Dongfeng', CHERY_ORGU:'Chery',
+                        MAZDA_ORGU:'Mazda', RAM_ORGU:'RAM'};
+
+  function vtRenderProyeccion(){
+    const sec = document.getElementById('vt-fy-section');
+    if(!sec) return;
+    const BP = (DATA.presupuesto || {}).tipos;
+    if(!BP){ sec.style.display = 'none'; return; }
+    sec.style.display = '';
+    const filas = [];
+    let tR = 0, tF = 0, tC = 0, tP = 0;
+    Object.keys(VT_MARCA_LBL).forEach(mk => {
+      const flat = ((VENTAS_MENSUAL || {})[mk] || {}).flat || [];
+      const meses = new Set(); let real = 0;
+      flat.forEach(r => { const m = String(r.mes || '');
+        if(m.startsWith('2026')){ meses.add(m); real += r.cantidad || 0; } });
+      const n = meses.size || 1;
+      const proy = Math.round(real / n * 12);
+      const fin = ((BP.financiero || {})[mk] || {})._total;
+      const com = ((BP.comercial  || {})[mk] || {})._total;
+      const finFY = fin ? fin.uds.reduce((a,b)=>a+b,0) : 0;
+      const comFY = com ? com.uds.reduce((a,b)=>a+b,0) : 0;
+      tR += real; tF += finFY; tC += comFY; tP += proy;
+      filas.push({mk, real, n, proy, finFY, comFY});
+    });
+    const pct = (a,b) => b > 0 ? Math.round(100*a/b) : null;
+    const estado = (p, f, c) => !f ? '—'
+      : p < f ? '<span style="color:var(--neg);font-weight:700">🟥 bajo piso</span>'
+      : (c && p >= c) ? '<span style="color:#0470ef;font-weight:700">🟦 sobre techo</span>'
+      : '<span style="color:var(--pos);font-weight:600">en banda</span>';
+    const fila = (lbl, r, n, py, f, c, tot) =>
+      `<tr style="${tot ? 'font-weight:700;border-top:2px solid var(--c-line)' : ''}">
+        <td style="text-align:left">${lbl}</td><td>${r}</td><td>${(r/n).toFixed(1)}</td>
+        <td style="font-weight:700">${py}</td>
+        <td>${f || '—'}</td><td style="${pct(py,f) != null && pct(py,f) < 100 ? 'color:var(--neg);font-weight:700' : ''}">${pct(py,f) == null ? '—' : pct(py,f)+'%'}</td>
+        <td>${c || '—'}</td><td>${pct(py,c) == null ? '—' : pct(py,c)+'%'}</td>
+        <td>${estado(py, f, c)}</td></tr>`;
+    document.querySelector('#vt-fy-tbl thead').innerHTML =
+      `<tr><th style="text-align:left">Marca</th><th>Real YTD</th><th>Ritmo/mes</th>
+       <th>Proyección FY</th><th>Ppto. financiero FY</th><th>%</th>
+       <th>Ppto. comercial FY</th><th>%</th><th>Estado</th></tr>`;
+    document.querySelector('#vt-fy-tbl tbody').innerHTML =
+      filas.map(f => fila(VT_MARCA_LBL[f.mk], f.real, f.n, f.proy, f.finFY, f.comFY, false)).join('') +
+      fila('TOTAL', tR, filas[0] ? filas[0].n : 1, tP, tF, tC, true);
+  }
+
+  function vtRenderMix(){
+    const sec = document.getElementById('vt-mix-section');
+    if(!sec) return;
+    const MIX = (DATA.presupuesto || {}).mix;
+    if(!MIX){ sec.style.display = 'none'; return; }
+    sec.style.display = '';
+    const marcas = (vtstate.marcas || []).filter(mk => MIX[mk]);
+    const multi = marcas.length > 1;
+    document.getElementById('vt-mix-sub').textContent =
+      `real vs ppto. financiero · ene–${['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][(MIX[marcas[0]]||{}).meses_ytd || 0]}`;
+    const rows = [];
+    marcas.forEach(mk => {
+      (MIX[mk].versiones || []).forEach(v => {
+        if(!v.fin_fy && !v.real) return;   // versión muerta en ppto y en piso
+        const cum = v.fin_ytd > 0 ? Math.round(100*v.real/v.fin_ytd) : null;
+        const st = v.fin_ytd === 0 && v.real > 0 ? '<span style="color:#0470ef;font-weight:600">sin cuota</span>'
+          : cum == null ? '—'
+          : cum < 70 ? '<span style="color:var(--neg);font-weight:700">🟥 no rota</span>'
+          : cum < 100 ? '<span style="color:#b45309;font-weight:600">bajo cuota</span>'
+          : '<span style="color:var(--pos);font-weight:600">cumple</span>';
+        rows.push(`<tr>${multi ? `<td style="text-align:left">${VT_MARCA_LBL[mk]}</td>` : ''}
+          <td style="text-align:left">${v.nombre}</td>
+          <td>$${(v.pvp/1000).toFixed(1)}k</td><td>${v.fin_ytd}</td><td style="font-weight:700">${v.real}</td>
+          <td>${v.real - v.fin_ytd > 0 ? '+' : ''}${v.real - v.fin_ytd}</td>
+          <td>${cum == null ? '—' : cum + '%'}</td><td>${v.fin_fy}</td><td>${st}</td></tr>`);
+      });
+      (MIX[mk].extras || []).forEach(([nom, q]) => {
+        rows.push(`<tr style="background:rgba(4,112,239,.05)">${multi ? `<td style="text-align:left">${VT_MARCA_LBL[mk]}</td>` : ''}
+          <td style="text-align:left">⚠️ ${nom}</td><td>—</td><td>0</td>
+          <td style="font-weight:700">${q}</td><td>+${q}</td><td>—</td><td>0</td>
+          <td><span style="color:#0470ef;font-weight:700">fuera de ppto.</span></td></tr>`);
+      });
+    });
+    document.querySelector('#vt-mix-tbl thead').innerHTML =
+      `<tr>${multi ? '<th style="text-align:left">Marca</th>' : ''}<th style="text-align:left">Versión (nombre del BP2026)</th>
+       <th>PVP</th><th>Ppto. YTD</th><th>Real YTD</th><th>Δ</th><th>Cumpl.</th><th>Ppto. FY</th><th>Estado</th></tr>`;
+    document.querySelector('#vt-mix-tbl tbody').innerHTML = rows.join('');
+  }
+
   function vtRenderAll(){
     vtFillMarca();
     vtFillZona();
@@ -15128,6 +15238,8 @@ HTML = r"""<!doctype html>
     vtRenderHero();
     vtRenderCierreChart();
     vtRenderPresupuesto();
+    vtRenderProyeccion();
+    vtRenderMix();
     vtRenderTable();
     vtRenderAsesorDetail();
     vtRenderMetaVentas();

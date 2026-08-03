@@ -2114,6 +2114,11 @@ def main():
         print(f"INFO: no digital.json at {digital_path}; tab Seguimiento Digital quedará vacío")
 
     # Escribir data.json al directorio del script (~/dev/panel-trafico/), no a OneDrive
+    # Mix por versión: cruza el presupuesto contra las ventas reales ya calculadas.
+    if out.get('presupuesto'):
+        from presupuesto import build_mix
+        out['presupuesto']['mix'] = build_mix(out['presupuesto'], out.get('ventas_mensual'))
+
     outpath = Path(__file__).parent / "data.json"
     # ► Sanea NaN/Infinity antes de serializar. Python json.dump por default
     # escribe los tokens literales NaN/Infinity (no son JSON válido). El
