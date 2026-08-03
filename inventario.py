@@ -448,7 +448,19 @@ def load_inventario(path=None, today=None, months_config=None):
     fact['ym'] = fact['fecha_fact'].dt.to_period('M').astype(str)
 
     # === RES-COLA — reservas (algunas con VIN, otras 'SIN VIN') ===
-    rc = pd.read_excel(path, sheet_name='RES-COLA', header=0)
+    # El nombre de la hoja cambia entre snapshots ('RES-COLA' hasta jul-2026,
+    # 'COLA' desde el de 1-ago). Mismas columnas, así que se busca por contenido
+    # del nombre en vez de quemar uno solo: si el nombre vuelve a cambiar, no rompe.
+    rc = None
+    _hojas = pd.ExcelFile(path).sheet_names
+    for _h in ('RES-COLA', 'COLA'):
+        if _h in _hojas:
+            rc = pd.read_excel(path, sheet_name=_h, header=0); break
+    if rc is None:
+        _cands = [h for h in _hojas if 'COLA' in h.upper()]
+        if not _cands:
+            raise ValueError(f'{Path(path).name}: ninguna hoja de reservas en cola. Hojas: {_hojas}')
+        rc = pd.read_excel(path, sheet_name=_cands[0], header=0)
     rc['marca_up'] = rc['MARCA'].astype(str).str.strip().str.upper()
     rc['MODELO_RAW'] = rc['MODELO'].astype(str).str.strip()  # texto original de la versión
     rc['MODELO'] = rc.apply(lambda r: normalize_res_cola_modelo(r['MODELO_RAW'], r['marca_up']), axis=1)
@@ -489,8 +501,12 @@ def load_inventario(path=None, today=None, months_config=None):
         usa['VERSION'] = usa.apply(lambda r: normalize_version(r['familia'], r['marca_up']), axis=1)
     except Exception:
         usa = pd.DataFrame(columns=['MODELO','VERSION','marca_up'])
+    # La hoja de proceso de nacionalización lleva el mes en el nombre
+    # (PROC-NAC-MAY, PROC-NAC-JUL...), así que se busca por prefijo.
     try:
-        proc = pd.read_excel(path, sheet_name='PROC-NAC-MAY', header=0)
+        _proc_sh = next((h for h in _hojas if h.upper().startswith('PROC-NAC')), None)
+        if _proc_sh is None: raise KeyError('PROC-NAC-*')
+        proc = pd.read_excel(path, sheet_name=_proc_sh, header=0)
         proc['marca_up'] = proc['marca'].astype(str).str.strip().str.upper()
         proc['MODELO']  = proc.apply(lambda r: normalize_familia(r['familia'], r['marca_up']), axis=1)
         proc['VERSION'] = proc.apply(lambda r: normalize_version(r['familia'], r['marca_up']), axis=1)

@@ -4246,14 +4246,10 @@ HTML = r"""<!doctype html>
           </select>
         </label>
         <label>Mes de PRIMER TOQUE
+          <!-- Las opciones se generan desde los datos en _convPoblarMeses(): con la
+               lista quemada había que editar el HTML cada mes y se quedaba atrás. -->
           <select id="conv-f-mes" title="Mes en que el cliente apareció por primera vez en BD tráfico. NO es el mes en que se facturó.">
             <option value="">YTD 2026</option>
-            <option value="2026-01">Enero</option>
-            <option value="2026-02">Febrero</option>
-            <option value="2026-03">Marzo</option>
-            <option value="2026-04">Abril</option>
-            <option value="2026-05">Mayo</option>
-            <option value="2026-06">Junio (en curso)</option>
           </select>
         </label>
         <label>Agencia
@@ -9108,6 +9104,31 @@ HTML = r"""<!doctype html>
       [...zonas].sort().forEach(z => {
         const o = document.createElement('option'); o.value=z; o.textContent=z; selZo.appendChild(o);
       });
+    }
+    // Meses de cohorte: salen de los datos, no de una lista escrita a mano — así
+    // el selector no se queda atrás cuando entra un mes nuevo.
+    const selMes = document.getElementById('conv-f-mes');
+    if(selMes && needsRepop){
+      const meses = [...new Set(CONV.clientes_flat.map(c => c.first_ym).filter(Boolean))].sort();
+      // "en curso" solo si el corte del panel todavía no llegó a fin de mes.
+      // cut_date viene como DD/MM/YYYY en ford_months.
+      const enCurso = (() => {
+        const fm = (DATA.ford_months||{})[DATA.default_month_key];
+        if(!fm || !fm.cut_date) return null;
+        const [d, m, y] = fm.cut_date.split('/').map(Number);
+        return d < new Date(y, m, 0).getDate() ? `${y}-${String(m).padStart(2,'0')}` : null;
+      })();
+      const NOM = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
+                   'Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const prev = selMes.value;
+      selMes.innerHTML = '<option value="">YTD 2026</option>';
+      meses.forEach(ym => {
+        const o = document.createElement('option');
+        o.value = ym;
+        o.textContent = NOM[+ym.slice(5,7)] + (ym === enCurso ? ' (en curso)' : '');
+        selMes.appendChild(o);
+      });
+      if(prev && meses.includes(prev)) selMes.value = prev;
     }
     convState._needRepopulate = false;
     // Populate brand selector (FORD ya hardcoded; agregar marcas ORGU disponibles en conversion_data)
