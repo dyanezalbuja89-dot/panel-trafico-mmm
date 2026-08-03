@@ -9629,8 +9629,7 @@ HTML = r"""<!doctype html>
       return true;
     });
 
-    const meses  = ['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06'];
-    const labels = ['Enero','Febrero','Marzo','Abril','Mayo','Junio'];
+    const { meses, labels } = convMesesEje(CONV);
     const MODELO_ORDER = convModelosForBrand();
     const COLORS = convModelColorsForBrand(MODELO_ORDER);
 
@@ -9715,6 +9714,15 @@ HTML = r"""<!doctype html>
   }
 
   // Gráfica de evolución mensual de conversión (respeta todos los filtros excepto mes)
+  // Meses del eje X de los gráficos de cohorte. Salen de clientes_flat: con la
+  // lista escrita a mano había que editarla cada mes y el gráfico se quedaba corto.
+  function convMesesEje(CONV){
+    const NOM = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
+                 'Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const meses = [...new Set((CONV.clientes_flat||[]).map(c => c.first_ym).filter(Boolean))].sort();
+    return { meses, labels: meses.map(m => NOM[+m.slice(5,7)]) };
+  }
+
   let convChartEvol = null;
   function renderConvChartEvol(){
     const CONV = (DATA.conversion_data||{})[convState.marca];
@@ -9755,8 +9763,7 @@ HTML = r"""<!doctype html>
       return true;
     });
 
-    const meses  = ['2026-01','2026-02','2026-03','2026-04','2026-05','2026-06'];
-    const labels = ['Enero','Febrero','Marzo','Abril','Mayo','Junio'];
+    const { meses, labels } = convMesesEje(CONV);
     const stats = meses.map(m => {
       const sub = filtered.filter(c => c.first_ym === m);
       const total = sub.length;
