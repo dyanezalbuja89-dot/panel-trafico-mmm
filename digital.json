@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-08-04T01:14:43.250487+00:00",
+  "updated_at": "2026-08-04T02:18:51.337282+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -198,7 +198,7 @@
       "label": "ago-26",
       "year": 2026,
       "month": 8,
-      "leads": 65,
+      "leads": 69,
       "cont": 42,
       "agen": 35,
       "efec": 3,
@@ -348,13 +348,13 @@
     ]
   },
   "kpis": {
-    "period_leads": 4780,
+    "period_leads": 4784,
     "period_cont": 4078,
     "period_agen": 1824,
     "period_efec": 625,
     "period_vent": 18,
-    "rate_cont": 85.3,
-    "rate_agen": 38.2,
+    "rate_cont": 85.2,
+    "rate_agen": 38.1,
     "rate_show": 34.3,
     "rate_no_show": 65.7,
     "rate_close": 2.9,
@@ -1225,7 +1225,7 @@
           "label": "ago·26",
           "year": 2026,
           "month": 8,
-          "leads": 66,
+          "leads": 69,
           "cont": 42,
           "tope": 0,
           "agen": 35,
@@ -1492,7 +1492,7 @@
             "nos_coh": 29
           },
           "ago·26": {
-            "leads": 22,
+            "leads": 24,
             "cont": 14,
             "tope": 0,
             "agen": 13,
@@ -2024,7 +2024,7 @@
             "nos_coh": 19
           },
           "ago·26": {
-            "leads": 10,
+            "leads": 11,
             "cont": 4,
             "tope": 0,
             "agen": 9,
@@ -3382,7 +3382,7 @@
             "nos_coh": 14
           },
           "ago·26": {
-            "leads": 10,
+            "leads": 11,
             "cont": 9,
             "tope": 0,
             "agen": 7,
@@ -3644,7 +3644,7 @@
             "nos_coh": 27
           },
           "ago·26": {
-            "leads": 30,
+            "leads": 31,
             "cont": 17,
             "tope": 0,
             "agen": 5,
@@ -4507,7 +4507,7 @@
             "nos_coh": 13
           },
           "ago·26": {
-            "leads": 21,
+            "leads": 22,
             "cont": 12,
             "tope": 0,
             "agen": 11,
@@ -27903,8 +27903,8 @@
             "nos_coh": 0
           },
           "jun·26": {
-            "leads": 59,
-            "cont": 59,
+            "leads": 58,
+            "cont": 58,
             "tope": 0,
             "agen": 13,
             "agendadas": 13,
@@ -28150,8 +28150,8 @@
             "nos_coh": 6
           },
           "jun·26": {
-            "leads": 3,
-            "cont": 2,
+            "leads": 4,
+            "cont": 3,
             "tope": 0,
             "agen": 2,
             "agendadas": 2,
@@ -35775,7 +35775,7 @@
                 "by_llamada": []
               },
               "contactados": {
-                "total": 59,
+                "total": 58,
                 "by_estatus": [
                   [
                     "No interesado",
@@ -35783,7 +35783,7 @@
                   ],
                   [
                     "Contactado",
-                    26
+                    25
                   ],
                   [
                     "Barreras técnicas/No contesta",
@@ -35805,7 +35805,7 @@
                   ],
                   [
                     "En gestión activa",
-                    9
+                    8
                   ],
                   [
                     "Salida legítima",
@@ -35820,7 +35820,7 @@
                   "En gestión activa": [
                     [
                       "Seguimiento por Whatsapp",
-                      7
+                      6
                     ],
                     [
                       "No contesta",
@@ -35874,7 +35874,7 @@
                   "En gestión activa": [
                     0,
                     0,
-                    3,
+                    2,
                     1,
                     2,
                     2,
@@ -35929,7 +35929,7 @@
                   ]
                 },
                 "cat_notask": {
-                  "En gestión activa": 9,
+                  "En gestión activa": 8,
                   "Citó": 19,
                   "Desperdicio": 28,
                   "Salida legítima": 3
@@ -37030,20 +37030,24 @@
                 ]
               },
               "contactados": {
-                "total": 2,
+                "total": 3,
                 "by_estatus": [
                   [
-                    "No interesado",
-                    1
+                    "Contactado",
+                    2
                   ],
                   [
-                    "Contactado",
+                    "No interesado",
                     1
                   ]
                 ],
                 "by_categoria": [
                   [
                     "Citó",
+                    1
+                  ],
+                  [
+                    "En gestión activa",
                     1
                   ],
                   [
@@ -37055,6 +37059,12 @@
                   "Desperdicio": [
                     [
                       "Sin interés",
+                      1
+                    ]
+                  ],
+                  "En gestión activa": [
+                    [
+                      "Seguimiento por Whatsapp",
                       1
                     ]
                   ],
@@ -37071,6 +37081,20 @@
                     0,
                     0,
                     1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "En gestión activa": [
+                    0,
+                    0,
+                    1,
+                    0,
                     0,
                     0,
                     0,
@@ -37097,6 +37121,7 @@
                 },
                 "cat_notask": {
                   "Desperdicio": 1,
+                  "En gestión activa": 1,
                   "Citó": 1
                 }
               },
