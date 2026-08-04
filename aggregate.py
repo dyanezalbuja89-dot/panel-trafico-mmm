@@ -376,7 +376,24 @@ def _compute_ventas_mensual(sales_df):
     # Agencia: el archivo de ventas trae "Bodega Venta Vehiculo" (e.g. "1001 VEHICULOS CARLOS JULIO AROSEMENA").
     # Normalizamos a corto via fact_agency_norm de inventario.py.
     from inventario import fact_agency_norm
-    df['agencia'] = df['AGENCIA_FACTURACION'].apply(lambda s: fact_agency_norm(s) or 'Sin agencia')
+    df['agencia_fact'] = df['AGENCIA_FACTURACION'].apply(lambda s: fact_agency_norm(s) or 'Sin agencia')
+
+    # ── Regla de negocio (Daniel, 4-ago-2026): la venta cuenta para la agencia
+    # del EQUIPO del asesor, no para la vitrina que emitió la factura. El motivo
+    # es la placa: el cliente prefiere placa "P" (Pichincha), así que ventas
+    # originadas por Machala/Manta se entregan y facturan vía La Y o Tumbaco.
+    # La casa de cada asesor se deriva de sus propias facturas: la agencia donde
+    # más factura en positivo. Filas sin asesor conservan la agencia de factura.
+    _pos = df[(df['Cantidad'] > 0) & (df['asesor'] != 'Sin asesor') & (df['agencia_fact'] != 'Sin agencia')]
+    _home = (_pos.groupby(['asesor', 'agencia_fact'])['Cantidad'].sum()
+                 .reset_index()
+                 .sort_values('Cantidad', ascending=False)
+                 .drop_duplicates('asesor')
+                 .set_index('asesor')['agencia_fact'].to_dict())
+    df['agencia'] = df.apply(
+        lambda r: _home.get(r['asesor'], r['agencia_fact']), axis=1)
+    _mov = int((df['agencia'] != df['agencia_fact']).sum())
+    print(f'[ventas_mensual] atribución por equipo: {len(_home)} asesores con casa · {_mov} filas reasignadas de vitrina a equipo')
     months_all = sorted(df['mes'].unique())
     MES_LBL = {'2026-01':'Enero','2026-02':'Febrero','2026-03':'Marzo','2026-04':'Abril','2026-05':'Mayo','2026-06':'Junio','2026-07':'Julio','2026-08':'Agosto','2026-09':'Septiembre','2026-10':'Octubre','2026-11':'Noviembre','2026-12':'Diciembre'}
 
