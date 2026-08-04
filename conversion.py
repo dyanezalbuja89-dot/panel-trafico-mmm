@@ -722,11 +722,23 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     def _ag_short_local(raw):
         n = _fact_ag_norm_local(raw) if raw else None
         return _AG_MAP_LOCAL.get(n, n)
+    _home_equipo = {}
     if len(facturas):
         _fa = facturas.copy()
         _fa['_ase_norm'] = _fa['ASESOR_FACTURACION'].apply(lambda s: norm_asesor(s) if pd.notna(s) else None)
         _fa['_ag_short'] = _fa['AGENCIA_FACTURACION'].apply(_ag_short_local)
         _fa['Cantidad'] = _fa.get('Cantidad', 1).fillna(0).astype(int)
+        # ► Regla de equipo (Daniel, 4-ago-2026): la venta cuenta para la agencia
+        # del EQUIPO del asesor, no la vitrina que emitió la factura (efecto placa
+        # "P": ventas de Machala/Manta se entregan vía La Y/Tumbaco). Casa del
+        # asesor = agencia donde más factura en positivo. Se calcula una vez y se
+        # reutiliza en todos los breakdowns de facturas de esta pestaña.
+        _pos_eq = _fa[(_fa['Cantidad'] > 0) & _fa['_ase_norm'].notna() & _fa['_ag_short'].notna()]
+        _home_equipo = (_pos_eq.groupby(['_ase_norm', '_ag_short'])['Cantidad'].sum()
+                        .reset_index().sort_values('Cantidad', ascending=False)
+                        .drop_duplicates('_ase_norm').set_index('_ase_norm')['_ag_short'].to_dict())
+        _fa['_ag_short'] = _fa.apply(
+            lambda r: _home_equipo.get(r['_ase_norm'], r['_ag_short']), axis=1)
         for ase_s, grp in _fa.groupby('_ase_norm'):
             if not ase_s: continue
             _tot = int(grp['Cantidad'].sum())
@@ -960,6 +972,10 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
         _fact_copy = facturas_full.copy()
         _fact_copy['_ag_short'] = _fact_copy['AGENCIA_FACTURACION'].apply(_ag_fact_short)
         _fact_copy['Cantidad'] = _fact_copy.get('Cantidad', 1).fillna(0).astype(int)
+        # Regla de equipo: misma casa que el resto de breakdowns.
+        _fact_copy['_ase_norm'] = _fact_copy['ASESOR_FACTURACION'].apply(lambda s: norm_asesor(s) if pd.notna(s) else None)
+        _fact_copy['_ag_short'] = _fact_copy.apply(
+            lambda r: _home_equipo.get(r['_ase_norm'], r['_ag_short']), axis=1)
         for ag_s, grp in _fact_copy.groupby('_ag_short'):
             if not ag_s: continue
             agencia_breakdown.setdefault(ag_s, {'traffic': 0, 'matched': 0, 'ventas': 0})
@@ -1006,6 +1022,11 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
         _mf['_ag_short'] = _mf['AGENCIA_FACTURACION'].apply(_ag_fact_short)
         _mf['_qty'] = _mf.get('Cantidad', 1).fillna(0).astype(int)
         _mf['_ase_norm'] = _mf['ASESOR_FACTURACION'].apply(lambda s: norm_asesor(s) if pd.notna(s) else None)
+        # Regla de equipo: la agencia del master es la casa del asesor; la
+        # vitrina se preserva en agencia_fact para poder auditar el puente.
+        _mf['_ag_vitrina'] = _mf['_ag_short']
+        _mf['_ag_short'] = _mf.apply(
+            lambda r: _home_equipo.get(r['_ase_norm'], r['_ag_short']), axis=1)
         # persona_id CONSOLIDADO: si el mismo nombre de cliente aparece con cédula en
         # alguna factura, TODAS sus facturas usan esa cédula como pid (caso Nathaly
         # Carrion: 2 autos, una factura con cédula y otra con nombre → 1 persona).
@@ -1057,6 +1078,7 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
                 'vin': _v,
                 'fecha': _fd_key,
                 'agencia': r.get('_ag_short') or 'Sin agencia',
+                'agencia_fact': r.get('_ag_vitrina') or 'Sin agencia',
                 'qty': int(r.get('_qty', 0)),
                 'persona_id': r.get('_pid'),
                 'cliente': str(r.get('CLIENTE_FACTURACION','')).strip() if pd.notna(r.get('CLIENTE_FACTURACION')) else None,
