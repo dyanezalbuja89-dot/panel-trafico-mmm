@@ -14338,7 +14338,9 @@ HTML = r"""<!doctype html>
     if(d === 0) return '';
     const arrow = d > 0 ? '▲' : '▼';
     const col = d > 0 ? '#16a34a' : '#dc2626';
-    return `<span style="font-size:9px;color:${col};margin-left:2px;font-weight:600">${arrow}${Math.abs(d)}</span>`;
+    // En modo $ el delta crudo era ilegible (▲1785681.659999999).
+    const dTxt = vtstate.metric === 'revenue' ? vtFmtVal(Math.abs(d)) : Math.abs(d);
+    return `<span style="font-size:9px;color:${col};margin-left:2px;font-weight:600">${arrow}${dTxt}</span>`;
   }
 
   // Sparkline SVG inline · serie = array de números (puede tener nulls).
@@ -15011,9 +15013,11 @@ HTML = r"""<!doctype html>
     const CFG = MONTHS_CONFIG.filter(c => vtMatchAnio(vtMonthKeyToYM(c.key)));
     const labels = CFG.map(c=>c.label);
     const rows = vtFilterFlat();
+    const _mk = vtMetricKey();          // la curva sigue la métrica activa (uds o $)
+    const _esRev = vtstate.metric === 'revenue';
     const ventasByMes = {};
-    rows.forEach(r=>{ ventasByMes[r.mes] = (ventasByMes[r.mes]||0) + (r.cantidad||0); });
-    const ventas = CFG.map(c => ventasByMes[vtMonthKeyToYM(c.key)] || 0);
+    rows.forEach(r=>{ ventasByMes[r.mes] = (ventasByMes[r.mes]||0) + (r[_mk]||0); });
+    const ventas = CFG.map(c => Math.round(ventasByMes[vtMonthKeyToYM(c.key)] || 0));
     // 0 = 0 ventas reales (no missing). Históricos 2025 ahora se llenan desde DATOS.
     const ventasPlot = ventas.slice();
     const valid = ventasPlot;
@@ -15027,7 +15031,8 @@ HTML = r"""<!doctype html>
         const col = d > 0 ? 'var(--pos)' : (d < 0 ? 'var(--neg)' : 'var(--c-muted)');
         const sign = d > 0 ? '+' : '';
         const pctTxt = pct==null ? '' : ' ('+sign+pct.toFixed(1)+'%)';
-        summary.innerHTML = `<span style="color:${col};font-weight:700">${arrow} ${sign}${d} uds${pctTxt}</span>&nbsp;de ${labels[0]} a ${labels[labels.length-1]}`;
+        const dTxt = _esRev ? vtFmtVal(d) : d + ' uds';
+        summary.innerHTML = `<span style="color:${col};font-weight:700">${arrow} ${sign}${dTxt}${pctTxt}</span>&nbsp;de ${labels[0]} a ${labels[labels.length-1]}`;
       } else summary.innerHTML = '';
     }
     // Banda de presupuesto BP2026: financiero (piso) y comercial (techo).
@@ -15044,9 +15049,10 @@ HTML = r"""<!doctype html>
         const b = (_BP[tipo] || {})[mk];
         if(!b) return;
         const blk = vtstate.agencia ? b[vtstate.agencia] : b['_total'];
-        if(blk){ s += blk.uds[mi] || 0; any = true; }
+        // El BP trae unidades Y dólares (uds × PVP): la banda sigue la métrica.
+        if(blk){ s += (_esRev ? blk.usd[mi] : blk.uds[mi]) || 0; any = true; }
       });
-      return any ? s : null;
+      return any ? Math.round(s) : null;
     });
     const _bpOn = _BP && !vtstate.modelo && !vtstate.zona && vtstate.anio !== '2025';
     const _dsBP = _bpOn ? [
@@ -15069,14 +15075,14 @@ HTML = r"""<!doctype html>
         layout:{padding:{top:28}},
         plugins:{
           legend:{display:_dsBP.length>0, labels:{boxWidth:18, font:{size:11}}},
-          tooltip:{callbacks:{label:c=> ' ' + c.dataset.label + ': ' + (c.parsed.y==null?'—':c.parsed.y+' uds')}},
+          tooltip:{callbacks:{label:c=> ' ' + c.dataset.label + ': ' + (c.parsed.y==null?'—':(_esRev?vtFmtVal(c.parsed.y):c.parsed.y+' uds'))}},
           datalabels:{display:(ctx)=>ctx.datasetIndex===0,anchor:'end',align:'top',offset:6,clip:false,
             font:{size:12,weight:'700'},color:'#003478',
-            formatter:v=>v==null?'':v}
+            formatter:v=>v==null?'':(_esRev?vtFmtVal(v):v)}
         },
         scales:{
-          y:{beginAtZero:true, grace:'10%', ticks:{precision:0},
-             title:{display:true,text:'Ventas netas (uds)',color:'#6b7280',font:{size:11}}},
+          y:{beginAtZero:true, grace:'10%', ticks:{precision:0, callback:v=>_esRev?vtFmtVal(v):v},
+             title:{display:true,text:_esRev?'Facturación ($)':'Ventas netas (uds)',color:'#6b7280',font:{size:11}}},
           x:{ticks:{font:{size:12}}}
         },
         interaction:{mode:'index',intersect:false},
@@ -15103,13 +15109,15 @@ HTML = r"""<!doctype html>
 
     // Real por agencia: solo 2026, solo marcas seleccionadas; ignora los
     // filtros de modelo/zona/agencia para que la tabla siempre compare completo.
+    const _esRevBP = vtstate.metric === 'revenue';   // la tabla sigue la métrica
+    const _mkBP = vtMetricKey();
     const real = {};
     (vtstate.marcas || []).forEach(mk => {
       const d = (VENTAS_MENSUAL || {})[mk];
       (d && d.flat || []).forEach(r => {
         if(!(r.mes||'').startsWith('2026')) return;
         if(!r.agencia) return;
-        real[r.agencia] = (real[r.agencia] || 0) + (r.cantidad || 0);
+        real[r.agencia] = (real[r.agencia] || 0) + (r[_mkBP] || 0);
       });
     });
     // Presupuesto YTD por agencia (suma de marcas seleccionadas)
@@ -15119,7 +15127,8 @@ HTML = r"""<!doctype html>
         const b = (BP[tipo] || {})[mk] || {};
         Object.keys(b).forEach(ag => {
           if(ag === '_total') return;
-          out[ag] = (out[ag] || 0) + b[ag].uds.slice(0, nM).reduce((s,x)=>s+x, 0);
+          const serie = _esRevBP ? b[ag].usd : b[ag].uds;
+          out[ag] = (out[ag] || 0) + serie.slice(0, nM).reduce((s,x)=>s+x, 0);
         });
       });
       return out;
@@ -15137,9 +15146,10 @@ HTML = r"""<!doctype html>
         : '<span style="color:var(--pos);font-weight:600">en banda</span>';
       const st = esTotal ? 'font-weight:700;border-top:2px solid var(--c-line)' : '';
       const cf = pf != null && pf < 100 ? 'color:var(--neg);font-weight:700' : '';
+      const fv = v => _esRevBP ? vtFmtVal(v) : v;
       return `<tr style="${st}"><td style="text-align:left">${ag}</td>
-        <td>${r}</td><td>${f || '—'}</td><td style="${cf}">${pf == null ? '—' : pf + '%'}</td>
-        <td>${c || '—'}</td><td>${pc == null ? '—' : pc + '%'}</td><td>${estado}</td></tr>`;
+        <td>${fv(Math.round(r))}</td><td>${f ? fv(Math.round(f)) : '—'}</td><td style="${cf}">${pf == null ? '—' : pf + '%'}</td>
+        <td>${c ? fv(Math.round(c)) : '—'}</td><td>${pc == null ? '—' : pc + '%'}</td><td>${estado}</td></tr>`;
     };
     const thead = `<tr><th style="text-align:left">Agencia</th><th>Real YTD</th>
       <th>Ppto. financiero</th><th>% vs piso</th><th>Ppto. comercial</th><th>% vs techo</th><th>Estado</th></tr>`;
