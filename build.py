@@ -3664,7 +3664,7 @@ HTML = r"""<!doctype html>
 
     <!-- PROYECCIÓN DE CIERRE FY -->
     <div class="ford-section" id="vt-fy-section" style="display:none">
-      <h3>📐 Proyección de cierre FY 2026 <span class="sub">al ritmo actual · por marca · no depende de los filtros</span></h3>
+      <h3>📐 Proyección de cierre FY 2026 <span class="sub">al ritmo actual · por marca · respeta Marca y Agencia</span></h3>
       <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
         Proyección = real YTD ÷ meses transcurridos × 12. Lineal a propósito: no asume
         estacionalidad ni recuperación, dice dónde termina el año si nada cambia.
@@ -3680,7 +3680,7 @@ HTML = r"""<!doctype html>
       <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
         Qué versiones sostienen el año y cuáles no rotan. Ford y Dongfeng bajan a versión;
         Chery/Mazda/RAM comparan a nivel modelo. «Fuera de presupuesto» = se factura pero
-        el BP2026 no lo contempla. Respeta el filtro de marca.
+        el BP2026 no lo contempla. Respeta los filtros de marca y agencia.
       </div>
       <div style="overflow-x:auto">
         <table class="analysis" id="vt-mix-tbl"><thead></thead><tbody></tbody></table>
@@ -15098,7 +15098,8 @@ HTML = r"""<!doctype html>
     const NOMM = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
     document.getElementById('vt-bp-sub').textContent =
       `real 2026 vs piso/techo · ene–${NOMM[nM]} (${nM} meses) · ` +
-      ((vtstate.marcas||[]).length > 1 ? 'marcas seleccionadas' : (vtstate.marcas||[])[0]);
+      ((vtstate.marcas||[]).length > 1 ? 'marcas seleccionadas' : (vtstate.marcas||[])[0]) +
+      (vtstate.agencia ? ' · ' + vtstate.agencia : '');
 
     // Real por agencia: solo 2026, solo marcas seleccionadas; ignora los
     // filtros de modelo/zona/agencia para que la tabla siempre compare completo.
@@ -15124,7 +15125,8 @@ HTML = r"""<!doctype html>
       return out;
     };
     const fin = bp('financiero'), com = bp('comercial');
-    const ags = [...new Set([...Object.keys(real), ...Object.keys(fin)])].sort();
+    let ags = [...new Set([...Object.keys(real), ...Object.keys(fin)])].sort();
+    if(vtstate.agencia) ags = ags.filter(a => a === vtstate.agencia);
     const pct = (a,b) => b > 0 ? Math.round(100*a/b) : null;
     const fila = (ag, r, f, c, esTotal) => {
       const pf = pct(r, f), pc = pct(r, c);
@@ -15158,17 +15160,25 @@ HTML = r"""<!doctype html>
     sec.style.display = '';
     const filas = [];
     let tR = 0, tF = 0, tC = 0, tP = 0;
-    Object.keys(VT_MARCA_LBL).forEach(mk => {
+    const _mks = Object.keys(VT_MARCA_LBL).filter(mk => (vtstate.marcas || []).includes(mk));
+    _mks.forEach(mk => {
       const flat = ((VENTAS_MENSUAL || {})[mk] || {}).flat || [];
       const meses = new Set(); let real = 0;
       flat.forEach(r => { const m = String(r.mes || '');
-        if(m.startsWith('2026')){ meses.add(m); real += r.cantidad || 0; } });
+        if(!m.startsWith('2026')) return;
+        meses.add(m);   // el mes cuenta aunque la agencia filtrada no venda en él
+        if(vtstate.agencia && r.agencia !== vtstate.agencia) return;
+        real += r.cantidad || 0; });
       const n = meses.size || 1;
       const proy = Math.round(real / n * 12);
-      const fin = ((BP.financiero || {})[mk] || {})._total;
-      const com = ((BP.comercial  || {})[mk] || {})._total;
+      // Con agencia filtrada, el presupuesto es el bloque de esa agencia (si la
+      // marca no opera ahí, queda en 0 y la fila lo dice).
+      const _blk = o => vtstate.agencia ? (o || {})[vtstate.agencia] : (o || {})._total;
+      const fin = _blk((BP.financiero || {})[mk]);
+      const com = _blk((BP.comercial  || {})[mk]);
       const finFY = fin ? fin.uds.reduce((a,b)=>a+b,0) : 0;
       const comFY = com ? com.uds.reduce((a,b)=>a+b,0) : 0;
+      if(vtstate.agencia && !finFY && !real) return;   // marca sin presencia en la agencia
       tR += real; tF += finFY; tC += comFY; tP += proy;
       filas.push({mk, real, n, proy, finFY, comFY});
     });
@@ -15189,8 +15199,9 @@ HTML = r"""<!doctype html>
        <th>Proyección FY</th><th>Ppto. financiero FY</th><th>%</th>
        <th>Ppto. comercial FY</th><th>%</th><th>Estado</th></tr>`;
     document.querySelector('#vt-fy-tbl tbody').innerHTML =
-      filas.map(f => fila(VT_MARCA_LBL[f.mk], f.real, f.n, f.proy, f.finFY, f.comFY, false)).join('') +
-      fila('TOTAL', tR, filas[0] ? filas[0].n : 1, tP, tF, tC, true);
+      filas.map(f => fila(VT_MARCA_LBL[f.mk] + (vtstate.agencia ? ' · ' + vtstate.agencia : ''),
+                          f.real, f.n, f.proy, f.finFY, f.comFY, false)).join('') +
+      (filas.length > 1 ? fila('TOTAL', tR, filas[0] ? filas[0].n : 1, tP, tF, tC, true) : '');
   }
 
   function vtRenderMix(){
@@ -15202,10 +15213,16 @@ HTML = r"""<!doctype html>
     const marcas = (vtstate.marcas || []).filter(mk => MIX[mk]);
     const multi = marcas.length > 1;
     document.getElementById('vt-mix-sub').textContent =
-      `real vs ppto. financiero · ene–${['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][(MIX[marcas[0]]||{}).meses_ytd || 0]}`;
+      `real vs ppto. financiero · ene–${['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][(MIX[marcas[0]]||{}).meses_ytd || 0]}` +
+      (vtstate.agencia ? ` · ${vtstate.agencia}` : '');
     const rows = [];
     marcas.forEach(mk => {
-      (MIX[mk].versiones || []).forEach(v => {
+      (MIX[mk].versiones || []).forEach(v0 => {
+        // Con agencia filtrada, los números de la versión son los de esa agencia.
+        const v = vtstate.agencia
+          ? Object.assign({}, v0, (v0.ag || {})[vtstate.agencia] ||
+              {fin_ytd:0, fin_fy:0, com_ytd:0, com_fy:0, real:0})
+          : v0;
         if(!v.fin_fy && !v.real) return;   // versión muerta en ppto y en piso
         const cum = v.fin_ytd > 0 ? Math.round(100*v.real/v.fin_ytd) : null;
         const st = v.fin_ytd === 0 && v.real > 0 ? '<span style="color:#0470ef;font-weight:600">sin cuota</span>'
@@ -15219,7 +15236,9 @@ HTML = r"""<!doctype html>
           <td>${v.real - v.fin_ytd > 0 ? '+' : ''}${v.real - v.fin_ytd}</td>
           <td>${cum == null ? '—' : cum + '%'}</td><td>${v.fin_fy}</td><td>${st}</td></tr>`);
       });
-      (MIX[mk].extras || []).forEach(([nom, q]) => {
+      (MIX[mk].extras || []).forEach(([nom, qTot, agD]) => {
+        const q = vtstate.agencia ? ((agD || {})[vtstate.agencia] || 0) : qTot;
+        if(!q) return;
         rows.push(`<tr style="background:rgba(4,112,239,.05)">${multi ? `<td style="text-align:left">${VT_MARCA_LBL[mk]}</td>` : ''}
           <td style="text-align:left">⚠️ ${nom}</td><td>—</td><td>0</td>
           <td style="font-weight:700">${q}</td><td>+${q}</td><td>—</td><td>0</td>

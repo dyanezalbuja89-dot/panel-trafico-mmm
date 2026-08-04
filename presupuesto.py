@@ -214,29 +214,36 @@ def build_mix(bp, ventas_mensual):
                     continue
                 if k not in vers:
                     vers[k] = {'nombre': v, 'pvp': float(pvp), '_noms': set(),
-                               'financiero': [0] * 12, 'comercial': [0] * 12}
+                               'financiero': [0] * 12, 'comercial': [0] * 12, '_ag': {}}
                 vers[k]['_noms'].add(v)
+                _agd = vers[k]['_ag'].setdefault(agencia, {'financiero': [0] * 12, 'comercial': [0] * 12})
                 for m in range(12):
                     q = df.iloc[i, 3 + m]
                     if pd.notna(q) and q != 0:
                         vers[k][tipo][m] += int(q)
+                        _agd[tipo][m] += int(q)
         # ── real 2026 por versión ──
         vm = (ventas_mensual or {}).get(marca) or {}
         meses26 = sorted({str(r.get('mes')) for r in vm.get('flat', [])
                           if str(r.get('mes', '')).startswith('2026')})
         n_ytd = len(meses26)
         real = {}
+        real_ag = {}
         extras = {}
+        extras_ag = {}
         for r in vm.get('flat', []):
             if not str(r.get('mes', '')).startswith('2026'):
                 continue
             q = r.get('cantidad', 0) or 0
+            ag = r.get('agencia') or 'Sin agencia'
             k = version_key(marca, r.get('modelo', ''))
             if k in vers:
                 real[k] = real.get(k, 0) + q
+                real_ag.setdefault(k, {})[ag] = real_ag.get(k, {}).get(ag, 0) + q
             else:
                 nom = ' '.join(str(r.get('modelo', '')).split())
                 extras[nom] = extras.get(nom, 0) + q
+                extras_ag.setdefault(nom, {})[ag] = extras_ag.get(nom, {}).get(ag, 0) + q
         filas = []
         for k, v in vers.items():
             # Si varias versiones del presupuesto caen en la misma llave (CX-90
@@ -244,16 +251,27 @@ def build_mix(bp, ventas_mensual):
             # engaña: se etiqueta por la llave y se dice cuántas agrupa.
             _n = len(v['_noms'])
             _nom = v['nombre'] if _n == 1 else f"{k.replace('|', ' ')} · {_n} versiones ppto"
+            # Desglose por agencia: presupuesto y real de esta versión en cada una.
+            _ag_out = {}
+            for ag in set(list(v['_ag'].keys()) + list(real_ag.get(k, {}).keys())):
+                bag = v['_ag'].get(ag, {'financiero': [0]*12, 'comercial': [0]*12})
+                _ag_out[ag] = {
+                    'fin_ytd': sum(bag['financiero'][:n_ytd]), 'fin_fy': sum(bag['financiero']),
+                    'com_ytd': sum(bag['comercial'][:n_ytd]), 'com_fy': sum(bag['comercial']),
+                    'real': real_ag.get(k, {}).get(ag, 0),
+                }
             filas.append({
                 'nombre': _nom, 'pvp': round(v['pvp']),
                 'fin_ytd': sum(v['financiero'][:n_ytd]), 'com_ytd': sum(v['comercial'][:n_ytd]),
                 'fin_fy': sum(v['financiero']), 'com_fy': sum(v['comercial']),
                 'real': real.get(k, 0),
+                'ag': _ag_out,
             })
         filas.sort(key=lambda x: -x['fin_fy'])
         out[marca] = {
             'versiones': filas,
-            'extras': sorted(([n, q] for n, q in extras.items() if q != 0), key=lambda x: -x[1]),
+            'extras': sorted(([n, q, extras_ag.get(n, {})] for n, q in extras.items() if q != 0),
+                             key=lambda x: -x[1]),
             'meses_ytd': n_ytd,
         }
     return out
