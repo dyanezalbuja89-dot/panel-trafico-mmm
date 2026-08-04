@@ -371,6 +371,24 @@ def _compute_ventas_mensual(sales_df):
     else:
         df['rev_signed'] = _rev_prev.fillna(0.0)
     df['marca_up'] = df['marca'].astype(str).str.strip().str.upper()
+
+    # ── Accesorios (Daniel, 4-ago-2026): el no-híbrido Ford se factura en DOS
+    # partes — vehículo (esta data) + accesorios (serie de factura que el reporte
+    # no trae). Se suma el valor estándar de accesorios del PBD oficial por
+    # unidad, con signo (la NC también lo resta). Sin esto, un Ranger parecía
+    # venderse con 20% de descuento cuando en realidad facturaba a lista.
+    try:
+        from presupuesto import accesorios_unidad as _acc_u
+        _marca_bp = df['marca_up'].map(lambda m: 'FORD' if str(m).startswith('FORD') else m)
+        df['_acc'] = [
+            _acc_u('FORD', fam) * float(q or 0) if str(m).startswith('FORD') else 0.0
+            for m, fam, q in zip(df['marca_up'], df['familia'], df['Cantidad'])
+        ]
+        df['rev_signed'] = df['rev_signed'] + df['_acc']
+        _tot_acc = df.loc[df['_acc'] != 0, '_acc'].sum()
+        print(f"[ventas_mensual] accesorios PBD sumados al revenue: ${_tot_acc:,.0f} en {(df['_acc']!=0).sum()} filas Ford")
+    except Exception as _e:
+        print('[ventas_mensual] WARN accesorios no aplicados:', _e)
     df['modelo_up'] = df['familia'].astype(str).str.strip().str.upper()
     df['asesor'] = df['ASESOR_FACTURACION'].astype(str).str.strip().str.upper().replace({'NAN': 'Sin asesor', '': 'Sin asesor'})
     # Agencia: el archivo de ventas trae "Bodega Venta Vehiculo" (e.g. "1001 VEHICULOS CARLOS JULIO AROSEMENA").

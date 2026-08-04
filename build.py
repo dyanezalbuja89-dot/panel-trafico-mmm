@@ -3582,7 +3582,7 @@ HTML = r"""<!doctype html>
     <div class="otros-header">
       <div>
         <h2>💵 Ventas Mensuales · NETOS</h2>
-        <div class="sub">Facturación NETA (FACTURA − Nota de Crédito) · 2026 · fuente: Base de ventas YTD</div>
+        <div class="sub">Facturación NETA (FACTURA − NC) + accesorios estándar PBD en Ford no-híbrido (se facturan aparte) · 2026</div>
       </div>
     </div>
 

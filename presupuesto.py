@@ -275,3 +275,31 @@ def build_mix(bp, ventas_mensual):
             'meses_ytd': n_ytd,
         }
     return out
+
+
+# ═══════════════ Accesorios por versión (PBD Ford FCST 4+8, ago-2026) ═══════════════
+# En Ecuador el no-híbrido paga arancel/ICE sobre el precio del vehículo, así que
+# la venta se parte en DOS facturas: vehículo (en DATOS 2) + accesorios (serie
+# aparte que el reporte de inventario NO trae). Los híbridos facturan completo.
+# Estos son los valores estándar del PBD oficial; se suman al revenue por unidad
+# para que la facturación de un ICE sea comparable con la de un híbrido y con el
+# PVP total del BP2026.
+ACCESORIOS_FORD = {
+    'TERRITORY|TREND': 0,      'TERRITORY|TITANIUM': 1000,
+    'ESCAPE|ST LINE': 0,       'ESCAPE|TITANIUM': 6000,
+    'ESCAPE|PLATIN': 0,
+    'EVEREST|ACTIVE': 10000,   'EVEREST|SPORT': 10000,   'EVEREST|PLATIN': 10000,
+    'EXPLORER|ACTIVE': 15000,  'EXPLORER|PLATIN': 15000,
+    'BRONCO|BADLANDS': 20000,
+    'EXPEDITION|PLATIN': 20000,
+    'RANGER|XL': 8000,         'RANGER|XLT': 12000,      'RANGER|RAPTOR': 13000,
+    'F150|XLT': 0,             'F150|LARIAT': 0,
+    'F150|PLATIN': 0,          'F150|RAPTOR': 25000,
+}
+
+def accesorios_unidad(marca, texto_version):
+    """USD de accesorios estándar por unidad para una versión facturada."""
+    if marca != 'FORD':
+        return 0
+    k = version_key('FORD', texto_version)
+    return ACCESORIOS_FORD.get(k, 0)
