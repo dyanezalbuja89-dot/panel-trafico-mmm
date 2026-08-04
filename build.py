@@ -3680,7 +3680,8 @@ HTML = r"""<!doctype html>
       <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
         Qué versiones sostienen el año y cuáles no rotan. Ford y Dongfeng bajan a versión;
         Chery/Mazda/RAM comparan a nivel modelo. «Fuera de presupuesto» = se factura pero
-        el BP2026 no lo contempla. Respeta los filtros de marca y agencia.
+        el BP2026 no lo contempla. Respeta los filtros de marca y agencia. PVP con * =
+        precio vigente del PBD (el del BP Mix quedó viejo en esa versión).
       </div>
       <div style="overflow-x:auto">
         <table class="analysis" id="vt-mix-tbl"><thead></thead><tbody></tbody></table>
@@ -15242,7 +15243,7 @@ HTML = r"""<!doctype html>
           : '<span style="color:var(--pos);font-weight:600">cumple</span>';
         rows.push(`<tr>${multi ? `<td style="text-align:left">${VT_MARCA_LBL[mk]}</td>` : ''}
           <td style="text-align:left">${v.nombre}</td>
-          <td>$${(v.pvp/1000).toFixed(1)}k</td><td>${v.fin_ytd}</td><td style="font-weight:700">${v.real}</td>
+          <td title="${v.pvp_pbd && v.pvp_pbd !== v.pvp ? 'BP Mix: $' + v.pvp.toLocaleString() + ' (desactualizado)' : ''}">$${((v.pvp_pbd || v.pvp)/1000).toFixed(1)}k${v.pvp_pbd && v.pvp_pbd !== v.pvp ? ' *' : ''}</td><td>${v.fin_ytd}</td><td style="font-weight:700">${v.real}</td>
           <td>${v.real - v.fin_ytd > 0 ? '+' : ''}${v.real - v.fin_ytd}</td>
           <td>${cum == null ? '—' : cum + '%'}</td><td>${v.fin_fy}</td><td>${st}</td></tr>`);
       });

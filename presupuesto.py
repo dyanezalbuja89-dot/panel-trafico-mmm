@@ -143,7 +143,7 @@ _MODELOS = {
 _MODELO_CANON = {'F-150': 'F150', 'BT50': 'BT-50', 'CX90': 'CX-90', 'CX60': 'CX-60',
                  'CX30': 'CX-30', 'CX5': 'CX-5', 'CX3': 'CX-3', '1500': 'RAM 1500', '700': 'RAM 700'}
 # Orden importa: el trim más largo primero (XLT antes que XL, ST LINE antes que nada).
-_TRIMS_FORD = ['ST LINE', 'BADLANDS', 'TITANIUM', 'TREND', 'ACTIVE', 'PLATIN', 'LARIAT', 'RAPTOR', 'XLT', 'XL']
+_TRIMS_FORD = ['ST LINE', 'BADLANDS', 'TITANIUM', 'TREND', 'ACTIVE', 'SPORT', 'PLATIN', 'LARIAT', 'RAPTOR', 'XLT', 'XL']
 
 
 def version_key(marca, texto):
@@ -182,6 +182,7 @@ def build_mix(bp, ventas_mensual):
     """
     if not bp or not bp.get('tipos'):
         return None
+    _pbd = load_pbd_precios()
     out = {}
     for marca in _MODELOS:
         # ── presupuesto por versión (releyendo los archivos, ahora sin agregar) ──
@@ -260,8 +261,10 @@ def build_mix(bp, ventas_mensual):
                     'com_ytd': sum(bag['comercial'][:n_ytd]), 'com_fy': sum(bag['comercial']),
                     'real': real_ag.get(k, {}).get(ag, 0),
                 }
+            _pv = _pbd.get(k) if marca == 'FORD' else None
             filas.append({
                 'nombre': _nom, 'pvp': round(v['pvp']),
+                'pvp_pbd': round(_pv['total']) if _pv else None,
                 'fin_ytd': sum(v['financiero'][:n_ytd]), 'com_ytd': sum(v['comercial'][:n_ytd]),
                 'fin_fy': sum(v['financiero']), 'com_fy': sum(v['comercial']),
                 'real': real.get(k, 0),
@@ -303,3 +306,43 @@ def accesorios_unidad(marca, texto_version):
         return 0
     k = version_key('FORD', texto_version)
     return ACCESORIOS_FORD.get(k, 0)
+
+
+# ═══════════════ Precios vigentes Ford (PBD FCST 4+8, may-dic 2026) ═══════════════
+# El BP Mix v.4 quedó con PVP viejos en varias versiones (Expedition 129,990 vs
+# 139,990 vigente, Explorer Active 79,990 vs 89,990...). El PBD es la fuente de
+# precio vigente: total = vehículo + accesorios. Verificado contra facturas
+# reales: la moda de cada versión coincide EXACTO con el precio-vehículo PBD.
+PBD_FILE = BP_DIR / 'PBD Ford Portafolio - ASC - 2026 - FCST 4+8 v.1 - May a Dic.xlsx'
+
+def load_pbd_precios():
+    """{version_key: {'total': x, 'vehiculo': x, 'accesorios': x}} para Ford."""
+    if not PBD_FILE.exists():
+        return {}
+    d = pd.read_excel(PBD_FILE, sheet_name='BP 2026', header=None)
+    lbl = d.iloc[:, 9].astype(str).str.strip()
+    try:
+        rM = lbl[lbl == 'Model'].index[0]
+        rT = lbl[lbl == 'TOTAL PRICE'].index[0]
+        rV = lbl[lbl == 'Vehicle Price'].index[0]
+        rA = lbl[lbl == 'Accesories Price'].index[0]
+    except IndexError:
+        print('[pbd] WARN estructura inesperada — sin precios vigentes')
+        return {}
+    out = {}
+    for c in range(10, d.shape[1]):
+        m = d.iloc[rM, c]
+        if pd.isna(m) or not str(m).strip():
+            continue
+        variante = d.iloc[rM + 1, c]
+        nombre = f"{m} {variante if pd.notna(variante) else ''}"
+        k = version_key('FORD', nombre)
+        if not k:
+            continue   # Maverick / Mustang: no operan en ORGU
+        tot, veh, acc = d.iloc[rT, c], d.iloc[rV, c], d.iloc[rA, c]
+        if pd.isna(tot):
+            continue
+        out.setdefault(k, {'total': float(tot),
+                           'vehiculo': float(veh) if pd.notna(veh) else float(tot),
+                           'accesorios': float(acc) if pd.notna(acc) else 0.0})
+    return out
