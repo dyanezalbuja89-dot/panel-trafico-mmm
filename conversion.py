@@ -250,8 +250,14 @@ def build_client_keys(df, ced_col='CEDULA', email_col='CORREO', cel_col='CELULAR
         if email: email_to_rows.setdefault(email, []).append(rid)
         if cel:   cel_to_rows.setdefault(cel, []).append(rid)
 
+    # El CELULAR no une identidades (regla de Daniel: el teléfono es del hogar o
+    # de la empresa, no de la persona — padre e hijo, esposos, o una ferretería y
+    # sus tres socios comparten número). Se sigue normalizando por si alguna vista
+    # lo necesita, pero fusionar por él mezcla clientes distintos y corre el
+    # first_touch del grupo al registro más viejo. Verificado: unía 22 identidades,
+    # varias de personas sin relación (0986430882 → Chuqui + Triviño + Marca).
     for groups in (ced_to_rows.values(), base_to_rows.values(),
-                   email_to_rows.values(), cel_to_rows.values()):
+                   email_to_rows.values()):
         for rids in groups:
             if len(rids) > 1:
                 first = rids[0]
