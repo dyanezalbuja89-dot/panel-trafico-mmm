@@ -217,6 +217,42 @@ class UnionFind:
             self.parent[rx] = ry
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Flota / B2B
+# ─────────────────────────────────────────────────────────────────────────────
+# Renting, flotas y venta corporativa directa NO pasan por el tráfico de piso:
+# nunca van a tener lead y engordaban el cajón "Gestión Externa" como si fueran
+# ventas sin atribuir. Se les da canal propio para que la conversión de showroom
+# se lea limpia y este canal se mida por lo que es (relación comercial directa).
+# Regla de Daniel, 5-ago-2026.
+_RX_RENTING = re.compile(
+    r'RENTING|LEASING|MAREAUTO|XPRESSMOTO|DISTRIVEHIC|RENT ?A ?CAR|AUTOSHARE', re.I)
+# Sufijos societarios: palabra completa (evita cazar "SAENZ" por "S.A.").
+_RX_SOCIEDAD = re.compile(
+    r'\b(S\.?A\.?S?|C\.?A\.?|CIA|C[IÍ]A|LTDA|CORP|COMPA[NÑ][IÍ]A)\b\.?', re.I)
+# Raíces de giro comercial: prefijo, sin límite final (DISTRIBU → DISTRIBUCION,
+# DISTRIBUIDORA; CONSTRU → CONSTRUCTORA, CONSTRUCCIONES).
+_RX_GIRO = re.compile(
+    r'COMERCIAL|DISTRIBU|INDUSTRI|CONSTRU|CONSULTOR|SERVICIO|GRUPO|IMPORT|EXPORT|'
+    r'AGR[IÍ]COLA|TRANSPORT|INMOBILIARI|LABORATORI|COOPERATIV|HOLDING|TRADING|'
+    r'SOLUCIONES|PROYECTOS|MANTENIMIENTO|MOTORS|BANANAS|PLASTIC|SHRIMP|OCEAN|'
+    r'TECNOLOG|COMPA[NÑ][IÍ]A|SUMINISTRO|ADMINISTRACION', re.I)
+
+
+def tipo_cliente_venta(nombre):
+    """'Flota/Renting' | 'B2B' | None (persona natural).
+
+    Solo mira el nombre de la factura: es la única señal disponible cuando no
+    hay lead. No se usa para clientes CON lead — esos conservan su canal real.
+    """
+    n = ' ' + re.sub(r'[^A-Za-zÑñÁÉÍÓÚáéíóú.& ]', ' ', str(nombre or '')) + ' '
+    if _RX_RENTING.search(n):
+        return 'Flota/Renting'
+    if _RX_SOCIEDAD.search(n) or _RX_GIRO.search(n):
+        return 'B2B'
+    return None
+
+
 def build_client_keys(df, ced_col='CEDULA', email_col='CORREO', cel_col='CELULAR'):
     """Asigna un `client_key` a cada fila del df, agrupando registros del mismo cliente.
 
@@ -1109,9 +1145,13 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
                 'modelo_fact': _norm_fam_master(str(r.get('familia','')).strip(), r.get('marca_up')),
                 # atribución tráfico si el lead está matched cohorte 2026
                 'cohorte_ym': _match.get('first_ym'),
-                # Canal SIEMPRE atribuido: lead conocido → su canal; sin lead → venta
-                # gestionada directa = "Gestión Externa" (B2B/flotas/referidos internos).
-                'canal_lead': (_match.get('first_canal') if _es_cohorte_2026 else None) or 'Gestión Externa',
+                # Canal SIEMPRE atribuido. Con lead → su canal real. Sin lead →
+                # si el nombre es de renting o empresa, canal propio Flota/B2B;
+                # el resto queda en "Gestión Externa" (referidos, recompra directa).
+                'canal_lead': ((_match.get('first_canal') if _es_cohorte_2026 else None)
+                               or tipo_cliente_venta(r.get('CLIENTE_FACTURACION'))
+                               or 'Gestión Externa'),
+                'tipo_cliente': tipo_cliente_venta(r.get('CLIENTE_FACTURACION')) or 'Persona natural',
                 'modelo_lead': _match.get('first_modelo') if _es_cohorte_2026 else None,
                 'agencia_lead': _match.get('first_agencia') if _es_cohorte_2026 else None,
                 'asesor_lead': _match.get('first_asesor') if _es_cohorte_2026 else None,
@@ -1149,6 +1189,10 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     # Antes n_vehiculos_atribuidos venía de clientes_flat sin netear → Chery daba
     # cov_rate 103% y "sin atribuir" negativo (bug 29-jul).
     n_facturas_total_master = sum(m.get('qty', 0) for m in master_facturas)
+    # Ventas de flota/B2B SIN lead: las que nunca podían cruzar contra tráfico.
+    # (Si una empresa sí pasó por el embudo, conserva su canal y NO cuenta aquí.)
+    _n_flota = sum(m.get('qty', 0) for m in master_facturas if m.get('canal_lead') == 'Flota/Renting')
+    _n_b2b   = sum(m.get('qty', 0) for m in master_facturas if m.get('canal_lead') == 'B2B')
     n_vehiculos_atribuidos = sum(m.get('qty', 0) for m in master_facturas if m.get('es_cohorte_2026'))
     _pv_all, _pv_coh = {}, {}
     for m in master_facturas:
@@ -1216,6 +1260,13 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
             'n_facturas_atribuidas': n_vehiculos_atribuidos,
             'n_facturas_sin_atribuir': n_facturas_total_master - n_vehiculos_atribuidos,
             'cov_rate_pct': round(100*n_vehiculos_atribuidos/n_facturas_total_master, 1) if n_facturas_total_master else 0,
+            # Flota/renting y B2B directo no pasan por tráfico de piso: nunca van a
+            # tener lead. Se reportan aparte y la cobertura "real" los descuenta del
+            # denominador — si no, el panel se castiga por ventas que jamás iban a cruzar.
+            'n_ventas_flota': _n_flota,
+            'n_ventas_b2b': _n_b2b,
+            'cov_rate_sin_flota_pct': (round(100*n_vehiculos_atribuidos/(n_facturas_total_master - _n_flota - _n_b2b), 1)
+                                       if (n_facturas_total_master - _n_flota - _n_b2b) > 0 else 0),
             'n_clientes_unicos_total': n_clientes_unicos_total,
             'n_clientes_unicos_matched': n_clientes_unicos_matched,
             # OJO unidades: *_vehiculos_* son unidades; *_clientes_* son personas.
