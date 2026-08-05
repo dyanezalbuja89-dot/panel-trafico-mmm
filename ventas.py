@@ -215,9 +215,12 @@ def load_ventas_completo():
     d2['marca'] = d2.get('Marca','').astype(str).str.strip()
     d2['familia'] = d2.get('Descripción Modelo','').astype(str).str.strip()
     d2['AGENCIA_FACTURACION'] = d2.get('Descripcion Bodega','').astype(str).str.strip()
-    # ASESOR_FACTURACION viene de hoja DATOS por VIN (DATOS 2 no lo trae).
-    # Concat DATOS de TODOS los snapshots — cada inventario captura ASESOR para VINs
-    # nuevos que llegan. Sin esto, junio/julio facturas nuevas quedan sin asesor.
+    # ASESOR_FACTURACION: la fuente primaria es 'Usuario Vende' de la PROPIA
+    # factura en DATOS 2 (el comentario anterior decía que no existía — sí existe
+    # y es el vendedor exacto; 'Usuario Fact' es otro campo, el facturador).
+    # El join por VIN contra la hoja DATOS queda como RESPALDO: falla en ventas
+    # recientes cuya reserva aún no está capturada (caso Daniela Jácome 30-jul:
+    # quedaba "Sin asesor" y la venta no se le acreditaba en ninguna pestaña).
     ase_map = {}
     for _inv_p in seen:
         try:
@@ -232,7 +235,14 @@ def load_ventas_completo():
                         if v not in ase_map:
                             ase_map[v] = str(a).strip()
         except Exception: pass
-    d2['ASESOR_FACTURACION'] = d2['vin_u'].map(ase_map).fillna('')
+    _respaldo = d2['vin_u'].map(ase_map).fillna('')
+    if 'Usuario Vende' in d2.columns:
+        _uv = d2['Usuario Vende'].astype(str).str.strip().str.upper().replace({'NAN': ''})
+        d2['ASESOR_FACTURACION'] = _uv.where(_uv != '', _respaldo)
+        _dif = int(((_uv != '') & (_uv != _respaldo)).sum())
+        print(f"[load_ventas_completo] asesor = Usuario Vende ({int((_uv != '').sum())} filas) · {_dif} difieren del join por VIN")
+    else:
+        d2['ASESOR_FACTURACION'] = _respaldo
     d2['CLIENTE_FACTURACION'] = d2.get('Nombres','').astype(str).str.strip()
     d2['CLIENTE_RESERVA'] = None
     d2['Chasis'] = d2['vin_u']
