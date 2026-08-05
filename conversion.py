@@ -74,6 +74,17 @@ def norm_email(s):
     return e
 
 
+# Celulares "de relleno" que el equipo escribe cuando no tiene el dato real.
+# NO pueden usarse para unir identidades: agrupan a personas distintas bajo un
+# mismo cliente y la fecha del primer toque del grupo pasa a ser la del registro
+# más viejo (caso Ariana Torres: su lead de abr-2026 se fusionó con un registro
+# "PRUEBA PRUEBA" de oct-2025 y su venta quedó fuera de la cohorte 2026).
+_CEL_BASURA = {
+    '0999999999', '0900000000', '0000000000', '0912345678', '0987654321',
+    '0911111111', '0922222222', '0933333333', '0944444444', '0955555555',
+    '0966666666', '0977777777', '0988888888', '0999999998', '0993333333',
+}
+
 def norm_cel(s):
     """Normaliza celular: solo dígitos, últimos 10 (cel Ecuador). Retorna None si no es válido."""
     if pd.isna(s):
@@ -84,9 +95,12 @@ def norm_cel(s):
     # Tomar últimos 10 dígitos (cubre el caso +593 prefijo)
     d = d[-10:] if len(d) >= 10 else d
     # Validar que sea celular ecuatoriano (empieza con 09)
-    if len(d) == 10 and d.startswith('09'):
-        return d
-    return None
+    if len(d) != 10 or not d.startswith('09'):
+        return None
+    # Descartar placeholders y cualquier número de un solo dígito repetido.
+    if d in _CEL_BASURA or len(set(d[1:])) == 1:
+        return None
+    return d
 
 
 def norm_name(s):
