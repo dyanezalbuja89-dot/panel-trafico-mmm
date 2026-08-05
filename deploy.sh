@@ -8,6 +8,8 @@ cd "$(dirname "$0")"
 if [ "$1" != "--skip-aggregate" ]; then
   echo "→ aggregate..."
   /usr/bin/python3 aggregate.py | tail -2
+  # Cuadre asesores vs fuente cruda (caso Daniela 4-ago). Si no cuadra, NO se despliega.
+  /usr/bin/python3 checks_asesores.py
 fi
 
 echo "→ build..."
