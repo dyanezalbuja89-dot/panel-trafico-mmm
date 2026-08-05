@@ -9437,17 +9437,36 @@ HTML = r"""<!doctype html>
         if (convState.agencia && _homeAg[c.asesor] && _homeAg[c.asesor] !== convState.agencia) return false;
         return true;
       }), 'asesor');
-    // Cierres desde master_facturas (fuente única), no desde clientes_flat.cerro:
-    // eran las dos definiciones distintas otra vez — en la cohorte de julio el
-    // ranking mostraba 112 cierres cuando master da 61. El tráfico se mantiene
-    // del subset filtrado (universo de leads del asesor).
-    const _mAsesor = _bucketMaster(m => m.asesor_lead || 'Sin asesor');
+    // Cierres desde master_facturas por el asesor QUE FACTURÓ (regla de Daniel:
+    // la venta cuenta para quien la hizo, no para quien tuvo el primer toque —
+    // caso Daniela Jácome: su venta salía acreditada al lead viejo de otro asesor).
+    // Los nombres de factura y de tráfico difieren en grafía ("CARLA MELISSA
+    // MONTOYA" vs "CARLA MONTOYA"), así que se reconcilian por tokens compartidos.
+    const _mAsesorF = _bucketMaster(m => m.is_jefe_fact ? '_JEFE' : (m.asesor_fact || 'Sin asesor'));
+    const _tKeys = Object.keys(aggAsesor);
+    const _tok = s => new Set(String(s).toUpperCase().split(/\s+/).filter(Boolean));
+    const _matchNombre = fn => {
+      if (aggAsesor[fn]) return fn;
+      const ft = _tok(fn); let best = null, bestN = 0;
+      _tKeys.forEach(tn => {
+        let n = 0; _tok(tn).forEach(t => { if (ft.has(t)) n++; });
+        if (n > bestN) { bestN = n; best = tn; }
+      });
+      return bestN >= 2 ? best : null;   // ≥2 tokens en común o no se asigna
+    };
     Object.keys(aggAsesor).forEach(a => {
-      const t = aggAsesor[a].traffic || 0;
-      const m = _mAsesor[a] ? (_mAsesor[a].matched || 0) : 0;
-      const v = _mAsesor[a] ? (_mAsesor[a].ventas  || 0) : 0;
-      aggAsesor[a] = { traffic: t, matched: m, ventas: v,
-                       conv_pct: t > 0 ? +(100*m/t).toFixed(1) : 0 };
+      aggAsesor[a] = { traffic: aggAsesor[a].traffic || 0, matched: 0, ventas: 0, conv_pct: 0 };
+    });
+    Object.entries(_mAsesorF).forEach(([fn, v]) => {
+      if (fn === '_JEFE' || fn === 'Sin asesor') return;
+      const a = _matchNombre(fn);
+      if (!a) return;
+      aggAsesor[a].matched += v.matched || 0;
+      aggAsesor[a].ventas  += v.ventas  || 0;
+    });
+    Object.keys(aggAsesor).forEach(a => {
+      const t = aggAsesor[a].traffic;
+      aggAsesor[a].conv_pct = t > 0 ? +(100*aggAsesor[a].matched/t).toFixed(1) : 0;
     });
     // Umbral anti-ruido de ≥5 leads: solo aplica sin filtros finos. Con un
     // modelo/canal/mes filtrado casi nadie llega a 5 y el ranking escondía a
