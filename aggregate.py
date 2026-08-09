@@ -520,6 +520,10 @@ JUN_FORD_METAS_FILE = JUN_BASE / "TRAFICO_DY/JUNIO_NUEVO_AI_FORD.xlsx"
 JUL_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Julio")
 JUL_BRAND_METAS_FILE = JUL_BASE / "TRAFICO_DY/JULIO_NUEVO_AI_MARCAS.xlsx"
 JUL_FORD_METAS_FILE = JUL_BASE / "TRAFICO_DY/JULIO_NUEVO_AI_FORD.xlsx"
+# Agosto: las metas viven en METAS/ (los meses anteriores usaban TRAFICO_DY/)
+AGO_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Agosto")
+AGO_BRAND_METAS_FILE = AGO_BASE / "METAS/AGOSTO_NUEVO_AI_MARCAS.xlsx"
+AGO_FORD_METAS_FILE  = AGO_BASE / "METAS/AGOSTO_NUEVO_AI_FORD.xlsx"
 
 # ---------------- SHORT NAMES ----------------
 SUCURSAL_TO_SHORT = {
@@ -983,6 +987,59 @@ def _extract_traffic_meta_marcas(path):
                 except (ValueError, TypeError): pass
     return out
 
+_FORD_MKTG_SECTION = 'PRESUPUESTO DE TRÁFICO POR CONCESIONARIO MARKETING'
+_FORD_AG_ORDER = ['CJA', 'Orellana', 'LA Y', 'Tumbaco', 'Manta', 'Machala', 'Portoviejo']
+
+def _canon_ford_model(name):
+    """Nombre de versión del Excel → modelo canónico. F-150 antes que Ranger porque
+    'F-150 RAPTOR' contiene 'RAPT' y 'All new ranger' contiene 'RANGER'."""
+    u = str(name).strip().upper()
+    if not u or u == 'NAN':          return None
+    if u.startswith(('F-150', 'F150')): return 'F-150'
+    if 'RANGER' in u:                return 'RANGER'
+    for m in ('TERRITORY', 'ESCAPE', 'EVEREST', 'EXPLORER', 'EXPEDITION', 'BRONCO'):
+        if u.startswith(m):          return m
+    return None
+
+def _load_ford_metas_marketing(path):
+    """Lee la matriz del bloque MARKETING (80%) de la hoja METAS_FORD, ubicando las
+    columnas POR NOMBRE.
+
+    Es la fuente oficial de la meta. Las hojas por agencia la copian por posición
+    fija, así que cuando alguien reordena columnas en METAS_FORD quedan corridas:
+    en el archivo de agosto 2026 movieron Machala del puesto 6 al 3 y La Y,
+    Tumbaco, Manta y Machala terminaron leyendo la meta del vecino. Julio, con el
+    orden viejo, da idéntico por las dos vías.
+    Devuelve None si no encuentra la sección o alguna columna (→ cae a las hojas).
+    """
+    try:
+        df = pd.read_excel(path, sheet_name='METAS_FORD', header=None)
+    except Exception:
+        return None
+    hi = next((i for i in range(len(df))
+               if str(df.iloc[i, 0]).strip().upper().startswith(_FORD_MKTG_SECTION)), None)
+    if hi is None:
+        return None
+    hdr = [str(x).strip().upper() for x in df.iloc[hi + 1].tolist()]
+    try:
+        cols = {ag: hdr.index(ag.upper()) for ag in _FORD_AG_ORDER}
+    except ValueError:
+        return None
+    out = {m: [0.0] * 7 for m in MODEL_ORDER}
+    for i in range(hi + 2, len(df)):
+        n0 = str(df.iloc[i, 0]).strip()
+        if n0.upper() == 'TOTAL':
+            break
+        m = _canon_ford_model(n0)
+        if not m:
+            continue
+        for j, ag in enumerate(_FORD_AG_ORDER):
+            v = df.iloc[i, cols[ag]]
+            if pd.notna(v):
+                try: out[m][j] += float(v)
+                except (ValueError, TypeError): pass
+    return {m: [int(round(x)) for x in v] for m, v in out.items()}
+
 def load_ford_metas(path):
     path = _resolve_local(path)
     """Load per-agency Ford metas from a workbook with sheets CJA/Orellana/LA Y/Tumbaco/Manta/Machala/Portoviejo.
@@ -1018,6 +1075,18 @@ def load_ford_metas(path):
             if pd.notna(meta_raw):
                 try: out[key][idx] = int(meta_raw)
                 except (ValueError, TypeError): pass
+
+    # La sección MARKETING manda: es la meta oficial y se lee por nombre de columna.
+    mk = _load_ford_metas_marketing(path)
+    if mk:
+        for j, ag in enumerate(_FORD_AG_ORDER):
+            a = sum(mk[m][j] for m in MODEL_ORDER)
+            b = sum(out[m][j] for m in MODEL_ORDER)
+            if abs(a - b) > 2:
+                print(f'[ford_metas] {Path(path).name}: hoja "{ag}" dice {b} y la sección '
+                      f'MARKETING dice {a} — se usa {a} (la hoja copia por posición fija)')
+        return mk
+    print(f'[ford_metas] {Path(path).name}: sin sección MARKETING, se usan las hojas por agencia')
     return out
 
 def ford_report(curr_raw, prev_raw, month, year, up_to_day, model_metas=None, extra_non_working=None):
@@ -1704,6 +1773,14 @@ MONTHS_CONFIG = [
      "prev_date": "28/07/2026",
      "ford_metas_file": str(JUL_FORD_METAS_FILE),
      "brand_metas_file": str(JUL_BRAND_METAS_FILE)},
+    # Primer corte de agosto: no hay corte previo del mes, así que prev = curr y el
+    # delta arranca en 0 (mismo criterio que se usó en febrero).
+    {"key": "agosto_2026", "label": "Agosto 2026", "month": 8, "year": 2026, "cut_day": 9,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_AGO_09_08_26.xlsx",
+     "prev_file": "../Agosto/BD_AGOSTO/BD_AGO_09_08_26.xlsx",
+     "prev_date": "09/08/2026",
+     "ford_metas_file": str(AGO_FORD_METAS_FILE),
+     "brand_metas_file": str(AGO_BRAND_METAS_FILE)},
 ]
 
 def _marca_group(marca):
@@ -1931,7 +2008,14 @@ def main():
         _cp = _resolve_local(BASE / cfg["curr_file"])
         _pp = _resolve_local(BASE / cfg["prev_file"])
         try:
-            _cache_key = f"{Path(_cp).stat().st_mtime_ns}|{Path(_pp).stat().st_mtime_ns}|{cfg['cut_day']}"
+            # Las metas entran en la llave: si no, cambiar el archivo de metas (o la
+            # forma de leerlo) deja el mes servido desde cache con las metas viejas.
+            _mt = []
+            for _k in ('ford_metas_file', 'brand_metas_file'):
+                _f = cfg.get(_k)
+                _mt.append(str(Path(_resolve_local(_f)).stat().st_mtime_ns) if _f else '-')
+            _cache_key = (f"{Path(_cp).stat().st_mtime_ns}|{Path(_pp).stat().st_mtime_ns}"
+                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v2-metas-marketing")
         except Exception:
             _cache_key = None
         _cached_entry = _cache.get(cfg['key']) if _cache_key else None
