@@ -19,6 +19,17 @@ echo "→ cache-buster..."
 H=$(date +%s)
 sed -i.bak "s/BUILD_HASH_PLACEHOLDER/$H/g" index.html && rm -f index.html.bak
 
+# Integridad post-build: este script llama a build.py directo, así que repite el
+# check de safe_build.sh. Sin esto se puede publicar (y pushear) un index.html
+# al que se le cayó una pestaña entera.
+for marker in tab-digital tab-inv tab-ford tab-embudo "TAB DIGITAL · HubSpot"; do
+  if ! grep -q "$marker" index.html; then
+    echo "✗ FALLO: '$marker' no está en index.html post-build. No se despliega." >&2
+    exit 1
+  fi
+done
+echo "✓ index.html íntegro (5 markers)"
+
 # ── Push ANTES de publicar ────────────────────────────────────────────────────
 # El cron de digital corre cada hora y hace `git reset --hard origin/main`: todo
 # commit que se quede local dura menos de 60 minutos y el siguiente rebuild
