@@ -1036,9 +1036,12 @@ def _load_ford_metas_marketing(path):
         for j, ag in enumerate(_FORD_AG_ORDER):
             v = df.iloc[i, cols[ag]]
             if pd.notna(v):
-                try: out[m][j] += float(v)
+                # Se redondea CADA versión antes de sumar, igual que el cuadro verde,
+                # que muestra celdas ya redondeadas (10.67 → 11). Sumar los decimales
+                # y redondear al final daba 1-2 unidades menos por modelo.
+                try: out[m][j] += round(float(v))
                 except (ValueError, TypeError): pass
-    return {m: [int(round(x)) for x in v] for m, v in out.items()}
+    return {m: [int(x) for x in v] for m, v in out.items()}
 
 def load_ford_metas(path):
     path = _resolve_local(path)
@@ -1775,8 +1778,8 @@ MONTHS_CONFIG = [
      "brand_metas_file": str(JUL_BRAND_METAS_FILE)},
     # Primer corte de agosto: no hay corte previo del mes, así que prev = curr y el
     # delta arranca en 0 (mismo criterio que se usó en febrero).
-    {"key": "agosto_2026", "label": "Agosto 2026", "month": 8, "year": 2026, "cut_day": 9,
-     "curr_file": "../Agosto/BD_AGOSTO/BD_AGO_09_08_26.xlsx",
+    {"key": "agosto_2026", "label": "Agosto 2026", "month": 8, "year": 2026, "cut_day": 11,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_AGO_11_08_26.xlsx",
      "prev_file": "../Agosto/BD_AGOSTO/BD_AGO_09_08_26.xlsx",
      "prev_date": "09/08/2026",
      "ford_metas_file": str(AGO_FORD_METAS_FILE),
@@ -2015,7 +2018,7 @@ def main():
                 _f = cfg.get(_k)
                 _mt.append(str(Path(_resolve_local(_f)).stat().st_mtime_ns) if _f else '-')
             _cache_key = (f"{Path(_cp).stat().st_mtime_ns}|{Path(_pp).stat().st_mtime_ns}"
-                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v2-metas-marketing")
+                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v3-metas-verde-celda")
         except Exception:
             _cache_key = None
         _cached_entry = _cache.get(cfg['key']) if _cache_key else None
