@@ -19,6 +19,35 @@ echo "→ cache-buster..."
 H=$(date +%s)
 sed -i.bak "s/BUILD_HASH_PLACEHOLDER/$H/g" index.html && rm -f index.html.bak
 
+# ── Push ANTES de publicar ────────────────────────────────────────────────────
+# El cron de digital corre cada hora y hace `git reset --hard origin/main`: todo
+# commit que se quede local dura menos de 60 minutos y el siguiente rebuild
+# revierte el panel. Publicar algo que no está en el remoto es publicarlo a
+# plazo fijo, así que si el push no entra, no se despliega.
+echo "→ sincronizando con el remoto antes de publicar..."
+git fetch -q origin
+
+if [ -n "$(git status --porcelain)" ]; then
+  git add -A
+  # Si el hook aborta porque el remoto se adelantó (otra sesión o el cron),
+  # rebasamos y reintentamos una vez.
+  git commit -q -m "deploy: $(date '+%Y-%m-%d %H:%M')" \
+    || { git pull -q --rebase origin main && git commit -q -m "deploy: $(date '+%Y-%m-%d %H:%M')"; }
+fi
+
+git pull -q --rebase origin main
+
+if ! git push -q origin HEAD:main; then
+  echo "✗ FALLO: no se pudo pushear. No se despliega — el cron revertiría el panel." >&2
+  exit 1
+fi
+
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+  echo "✗ FALLO: local y origin/main no coinciden tras el push. No se despliega." >&2
+  exit 1
+fi
+echo "✓ remoto al día ($(git rev-parse --short HEAD)) — el cron ya no puede revertirlo"
+
 LOCAL_MD5=$(md5 -q data.json)
 echo "→ data.json local md5: $LOCAL_MD5"
 
