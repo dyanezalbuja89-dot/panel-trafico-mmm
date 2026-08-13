@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-08-13T20:44:16.369851+00:00",
+  "updated_at": "2026-08-13T21:48:30.747125+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -165,7 +165,7 @@
       "month": 7,
       "leads": 592,
       "cont": 503,
-      "agen": 271,
+      "agen": 272,
       "efec": 111,
       "vent": 3,
       "tope": 202,
@@ -187,6 +187,10 @@
         [
           "Reagenda",
           3
+        ],
+        [
+          "Sin gestión",
+          1
         ]
       ]
     },
@@ -195,12 +199,12 @@
       "year": 2026,
       "month": 8,
       "leads": 425,
-      "cont": 302,
-      "agen": 128,
+      "cont": 306,
+      "agen": 129,
       "efec": 38,
       "vent": 3,
       "tope": 47,
-      "nos": 38,
+      "nos": 39,
       "confirmadas": 78,
       "conf": [
         [
@@ -209,7 +213,7 @@
         ],
         [
           "Sin gestión",
-          18
+          19
         ],
         [
           "No contesta",
@@ -251,10 +255,10 @@
         "agency": "Orellana",
         "agency_full": "Orgu Orellana",
         "leads": 134,
-        "agen": 70,
+        "agen": 71,
         "efec": 28,
         "vent": 1,
-        "show_rate": 40.0
+        "show_rate": 39.4
       },
       {
         "agency": "La Y",
@@ -349,14 +353,14 @@
   },
   "kpis": {
     "period_leads": 5137,
-    "period_cont": 4337,
-    "period_agen": 1915,
+    "period_cont": 4341,
+    "period_agen": 1917,
     "period_efec": 660,
     "period_vent": 21,
-    "rate_cont": 84.4,
+    "rate_cont": 84.5,
     "rate_agen": 37.3,
-    "rate_show": 34.5,
-    "rate_no_show": 65.5,
+    "rate_show": 34.4,
+    "rate_no_show": 65.6,
     "rate_close": 3.2,
     "rate_lead_to_sale": 0.4
   },
@@ -1170,7 +1174,7 @@
           "agen_arr": 87,
           "conf_arr": 28,
           "efec_arr": 22,
-          "agen_coh": 314,
+          "agen_coh": 315,
           "conf_coh": 149,
           "efec_coh": 97,
           "nos_coh": 200
@@ -1182,8 +1186,8 @@
           "leads": 592,
           "cont": 503,
           "tope": 202,
-          "agen": 271,
-          "agendadas": 271,
+          "agen": 272,
+          "agendadas": 272,
           "confirmadas": 184,
           "efec": 111,
           "nos": 153,
@@ -1203,13 +1207,17 @@
             [
               "Reagenda",
               3
+            ],
+            [
+              "Sin gestión",
+              1
             ]
           ],
-          "agen_arr": 79,
+          "agen_arr": 80,
           "conf_arr": 48,
           "efec_arr": 24,
           "agen_coh": 231,
-          "conf_coh": 155,
+          "conf_coh": 156,
           "efec_coh": 96,
           "nos_coh": 123
         },
@@ -1218,21 +1226,21 @@
           "year": 2026,
           "month": 8,
           "leads": 425,
-          "cont": 302,
+          "cont": 306,
           "tope": 47,
-          "agen": 128,
-          "agendadas": 128,
-          "confirmadas": 78,
+          "agen": 129,
+          "agendadas": 129,
+          "confirmadas": 79,
           "efec": 38,
-          "nos": 38,
+          "nos": 39,
           "conf": [
             [
               "Confirma",
-              78
+              79
             ],
             [
               "Sin gestión",
-              18
+              19
             ],
             [
               "No contesta",
@@ -1240,7 +1248,7 @@
             ],
             [
               "Desiste",
-              14
+              13
             ],
             [
               "Reagenda",
@@ -1248,12 +1256,12 @@
             ]
           ],
           "agen_arr": 27,
-          "conf_arr": 14,
+          "conf_arr": 15,
           "efec_arr": 8,
-          "agen_coh": 102,
+          "agen_coh": 103,
           "conf_coh": 65,
           "efec_coh": 31,
-          "nos_coh": 21
+          "nos_coh": 22
         }
       ],
       "ag": {
@@ -1489,7 +1497,7 @@
           },
           "ago·26": {
             "leads": 144,
-            "cont": 96,
+            "cont": 99,
             "tope": 19,
             "agen": 39,
             "agendadas": 39,
@@ -1721,7 +1729,7 @@
             "agen_arr": 20,
             "conf_arr": 7,
             "efec_arr": 5,
-            "agen_coh": 87,
+            "agen_coh": 88,
             "conf_coh": 43,
             "efec_coh": 26,
             "nos_coh": 59
@@ -1730,8 +1738,8 @@
             "leads": 134,
             "cont": 108,
             "tope": 49,
-            "agen": 70,
-            "agendadas": 70,
+            "agen": 71,
+            "agendadas": 71,
             "confirmadas": 44,
             "efec": 28,
             "nos": 42,
@@ -1751,13 +1759,17 @@
               [
                 "Reagenda",
                 1
+              ],
+              [
+                "Sin gestión",
+                1
               ]
             ],
-            "agen_arr": 22,
+            "agen_arr": 23,
             "conf_arr": 11,
             "efec_arr": 6,
             "agen_coh": 55,
-            "conf_coh": 36,
+            "conf_coh": 37,
             "efec_coh": 23,
             "nos_coh": 31
           },
@@ -1767,24 +1779,24 @@
             "tope": 12,
             "agen": 37,
             "agendadas": 37,
-            "confirmadas": 22,
+            "confirmadas": 23,
             "efec": 11,
             "nos": 11,
             "conf": [
               [
                 "Confirma",
-                22
+                23
               ],
               [
                 "Sin gestión",
                 7
               ],
               [
-                "Desiste",
-                4
+                "No contesta",
+                3
               ],
               [
-                "No contesta",
+                "Desiste",
                 3
               ],
               [
@@ -1793,7 +1805,7 @@
               ]
             ],
             "agen_arr": 7,
-            "conf_arr": 5,
+            "conf_arr": 6,
             "efec_arr": 2,
             "agen_coh": 31,
             "conf_coh": 18,
@@ -2037,13 +2049,13 @@
           },
           "ago·26": {
             "leads": 92,
-            "cont": 66,
+            "cont": 67,
             "tope": 8,
-            "agen": 17,
-            "agendadas": 17,
+            "agen": 18,
+            "agendadas": 18,
             "confirmadas": 11,
             "efec": 5,
-            "nos": 8,
+            "nos": 9,
             "conf": [
               [
                 "Confirma",
@@ -2056,15 +2068,19 @@
               [
                 "No contesta",
                 1
+              ],
+              [
+                "Sin gestión",
+                1
               ]
             ],
             "agen_arr": 9,
             "conf_arr": 5,
             "efec_arr": 2,
-            "agen_coh": 8,
+            "agen_coh": 9,
             "conf_coh": 6,
             "efec_coh": 3,
-            "nos_coh": 2
+            "nos_coh": 3
           }
         },
         "Tumbaco": {
@@ -3424,8 +3440,8 @@
             "nos_coh": 13
           },
           "ago·26": {
-            "leads": 72,
-            "cont": 46,
+            "leads": 71,
+            "cont": 47,
             "tope": 9,
             "agen": 19,
             "agendadas": 19,
@@ -3689,8 +3705,8 @@
             "leads": 194,
             "cont": 142,
             "tope": 21,
-            "agen": 55,
-            "agendadas": 55,
+            "agen": 56,
+            "agendadas": 56,
             "confirmadas": 34,
             "efec": 15,
             "nos": 13,
@@ -3701,7 +3717,7 @@
               ],
               [
                 "Sin gestión",
-                9
+                10
               ],
               [
                 "Desiste",
@@ -3719,7 +3735,7 @@
             "agen_arr": 2,
             "conf_arr": 1,
             "efec_arr": 0,
-            "agen_coh": 53,
+            "agen_coh": 54,
             "conf_coh": 33,
             "efec_coh": 15,
             "nos_coh": 12
@@ -4035,7 +4051,7 @@
             "agen_arr": 8,
             "conf_arr": 2,
             "efec_arr": 1,
-            "agen_coh": 24,
+            "agen_coh": 25,
             "conf_coh": 10,
             "efec_coh": 6,
             "nos_coh": 18
@@ -4044,8 +4060,8 @@
             "leads": 3,
             "cont": 2,
             "tope": 2,
-            "agen": 8,
-            "agendadas": 8,
+            "agen": 9,
+            "agendadas": 9,
             "confirmadas": 6,
             "efec": 3,
             "nos": 5,
@@ -4061,9 +4077,13 @@
               [
                 "No contesta",
                 1
+              ],
+              [
+                "Sin gestión",
+                1
               ]
             ],
-            "agen_arr": 7,
+            "agen_arr": 8,
             "conf_arr": 5,
             "efec_arr": 2,
             "agen_coh": 1,
@@ -4577,13 +4597,13 @@
           },
           "ago·26": {
             "leads": 141,
-            "cont": 100,
+            "cont": 102,
             "tope": 15,
             "agen": 37,
             "agendadas": 37,
             "confirmadas": 24,
             "efec": 11,
-            "nos": 13,
+            "nos": 14,
             "conf": [
               [
                 "Confirma",
@@ -4608,7 +4628,7 @@
             "agen_coh": 28,
             "conf_coh": 19,
             "efec_coh": 9,
-            "nos_coh": 6
+            "nos_coh": 7
           }
         },
         "Territory": {
@@ -4829,39 +4849,39 @@
             "conf_arr": 13,
             "efec_arr": 3,
             "agen_coh": 121,
-            "conf_coh": 85,
+            "conf_coh": 86,
             "efec_coh": 56,
             "nos_coh": 62
           },
           "ago·26": {
-            "leads": 9,
-            "cont": 6,
+            "leads": 10,
+            "cont": 7,
             "tope": 1,
             "agen": 14,
             "agendadas": 14,
-            "confirmadas": 7,
+            "confirmadas": 8,
             "efec": 6,
             "nos": 6,
             "conf": [
               [
                 "Confirma",
-                7
+                8
               ],
               [
                 "No contesta",
                 3
               ],
               [
-                "Desiste",
+                "Sin gestión",
                 2
               ],
               [
-                "Sin gestión",
-                2
+                "Desiste",
+                1
               ]
             ],
             "agen_arr": 12,
-            "conf_arr": 6,
+            "conf_arr": 7,
             "efec_arr": 5,
             "agen_coh": 2,
             "conf_coh": 1,
@@ -6581,60 +6601,60 @@
           },
           "ago·26": {
             "no_contactados": {
-              "total": 122,
+              "total": 119,
               "by_llamada": [
                 [
                   "12ª",
                   36
                 ],
                 [
-                  "5ª",
-                  32
+                  "6ª",
+                  31
                 ],
                 [
                   "4ª",
-                  18
-                ],
-                [
-                  "6ª",
-                  11
+                  13
                 ],
                 [
                   "2ª",
                   11
                 ],
                 [
+                  "5ª",
+                  10
+                ],
+                [
+                  "7ª",
+                  7
+                ],
+                [
                   "3ª",
-                  9
+                  7
                 ],
                 [
                   "1ª",
                   4
-                ],
-                [
-                  "7ª",
-                  1
                 ]
               ]
             },
             "contactados": {
-              "total": 302,
+              "total": 306,
               "by_estatus": [
                 [
                   "Contactado",
-                  135
+                  136
                 ],
                 [
                   "Barreras técnicas/No contesta",
-                  69
+                  71
                 ],
                 [
                   "Posponer contacto",
-                  47
+                  46
                 ],
                 [
                   "Sin recursos económicos",
-                  26
+                  28
                 ],
                 [
                   "No interesado",
@@ -6648,11 +6668,11 @@
               "by_categoria": [
                 [
                   "Citó",
-                  98
+                  99
                 ],
                 [
                   "En gestión activa",
-                  136
+                  137
                 ],
                 [
                   "Salida legítima",
@@ -6660,24 +6680,24 @@
                 ],
                 [
                   "Desperdicio",
-                  64
+                  66
                 ]
               ],
               "cat_detalle": {
                 "Citó": [
                   [
                     "Aceptaciones auditadas",
-                    98
+                    99
                   ]
                 ],
                 "En gestión activa": [
                   [
                     "Interesado a futuro",
-                    39
+                    41
                   ],
                   [
                     "No contesta",
-                    37
+                    38
                   ],
                   [
                     "Seguimiento por Whatsapp",
@@ -6685,21 +6705,21 @@
                   ],
                   [
                     "Buzón de voz",
-                    12
-                  ],
-                  [
-                    "Llamar después",
-                    7
+                    13
                   ],
                   [
                     "Se cortó llamada",
+                    4
+                  ],
+                  [
+                    "Llamar después",
                     4
                   ]
                 ],
                 "Desperdicio": [
                   [
                     "Fuera de presupuesto",
-                    26
+                    28
                   ],
                   [
                     "Línea no existe/Suspendida/Fuera de servicio",
@@ -6740,7 +6760,7 @@
                   12,
                   7,
                   5,
-                  2,
+                  3,
                   2,
                   2,
                   1,
@@ -6749,14 +6769,14 @@
                   1
                 ],
                 "En gestión activa": [
-                  39,
+                  40,
                   22,
                   15,
-                  15,
-                  15,
-                  11,
-                  6,
-                  1,
+                  14,
+                  8,
+                  13,
+                  9,
+                  4,
                   0,
                   2,
                   1,
@@ -6767,8 +6787,8 @@
                   11,
                   4,
                   6,
-                  5,
-                  6,
+                  4,
+                  9,
                   0,
                   1,
                   1,
@@ -6792,18 +6812,18 @@
                 ]
               },
               "cat_notask": {
-                "Citó": 98,
-                "En gestión activa": 136,
-                "Desperdicio": 64,
+                "Citó": 99,
+                "En gestión activa": 137,
+                "Desperdicio": 66,
                 "Salida legítima": 4
               }
             },
             "no_show": {
-              "total": 38,
+              "total": 39,
               "by_estatus": [
                 [
                   "Cita agendada (atascado)",
-                  38
+                  39
                 ]
               ]
             }
@@ -8311,40 +8331,44 @@
             },
             "ago·26": {
               "no_contactados": {
-                "total": 47,
+                "total": 45,
                 "by_llamada": [
                   [
                     "12ª",
                     16
                   ],
                   [
-                    "5ª",
+                    "6ª",
                     10
                   ],
                   [
                     "4ª",
-                    9
-                  ],
-                  [
-                    "6ª",
-                    4
+                    8
                   ],
                   [
                     "2ª",
                     4
                   ],
                   [
-                    "3ª",
+                    "5ª",
                     3
                   ],
                   [
+                    "3ª",
+                    2
+                  ],
+                  [
                     "1ª",
+                    1
+                  ],
+                  [
+                    "7ª",
                     1
                   ]
                 ]
               },
               "contactados": {
-                "total": 96,
+                "total": 99,
                 "by_estatus": [
                   [
                     "Contactado",
@@ -8352,7 +8376,7 @@
                   ],
                   [
                     "Barreras técnicas/No contesta",
-                    25
+                    27
                   ],
                   [
                     "Posponer contacto",
@@ -8360,7 +8384,7 @@
                   ],
                   [
                     "Sin recursos económicos",
-                    8
+                    9
                   ],
                   [
                     "No interesado",
@@ -8378,7 +8402,7 @@
                   ],
                   [
                     "En gestión activa",
-                    44
+                    46
                   ],
                   [
                     "Salida legítima",
@@ -8386,7 +8410,7 @@
                   ],
                   [
                     "Desperdicio",
-                    18
+                    19
                   ]
                 ],
                 "cat_detalle": {
@@ -8399,11 +8423,11 @@
                   "En gestión activa": [
                     [
                       "No contesta",
-                      15
+                      16
                     ],
                     [
                       "Interesado a futuro",
-                      13
+                      15
                     ],
                     [
                       "Seguimiento por Whatsapp",
@@ -8414,18 +8438,18 @@
                       3
                     ],
                     [
-                      "Llamar después",
-                      3
+                      "Se cortó llamada",
+                      2
                     ],
                     [
-                      "Se cortó llamada",
+                      "Llamar después",
                       1
                     ]
                   ],
                   "Desperdicio": [
                     [
                       "Fuera de presupuesto",
-                      8
+                      9
                     ],
                     [
                       "Línea no existe/Suspendida/Fuera de servicio",
@@ -8467,14 +8491,14 @@
                     0
                   ],
                   "En gestión activa": [
-                    11,
+                    12,
                     7,
                     4,
                     6,
-                    8,
+                    4,
+                    6,
                     3,
-                    2,
-                    0,
+                    1,
                     0,
                     1,
                     0,
@@ -8485,8 +8509,8 @@
                     1,
                     0,
                     3,
-                    3,
                     2,
+                    4,
                     0,
                     0,
                     0,
@@ -8511,8 +8535,8 @@
                 },
                 "cat_notask": {
                   "Citó": 32,
-                  "En gestión activa": 44,
-                  "Desperdicio": 18,
+                  "En gestión activa": 46,
+                  "Desperdicio": 19,
                   "Salida legítima": 2
                 }
               },
@@ -10080,7 +10104,7 @@
                     8
                   ],
                   [
-                    "5ª",
+                    "6ª",
                     8
                   ],
                   [
@@ -10088,15 +10112,15 @@
                     4
                   ],
                   [
-                    "6ª",
+                    "5ª",
                     2
                   ],
                   [
-                    "3ª",
+                    "4ª",
                     1
                   ],
                   [
-                    "4ª",
+                    "7ª",
                     1
                   ]
                 ]
@@ -10183,18 +10207,18 @@
                     ],
                     [
                       "No contesta",
-                      7
+                      8
                     ],
                     [
                       "Interesado a futuro",
                       3
                     ],
                     [
-                      "Se cortó llamada",
-                      2
+                      "Buzón de voz",
+                      1
                     ],
                     [
-                      "Buzón de voz",
+                      "Se cortó llamada",
                       1
                     ],
                     [
@@ -10238,9 +10262,9 @@
                     2,
                     2,
                     3,
-                    1,
+                    0,
                     2,
-                    1,
+                    2,
                     0,
                     0,
                     0,
@@ -11789,23 +11813,27 @@
             },
             "ago·26": {
               "no_contactados": {
-                "total": 26,
+                "total": 25,
                 "by_llamada": [
                   [
-                    "5ª",
-                    8
+                    "6ª",
+                    6
                   ],
                   [
                     "12ª",
                     6
                   ],
                   [
-                    "4ª",
-                    3
+                    "7ª",
+                    4
                   ],
                   [
-                    "6ª",
-                    3
+                    "4ª",
+                    2
+                  ],
+                  [
+                    "5ª",
+                    2
                   ],
                   [
                     "2ª",
@@ -11816,21 +11844,17 @@
                     2
                   ],
                   [
-                    "7ª",
-                    1
-                  ],
-                  [
                     "1ª",
                     1
                   ]
                 ]
               },
               "contactados": {
-                "total": 66,
+                "total": 67,
                 "by_estatus": [
                   [
                     "Contactado",
-                    20
+                    21
                   ],
                   [
                     "Barreras técnicas/No contesta",
@@ -11838,15 +11862,15 @@
                   ],
                   [
                     "Posponer contacto",
-                    14
+                    13
+                  ],
+                  [
+                    "Sin recursos económicos",
+                    8
                   ],
                   [
                     "No interesado",
                     8
-                  ],
-                  [
-                    "Sin recursos económicos",
-                    7
                   ],
                   [
                     "Errores operativos",
@@ -11856,26 +11880,26 @@
                 "by_categoria": [
                   [
                     "Citó",
-                    8
+                    9
                   ],
                   [
                     "En gestión activa",
-                    37
+                    36
                   ],
                   [
                     "Desperdicio",
-                    21
+                    22
                   ]
                 ],
                 "cat_detalle": {
                   "Desperdicio": [
                     [
-                      "Sin interés",
+                      "Fuera de presupuesto",
                       8
                     ],
                     [
-                      "Fuera de presupuesto",
-                      7
+                      "Sin interés",
+                      8
                     ],
                     [
                       "Línea no existe/Suspendida/Fuera de servicio",
@@ -11896,22 +11920,18 @@
                       12
                     ],
                     [
-                      "No contesta",
+                      "Buzón de voz",
                       6
                     ],
                     [
-                      "Buzón de voz",
+                      "No contesta",
                       5
-                    ],
-                    [
-                      "Llamar después",
-                      1
                     ]
                   ],
                   "Citó": [
                     [
                       "Aceptaciones auditadas",
-                      8
+                      9
                     ]
                   ]
                 },
@@ -11922,7 +11942,7 @@
                     3,
                     1,
                     2,
-                    2,
+                    3,
                     0,
                     0,
                     0,
@@ -11934,11 +11954,11 @@
                     14,
                     6,
                     4,
-                    3,
                     2,
-                    5,
-                    1,
                     0,
+                    4,
+                    3,
+                    1,
                     0,
                     0,
                     0,
@@ -11950,7 +11970,7 @@
                     0,
                     2,
                     0,
-                    0,
+                    1,
                     0,
                     0,
                     0,
@@ -11960,17 +11980,17 @@
                   ]
                 },
                 "cat_notask": {
-                  "Desperdicio": 21,
-                  "En gestión activa": 37,
-                  "Citó": 8
+                  "Desperdicio": 22,
+                  "En gestión activa": 36,
+                  "Citó": 9
                 }
               },
               "no_show": {
-                "total": 8,
+                "total": 9,
                 "by_estatus": [
                   [
                     "Cita agendada (atascado)",
-                    8
+                    9
                   ]
                 ]
               }
@@ -13407,10 +13427,6 @@
                 "total": 12,
                 "by_llamada": [
                   [
-                    "4ª",
-                    4
-                  ],
-                  [
                     "3ª",
                     2
                   ],
@@ -13419,11 +13435,19 @@
                     2
                   ],
                   [
+                    "4ª",
+                    2
+                  ],
+                  [
                     "5ª",
                     2
                   ],
                   [
                     "6ª",
+                    2
+                  ],
+                  [
+                    "7ª",
                     1
                   ],
                   [
@@ -13542,8 +13566,8 @@
                     4,
                     3,
                     3,
-                    1,
                     0,
+                    1,
                     1,
                     0,
                     0,
@@ -14873,19 +14897,15 @@
                 "total": 12,
                 "by_llamada": [
                   [
-                    "5ª",
-                    4
+                    "6ª",
+                    5
                   ],
                   [
                     "12ª",
                     4
                   ],
                   [
-                    "4ª",
-                    1
-                  ],
-                  [
-                    "6ª",
+                    "5ª",
                     1
                   ],
                   [
@@ -18893,27 +18913,31 @@
             },
             "ago·26": {
               "no_contactados": {
-                "total": 25,
+                "total": 24,
                 "by_llamada": [
                   [
                     "12ª",
                     8
                   ],
                   [
-                    "4ª",
-                    6
-                  ],
-                  [
                     "5ª",
-                    5
+                    4
                   ],
                   [
                     "6ª",
-                    2
+                    4
+                  ],
+                  [
+                    "4ª",
+                    3
                   ],
                   [
                     "2ª",
                     2
+                  ],
+                  [
+                    "7ª",
+                    1
                   ],
                   [
                     "3ª",
@@ -18926,7 +18950,7 @@
                 ]
               },
               "contactados": {
-                "total": 46,
+                "total": 47,
                 "by_estatus": [
                   [
                     "Contactado",
@@ -18934,7 +18958,7 @@
                   ],
                   [
                     "Barreras técnicas/No contesta",
-                    11
+                    13
                   ],
                   [
                     "Sin recursos económicos",
@@ -18942,7 +18966,7 @@
                   ],
                   [
                     "Posponer contacto",
-                    5
+                    4
                   ],
                   [
                     "No interesado",
@@ -18960,7 +18984,7 @@
                   ],
                   [
                     "En gestión activa",
-                    19
+                    20
                   ],
                   [
                     "Salida legítima",
@@ -18975,7 +18999,7 @@
                   "En gestión activa": [
                     [
                       "No contesta",
-                      6
+                      8
                     ],
                     [
                       "Seguimiento por Whatsapp",
@@ -18983,19 +19007,11 @@
                     ],
                     [
                       "Buzón de voz",
-                      2
+                      3
                     ],
                     [
                       "Interesado a futuro",
-                      2
-                    ],
-                    [
-                      "Llamar después",
-                      2
-                    ],
-                    [
-                      "Se cortó llamada",
-                      1
+                      3
                     ]
                   ],
                   "Desperdicio": [
@@ -19035,13 +19051,13 @@
                 },
                 "cat_llamada": {
                   "En gestión activa": [
-                    4,
+                    5,
                     2,
                     1,
                     3,
-                    1,
+                    0,
+                    2,
                     4,
-                    1,
                     1,
                     0,
                     0,
@@ -19053,8 +19069,8 @@
                     1,
                     1,
                     2,
-                    2,
-                    2,
+                    1,
+                    3,
                     0,
                     0,
                     0,
@@ -19092,7 +19108,7 @@
                   ]
                 },
                 "cat_notask": {
-                  "En gestión activa": 19,
+                  "En gestión activa": 20,
                   "Desperdicio": 10,
                   "Citó": 16,
                   "Salida legítima": 1
@@ -20564,11 +20580,11 @@
                 "total": 52,
                 "by_llamada": [
                   [
-                    "12ª",
-                    13
+                    "6ª",
+                    16
                   ],
                   [
-                    "5ª",
+                    "12ª",
                     13
                   ],
                   [
@@ -20577,15 +20593,19 @@
                   ],
                   [
                     "4ª",
-                    7
-                  ],
-                  [
-                    "6ª",
                     6
                   ],
                   [
                     "3ª",
                     4
+                  ],
+                  [
+                    "7ª",
+                    3
+                  ],
+                  [
+                    "5ª",
+                    1
                   ],
                   [
                     "1ª",
@@ -20598,7 +20618,7 @@
                 "by_estatus": [
                   [
                     "Contactado",
-                    69
+                    70
                   ],
                   [
                     "Barreras técnicas/No contesta",
@@ -20606,7 +20626,7 @@
                   ],
                   [
                     "Posponer contacto",
-                    20
+                    19
                   ],
                   [
                     "Sin recursos económicos",
@@ -20624,11 +20644,11 @@
                 "by_categoria": [
                   [
                     "Citó",
-                    52
+                    53
                   ],
                   [
                     "En gestión activa",
-                    63
+                    62
                   ],
                   [
                     "Salida legítima",
@@ -20643,13 +20663,13 @@
                   "Citó": [
                     [
                       "Aceptaciones auditadas",
-                      52
+                      53
                     ]
                   ],
                   "En gestión activa": [
                     [
                       "No contesta",
-                      19
+                      20
                     ],
                     [
                       "Interesado a futuro",
@@ -20660,16 +20680,16 @@
                       17
                     ],
                     [
-                      "Buzón de voz",
-                      4
-                    ],
-                    [
                       "Se cortó llamada",
                       3
                     ],
                     [
+                      "Buzón de voz",
+                      3
+                    ],
+                    [
                       "Llamar después",
-                      2
+                      1
                     ]
                   ],
                   "Desperdicio": [
@@ -20708,7 +20728,7 @@
                     8,
                     3,
                     1,
-                    1,
+                    2,
                     0,
                     2,
                     1,
@@ -20720,11 +20740,11 @@
                     19,
                     11,
                     7,
+                    4,
                     5,
-                    8,
-                    2,
-                    2,
-                    0,
+                    3,
+                    3,
+                    1,
                     0,
                     1,
                     0,
@@ -20760,8 +20780,8 @@
                   ]
                 },
                 "cat_notask": {
-                  "Citó": 52,
-                  "En gestión activa": 63,
+                  "Citó": 53,
+                  "En gestión activa": 62,
                   "Desperdicio": 25,
                   "Salida legítima": 2
                 }
@@ -24733,31 +24753,31 @@
             },
             "ago·26": {
               "no_contactados": {
-                "total": 41,
+                "total": 39,
                 "by_llamada": [
-                  [
-                    "5ª",
-                    14
-                  ],
                   [
                     "12ª",
                     13
                   ],
                   [
-                    "4ª",
+                    "6ª",
+                    11
+                  ],
+                  [
+                    "5ª",
                     5
                   ],
                   [
-                    "3ª",
-                    3
-                  ],
-                  [
-                    "6ª",
+                    "4ª",
                     3
                   ],
                   [
                     "7ª",
-                    1
+                    3
+                  ],
+                  [
+                    "3ª",
+                    2
                   ],
                   [
                     "1ª",
@@ -24770,7 +24790,7 @@
                 ]
               },
               "contactados": {
-                "total": 100,
+                "total": 102,
                 "by_estatus": [
                   [
                     "Contactado",
@@ -24786,7 +24806,7 @@
                   ],
                   [
                     "Sin recursos económicos",
-                    9
+                    11
                   ],
                   [
                     "No interesado",
@@ -24812,14 +24832,14 @@
                   ],
                   [
                     "Desperdicio",
-                    27
+                    29
                   ]
                 ],
                 "cat_detalle": {
                   "Desperdicio": [
                     [
                       "Fuera de presupuesto",
-                      9
+                      11
                     ],
                     [
                       "Línea no existe/Suspendida/Fuera de servicio",
@@ -24851,15 +24871,19 @@
                     ],
                     [
                       "No contesta",
-                      11
+                      9
                     ],
                     [
                       "Buzón de voz",
-                      6
+                      7
                     ],
                     [
                       "Llamar después",
                       2
+                    ],
+                    [
+                      "Se cortó llamada",
+                      1
                     ]
                   ],
                   "Salida legítima": [
@@ -24876,7 +24900,7 @@
                     1,
                     1,
                     2,
-                    2,
+                    4,
                     0,
                     0,
                     1,
@@ -24903,10 +24927,10 @@
                     6,
                     6,
                     4,
-                    5,
-                    4,
-                    3,
-                    0,
+                    2,
+                    6,
+                    2,
+                    2,
                     0,
                     1,
                     0,
@@ -24928,18 +24952,18 @@
                   ]
                 },
                 "cat_notask": {
-                  "Desperdicio": 27,
+                  "Desperdicio": 29,
                   "Citó": 27,
                   "En gestión activa": 45,
                   "Salida legítima": 1
                 }
               },
               "no_show": {
-                "total": 13,
+                "total": 14,
                 "by_estatus": [
                   [
                     "Cita agendada (atascado)",
-                    13
+                    14
                   ]
                 ]
               }
@@ -26258,17 +26282,17 @@
                     1
                   ],
                   [
-                    "3ª",
+                    "4ª",
                     1
                   ]
                 ]
               },
               "contactados": {
-                "total": 6,
+                "total": 7,
                 "by_estatus": [
                   [
                     "Posponer contacto",
-                    3
+                    4
                   ],
                   [
                     "Sin recursos económicos",
@@ -26286,7 +26310,7 @@
                   ],
                   [
                     "En gestión activa",
-                    3
+                    4
                   ],
                   [
                     "Desperdicio",
@@ -26297,7 +26321,7 @@
                   "En gestión activa": [
                     [
                       "Interesado a futuro",
-                      2
+                      3
                     ],
                     [
                       "Llamar después",
@@ -26324,7 +26348,7 @@
                     1,
                     1,
                     0,
-                    0,
+                    1,
                     0,
                     0,
                     0,
@@ -26362,7 +26386,7 @@
                   ]
                 },
                 "cat_notask": {
-                  "En gestión activa": 3,
+                  "En gestión activa": 4,
                   "Desperdicio": 2,
                   "Citó": 1
                 }
@@ -27344,8 +27368,8 @@
             "conf": {
               "Confirma": [
                 100,
-                52,
-                31,
+                51,
+                32,
                 1
               ],
               "No contesta": [
@@ -27365,6 +27389,12 @@
                 0,
                 2,
                 0
+              ],
+              "Sin gestión": [
+                1,
+                0,
+                0,
+                0
               ]
             }
           },
@@ -27376,7 +27406,7 @@
                 19,
                 9,
                 7,
-                2,
+                3,
                 2,
                 3,
                 1,
@@ -27389,10 +27419,10 @@
                 9,
                 7,
                 7,
+                5,
                 12,
                 9,
-                6,
-                0,
+                3,
                 1,
                 1,
                 1,
@@ -27413,11 +27443,11 @@
                 0
               ],
               "Posponer contacto": [
-                24,
+                25,
                 6,
                 2,
-                6,
-                2,
+                5,
+                1,
                 4,
                 0,
                 0,
@@ -27432,7 +27462,7 @@
                 2,
                 4,
                 3,
-                3,
+                5,
                 0,
                 1,
                 0,
@@ -27460,14 +27490,14 @@
                 9,
                 1,
                 23,
-                5
+                6
               ]
             },
             "conf": {
               "Confirma": [
                 51,
                 13,
-                14,
+                15,
                 0
               ],
               "No contesta": [
@@ -27479,7 +27509,7 @@
               "Desiste": [
                 5,
                 6,
-                3,
+                2,
                 0
               ],
               "Reagenda": [
@@ -27492,7 +27522,7 @@
                 1,
                 2,
                 0,
-                15
+                16
               ]
             }
           }
@@ -31392,9 +31422,9 @@
                   1
                 ],
                 "En gestión activa": [
-                  13,
-                  9,
-                  1,
+                  2,
+                  17,
+                  4,
                   0,
                   0,
                   0,
@@ -31452,8 +31482,8 @@
                 "Desperdicio": 15,
                 "Citó": 22,
                 "Salida legítima": 3,
-                "En gestión activa": 15,
-                "Sin tipificar": 1
+                "Sin tipificar": 1,
+                "En gestión activa": 1
               }
             },
             "no_show": {
@@ -33221,9 +33251,9 @@
                     0
                   ],
                   "En gestión activa": [
-                    8,
-                    6,
-                    1,
+                    2,
+                    9,
+                    4,
                     0,
                     0,
                     0,
@@ -33282,7 +33312,7 @@
                   "Citó": 16,
                   "Salida legítima": 2,
                   "Sin tipificar": 1,
-                  "En gestión activa": 10
+                  "En gestión activa": 1
                 }
               },
               "no_show": {
@@ -34755,8 +34785,8 @@
                     1
                   ],
                   "En gestión activa": [
-                    5,
-                    3,
+                    0,
+                    8,
                     0,
                     0,
                     0,
@@ -34799,7 +34829,6 @@
                 },
                 "cat_notask": {
                   "Desperdicio": 5,
-                  "En gestión activa": 5,
                   "Citó": 6,
                   "Salida legítima": 1
                 }
@@ -36282,9 +36311,9 @@
                     0
                   ],
                   "En gestión activa": [
-                    5,
-                    5,
-                    1,
+                    0,
+                    8,
+                    3,
                     0,
                     0,
                     0,
@@ -36314,7 +36343,6 @@
                   "Desperdicio": 11,
                   "Salida legítima": 1,
                   "Citó": 11,
-                  "En gestión activa": 7,
                   "Sin tipificar": 1
                 }
               },
@@ -39071,9 +39099,9 @@
                     0
                   ],
                   "En gestión activa": [
-                    7,
-                    4,
-                    0,
+                    1,
+                    9,
+                    1,
                     0,
                     0,
                     0,
@@ -39115,8 +39143,8 @@
                 },
                 "cat_notask": {
                   "Citó": 9,
-                  "En gestión activa": 8,
                   "Salida legítima": 1,
+                  "En gestión activa": 1,
                   "Desperdicio": 4
                 }
               },
@@ -41406,9 +41434,9 @@
                 0
               ],
               "Contactado": [
+                13,
                 22,
-                16,
-                4,
+                7,
                 0,
                 0,
                 0,
@@ -41476,8 +41504,8 @@
                 0
               ],
               "Posponer contacto": [
-                3,
-                0,
+                1,
+                2,
                 0,
                 0,
                 0,
