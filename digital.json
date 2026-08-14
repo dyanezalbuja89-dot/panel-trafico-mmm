@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-08-14T22:43:18.304267+00:00",
+  "updated_at": "2026-08-14T23:47:05.430927+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -166,10 +166,10 @@
       "leads": 592,
       "cont": 503,
       "agen": 272,
-      "efec": 111,
+      "efec": 112,
       "vent": 3,
       "tope": 202,
-      "nos": 153,
+      "nos": 152,
       "confirmadas": 186,
       "conf": [
         [
@@ -198,7 +198,7 @@
       "label": "ago-26",
       "year": 2026,
       "month": 8,
-      "leads": 461,
+      "leads": 463,
       "cont": 329,
       "agen": 144,
       "efec": 38,
@@ -265,9 +265,9 @@
         "agency_full": "Orgu La Y",
         "leads": 121,
         "agen": 44,
-        "efec": 18,
+        "efec": 19,
         "vent": 0,
-        "show_rate": 40.9
+        "show_rate": 43.2
       },
       {
         "agency": "Manta",
@@ -352,15 +352,15 @@
     ]
   },
   "kpis": {
-    "period_leads": 5172,
+    "period_leads": 5174,
     "period_cont": 4363,
     "period_agen": 1933,
-    "period_efec": 660,
+    "period_efec": 661,
     "period_vent": 21,
-    "rate_cont": 84.4,
+    "rate_cont": 84.3,
     "rate_agen": 37.4,
-    "rate_show": 34.1,
-    "rate_no_show": 65.9,
+    "rate_show": 34.2,
+    "rate_no_show": 65.8,
     "rate_close": 3.2,
     "rate_lead_to_sale": 0.4
   },
@@ -1176,8 +1176,8 @@
           "efec_arr": 22,
           "agen_coh": 316,
           "conf_coh": 150,
-          "efec_coh": 97,
-          "nos_coh": 200
+          "efec_coh": 98,
+          "nos_coh": 199
         },
         {
           "label": "jul·26",
@@ -1189,8 +1189,8 @@
           "agen": 272,
           "agendadas": 272,
           "confirmadas": 186,
-          "efec": 111,
-          "nos": 153,
+          "efec": 112,
+          "nos": 152,
           "conf": [
             [
               "Confirma",
@@ -1215,7 +1215,7 @@
           ],
           "agen_arr": 80,
           "conf_arr": 48,
-          "efec_arr": 24,
+          "efec_arr": 25,
           "agen_coh": 231,
           "conf_coh": 158,
           "efec_coh": 96,
@@ -1225,7 +1225,7 @@
           "label": "ago·26",
           "year": 2026,
           "month": 8,
-          "leads": 461,
+          "leads": 463,
           "cont": 329,
           "tope": 48,
           "agen": 144,
@@ -1766,7 +1766,7 @@
             "nos_coh": 31
           },
           "ago·26": {
-            "leads": 99,
+            "leads": 100,
             "cont": 72,
             "tope": 12,
             "agen": 42,
@@ -2005,8 +2005,8 @@
             "efec_arr": 6,
             "agen_coh": 49,
             "conf_coh": 24,
-            "efec_coh": 18,
-            "nos_coh": 30
+            "efec_coh": 19,
+            "nos_coh": 29
           },
           "jul·26": {
             "leads": 121,
@@ -2015,8 +2015,8 @@
             "agen": 44,
             "agendadas": 44,
             "confirmadas": 32,
-            "efec": 18,
-            "nos": 24,
+            "efec": 19,
+            "nos": 23,
             "conf": [
               [
                 "Confirma",
@@ -2033,14 +2033,14 @@
             ],
             "agen_arr": 11,
             "conf_arr": 8,
-            "efec_arr": 2,
+            "efec_arr": 3,
             "agen_coh": 45,
             "conf_coh": 31,
             "efec_coh": 18,
             "nos_coh": 24
           },
           "ago·26": {
-            "leads": 100,
+            "leads": 101,
             "cont": 71,
             "tope": 8,
             "agen": 20,
@@ -3694,7 +3694,7 @@
             "nos_coh": 31
           },
           "ago·26": {
-            "leads": 212,
+            "leads": 214,
             "cont": 152,
             "tope": 21,
             "agen": 62,
@@ -4807,8 +4807,8 @@
             "efec_arr": 5,
             "agen_coh": 62,
             "conf_coh": 34,
-            "efec_coh": 23,
-            "nos_coh": 34
+            "efec_coh": 24,
+            "nos_coh": 33
           },
           "jul·26": {
             "leads": 260,
@@ -4817,8 +4817,8 @@
             "agen": 128,
             "agendadas": 128,
             "confirmadas": 93,
-            "efec": 53,
-            "nos": 73,
+            "efec": 54,
+            "nos": 72,
             "conf": [
               [
                 "Confirma",
@@ -4835,7 +4835,7 @@
             ],
             "agen_arr": 20,
             "conf_arr": 13,
-            "efec_arr": 3,
+            "efec_arr": 4,
             "agen_coh": 121,
             "conf_coh": 87,
             "efec_coh": 56,
@@ -6570,11 +6570,11 @@
               }
             },
             "no_show": {
-              "total": 153,
+              "total": 152,
               "by_estatus": [
                 [
                   "Cita agendada (atascado)",
-                  146
+                  145
                 ],
                 [
                   "Cita Efectiva (error)",
@@ -11802,11 +11802,11 @@
                 }
               },
               "no_show": {
-                "total": 24,
+                "total": 23,
                 "by_estatus": [
                   [
                     "Cita agendada (atascado)",
-                    24
+                    23
                   ]
                 ]
               }
@@ -26286,11 +26286,11 @@
                 }
               },
               "no_show": {
-                "total": 73,
+                "total": 72,
                 "by_estatus": [
                   [
                     "Cita agendada (atascado)",
-                    70
+                    69
                   ],
                   [
                     "Perdido",
@@ -27387,7 +27387,7 @@
               "Cita agendada (atascado)": [
                 13,
                 9,
-                121,
+                120,
                 3
               ],
               "Cita Efectiva (error)": [
@@ -27867,7 +27867,7 @@
           "label": "ago·26",
           "year": 2026,
           "month": 8,
-          "leads": 98,
+          "leads": 101,
           "cont": 69,
           "tope": 1,
           "agen": 30,
@@ -28170,7 +28170,7 @@
             "nos_coh": 30
           },
           "ago·26": {
-            "leads": 72,
+            "leads": 75,
             "cont": 47,
             "tope": 0,
             "agen": 23,
@@ -31468,10 +31468,10 @@
                   1
                 ],
                 "En gestión activa": [
-                  2,
-                  19,
+                  1,
                   5,
-                  0,
+                  16,
+                  4,
                   0,
                   0,
                   0,
@@ -31526,10 +31526,10 @@
               },
               "cat_notask": {
                 "Desperdicio": 16,
-                "En gestión activa": 23,
                 "Citó": 23,
                 "Salida legítima": 3,
-                "Sin tipificar": 1
+                "Sin tipificar": 1,
+                "En gestión activa": 3
               }
             },
             "no_show": {
@@ -33297,10 +33297,10 @@
                     0
                   ],
                   "En gestión activa": [
-                    2,
-                    11,
+                    1,
+                    5,
+                    7,
                     4,
-                    0,
                     0,
                     0,
                     0,
@@ -33355,10 +33355,10 @@
                 },
                 "cat_notask": {
                   "Desperdicio": 11,
-                  "En gestión activa": 15,
                   "Citó": 16,
                   "Salida legítima": 2,
-                  "Sin tipificar": 1
+                  "Sin tipificar": 1,
+                  "En gestión activa": 3
                 }
               },
               "no_show": {
@@ -34828,8 +34828,8 @@
                   ],
                   "En gestión activa": [
                     0,
-                    8,
-                    1,
+                    0,
+                    9,
                     0,
                     0,
                     0,
@@ -34871,7 +34871,6 @@
                 },
                 "cat_notask": {
                   "Desperdicio": 5,
-                  "En gestión activa": 8,
                   "Citó": 7,
                   "Salida legítima": 1
                 }
@@ -36359,9 +36358,9 @@
                   ],
                   "En gestión activa": [
                     0,
-                    10,
-                    4,
-                    0,
+                    3,
+                    8,
+                    3,
                     0,
                     0,
                     0,
@@ -36390,8 +36389,8 @@
                   "Desperdicio": 12,
                   "Salida legítima": 1,
                   "Citó": 11,
-                  "En gestión activa": 11,
-                  "Sin tipificar": 1
+                  "Sin tipificar": 1,
+                  "En gestión activa": 1
                 }
               },
               "no_show": {
@@ -39152,9 +39151,9 @@
                   ],
                   "En gestión activa": [
                     1,
-                    9,
                     1,
-                    0,
+                    8,
+                    1,
                     0,
                     0,
                     0,
@@ -39195,8 +39194,8 @@
                 },
                 "cat_notask": {
                   "Citó": 10,
-                  "En gestión activa": 11,
                   "Salida legítima": 1,
+                  "En gestión activa": 2,
                   "Desperdicio": 4
                 }
               },
@@ -40404,8 +40403,8 @@
                 },
                 "cat_llamada": {
                   "En gestión activa": [
-                    1,
                     0,
+                    1,
                     0,
                     0,
                     0,
@@ -40447,7 +40446,6 @@
                   ]
                 },
                 "cat_notask": {
-                  "En gestión activa": 1,
                   "Citó": 2,
                   "Salida legítima": 1
                 }
@@ -41491,10 +41489,10 @@
                 0
               ],
               "Contactado": [
-                14,
-                24,
-                8,
-                0,
+                13,
+                10,
+                19,
+                4,
                 0,
                 0,
                 0,
@@ -41591,10 +41589,10 @@
                 3
               ],
               "Sin gestión": [
-                3,
+                6,
                 1,
                 0,
-                19
+                16
               ],
               "No contesta": [
                 1,
