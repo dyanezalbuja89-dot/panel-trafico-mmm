@@ -5964,7 +5964,7 @@ HTML = r"""<!doctype html>
       return 'Oferta vs demanda · ' + f.txt + (f.aviso || '');
     }
     if(tab === 'conv'){
-      const g = (DATA.conversion_data||{})[convState.marca]?.global;
+      const g = convGet()?.global;
       // Ambos lados en UNIDADES (antes el denominador eran personas → "532 de 331").
       return g ? `${g.n_vehiculos_atribuidos ?? g.n_ventas_atribuidas} de ${g.n_vehiculos_total ?? g.n_facturas_total} unidades atribuidas a tráfico (${g.cov_rate_pct}%)` : 'Conversión tráfico → venta';
     }
@@ -9145,7 +9145,7 @@ HTML = r"""<!doctype html>
   // ranking "Top asesores" y se limpia con otro clic o con el botón Limpiar.
   const convState = { mes:'', agencia:'', zona:'', modelo:'', canal:'', asesor:'', marca:'FORD' };
   function convFilterClientes(){
-    const CONV = (DATA.conversion_data||{})[convState.marca];
+    const CONV = convGet();
     if(!CONV || !CONV.clientes_flat) return [];
     return CONV.clientes_flat.filter(c => {
       if(convState.mes     && c.first_ym !== convState.mes)    return false;
@@ -9183,7 +9183,7 @@ HTML = r"""<!doctype html>
     return {n:ds.length, mediana:med, promedio:+prom.toFixed(1), p75};
   }
   function convInitFilters(){
-    const CONV = (DATA.conversion_data||{})[convState.marca];
+    const CONV = convGet();
     if(!CONV || !CONV.clientes_flat) return;
     // Poblar modelo / canal dinámicamente
     const modelos = new Set(), canales = new Set();
@@ -9261,6 +9261,11 @@ HTML = r"""<!doctype html>
     if(selMa && !selMa.dataset._bound){
       const existing = new Set(Array.from(selMa.options).map(o=>o.value));
       const cd = DATA.conversion_data || {};
+      if(!existing.has('ALL')){
+        const oAll = document.createElement('option');
+        oAll.value = 'ALL'; oAll.textContent = 'Todas las marcas';
+        selMa.insertBefore(oAll, selMa.firstChild); existing.add('ALL');
+      }
       Object.keys(cd).filter(k=>k!=='FORD' && !existing.has(k)).forEach(k=>{
         const o = document.createElement('option'); o.value=k;
         o.textContent = DATA.brand_display?.[k] || k;
@@ -9304,7 +9309,7 @@ HTML = r"""<!doctype html>
   }
 
   function renderConversion(){
-    const CONV = (DATA.conversion_data||{})[convState.marca];
+    const CONV = convGet();
     if(!CONV) return;
     convInitFilters();
     const clientes = convFilterClientes();
@@ -9611,7 +9616,7 @@ HTML = r"""<!doctype html>
     // Promedio ORGU GLOBAL: siempre desde el breakdown backend completo (todas las
     // agencias), no del subset filtrado — si filtras 1 agencia el "promedio" no puede
     // ser esa misma agencia.
-    const CONVg = (DATA.conversion_data||{})[convState.marca] || {};
+    const CONVg = convGet() || {};
     const _mpaAll = CONVg.master_por_agencia || {};
     let avg;
     const _allEntries = Object.values(_mpaAll).filter(v => (v.traffic||0) >= 5);
@@ -9682,22 +9687,72 @@ HTML = r"""<!doctype html>
     'ESCAPE':     '#ef6c00', 'EXPLORER':   '#1565c0',
     'EXPEDITION': '#6a1b9a', 'BRONCO':     '#455a64',
   };
+  /* ── Todas las marcas ────────────────────────────────────────────────────
+     Toda la pestaña se recalcula desde dos listas planas (clientes_flat y
+     master_facturas), así que fusionar es concatenarlas. La identidad ya viene
+     separada POR MARCA: la misma persona que tocó Ford y DongFeng son dos
+     registros, que es justo lo que corresponde — son negocios distintos.
+     Se cachea porque las listas suman ~13k filas. */
+  let _convAllCache = null;
+  function convBuildAll(){
+    if(_convAllCache) return _convAllCache;
+    const cd = DATA.conversion_data || {};
+    const marcas = Object.keys(cd);
+    if(!marcas.length) return null;
+    const cat = (campo) => marcas.flatMap(m => (cd[m] || {})[campo] || []);
+    const mergeObj = (campo) => Object.assign({}, ...marcas.map(m => (cd[m] || {})[campo] || {}));
+    const g = {};
+    marcas.forEach(m => {
+      const gg = (cd[m] || {}).global || {};
+      Object.entries(gg).forEach(([k,v]) => {
+        if(typeof v === 'number' && !k.endsWith('_pct')) g[k] = (g[k] || 0) + v;
+        else if(g[k] === undefined) g[k] = v;
+      });
+    });
+    // Los porcentajes se recalculan: promediar tasas de marcas de distinto tamaño miente.
+    if(g.n_clientes_traffic) g.conv_rate_pct = +(100 * g.n_clientes_matched / g.n_clientes_traffic).toFixed(1);
+    if(g.n_facturas_total)   g.cov_rate_pct  = +(100 * g.n_facturas_atribuidas / g.n_facturas_total).toFixed(1);
+    _convAllCache = {
+      global: g,
+      clientes_flat:   cat('clientes_flat'),
+      master_facturas: cat('master_facturas'),
+      asesor_home_agencia: mergeObj('asesor_home_agencia'),
+      jefes_por_agencia:   mergeObj('jefes_por_agencia'),
+      facturas_por_asesor_agencia: mergeObj('facturas_por_asesor_agencia'),
+      mkt_channels: [...new Set(marcas.flatMap(m => (cd[m]||{}).mkt_channels || []))],
+    };
+    return _convAllCache;
+  }
+  function convGet(){
+    if(convState.marca === 'ALL') return convBuildAll();
+    return (DATA.conversion_data || {})[convState.marca];
+  }
+
   const _CONV_PALETTE = ['#003478','#c62828','#2e7d32','#ef6c00','#6a1b9a','#1565c0','#a36307','#455a64','#0288d1','#7b1fa2','#558b2f','#d84315'];
   function convModelColorsForBrand(modelos){
     if(convState.marca === 'FORD') return CONV_MODELO_COLORS_FORD;
+    // Con todas las marcas, Ford conserva sus colores y el resto va a la paleta:
+    // así el gráfico no cambia de color al pasar de "Ford" a "Todas".
+    if(convState.marca === 'ALL'){
+      const out = {}; let i = 0;
+      modelos.forEach(m => {
+        out[m] = CONV_MODELO_COLORS_FORD[m] || _CONV_PALETTE[(i++) % _CONV_PALETTE.length];
+      });
+      return out;
+    }
     const out = {};
     modelos.forEach((m,i)=>{ out[m] = _CONV_PALETTE[i % _CONV_PALETTE.length]; });
     return out;
   }
   // Lista de modelos derivada del clientes_flat de la marca activa.
   function convModelosForBrand(){
-    const C = (DATA.conversion_data||{})[convState.marca];
+    const C = convGet();
     if(!C || !C.clientes_flat) return [];
     const set = new Set();
     C.clientes_flat.forEach(c => { if(c.modelo && c.modelo !== 'Por definir') set.add(c.modelo); });
     // Ford respeta su orden canónico; brands ORGU orden alfabético.
     const FORD_ORDER = ['TERRITORY','ESCAPE','EVEREST','EXPLORER','EXPEDITION','BRONCO','F-150','RANGER'];
-    if(convState.marca === 'FORD'){
+    if(convState.marca === 'FORD' || convState.marca === 'ALL'){
       return FORD_ORDER.filter(m=>set.has(m)).concat([...set].filter(m=>!FORD_ORDER.includes(m)).sort());
     }
     return [...set].sort();
@@ -9765,7 +9820,7 @@ HTML = r"""<!doctype html>
   }
 
   function renderConvChartModelos(){
-    const CONV = (DATA.conversion_data||{})[convState.marca];
+    const CONV = convGet();
     if(!CONV || !CONV.clientes_flat) return;
     const canvas = document.getElementById('conv-chart-modelos');
     if(!canvas) return;
@@ -9925,7 +9980,7 @@ HTML = r"""<!doctype html>
 
   let convChartEvol = null;
   function renderConvChartEvol(){
-    const CONV = (DATA.conversion_data||{})[convState.marca];
+    const CONV = convGet();
     if(!CONV || !CONV.clientes_flat) return;
     const canvas = document.getElementById('conv-chart-evol');
     if(!canvas) return;
