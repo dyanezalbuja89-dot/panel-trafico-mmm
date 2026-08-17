@@ -46,8 +46,10 @@ def _find_latest_inventory():
                     continue
                 if 'INVENTARIO' in p.name.upper():
                     candidates.append(p)
-        if candidates:
-            break
+    # Antes cortaba en el primer directorio con resultados. Como el cache local se
+    # revisa primero, un archivo más nuevo en OneDrive quedaba invisible: el panel
+    # se quedó en el 1-8 teniendo el 15-8 disponible. Se recorren todos y gana la
+    # fecha del nombre; el cache sigue teniendo prioridad solo para desempatar.
     if not candidates:
         legacy = Path("/Users/danielyanezalbuja/Downloads/REPORTE DE INVENTARIO.xlsm")
         return legacy if legacy.exists() else None
