@@ -1724,6 +1724,52 @@ def brand_report(brand, curr_raw, prev_raw, brand_metas, month=4, year=2026, up_
 # Cortes históricos disponibles para Reporte Ford y Reporte Marcas.
 # El último de la lista es el corte "actual" (default seleccionado).
 MONTHS_CONFIG = [
+    # ── 2025 ene-sep ──────────────────────────────────────────────────────────
+    # Cargados 17-ago-2026 desde Agosto/BD_AGOSTO. El prefijo del nombre no es
+    # confiable (hay archivos "BD_SEP_" con fecha de julio y de agosto): el mes se
+    # verificó leyendo la columna FECHA de cada archivo. Tres meses venían
+    # duplicados y se tomó el más completo:
+    #   junio  → BD_JUN_30_06_25 (761) sobre BD_JUN_31_06_25 (754)
+    #   julio  → BD_SEP_31_07_25 (803) sobre BD_JUL_30_07_25 (801)
+    #   agosto → BD_SEP_31_08_25 (645) sobre BD_AGO_31_08_25 (639)
+    # Sin metas: no existe archivo de presupuesto 2025, así que el cumplimiento
+    # queda en N/A y solo se usa el tráfico como histórico comparable.
+    {"key": "enero_2025", "label": "Enero 2025", "month": 1, "year": 2025, "cut_day": 31,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_ENE_31_01_25.xlsx",
+     "prev_file": "../Agosto/BD_AGOSTO/BD_ENE_31_01_25.xlsx",
+     "prev_date": "31/01/2025", "no_metas": True},
+    {"key": "febrero_2025", "label": "Febrero 2025", "month": 2, "year": 2025, "cut_day": 28,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_FEB_28_02_25.xlsx",
+     "prev_file": "../Agosto/BD_AGOSTO/BD_ENE_31_01_25.xlsx",
+     "prev_date": "31/01/2025", "no_metas": True},
+    {"key": "marzo_2025", "label": "Marzo 2025", "month": 3, "year": 2025, "cut_day": 31,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_MAR_31_03_25.xlsx",
+     "prev_file": "../Agosto/BD_AGOSTO/BD_FEB_28_02_25.xlsx",
+     "prev_date": "28/02/2025", "no_metas": True},
+    {"key": "abril_2025", "label": "Abril 2025", "month": 4, "year": 2025, "cut_day": 30,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_ABR_31_04_25.xlsx",
+     "prev_file": "../Agosto/BD_AGOSTO/BD_MAR_31_03_25.xlsx",
+     "prev_date": "31/03/2025", "no_metas": True},
+    {"key": "mayo_2025", "label": "Mayo 2025", "month": 5, "year": 2025, "cut_day": 31,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_MAY_30_05_25.xlsx",
+     "prev_file": "../Agosto/BD_AGOSTO/BD_ABR_31_04_25.xlsx",
+     "prev_date": "30/04/2025", "no_metas": True},
+    {"key": "junio_2025", "label": "Junio 2025", "month": 6, "year": 2025, "cut_day": 30,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_JUN_30_06_25.xlsx",
+     "prev_file": "../Agosto/BD_AGOSTO/BD_MAY_30_05_25.xlsx",
+     "prev_date": "31/05/2025", "no_metas": True},
+    {"key": "julio_2025", "label": "Julio 2025", "month": 7, "year": 2025, "cut_day": 31,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_SEP_31_07_25.xlsx",
+     "prev_file": "../Agosto/BD_AGOSTO/BD_JUN_30_06_25.xlsx",
+     "prev_date": "30/06/2025", "no_metas": True},
+    {"key": "agosto_2025", "label": "Agosto 2025", "month": 8, "year": 2025, "cut_day": 31,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_SEP_31_08_25.xlsx",
+     "prev_file": "../Agosto/BD_AGOSTO/BD_SEP_31_07_25.xlsx",
+     "prev_date": "31/07/2025", "no_metas": True},
+    {"key": "septiembre_2025", "label": "Septiembre 2025", "month": 9, "year": 2025, "cut_day": 30,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_SEP_30_09_25.xlsx",
+     "prev_file": "../Agosto/BD_AGOSTO/BD_SEP_31_08_25.xlsx",
+     "prev_date": "31/08/2025", "no_metas": True},
     {"key": "octubre_2025", "label": "Octubre 2025", "month": 10, "year": 2025, "cut_day": 31,
      "curr_file": "../Julio/BD_JULIO/BD_OCT_31_10_25.xlsx",
      "prev_file": "../Julio/BD_JULIO/BD_OCT_31_10_25.xlsx",
