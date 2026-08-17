@@ -1879,6 +1879,61 @@ def _build_first_ym_index(months_config):
     return first_ym_by_id
 
 
+DIAS_REINGRESO = 60   # el cliente vuelve a contar recién a los 60 días de su última visita contada
+
+def _build_reingreso_index(months_config):
+    """Índice de (cédula, marca, mes) que SÍ cuentan como tráfico.
+
+    Regla ORGU, definida por Daniel 17-ago-2026:
+      · Dentro del mismo mes el cliente cuenta UNA vez, entre las veces que entre.
+      · Vuelve a contar solo si pasaron >= DIAS_REINGRESO desde su última visita
+        CONTADA (no desde la primera). Puede contar 3 o más veces en el año.
+      · Se evalúa POR MARCA: mirar un Ford y luego un DongFeng son dos negocios
+        distintos aunque sea la misma persona.
+
+    Identidad = cédula. El celular NO agrupa: es del hogar y fusiona personas
+    distintas → memoria feedback_orgu_cruce_identidad.
+    """
+    visitas = {}          # (ced, marca) -> {ym: primera fecha de ese mes}
+    for cfg in months_config:
+        if not cfg.get('curr_file'):
+            continue
+        try:
+            df = load_raw(BASE / cfg['curr_file'])
+        except Exception:
+            continue
+        ym = f"{cfg['year']:04d}-{cfg['month']:02d}"
+        for _, r in df.iterrows():
+            ced = _conv_norm_ced(r.get('CEDULA'))
+            f = r.get('FECHA')
+            if not ced or pd.isna(f):
+                continue
+            m = visitas.setdefault((ced, _marca_group(r.get('MARCA'))), {})
+            if ym not in m or f < m[ym]:
+                m[ym] = f
+    cuentan = set()
+    for (ced, mg), meses in visitas.items():
+        ultima = None
+        for ym in sorted(meses):
+            f = meses[ym]
+            if ultima is None or (f - ultima).days >= DIAS_REINGRESO:
+                cuentan.add((ced, mg, ym))
+                ultima = f
+    return cuentan
+
+
+def _filter_reingreso(df, this_ym, idx):
+    """Deja solo los clientes cuyo (cédula, marca, mes) cuenta según la regla.
+    Sin cédula se cuenta igual: no se castiga al registro por un dato que falta
+    en el origen."""
+    if df is None or len(df) == 0 or not idx:
+        return df
+    keep = [True if not (c := _conv_norm_ced(r.get('CEDULA')))
+            else (c, _marca_group(r.get('MARCA')), this_ym) in idx
+            for _, r in df.iterrows()]
+    return df[keep].copy()
+
+
 def _filter_to_new_clients(df, this_ym, first_ym_by_id):
     """Filtra el df a SOLO clientes cuyo first_ym (para SU marca) es este mes.
     Un cliente "viejo" PARA ESA MARCA (ya cotizó la misma marca en mes anterior)
@@ -1911,10 +1966,11 @@ def main():
     abril = load_raw(ABRIL)
     # Definición B: construimos índice de identidad robusta cross-mes UNA sola vez.
     # Cada cliente queda asignado a su mes de primer toque; en meses posteriores se excluye.
-    # El índice cross-mes ya no se construye: solo alimentaba el filtro de
-    # "Definición B" del tráfico, que se retiró. Conversión arma su propia
-    # cohorte. Se conservan _build_first_ym_index y _filter_to_new_clients por si
-    # hay que volver atrás; construirlo acá costaba releer todas las BDs.
+    # Índice de reingreso a 60 días. Reemplaza a la vieja "Definición B", que
+    # contaba a cada persona una sola vez en todo el histórico.
+    print('Construyendo índice de reingreso (60 días, por marca)...')
+    _REING_IDX = _build_reingreso_index(MONTHS_CONFIG)
+    print(f'  {len(_REING_IDX)} visitas contables indexadas')
 
     # Cache for brand metas (avoid re-reading same file)
     brand_metas_cache = {}
@@ -2065,7 +2121,7 @@ def main():
                 _f = cfg.get(_k)
                 _mt.append(str(Path(_resolve_local(_f)).stat().st_mtime_ns) if _f else '-')
             _cache_key = (f"{Path(_cp).stat().st_mtime_ns}|{Path(_pp).stat().st_mtime_ns}"
-                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v4-trafico-sin-def-b")
+                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v5-reingreso-60d")
         except Exception:
             _cache_key = None
         _cached_entry = _cache.get(cfg['key']) if _cache_key else None
@@ -2097,6 +2153,9 @@ def main():
         # La lógica de primer toque sigue viva en conversión, donde sí corresponde:
         # ahí se mide "de los que entraron en marzo, cuántos compraron" y contar a
         # la misma persona como oportunidad nueva cada mes diluiría la tasa.
+        this_ym = f"{cfg['year']:04d}-{cfg['month']:02d}"
+        curr_raw = _filter_reingreso(curr_raw, this_ym, _REING_IDX)
+        prev_raw = _filter_reingreso(prev_raw, this_ym, _REING_IDX)
         # Ford metas: si no_metas, todos cero (cumpl=N/A). Si hay file, leer.
         # Si nada, default MODEL_METAS (hardcoded 2026).
         if cfg.get("no_metas"):
