@@ -859,6 +859,12 @@ def load_inventario(path=None, today=None, months_config=None):
 
     return {
         'snapshot_date': today.strftime('%Y-%m-%d'),
+        # Fecha REAL del corte, tomada del nombre del archivo. 'snapshot_date' es
+        # cuándo se corrió el proceso, no de cuándo es el dato: el panel mostró
+        # dos semanas la fecha de corrida mientras servía el inventario del 1-8.
+        'archivo': Path(path).name,
+        'fecha_corte': (lambda d: f'{d[0]:04d}-{d[1]:02d}-{d[2]:02d}' if d else None)(
+            _inv_date_from_name(Path(path))),
         'brands': out,
         'cola_detail': cola_detail,
         'wait_times': wait_data,  # tiempo reserva→factura por marca/modelo (últ 12m + histórico)

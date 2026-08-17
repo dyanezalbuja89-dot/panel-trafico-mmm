@@ -5960,8 +5960,8 @@ HTML = r"""<!doctype html>
       return (a&&b) ? `${a} vs ${b}` : 'Comparativo entre meses';
     }
     if(tab === 'inv'){
-      const snap = (DATA.inventario && DATA.inventario.snapshot_date) || '—';
-      return 'Oferta vs demanda · snapshot ' + snap;
+      const f = invFecha();
+      return 'Oferta vs demanda · ' + f.txt + (f.aviso || '');
     }
     if(tab === 'conv'){
       const g = (DATA.conversion_data||{})[convState.marca]?.global;
@@ -6078,6 +6078,20 @@ HTML = r"""<!doctype html>
   }
 
   // ---------- HELPERS ----------
+  /* Fecha del inventario. Se muestra la del ARCHIVO, no la de la corrida: el
+     panel llegó a mostrar "17 de agosto" sirviendo datos del 1, y el desfase
+     era invisible. Si el corte tiene más de 3 días, se avisa. */
+  function invFecha(){
+    const I = DATA.inventario || {};
+    const f = I.fecha_corte;
+    if(!f) return {txt: 'fecha del archivo no identificada', vieja: true, aviso: ''};
+    const [y,m,d] = f.split('-').map(Number);
+    const MES = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const dias = Math.round((new Date() - new Date(y, m-1, d)) / 86400000);
+    return {txt: `corte al ${d} de ${MES[m]}`, dias, vieja: dias > 3,
+            aviso: dias > 3 ? ` · ${dias} días de antigüedad` : ''};
+  }
+
   const fmt = n => (n==null||isNaN(n))?'—':Number(n).toLocaleString('es-EC');
   const pct = (a,b)=> b>0? (100*a/b).toFixed(1)+'%':'—';
   const CLEAN_MODEL = m => m && m !== 'NAN' && m !== 'nan';
@@ -15807,7 +15821,14 @@ HTML = r"""<!doctype html>
       pipe += m.pipeline_usa + m.pipeline_nac; colaSinVin += m.cola_sin_vin;
     });
     document.getElementById('inv-k-disp').textContent = fmt(disp);
-    document.getElementById('inv-k-disp-hint').textContent = `Stock listo · snapshot ${INV.snapshot_date}`;
+    (function(){
+      const f = invFecha();
+      const el = document.getElementById('inv-k-disp-hint');
+      el.textContent = `Stock listo · ${f.txt}${f.aviso || ''}`;
+      // Un inventario viejo se lee como si fuera de hoy: hay que verlo, no leerlo.
+      el.style.color = f.vieja ? '#c2410c' : '';
+      el.style.fontWeight = f.vieja ? '700' : '';
+    })();
     document.getElementById('inv-k-res').textContent = fmt(res);
     document.getElementById('inv-k-res-hint').textContent = `Chasis asignado (incl. tránsito) · ${fmt(res)} unidades comprometidas`;
     document.getElementById('inv-k-cola').textContent = fmt(cola);
