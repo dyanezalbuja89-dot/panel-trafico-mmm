@@ -8031,12 +8031,83 @@ HTML = r"""<!doctype html>
     if(b) b.innerHTML = MONTHS_CONFIG.map(c=>`<option value="${c.key}" ${c.key===cpstate.monthB?'selected':''}>${c.label}</option>`).join('');
     const m = document.getElementById('cp-marca');
     if(m){
-      const opts = [{val:'FORD', label:'Ford'}, ...BRANDS.map(b=>({val:b, label:BRAND_DISPLAY[b]||b}))];
+      const opts = [{val:'ALL', label:'Todas las marcas'},
+                    {val:'FORD', label:'Ford'},
+                    ...BRANDS.map(b=>({val:b, label:BRAND_DISPLAY[b]||b}))];
       m.innerHTML = opts.map(o=>`<option value="${o.val}" ${o.val===cpstate.marca?'selected':''}>${o.label}</option>`).join('');
     }
   })();
 
+  /* Reporte fusionado de todas las marcas. Ford y las marcas ORGU traen la misma
+     forma (models/dealers/*_order), así que se suman campo por campo. Se cachea
+     por mes: cpRenderAll llama a cpGetData muchas veces y rearmarlo cada vez
+     hacía perceptible el cambio de filtro. */
+  const _cpAllCache = {};
+  function cpBuildAll(monthKey){
+    if(_cpAllCache[monthKey]) return _cpAllCache[monthKey];
+    const base = FORD_MONTHS[monthKey];
+    if(!base) return null;
+    const reps = [base, ...Object.values(BRANDS_MONTHS[monthKey] || {})].filter(Boolean);
+    const sum = (k) => reps.reduce((a,r)=> a + (Number(r[k]) || 0), 0);
+    // Suma recursiva: dealers y models son {clave: número} o {clave: {…}} anidados.
+    const mergeDeep = (campo) => {
+      const out = {};
+      reps.forEach(r => {
+        const o = r[campo] || {};
+        Object.entries(o).forEach(([k,v]) => {
+          if(v && typeof v === 'object'){
+            out[k] = out[k] || {};
+            Object.entries(v).forEach(([k2,v2]) => {
+              if(v2 && typeof v2 === 'object'){
+                out[k][k2] = out[k][k2] || {};
+                Object.entries(v2).forEach(([k3,v3]) => {
+                  out[k][k2][k3] = (out[k][k2][k3] || 0) + (Number(v3) || 0);
+                });
+              } else {
+                out[k][k2] = (out[k][k2] || 0) + (Number(v2) || 0);
+              }
+            });
+          } else {
+            out[k] = (out[k] || 0) + (Number(v) || 0);
+          }
+        });
+      });
+      return out;
+    };
+    const uniq = (k) => { const v=[]; reps.forEach(r => (r[k]||[]).forEach(x => { if(!v.includes(x)) v.push(x); })); return v; };
+    const dealers = mergeDeep('dealers');
+    // velocity y cumpl_proj son ratios: sumarlos no significa nada, se recalculan.
+    const dl = Number(base.days_lab) || 1;
+    Object.values(dealers).forEach(d => {
+      d.velocity = +(d.curr / dl).toFixed(2);
+      d.cumpl_proj = d.meta ? Math.round(100 * d.projection / d.meta) : 0;
+    });
+    const r = {
+      ...base,
+      brand: 'ALL', display: 'Todas las marcas',
+      models: mergeDeep('models'),
+      dealers,
+      model_order: uniq('model_order'),
+      dealer_order: uniq('dealer_order'),
+      total_curr: sum('total_curr'), total_prev: sum('total_prev'),
+      delta_total: sum('delta_total'),
+      projection_total: sum('projection_total'), meta_total: sum('meta_total'),
+      channel_pct: mergeDeep('channel_pct'),
+      daily: mergeDeep('daily'),
+      daily_breakdown: mergeDeep('daily_breakdown'),
+      daily_dealer_channel: mergeDeep('daily_dealer_channel'),
+      matrix_cnt: mergeDeep('matrix_cnt'),
+      matrix_cnt_prev: mergeDeep('matrix_cnt_prev'),
+      matrix_meta: mergeDeep('matrix_meta'),
+      dealer_model_channel: mergeDeep('dealer_model_channel'),
+      dealer_model_channel_prev: mergeDeep('dealer_model_channel_prev'),
+    };
+    r.velocity = +(r.total_curr / dl).toFixed(2);
+    _cpAllCache[monthKey] = r;
+    return r;
+  }
   function cpGetData(monthKey){
+    if(cpstate.marca === 'ALL')  return cpBuildAll(monthKey);
     if(cpstate.marca === 'FORD') return FORD_MONTHS[monthKey];
     return (BRANDS_MONTHS[monthKey] || {})[cpstate.marca];
   }
@@ -8081,13 +8152,13 @@ HTML = r"""<!doctype html>
       });
     });
     // For Ford, include Otros if no agency filter
-    if(cpstate.marca==='FORD' && !cpstate.agencia){
+    if((cpstate.marca==='FORD'||cpstate.marca==='ALL') && !cpstate.agencia){
       models.forEach(m=>{
         curr += getCnt(monthData, m, 'Otros', cpstate.canal);
       });
     }
     // Correct Otros handling:
-    if(cpstate.marca==='FORD' && !cpstate.agencia && monthData.dealers?.['Otros']){
+    if((cpstate.marca==='FORD'||cpstate.marca==='ALL') && !cpstate.agencia && monthData.dealers?.['Otros']){
       const otros = monthData.dealers['Otros'];
       // Reset and recompute (otros not in matrix_cnt)
       curr = 0;
@@ -8105,7 +8176,8 @@ HTML = r"""<!doctype html>
     const wrap = document.getElementById('cp-filter-summary');
     const cA = MONTHS_CONFIG.find(c=>c.key===cpstate.monthA)?.label || '?';
     const cB = MONTHS_CONFIG.find(c=>c.key===cpstate.monthB)?.label || '?';
-    const marca = cpstate.marca==='FORD'? 'Ford' : (BRAND_DISPLAY[cpstate.marca]||cpstate.marca);
+    const marca = cpstate.marca==='ALL' ? 'Todas las marcas'
+      : cpstate.marca==='FORD' ? 'Ford' : (BRAND_DISPLAY[cpstate.marca]||cpstate.marca);
     const chips = [
       {k:'_', label:`${cA} → ${cB}`, locked:true},
       {k:'marca', label:`Marca: ${marca}`, locked:true},
@@ -8413,7 +8485,7 @@ HTML = r"""<!doctype html>
     const ddc = monthData.daily_dealer_channel || {};
     const dealersAll = monthData.dealer_order || Object.keys(ddc);
     const dealers = cpstate.agencia ? [cpstate.agencia] : dealersAll;
-    const includeOtros = cpstate.marca === 'FORD' && !cpstate.agencia;
+    const includeOtros = (cpstate.marca === 'FORD' || cpstate.marca === 'ALL') && !cpstate.agencia;
     const dealersFinal = includeOtros ? [...dealers, 'Otros'] : dealers;
     const out = {};
     dealersFinal.forEach(d=>{
@@ -8451,7 +8523,7 @@ HTML = r"""<!doctype html>
   function cpRenderDailyByChannel(){
     destroy('cp-chart-daily-channel');
     const cfgB = MONTHS_CONFIG.find(c=>c.key===cpstate.monthB) || MONTHS_CONFIG[MONTHS_CONFIG.length-1];
-    const dataB = cpstate.marca==='FORD' ? FORD_MONTHS[cfgB.key] : (BRANDS_MONTHS[cfgB.key]||{})[cpstate.marca];
+    const dataB = cpGetData(cfgB.key);
     if(!dataB){
       document.getElementById('cp-dch-summary').textContent = 'Sin datos para Mes B';
       return;
@@ -8600,7 +8672,7 @@ HTML = r"""<!doctype html>
         filterMd.forEach(m=>{ s += getCnt(monthData, m, d, cpstate.canal); });
       });
       // Otros for Ford if no agency filter
-      if(cpstate.marca==='FORD' && !cpstate.agencia && monthData.dealers?.['Otros']){
+      if((cpstate.marca==='FORD'||cpstate.marca==='ALL') && !cpstate.agencia && monthData.dealers?.['Otros']){
         filterMd.forEach(m=>{ s += (monthData.dealers['Otros'].byModel||{})[m] || 0; });
       }
       return s;
@@ -8615,7 +8687,7 @@ HTML = r"""<!doctype html>
     const m = scopeKey;
     let s = 0;
     filterAg.forEach(d=>{ s += getCnt(monthData, m, d, cpstate.canal); });
-    if(cpstate.marca==='FORD' && !cpstate.agencia && monthData.dealers?.['Otros']){
+    if((cpstate.marca==='FORD'||cpstate.marca==='ALL') && !cpstate.agencia && monthData.dealers?.['Otros']){
       s += (monthData.dealers['Otros'].byModel||{})[m] || 0;
     }
     return s;
@@ -8647,7 +8719,7 @@ HTML = r"""<!doctype html>
     destroy('cp-chart-evolution');
     const labels = MONTHS_CONFIG.map(c=>c.label);
     const labelsShort = MONTHS_CONFIG.map(c=>c.label.split(' ')[0].slice(0,3));
-    const monthDatas = MONTHS_CONFIG.map(c => (cpstate.marca==='FORD' ? FORD_MONTHS[c.key] : (BRANDS_MONTHS[c.key]||{})[cpstate.marca]));
+    const monthDatas = MONTHS_CONFIG.map(c => cpGetData(c.key));
     const daysLab = monthDatas.map(d => d?.days_lab || 1);
     const norm = evstate.norm === 'day';
     const normVal = (v, i) => norm ? +(v / daysLab[i]).toFixed(2) : v;
@@ -8767,7 +8839,7 @@ HTML = r"""<!doctype html>
     const modelsAll = monthData.model_order || [];
     const filterAg = cpstate.agencia ? [cpstate.agencia] : dealersAll;
     const filterMd = cpstate.modelo ? [cpstate.modelo] : modelsAll;
-    const includeOtros = cpstate.marca === 'FORD' && !cpstate.agencia;
+    const includeOtros = (cpstate.marca === 'FORD' || cpstate.marca === 'ALL') && !cpstate.agencia;
     const dealersWithOtros = includeOtros ? [...filterAg, 'Otros'] : filterAg;
     const dailyTotals = {};
     dealersWithOtros.forEach(d => {
@@ -8788,8 +8860,8 @@ HTML = r"""<!doctype html>
     // Sólo los 2 meses seleccionados (Mes A y Mes B)
     const cfgA = MONTHS_CONFIG.find(c=>c.key===cpstate.monthA) || MONTHS_CONFIG[0];
     const cfgB = MONTHS_CONFIG.find(c=>c.key===cpstate.monthB) || MONTHS_CONFIG[MONTHS_CONFIG.length-1];
-    const dataA = cpstate.marca==='FORD' ? FORD_MONTHS[cfgA.key] : (BRANDS_MONTHS[cfgA.key]||{})[cpstate.marca];
-    const dataB = cpstate.marca==='FORD' ? FORD_MONTHS[cfgB.key] : (BRANDS_MONTHS[cfgB.key]||{})[cpstate.marca];
+    const dataA = cpGetData(cfgA.key);
+    const dataB = cpGetData(cfgB.key);
     const months = [
       {cfg: cfgA, data: dataA, role: 'A'},
       {cfg: cfgB, data: dataB, role: 'B'},
