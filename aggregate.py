@@ -1865,9 +1865,10 @@ def main():
     abril = load_raw(ABRIL)
     # Definición B: construimos índice de identidad robusta cross-mes UNA sola vez.
     # Cada cliente queda asignado a su mes de primer toque; en meses posteriores se excluye.
-    print('Construyendo índice de identidad robusta cross-mes (Definición B)...')
-    _FIRST_YM_IDX = _build_first_ym_index(MONTHS_CONFIG)
-    print(f'  {len(_FIRST_YM_IDX)} identificadores únicos indexados')
+    # El índice cross-mes ya no se construye: solo alimentaba el filtro de
+    # "Definición B" del tráfico, que se retiró. Conversión arma su propia
+    # cohorte. Se conservan _build_first_ym_index y _filter_to_new_clients por si
+    # hay que volver atrás; construirlo acá costaba releer todas las BDs.
 
     # Cache for brand metas (avoid re-reading same file)
     brand_metas_cache = {}
@@ -2037,11 +2038,19 @@ def main():
         if cfg.get("prev_cutoff_date"):
             cutoff = pd.Timestamp(cfg["prev_cutoff_date"])
             prev_raw = prev_raw[prev_raw["FECHA"] < cutoff].copy()
-        # DEFINICIÓN B: descartar clientes que ya aparecieron en BD de meses anteriores.
-        # Cada persona única cuenta solo en su primer mes de toque.
-        this_ym = f"{cfg['year']:04d}-{cfg['month']:02d}"
-        curr_raw = _filter_to_new_clients(curr_raw, this_ym, _FIRST_YM_IDX)
-        prev_raw = _filter_to_new_clients(prev_raw, this_ym, _FIRST_YM_IDX)
+        # El tráfico cuenta TODAS las visitas, cada una en su mes. Un cliente que
+        # entró en enero y volvió en marzo es tráfico de enero Y de marzo: se
+        # enfrió y volvió a entrar, así que la agencia lo atendió dos veces.
+        #
+        # Antes se aplicaba "Definición B" (cada persona solo en su primer mes de
+        # toque) y eso metía un sesgo que crecía con el histórico: en octubre-25
+        # descartaba 0 y en julio-26 ya descartaba 128 registros (12%). Julio no
+        # bajó de 1.099 a 971 por menos afluencia, sino por acumulación de historia.
+        # Confirmado por Daniel 17-ago-2026.
+        #
+        # La lógica de primer toque sigue viva en conversión, donde sí corresponde:
+        # ahí se mide "de los que entraron en marzo, cuántos compraron" y contar a
+        # la misma persona como oportunidad nueva cada mes diluiría la tasa.
         # Ford metas: si no_metas, todos cero (cumpl=N/A). Si hay file, leer.
         # Si nada, default MODEL_METAS (hardcoded 2026).
         if cfg.get("no_metas"):
