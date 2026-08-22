@@ -435,10 +435,21 @@ def _compute_ventas_mensual(sales_df):
                  .sort_values('Cantidad', ascending=False)
                  .drop_duplicates('asesor')
                  .set_index('asesor')['agencia_fact'].to_dict())
-    df['agencia'] = df.apply(
+    # ► Corrección (Daniel, 22-ago-2026): la cifra oficial de ventas de una agencia
+    # es la de FINANZAS, o sea la VITRINA que emitió la factura. La Y son 48
+    # unidades en ene-jul 2026, no 35. Por eso 'agencia' pasa a ser la vitrina y la
+    # atribución por equipo se conserva aparte, en 'agencia_equipo'.
+    #
+    # La regla de equipo NO se elimina porque sigue siendo la correcta para medir
+    # al equipo comercial: existe por el efecto placa (el cliente prefiere placa de
+    # Pichincha, así que ventas originadas en Machala o Manta se facturan vía La Y
+    # o Tumbaco). Lo que cambia es cuál de las dos es el default del panel.
+    df['agencia_equipo'] = df.apply(
         lambda r: _home.get(r['asesor'], r['agencia_fact']), axis=1)
-    _mov = int((df['agencia'] != df['agencia_fact']).sum())
-    print(f'[ventas_mensual] atribución por equipo: {len(_home)} asesores con casa · {_mov} filas reasignadas de vitrina a equipo')
+    df['agencia'] = df['agencia_fact']
+    _mov = int((df['agencia_equipo'] != df['agencia_fact']).sum())
+    print(f'[ventas_mensual] agencia = VITRINA (cuadra con finanzas) · '
+          f'{len(_home)} asesores con casa · {_mov} filas donde equipo ≠ vitrina')
     months_all = sorted(df['mes'].unique())
     MES_LBL = {'2026-01':'Enero','2026-02':'Febrero','2026-03':'Marzo','2026-04':'Abril','2026-05':'Mayo','2026-06':'Junio','2026-07':'Julio','2026-08':'Agosto','2026-09':'Septiembre','2026-10':'Octubre','2026-11':'Noviembre','2026-12':'Diciembre'}
 
@@ -477,10 +488,12 @@ def _compute_ventas_mensual(sales_df):
                 'modelo': str(r['modelo_up']) if r['modelo_up'] and str(r['modelo_up']).lower() not in ('nan','none','') else 'Sin modelo',
                 'asesor': str(r['asesor']) if r['asesor'] and str(r['asesor']).lower() not in ('nan','sin asesor','none','') else 'Sin asesor',
                 'agencia': str(r['agencia']),
-                # Vitrina que emitió la factura, sin la reasignación por equipo.
-                # Es la base que cuadra contra finanzas y la que hay que usar para
-                # cruzar contra tráfico (el tráfico se registra donde entró la persona).
+                # Alias de 'agencia' — se mantiene por compatibilidad con consumidores
+                # que ya leen este nombre.
                 'agencia_fact': str(r['agencia_fact']),
+                # Agencia del EQUIPO del asesor (regla de placa). Sirve para medir
+                # desempeño del equipo comercial, NO para cuadrar contra finanzas.
+                'agencia_equipo': str(r['agencia_equipo']),
                 'zona': str(r['zona']),
                 'cantidad': int(r['Cantidad']),
                 'revenue': round(float(r.get('rev_signed') or 0), 2),
@@ -512,11 +525,11 @@ def _compute_ventas_mensual(sales_df):
             row['_agencia'] = g['agencia'].mode().iloc[0] if len(g['agencia'].mode()) else 'Sin agencia'
             row['_zona'] = g['zona'].mode().iloc[0] if len(g['zona'].mode()) else 'Otra'
             by_asesor[str(asesor)] = row
+        # by_agencia = VITRINA: es la cifra oficial, la que cuadra con finanzas.
         by_agencia = _pivot_dim(sub, 'agencia')
-        # Mismo pivote, pero por vitrina de facturación. No reemplaza al anterior:
-        # by_agencia responde "de qué equipo fue la venta", by_agencia_fact
-        # responde "qué vitrina la facturó". Difieren por la regla de placa.
-        by_agencia_fact = _pivot_dim(sub, 'agencia_fact')
+        by_agencia_fact = by_agencia          # alias por compatibilidad
+        # Atribución por equipo del asesor, para medir al equipo comercial.
+        by_agencia_equipo = _pivot_dim(sub, 'agencia_equipo')
         by_zona = _pivot_dim(sub, 'zona')
         per_mes_total = sub.groupby('mes')['Cantidad'].sum().astype(int).to_dict()
         totals = {m: int(per_mes_total.get(m, 0)) for m in months_all}
@@ -529,6 +542,7 @@ def _compute_ventas_mensual(sales_df):
             'by_asesor': by_asesor,
             'by_agencia': by_agencia,
             'by_agencia_fact': by_agencia_fact,
+            'by_agencia_equipo': by_agencia_equipo,
             'by_zona': by_zona,
             'flat': flat,
             'nc': nc_rows,
@@ -2321,19 +2335,24 @@ def main():
         # Object.keys(VENTAS_MENSUAL) y trata cada clave como una marca, así que
         # una nota ahí adentro saldría como marca fantasma en el selector.
         "ventas_mensual_doc": {
-            "by_agencia": "Agencia del EQUIPO del asesor. La venta cuenta para la casa "
-                          "del asesor (la vitrina donde más factura en positivo), no para "
-                          "la que emitió la factura. Existe por el efecto placa: el cliente "
-                          "prefiere placa de Pichincha, así que ventas originadas en Machala "
-                          "o Manta se facturan vía La Y o Tumbaco.",
-            "by_agencia_fact": "Vitrina que emitió la factura. Es la base que cuadra contra "
-                               "finanzas (hoja DATOS 2 del reporte de inventario, agrupada "
-                               "por Descripcion Bodega y restando notas de crédito).",
-            "para_cruzar_con_trafico": "Usar agencia_fact. El tráfico se registra en la "
-                                       "vitrina donde entró la persona, así que cruzarlo "
-                                       "contra by_agencia mezcla dos bases distintas.",
-            "campos_flat": "Cada fila trae 'agencia' (equipo) y 'agencia_fact' (vitrina). "
-                           "Los totales de red coinciden; el reparto por agencia no.",
+            "by_agencia": "CIFRA OFICIAL. Vitrina que emitió la factura — la base que "
+                          "cuadra contra finanzas (hoja DATOS 2 del reporte de inventario, "
+                          "agrupada por Descripcion Bodega y restando notas de crédito). "
+                          "Ford La Y ene-jul 2026 = 48 unidades.",
+            "by_agencia_fact": "Alias de by_agencia. Se mantiene por compatibilidad.",
+            "by_agencia_equipo": "Agencia del EQUIPO del asesor: la venta cuenta para su "
+                                 "casa (la vitrina donde más factura en positivo). Existe "
+                                 "por el efecto placa — el cliente prefiere placa de "
+                                 "Pichincha, así que ventas originadas en Machala o Manta "
+                                 "se facturan vía La Y o Tumbaco. Sirve para medir al "
+                                 "equipo comercial, NO para cuadrar contra finanzas. "
+                                 "Ford La Y ene-jul 2026 = 35 unidades.",
+            "para_cruzar_con_trafico": "Usar by_agencia (vitrina). El tráfico se registra "
+                                       "donde entró la persona, así que las dos bases "
+                                       "coinciden.",
+            "campos_flat": "Cada fila trae 'agencia' (vitrina, oficial), 'agencia_fact' "
+                           "(alias) y 'agencia_equipo'. Los totales de red coinciden entre "
+                           "las dos bases; el reparto por agencia no.",
         },
         # Presupuestos BP2026 (financiero = piso, comercial = techo) por
         # marca/agencia/mes. Alimenta la banda y el cumplimiento en Ventas Históricas.

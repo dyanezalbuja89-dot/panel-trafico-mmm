@@ -805,8 +805,12 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
         _home_equipo = (_pos_eq.groupby(['_ase_norm', '_ag_short'])['Cantidad'].sum()
                         .reset_index().sort_values('Cantidad', ascending=False)
                         .drop_duplicates('_ase_norm').set_index('_ase_norm')['_ag_short'].to_dict())
-        _fa['_ag_short'] = _fa.apply(
-            lambda r: _home_equipo.get(r['_ase_norm'], r['_ag_short']), axis=1)
+        # ► Corrección (Daniel, 22-ago-2026): la cifra oficial de ventas de una
+        # agencia es la de FINANZAS, o sea la VITRINA que emitió la factura. Se
+        # deja de reasignar al equipo para que estos breakdowns cuadren con el
+        # resto del panel. _home_equipo se conserva: sigue sirviendo para saber a
+        # qué equipo pertenece cada asesor, que es otra pregunta.
+        # _fa['_ag_short'] queda como vitrina.
         for ase_s, grp in _fa.groupby('_ase_norm'):
             if not ase_s: continue
             _tot = int(grp['Cantidad'].sum())
@@ -1040,10 +1044,8 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
         _fact_copy = facturas_full.copy()
         _fact_copy['_ag_short'] = _fact_copy['AGENCIA_FACTURACION'].apply(_ag_fact_short)
         _fact_copy['Cantidad'] = _fact_copy.get('Cantidad', 1).fillna(0).astype(int)
-        # Regla de equipo: misma casa que el resto de breakdowns.
+        # VITRINA: cifra oficial, cuadra con finanzas (Daniel, 22-ago-2026).
         _fact_copy['_ase_norm'] = _fact_copy['ASESOR_FACTURACION'].apply(lambda s: norm_asesor(s) if pd.notna(s) else None)
-        _fact_copy['_ag_short'] = _fact_copy.apply(
-            lambda r: _home_equipo.get(r['_ase_norm'], r['_ag_short']), axis=1)
         for ag_s, grp in _fact_copy.groupby('_ag_short'):
             if not ag_s: continue
             agencia_breakdown.setdefault(ag_s, {'traffic': 0, 'matched': 0, 'ventas': 0})
@@ -1090,10 +1092,11 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
         _mf['_ag_short'] = _mf['AGENCIA_FACTURACION'].apply(_ag_fact_short)
         _mf['_qty'] = _mf.get('Cantidad', 1).fillna(0).astype(int)
         _mf['_ase_norm'] = _mf['ASESOR_FACTURACION'].apply(lambda s: norm_asesor(s) if pd.notna(s) else None)
-        # Regla de equipo: la agencia del master es la casa del asesor; la
-        # vitrina se preserva en agencia_fact para poder auditar el puente.
+        # VITRINA: la agencia del master es la que emitió la factura, para que
+        # cuadre con finanzas (Daniel, 22-ago-2026). Se conserva _ag_vitrina y se
+        # expone además la casa del equipo, para poder auditar el puente de placa.
         _mf['_ag_vitrina'] = _mf['_ag_short']
-        _mf['_ag_short'] = _mf.apply(
+        _mf['_ag_equipo'] = _mf.apply(
             lambda r: _home_equipo.get(r['_ase_norm'], r['_ag_short']), axis=1)
         # persona_id CONSOLIDADO: si el mismo nombre de cliente aparece con cédula en
         # alguna factura, TODAS sus facturas usan esa cédula como pid (caso Nathaly
