@@ -761,6 +761,18 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
             d['conv_pct'] = round(100*d['matched']/d['traffic'], 1) if d['traffic'] else 0
         return bd
 
+    # ══ Qué base usa cada bloque de esta pestaña ══════════════════════════════
+    # VITRINA (BD de tráfico): canal_breakdown, modelo_breakdown, agencia_breakdown,
+    #   asesor_breakdown, agencia_mkt/modelo_mkt/canal_mkt. Todos agrupan por
+    #   first_* del primer toque, o sea la vitrina donde entró la persona.
+    #   El numerador (matched) es "ese cliente compró", sin importar dónde se
+    #   facturó, así que numerador y denominador comparten base: los % de
+    #   conversión son internamente consistentes.
+    # EQUIPO (regla de placa): facturas_por_asesor_agencia, jefes_por_agencia y
+    #   _home_equipo. Son breakdowns de VENTAS por asesor, no ratios contra
+    #   tráfico, así que la diferencia de base no contamina ninguna tasa.
+    # NO combinar las dos: dividir facturas-por-equipo entre tráfico-por-vitrina
+    # da un ratio sin significado. Hoy ningún indicador lo hace.
     canal_breakdown   = _build_breakdown(lambda ft: ft.get('first_canal') or 'Sin canal')
     modelo_breakdown  = _build_breakdown(lambda ft: (ft.get('first_modelo') or 'Por definir').upper().strip())
     agencia_breakdown = _build_breakdown(lambda ft: ft.get('first_agencia') or 'Sin agencia')

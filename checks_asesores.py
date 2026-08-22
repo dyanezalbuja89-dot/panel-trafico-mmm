@@ -8,7 +8,8 @@ hasta que Daniel lo notó de memoria — este check existe para que el pipeline 
 atrape solo.
 
 Compara, para cada marca, las ventas netas 2026 por asesor:
-  - CRUDO: DATOS 2 de TODOS los snapshots (mismo dedup del loader), agrupado por
+  - CRUDO: DATOS 2 con el snapshot más reciente mandando por mes (mismo criterio
+    que ventas.load_ventas_completo), agrupado por
     'Usuario Vende' directamente — SIN pasar por ventas.py, para poder atrapar
     bugs de atribución del propio loader.
   - PANEL: conversion_data[marca].master_por_asesor de data.json.
@@ -33,7 +34,13 @@ MAP = {'FORD': 'FORD', 'DONGFENG': 'DONGFENG_ORGU', 'CHERY': 'CHERY_ORGU',
 
 
 def cargar_crudo():
-    """DATOS 2 de todos los snapshots, mismo dedup que ventas.load_ventas_completo."""
+    """DATOS 2 con el snapshot más reciente mandando por mes.
+
+    Mismo criterio que ventas.load_ventas_completo(): el snapshot es una foto y una
+    factura anulada desaparece de la siguiente sin dejar NC, así que la unión
+    histórica conserva ventas revertidas. Si este check usara la unión, marcaría
+    como discrepancia justamente las filas que el panel descarta con razón.
+    """
     frames, seen = [], set()
     for d in _INVENTORY_DIRS:
         if not d.exists():
@@ -45,7 +52,12 @@ def cargar_crudo():
                     continue
                 seen.add(p)
                 try:
-                    frames.append(pd.read_excel(p, sheet_name='DATOS 2', header=0))
+                    _f = pd.read_excel(p, sheet_name='DATOS 2', header=0)
+                    import re as _re
+                    _m = _re.search(r'(\d{1,2})-(\d{1,2})-(\d{4})', p.name)
+                    _f['_snap'] = (pd.Timestamp(int(_m.group(3)), int(_m.group(2)), int(_m.group(1)))
+                                   if _m else pd.Timestamp.min)
+                    frames.append(_f)
                     got = True
                 except Exception:
                     pass
@@ -54,6 +66,10 @@ def cargar_crudo():
     if not frames:
         return None
     d = pd.concat(frames, ignore_index=True, sort=False)
+    if '_snap' in d.columns and 'Fecha' in d.columns:
+        _mp = pd.to_datetime(d['Fecha'], errors='coerce').dt.to_period('M')
+        d = d[d['_snap'] == d.groupby(_mp)['_snap'].transform('max')].copy()
+        d = d.drop(columns=['_snap'])
     d = d.drop_duplicates(subset=['Vin', 'Fecha', 'Cantidad'], keep='first')
     d['f'] = pd.to_datetime(d['Fecha'], errors='coerce')
     return d[d['f'].dt.year == 2026].copy()

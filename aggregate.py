@@ -120,6 +120,18 @@ def _parse_brand_meta_breakdown(file_path):
         result[current_brand][fam] = prev
     return result
 
+def _snap_date_agg(path):
+    """Fecha del snapshot desde el nombre del archivo (REPORTE ... 15-8-2026.xlsm)."""
+    import re as _re
+    m = _re.search(r'(\d{1,2})-(\d{1,2})-(\d{4})', path.name)
+    if not m:
+        return pd.Timestamp.min
+    try:
+        return pd.Timestamp(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+    except Exception:
+        return pd.Timestamp.min
+
+
 def _compute_ventas_mensual(sales_df):
     """Pivot mensual de ventas NETAS por marca/modelo/asesor/agencia.
     Devuelve {marca_key: {months, months_labels, by_modelo, by_asesor, by_agencia, totals}}.
@@ -224,6 +236,7 @@ def _compute_ventas_mensual(sales_df):
                         try:
                             _df = pd.read_excel(_p, sheet_name='DATOS 2', header=0)
                             _df['_src'] = _p.name
+                            _df['_snap'] = _snap_date_agg(_p)
                             inv_tx_frames.append(_df)
                             _found_here = True
                         except Exception as _e:
@@ -231,6 +244,20 @@ def _compute_ventas_mensual(sales_df):
                 if _found_here: break  # ► Stop en primer dir con matches (cache local vs OneDrive)
             if inv_tx_frames:
                 inv_tx = pd.concat(inv_tx_frames, ignore_index=True, sort=False)
+                # ► Por mes manda el snapshot MÁS RECIENTE que lo cubre. Misma razón
+                # que en ventas.load_ventas_completo(): el snapshot es una foto y una
+                # factura anulada desaparece de la foto siguiente sin dejar NC que la
+                # compense, así que la unión histórica conservaba ventas revertidas.
+                # Metía 4 unidades Ford de más en ene-jul 2026 y el panel descuadraba
+                # contra finanzas (639 contra 635). El panel debe cuadrar con finanzas.
+                if '_snap' in inv_tx.columns and 'Fecha' in inv_tx.columns:
+                    _mp = pd.to_datetime(inv_tx['Fecha'], errors='coerce').dt.to_period('M')
+                    _kp = inv_tx.groupby(_mp)['_snap'].transform('max')
+                    _n0 = len(inv_tx)
+                    inv_tx = inv_tx[inv_tx['_snap'] == _kp].copy()
+                    print(f'[ventas_mensual] DATOS 2: por mes manda el snapshot más reciente '
+                          f'· {_n0 - len(inv_tx)} filas de snapshots superados descartadas')
+                    inv_tx = inv_tx.drop(columns=['_snap'])
                 if 'Vin' in inv_tx.columns and 'Fecha' in inv_tx.columns and 'Cantidad' in inv_tx.columns:
                     inv_tx = inv_tx.drop_duplicates(subset=['Vin','Fecha','Cantidad'], keep='first')
                 print(f'[ventas_mensual] DATOS 2 concat {len(inv_tx_frames)} snapshots → {len(inv_tx)} TXs únicas')
@@ -450,6 +477,10 @@ def _compute_ventas_mensual(sales_df):
                 'modelo': str(r['modelo_up']) if r['modelo_up'] and str(r['modelo_up']).lower() not in ('nan','none','') else 'Sin modelo',
                 'asesor': str(r['asesor']) if r['asesor'] and str(r['asesor']).lower() not in ('nan','sin asesor','none','') else 'Sin asesor',
                 'agencia': str(r['agencia']),
+                # Vitrina que emitió la factura, sin la reasignación por equipo.
+                # Es la base que cuadra contra finanzas y la que hay que usar para
+                # cruzar contra tráfico (el tráfico se registra donde entró la persona).
+                'agencia_fact': str(r['agencia_fact']),
                 'zona': str(r['zona']),
                 'cantidad': int(r['Cantidad']),
                 'revenue': round(float(r.get('rev_signed') or 0), 2),
@@ -482,6 +513,10 @@ def _compute_ventas_mensual(sales_df):
             row['_zona'] = g['zona'].mode().iloc[0] if len(g['zona'].mode()) else 'Otra'
             by_asesor[str(asesor)] = row
         by_agencia = _pivot_dim(sub, 'agencia')
+        # Mismo pivote, pero por vitrina de facturación. No reemplaza al anterior:
+        # by_agencia responde "de qué equipo fue la venta", by_agencia_fact
+        # responde "qué vitrina la facturó". Difieren por la regla de placa.
+        by_agencia_fact = _pivot_dim(sub, 'agencia_fact')
         by_zona = _pivot_dim(sub, 'zona')
         per_mes_total = sub.groupby('mes')['Cantidad'].sum().astype(int).to_dict()
         totals = {m: int(per_mes_total.get(m, 0)) for m in months_all}
@@ -493,6 +528,7 @@ def _compute_ventas_mensual(sales_df):
             'by_modelo': by_modelo,
             'by_asesor': by_asesor,
             'by_agencia': by_agencia,
+            'by_agencia_fact': by_agencia_fact,
             'by_zona': by_zona,
             'flat': flat,
             'nc': nc_rows,
@@ -2281,6 +2317,24 @@ def main():
         # Panel de Ventas mensual · pivot por marca/modelo/asesor con NETOS (sum Cantidad).
         # Permite ver ventas mes a mes y desplegar por modelo o por asesor comercial.
         "ventas_mensual": _compute_ventas_mensual(__import__('ventas').load_ventas()),
+        # Nodo hermano, NO dentro de ventas_mensual: el panel hace
+        # Object.keys(VENTAS_MENSUAL) y trata cada clave como una marca, así que
+        # una nota ahí adentro saldría como marca fantasma en el selector.
+        "ventas_mensual_doc": {
+            "by_agencia": "Agencia del EQUIPO del asesor. La venta cuenta para la casa "
+                          "del asesor (la vitrina donde más factura en positivo), no para "
+                          "la que emitió la factura. Existe por el efecto placa: el cliente "
+                          "prefiere placa de Pichincha, así que ventas originadas en Machala "
+                          "o Manta se facturan vía La Y o Tumbaco.",
+            "by_agencia_fact": "Vitrina que emitió la factura. Es la base que cuadra contra "
+                               "finanzas (hoja DATOS 2 del reporte de inventario, agrupada "
+                               "por Descripcion Bodega y restando notas de crédito).",
+            "para_cruzar_con_trafico": "Usar agencia_fact. El tráfico se registra en la "
+                                       "vitrina donde entró la persona, así que cruzarlo "
+                                       "contra by_agencia mezcla dos bases distintas.",
+            "campos_flat": "Cada fila trae 'agencia' (equipo) y 'agencia_fact' (vitrina). "
+                           "Los totales de red coinciden; el reparto por agencia no.",
+        },
         # Presupuestos BP2026 (financiero = piso, comercial = techo) por
         # marca/agencia/mes. Alimenta la banda y el cumplimiento en Ventas Históricas.
         "presupuesto": __import__('presupuesto').load_presupuesto(),

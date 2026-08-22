@@ -154,8 +154,29 @@ def load_ventas_completo():
     base = base.copy()
     base['fecha_fact'] = pd.to_datetime(base['fecha de facturacion'], errors='coerce')
 
-    # DATOS 2 concat de todos los snapshots
-    inv_frames, seen = [], set()
+    # DATOS 2 · para cada mes manda el snapshot MÁS RECIENTE que lo cubre.
+    #
+    # Antes se concatenaban todos los snapshots y se deduplicaba por Vin+Fecha+Cantidad.
+    # Eso contaba ventas que después se revirtieron: el snapshot es una FOTO, y cuando
+    # una factura se anula la fila simplemente desaparece de la foto siguiente, sin
+    # dejar una NC que la compense. La unión histórica conservaba esas filas para
+    # siempre. Metía 4 unidades Ford de más en ene-jul 2026 (2 CJA + 2 Tumbaco) y el
+    # panel descuadraba contra finanzas: 639 contra 635.
+    #
+    # El panel debe cuadrar con finanzas, así que la foto vigente es la verdad para
+    # los meses que abarca; los snapshots viejos solo cubren meses que ya no aparecen.
+    import re as _re
+
+    def _snap_date(path):
+        m = _re.search(r'(\d{1,2})-(\d{1,2})-(\d{4})', path.name)
+        if not m:
+            return pd.Timestamp.min
+        try:
+            return pd.Timestamp(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+        except Exception:
+            return pd.Timestamp.min
+
+    inv_files, seen = [], set()
     for d in _INVENTORY_DIRS:
         if not d.exists(): continue
         _found_here = False
@@ -164,18 +185,32 @@ def load_ventas_completo():
                 if p.name.startswith('~$'): continue
                 if 'INVENTARIO' not in p.name.upper(): continue
                 if p in seen: continue
-                seen.add(p)
-                try:
-                    with _w.catch_warnings():
-                        _w.simplefilter('ignore')
-                        inv_frames.append(pd.read_excel(p, sheet_name='DATOS 2', header=0))
-                        _found_here = True
-                except Exception: pass
+                seen.add(p); inv_files.append(p); _found_here = True
         if _found_here: break
+    inv_files.sort(key=_snap_date, reverse=True)
+
+    inv_frames = []
+    for p in inv_files:
+        try:
+            with _w.catch_warnings():
+                _w.simplefilter('ignore')
+                _fr = pd.read_excel(p, sheet_name='DATOS 2', header=0)
+            _fr['_snap'] = _snap_date(p)
+            inv_frames.append(_fr)
+        except Exception:
+            pass
     if not inv_frames:
         return base
 
     d2 = pd.concat(inv_frames, ignore_index=True, sort=False)
+    if '_snap' in d2.columns and 'Fecha' in d2.columns:
+        _mper = pd.to_datetime(d2['Fecha'], errors='coerce').dt.to_period('M')
+        _keep = d2.groupby(_mper)['_snap'].transform('max')
+        _antes = len(d2)
+        d2 = d2[d2['_snap'] == _keep].copy()
+        print(f'[ventas] DATOS 2: {len(inv_frames)} snapshots · por mes manda el más '
+              f'reciente · {_antes - len(d2)} filas de snapshots superados descartadas')
+        d2 = d2.drop(columns=['_snap'])
     if 'Vin' in d2.columns and 'Fecha' in d2.columns and 'Cantidad' in d2.columns:
         d2 = d2.drop_duplicates(subset=['Vin','Fecha','Cantidad'], keep='first')
     d2['fecha_fact'] = pd.to_datetime(d2['Fecha'], errors='coerce')
