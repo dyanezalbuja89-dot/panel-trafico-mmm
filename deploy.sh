@@ -10,6 +10,12 @@ if [ "$1" != "--skip-aggregate" ]; then
   /usr/bin/python3 aggregate.py | tail -2
   # Cuadre asesores vs fuente cruda (caso Daniela 4-ago). Si no cuadra, NO se despliega.
   /usr/bin/python3 checks_asesores.py
+  # Invariantes del panel: ventas contra finanzas, bases de atribución, contrato de
+  # campos, metas y caché. Con --strict corta el deploy si algo se rompió.
+  if ! /usr/bin/python3 verificar.py --strict; then
+    echo "✗ ABORTA: hay invariantes rotos. Revisar antes de publicar."
+    exit 1
+  fi
 fi
 
 echo "→ build..."
