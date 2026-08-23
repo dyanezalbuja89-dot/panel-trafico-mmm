@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-08-23T18:15:05.472187+00:00",
+  "updated_at": "2026-08-23T19:18:10.242622+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -6887,7 +6887,11 @@
               "by_estatus": [
                 [
                   "Cita agendada (atascado)",
-                  94
+                  92
+                ],
+                [
+                  "Cita Efectiva (error)",
+                  2
                 ]
               ]
             }
@@ -10383,7 +10387,11 @@
                 "by_estatus": [
                   [
                     "Cita agendada (atascado)",
-                    28
+                    26
+                  ],
+                  [
+                    "Cita Efectiva (error)",
+                    2
                   ]
                 ]
               }
@@ -26682,7 +26690,11 @@
                 "by_estatus": [
                   [
                     "Cita agendada (atascado)",
-                    8
+                    6
+                  ],
+                  [
+                    "Cita Efectiva (error)",
+                    2
                   ]
                 ]
               }
@@ -27782,7 +27794,13 @@
                 27,
                 14,
                 40,
-                13
+                11
+              ],
+              "Cita Efectiva (error)": [
+                0,
+                0,
+                0,
+                2
               ]
             },
             "conf": {
