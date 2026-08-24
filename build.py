@@ -1459,6 +1459,11 @@ HTML = r"""<!doctype html>
     gap:var(--sp-3);
     margin-bottom:var(--sp-5);
   }
+  #asig-modelos{
+    display:grid; gap:18px;
+    grid-template-columns:repeat(2,minmax(0,1fr));   /* dos por fila: con cuatro los ejes quedan ilegibles */
+  }
+  @media (max-width:1100px){ #asig-modelos{ grid-template-columns:1fr; } }
   .stat-hero .card-big{
     background:var(--c-surface);
     border:1px solid var(--c-border);
@@ -5529,7 +5534,7 @@ HTML = r"""<!doctype html>
           <option value="Costa">Costa</option>
         </select>
       </div>
-      <div id="asig-modelos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px"></div>
+      <div id="asig-modelos"></div>
     </div>
 
     <div class="ford-section">
@@ -6236,11 +6241,11 @@ HTML = r"""<!doctype html>
       const ratios = t.map((x,i)=> st[i].libre ? Math.round(x/st[i].libre) : (x?null:0));
       card.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:10px;flex-wrap:wrap">
-          <span style="font-size:14px;font-weight:700">${mod}</span>
-          <span style="font-size:11.5px;color:var(--muted)">${T} pers · $${Math.round(I).toLocaleString('es')} · <b>$${T?Math.round(I/T):0}</b> c/u · hoy ${libreHoy} libres</span>
+          <span style="font-size:16px;font-weight:700">${mod}</span>
+          <span style="font-size:12.5px;color:var(--muted)">${T} pers · $${Math.round(I).toLocaleString('es')} · <b>$${T?Math.round(I/T):0}</b> c/u · hoy ${libreHoy} libres</span>
         </div>
-        <div style="position:relative;height:165px"><canvas id="asig-c-${idx}"></canvas></div>
-        <div style="display:grid;grid-template-columns:repeat(${ms.length},1fr);gap:1px;margin-top:4px;font-size:9px;text-align:center">
+        <div style="position:relative;height:250px"><canvas id="asig-c-${idx}"></canvas></div>
+        <div style="display:grid;grid-template-columns:repeat(${ms.length},1fr);gap:1px;margin-top:6px;font-size:11px;text-align:center">
           ${ratios.map(r=>{
             const c = r===null ? '#c62828' : (r>=20 ? '#c62828' : (r>=8 ? '#ef6c00' : 'var(--muted)'));
             return `<span style="color:${c}">${r===null?'sin stock':r+'×'}</span>`;
@@ -6264,11 +6269,11 @@ HTML = r"""<!doctype html>
           plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>
             c.dataset.label+': '+(c.dataset.label==='Inversión'?'$'+Math.round(c.parsed.y).toLocaleString('es'):c.parsed.y)}}},
           scales:{
-            y:{position:'left', beginAtZero:true, ticks:{color:'#1565c0', font:{size:9}, maxTicksLimit:4}},
+            y:{position:'left', beginAtZero:true, ticks:{color:'#1565c0', font:{size:11}, maxTicksLimit:5}},
             y1:{position:'right', beginAtZero:true, stacked:true, grid:{display:false},
-                ticks:{color:'#2e7d32', font:{size:9}, maxTicksLimit:4}},
+                ticks:{color:'#2e7d32', font:{size:11}, maxTicksLimit:5}},
             y2:{display:false, beginAtZero:true, suggestedMax: Math.max(...inv,1)*2.4},
-            x:{stacked:true, grid:{display:false}, ticks:{font:{size:9}}}}}
+            x:{stacked:true, grid:{display:false}, ticks:{font:{size:11}}}}}
       });
     });
   }
