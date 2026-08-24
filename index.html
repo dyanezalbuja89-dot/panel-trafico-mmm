@@ -12,7 +12,7 @@
 <!-- Cache-buster: force fresh reload cuando URL no tiene ?v= param. Deploy hash inline. -->
 <script>
 (function(){
-  var DEPLOY = '1787601316';
+  var DEPLOY = '1787601466';
   var u = new URL(location.href);
   if (u.searchParams.get('v') !== DEPLOY) {
     u.searchParams.set('v', DEPLOY);
@@ -6172,7 +6172,7 @@
     const box = document.getElementById('asig-zona'); if(!box) return;
     if(!DATA.pauta){ box.innerHTML=''; return; }
     const ms = ASIG.mesesCerrados();
-    const filas = ASIG.MODS.map(mod=>{
+    let filas = ASIG.MODS.map(mod=>{
       const o = {};
       ['Sierra','Costa'].forEach(z=>{
         const inv = ms.reduce((a,m)=>a+ASIG.inversion(m.key,mod,z),0);
@@ -6180,7 +6180,12 @@
         o[z] = {inv, tr, cpt: tr ? inv/tr : null};
       });
       return {mod, ...o};
-    }).filter(f=>f.Sierra.tr || f.Costa.tr);
+    });
+    // Un modelo con poquísimo tráfico da un costo por persona absurdo (Bronco costa:
+    // 6 visitas y $1.271 = $212) que aplasta la escala de todos los demás. Se separa.
+    const MIN_TR = 20;
+    const flojos = filas.filter(f => Math.max(f.Sierra.tr, f.Costa.tr) < MIN_TR && (f.Sierra.tr || f.Costa.tr));
+    filas = filas.filter(f => Math.max(f.Sierra.tr, f.Costa.tr) >= MIN_TR);
     const max = Math.max(...filas.flatMap(f=>[f.Sierra.cpt||0, f.Costa.cpt||0]), 1);
     box.innerHTML = filas.sort((a,b)=>(a.Sierra.cpt||0)-(b.Sierra.cpt||0)).map(f=>{
       const bar = (v,color,lab) => v==null
@@ -6191,7 +6196,10 @@
       return `<div style="display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center;margin-bottom:8px">
         <span style="font-size:12px;font-weight:600">${f.mod}</span>
         <div>${bar(f.Sierra.cpt,'#c62828','sierra')}${bar(f.Costa.cpt,'#2e7d32','costa')}</div></div>`;
-    }).join('');
+    }).join('') + (flojos.length ? `<div class="footer-note" style="margin-top:8px">
+      Fuera del gráfico por volumen bajo (menos de ${MIN_TR} visitas en las dos zonas):
+      ${flojos.map(f=>`<b>${f.mod}</b> — sierra $${f.Sierra.cpt?Math.round(f.Sierra.cpt):'—'} · costa $${f.Costa.cpt?Math.round(f.Costa.cpt):'—'}`).join(' · ')}.
+      Con tan pocas visitas el costo por persona no es comparable.</div>` : '');
   }
 
   function renderAsigModelos(){
