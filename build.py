@@ -2850,6 +2850,10 @@ HTML = r"""<!doctype html>
     <svg class="tab-icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
     <span class="tab-label">Inventario y Supply</span>
   </button>
+  <button class="tab-btn" data-tab="asignacion" title="Asignación · dónde va la pauta y dónde el inventario">
+    <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6"/><path d="M4.2 4.2l4.3 4.3m7 7l4.3 4.3"/><path d="M1 12h6m6 0h6"/><path d="M4.2 19.8l4.3-4.3m7-7l4.3-4.3"/></svg>
+    <span class="tab-label">Asignación</span>
+  </button>
   <button class="tab-btn" data-tab="xiy" title="Inversión Digital">
     <svg class="tab-icon" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
     <span class="tab-label">Inversión Digital</span>
@@ -5496,6 +5500,44 @@ HTML = r"""<!doctype html>
     </div>
   </section>
 
+  <!-- ═══════════ TAB ASIGNACIÓN · pauta × tráfico × producto ═══════════ -->
+  <section id="tab-asignacion" class="tab-panel">
+    <div class="ford-section">
+      <h3>💰 Dónde está la plata y dónde está el producto
+        <span class="sub">Inversión de pauta, tráfico y unidades disponibles, por modelo y zona · 2026</span></h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;background:#fff8e1;padding:10px;border-radius:6px">
+        <strong>Sierra</strong> = Quito (La Y + Tumbaco) · <strong>Costa</strong> = Guayaquil, Manta, Portoviejo y Machala.<br>
+        <strong>Disponible</strong> = unidades en esa vitrina, ya arribadas, sin facturar y sin reserva de cliente: lo que un asesor puede mostrar hoy.
+        La ubicación es la del último corte, así que en meses viejos es aproximada.<br>
+        <strong>El tráfico responde al presupuesto del mes ANTERIOR</strong> (correlación +0,63 con un mes de desfase, −0,43 en el mismo mes).
+      </div>
+      <div id="asig-kpis" class="cards-row" style="margin-bottom:14px"></div>
+    </div>
+
+    <div class="ford-section">
+      <h3>📍 Costo por tráfico según zona <span class="sub">cuánto cuesta traer una persona a cada plaza</span></h3>
+      <div id="asig-zona"></div>
+    </div>
+
+    <div class="ford-section">
+      <h3>📊 Modelo por modelo <span class="sub">línea = tráfico · barras = stock (verde disponible, gris reservado) · área = inversión</span></h3>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <label style="font-size:12px;color:var(--muted)">Zona</label>
+        <select id="asig-zona-sel" style="padding:5px 8px;border-radius:6px">
+          <option value="TODAS">Toda la red</option>
+          <option value="Sierra">Sierra · Quito</option>
+          <option value="Costa">Costa</option>
+        </select>
+      </div>
+      <div id="asig-modelos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px"></div>
+    </div>
+
+    <div class="ford-section">
+      <h3>🔎 Lecturas automáticas</h3>
+      <div id="asig-insights"></div>
+    </div>
+  </section>
+
 </main>
 
 </div><!-- /.app-shell -->
@@ -5963,6 +6005,11 @@ HTML = r"""<!doctype html>
       const f = invFecha();
       return 'Oferta vs demanda · ' + f.txt + (f.aviso || '');
     }
+    if(tab === 'asignacion'){
+      const p = DATA.pauta;
+      const inv = p ? ('$' + Math.round(p.total).toLocaleString('es')) : '—';
+      return 'Pauta × tráfico × producto · ' + inv + ' invertidos en 2026';
+    }
     if(tab === 'conv'){
       const g = convGet()?.global;
       // Ambos lados en UNIDADES (antes el denominador eran personas → "532 de 331").
@@ -6021,12 +6068,239 @@ HTML = r"""<!doctype html>
       const tab = btn.dataset.tab;
       document.getElementById('tab-'+tab).classList.add('active');
       setTopbarSub(tab);
+      if(tab === 'asignacion') renderAsignacion();
       showSkeletonsForTab('tab-'+tab);
       URLState.set('tab', tab === 'ford' ? '' : tab);  // ford = default, no ensucia URL
     });
   });
   // Initial subtitle (matches initial active tab)
   setTopbarSub(document.querySelector('.tab-btn.active')?.dataset.tab || 'ford');
+
+
+  // ═══════════ TAB ASIGNACIÓN · pauta × tráfico × producto ═══════════
+  // Responde una sola pregunta: ¿está la plata donde está el producto, y hay
+  // gente para venderle? Cruza tres fuentes que hasta ahora vivían separadas:
+  // pauta (DATA.pauta), tráfico (ford_months) e inventario (monthly_cross).
+  const ASIG = (function(){
+    const MODS = ['TERRITORY','ESCAPE','RANGER','EVEREST','F-150','EXPLORER','BRONCO'];
+    const SIERRA = ['La Y','Tumbaco'];
+    const COSTA  = ['CJA','Orellana','Manta','Portoviejo','Machala'];
+    const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
+                   'septiembre','octubre','noviembre','diciembre'];
+    const LBL = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+    // Meses 2026 que existen a la vez en pauta y en tráfico
+    function mesesActivos(){
+      const p = DATA.pauta; if(!p) return [];
+      return MESES.map((m,i)=>({key:`${m}_2026`, lbl:LBL[i], i}))
+                  .filter(x => p.por_mes[x.key] != null || DATA.ford_months[x.key]);
+    }
+    const num = v => (typeof v === 'number' && isFinite(v)) ? v : 0;
+
+    function trafico(mesKey, modelo, zona){
+      const fm = DATA.ford_months[mesKey]; if(!fm) return 0;
+      if(zona === 'TODAS'){
+        if(modelo) return num((fm.models||{})[modelo]?.curr);
+        return MODS.reduce((a,m)=>a+num((fm.models||{})[m]?.curr),0);
+      }
+      const ags = zona === 'Sierra' ? SIERRA : COSTA;
+      return ags.reduce((a,ag)=>{
+        const d = (fm.dealers||{})[ag]; if(!d) return a;
+        if(modelo) return a + num((d.byModel||{})[modelo]);
+        return a + MODS.reduce((b,m)=>b+num((d.byModel||{})[m]),0);
+      },0);
+    }
+
+    function stock(mesKey, modelo, zona){
+      const mc = DATA.inventario?.monthly_cross?.FORD?.[mesKey];
+      if(!mc) return {libre:0, reservado:0};
+      const mods = modelo ? [modelo] : MODS;
+      let libre = 0, reservado = 0;
+      mods.forEach(m=>{
+        const pm = (mc.por_modelo||{})[m]; if(!pm) return;
+        if(zona === 'TODAS'){ libre += num(pm.disp_eom); reservado += num(pm.reserv_eom); return; }
+        const ags = zona === 'Sierra' ? SIERRA : COSTA;
+        ags.forEach(ag=>{
+          const pa = (pm.por_agencia||{})[ag]; if(!pa) return;
+          libre += num(pa.disp_eom); reservado += num(pa.reserv_eom);
+        });
+      });
+      return {libre, reservado};
+    }
+
+    function inversion(mesKey, modelo, zona){
+      const p = DATA.pauta; if(!p) return 0;
+      if(modelo){
+        if(zona === 'TODAS') return num(p.por_modelo?.[modelo]?.[mesKey]);
+        return num(p.por_modelo_zona?.[modelo]?.[zona]?.[mesKey]);
+      }
+      if(zona === 'TODAS') return num(p.por_mes?.[mesKey]);
+      return num(p.por_zona?.[zona]?.[mesKey]);
+    }
+
+    // Solo meses CERRADOS para los agregados: el mes en curso va a medias y
+    // ensucia cualquier ratio de costo por tráfico.
+    function mesesCerrados(){
+      const act = mesesActivos();
+      const cur = (DATA.months_config||[]).find(m=>DATA.ford_months[m.key]?.is_current);
+      const curKey = cur?.key || `${MESES[new Date().getMonth()]}_2026`;
+      return act.filter(m => m.key !== curKey);
+    }
+    return {MODS, SIERRA, COSTA, mesesActivos, mesesCerrados, trafico, stock, inversion, num};
+  })();
+
+  function renderAsigKPIs(){
+    const box = document.getElementById('asig-kpis'); if(!box) return;
+    if(!DATA.pauta){ box.innerHTML = '<div class="footer-note">Sin datos de pauta.</div>'; return; }
+    const ms = ASIG.mesesCerrados();
+    const card = (lbl, val, hint, color) => `
+      <div class="card-big"><div class="lbl">${lbl}</div>
+        <div class="val" ${color?`style="color:${color}"`:''}>${val}</div>
+        <div class="hint">${hint}</div></div>`;
+    const zs = ['Sierra','Costa'].map(z=>{
+      const inv = ms.reduce((a,m)=>a+ASIG.inversion(m.key,null,z),0);
+      const tr  = ms.reduce((a,m)=>a+ASIG.trafico(m.key,null,z),0);
+      return {z, inv, tr, cpt: tr ? inv/tr : 0};
+    });
+    const [si,co] = zs;
+    const brecha = co.cpt ? (si.cpt/co.cpt) : 0;
+    box.innerHTML =
+      card('Inversión 2026', '$'+Math.round(DATA.pauta.total).toLocaleString('es'),
+           `${DATA.pauta.meses.length} meses de pauta`) +
+      card('Costo por tráfico · Sierra', '$'+Math.round(si.cpt),
+           `${Math.round(100*si.inv/(si.inv+co.inv))}% del presupuesto · ${Math.round(100*si.tr/(si.tr+co.tr))}% del tráfico`, '#c62828') +
+      card('Costo por tráfico · Costa', '$'+Math.round(co.cpt),
+           `${Math.round(100*co.inv/(si.inv+co.inv))}% del presupuesto · ${Math.round(100*co.tr/(si.tr+co.tr))}% del tráfico`, '#2e7d32') +
+      card('Brecha entre zonas', brecha.toFixed(1)+'×',
+           'traer una persona a Quito contra la costa');
+  }
+
+  function renderAsigZona(){
+    const box = document.getElementById('asig-zona'); if(!box) return;
+    if(!DATA.pauta){ box.innerHTML=''; return; }
+    const ms = ASIG.mesesCerrados();
+    const filas = ASIG.MODS.map(mod=>{
+      const o = {};
+      ['Sierra','Costa'].forEach(z=>{
+        const inv = ms.reduce((a,m)=>a+ASIG.inversion(m.key,mod,z),0);
+        const tr  = ms.reduce((a,m)=>a+ASIG.trafico(m.key,mod,z),0);
+        o[z] = {inv, tr, cpt: tr ? inv/tr : null};
+      });
+      return {mod, ...o};
+    }).filter(f=>f.Sierra.tr || f.Costa.tr);
+    const max = Math.max(...filas.flatMap(f=>[f.Sierra.cpt||0, f.Costa.cpt||0]), 1);
+    box.innerHTML = filas.sort((a,b)=>(a.Sierra.cpt||0)-(b.Sierra.cpt||0)).map(f=>{
+      const bar = (v,color,lab) => v==null
+        ? `<div style="font-size:11px;color:var(--muted)">sin pauta</div>`
+        : `<div style="display:flex;align-items:center;gap:6px">
+             <div style="height:13px;width:${Math.max(2,100*v/max)}%;background:${color};border-radius:3px"></div>
+             <span style="font-size:11px;color:${color};white-space:nowrap">$${Math.round(v)} ${lab}</span></div>`;
+      return `<div style="display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:600">${f.mod}</span>
+        <div>${bar(f.Sierra.cpt,'#c62828','sierra')}${bar(f.Costa.cpt,'#2e7d32','costa')}</div></div>`;
+    }).join('');
+  }
+
+  function renderAsigModelos(){
+    const box = document.getElementById('asig-modelos'); if(!box) return;
+    if(!DATA.pauta){ box.innerHTML='<div class="footer-note">Sin datos de pauta.</div>'; return; }
+    const zona = document.getElementById('asig-zona-sel')?.value || 'TODAS';
+    const ms = ASIG.mesesActivos();
+    const cerr = ASIG.mesesCerrados().map(m=>m.key);
+    box.innerHTML = '';
+    ASIG.MODS.forEach((mod,idx)=>{
+      const t = ms.map(m=>ASIG.trafico(m.key,mod,zona));
+      const st = ms.map(m=>ASIG.stock(m.key,mod,zona));
+      const inv = ms.map(m=>ASIG.inversion(m.key,mod,zona));
+      if(!t.some(x=>x) && !inv.some(x=>x)) return;
+      const T = ms.reduce((a,m,i)=>a+(cerr.includes(m.key)?t[i]:0),0);
+      const I = ms.reduce((a,m,i)=>a+(cerr.includes(m.key)?inv[i]:0),0);
+      const libreHoy = st[st.length-1]?.libre ?? 0;
+      const card = document.createElement('div');
+      card.className = 'ford-card';
+      card.style.cssText = 'background:var(--card,#fff);border-radius:12px;padding:12px 14px 8px';
+      const ratios = t.map((x,i)=> st[i].libre ? Math.round(x/st[i].libre) : (x?null:0));
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:10px;flex-wrap:wrap">
+          <span style="font-size:14px;font-weight:700">${mod}</span>
+          <span style="font-size:11.5px;color:var(--muted)">${T} pers · $${Math.round(I).toLocaleString('es')} · <b>$${T?Math.round(I/T):0}</b> c/u · hoy ${libreHoy} libres</span>
+        </div>
+        <div style="position:relative;height:165px"><canvas id="asig-c-${idx}"></canvas></div>
+        <div style="display:grid;grid-template-columns:repeat(${ms.length},1fr);gap:1px;margin-top:4px;font-size:9px;text-align:center">
+          ${ratios.map(r=>{
+            const c = r===null ? '#c62828' : (r>=20 ? '#c62828' : (r>=8 ? '#ef6c00' : 'var(--muted)'));
+            return `<span style="color:${c}">${r===null?'sin stock':r+'×'}</span>`;
+          }).join('')}
+        </div>`;
+      box.appendChild(card);
+      if(charts['asig-'+idx]) charts['asig-'+idx].destroy();
+      charts['asig-'+idx] = new Chart(card.querySelector('canvas'),{
+        data:{labels: ms.map(m=>m.lbl), datasets:[
+          {type:'bar', label:'Disponible', data: st.map(x=>x.libre), backgroundColor:'#43a047',
+           stack:'s', yAxisID:'y1', borderRadius:{topLeft:3,topRight:3}, maxBarThickness:24, order:3},
+          {type:'bar', label:'Reservado', data: st.map(x=>x.reservado), backgroundColor:'#bdbdbd',
+           stack:'s', yAxisID:'y1', maxBarThickness:24, order:3},
+          {type:'line', label:'Inversión', data: inv, borderColor:'#f9a825',
+           backgroundColor:'rgba(249,168,37,.12)', borderWidth:2, tension:.3, pointRadius:2,
+           fill:true, yAxisID:'y2', order:2},
+          {type:'line', label:'Tráfico', data: t, borderColor:'#1565c0', backgroundColor:'#1565c0',
+           borderWidth:2.5, tension:.25, pointRadius:3, yAxisID:'y', order:1}]},
+        options:{responsive:true, maintainAspectRatio:false,
+          interaction:{mode:'index', intersect:false},
+          plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>
+            c.dataset.label+': '+(c.dataset.label==='Inversión'?'$'+Math.round(c.parsed.y).toLocaleString('es'):c.parsed.y)}}},
+          scales:{
+            y:{position:'left', beginAtZero:true, ticks:{color:'#1565c0', font:{size:9}, maxTicksLimit:4}},
+            y1:{position:'right', beginAtZero:true, stacked:true, grid:{display:false},
+                ticks:{color:'#2e7d32', font:{size:9}, maxTicksLimit:4}},
+            y2:{display:false, beginAtZero:true, suggestedMax: Math.max(...inv,1)*2.4},
+            x:{stacked:true, grid:{display:false}, ticks:{font:{size:9}}}}}
+      });
+    });
+  }
+
+  function renderAsigInsights(){
+    const box = document.getElementById('asig-insights'); if(!box) return;
+    if(!DATA.pauta){ box.innerHTML=''; return; }
+    const ms = ASIG.mesesCerrados();
+    const out = [];
+    ASIG.MODS.forEach(mod=>{
+      const inv = ms.reduce((a,m)=>a+ASIG.inversion(m.key,mod,'TODAS'),0);
+      const tr  = ms.reduce((a,m)=>a+ASIG.trafico(m.key,mod,'TODAS'),0);
+      const ult = ASIG.mesesActivos().slice(-1)[0];
+      const st  = ult ? ASIG.stock(ult.key,mod,'TODAS') : {libre:0};
+      const cpt = tr ? inv/tr : null;
+      // Demanda sin producto: mucha gente, piso vacío
+      if(tr > 100 && st.libre <= 4)
+        out.push(`<b>${mod}</b> — ${tr} personas y solo <b>${st.libre}</b> ${st.libre===1?'unidad libre':'unidades libres'}. El techo es el inventario, no la demanda: más pauta acá no sube la venta.`);
+      // Producto sin demanda
+      if(st.libre >= 40 && tr < 200)
+        out.push(`<b>${mod}</b> — <b>${st.libre} unidades libres</b> y ${tr} personas en el año. Sobra producto y falta quién lo vea.`);
+      // Caro
+      if(cpt && cpt > 60 && inv > 5000)
+        out.push(`<b>${mod}</b> — $${Math.round(cpt)} por persona con $${Math.round(inv).toLocaleString('es')} invertidos. Es de lo más caro del portafolio.`);
+      // Barato y sin plata
+      if(cpt && cpt < 25 && inv < 8000 && st.libre >= 10)
+        out.push(`<b>${mod}</b> — cuesta apenas $${Math.round(cpt)} por persona y tiene ${st.libre} unidades libres, pero solo recibió $${Math.round(inv).toLocaleString('es')}. Es donde más rinde cada dólar.`);
+    });
+    // Zona sin piso
+    ['Sierra','Costa'].forEach(z=>{
+      const ult = ASIG.mesesActivos().slice(-1)[0]; if(!ult) return;
+      const secos = ASIG.MODS.filter(m=>ASIG.stock(ult.key,m,z).libre === 0 && ASIG.trafico(ult.key,m,z) > 0);
+      if(secos.length >= 3)
+        out.push(`<b>${z}</b> cierra ${ult.lbl} con <b>cero unidades libres</b> en ${secos.length} modelos (${secos.join(', ')}) y con gente entrando a verlos.`);
+    });
+    box.innerHTML = out.length
+      ? '<ul style="margin:0;padding-left:18px;line-height:1.9;font-size:13px">' + out.map(x=>`<li>${x}</li>`).join('') + '</ul>'
+      : '<div class="footer-note">Sin lecturas destacadas con los datos actuales.</div>';
+  }
+
+  function renderAsignacion(){
+    try {
+      renderAsigKPIs(); renderAsigZona(); renderAsigModelos(); renderAsigInsights();
+    } catch(e){ console.error('[asignacion]', e); }
+  }
+  document.getElementById('asig-zona-sel')?.addEventListener('change', renderAsigModelos);
 
   // ─── Aplica URL state al inicio: navegar al tab si viene ?tab=X ───
   (function applyInitialURLState(){
