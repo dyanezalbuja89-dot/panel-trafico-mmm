@@ -809,9 +809,22 @@ def load_inventario(path=None, today=None, months_config=None):
 
             def _calc_por_agencia(slice_df):
                 """Desglose por agencia: ventas (AGENCIA_FACTURACION), reservas
-                (AGENCIA_DE_RESERVA), arribos. Disp NO se desglosa por agencia
-                porque los VINs disponibles no están atribuidos a una agencia
-                hasta que se reserven/facturen."""
+                (AGENCIA_DE_RESERVA) y disponible FÍSICO (columna AGENCIA, que sale de
+                UBICACIÓN FÍSICA SISCAL con fallback a BODEGA LOGICA).
+
+                El disponible por agencia responde una pregunta operativa concreta:
+                *cuántas unidades puede mostrar hoy un asesor de esa vitrina*. No es
+                una atribución comercial — el VIN no "pertenece" a la agencia hasta
+                que se reserve — sino la ubicación del fierro.
+
+                ⚠ La ubicación es la ACTUAL del snapshot, así que para meses pasados
+                es aproximada: un chasis que hoy está en La Y pudo estar en tránsito
+                en marzo. Sirve para leer la tendencia y el mes en curso; no para
+                auditar un mes viejo unidad por unidad.
+
+                `disp_eom_sin_ubicar` recoge lo que está en tránsito o sin bodega
+                asignada, para que la suma por agencia siempre cuadre contra el total.
+                """
                 f_res_valid = slice_df['f_reserva_inv'].notna() & (slice_df['f_reserva_inv'].dt.year > 2020)
                 out_ag = {}
                 # Agencias del panel + cualquier otra que aparezca
@@ -829,7 +842,27 @@ def load_inventario(path=None, today=None, months_config=None):
                                        & (sub_r['f_factura_inv'].isna() | (sub_r['f_factura_inv'] > som_minus1))).sum())
                     else:
                         res_som = None
-                    out_ag[ag] = {'ventas': ventas, 'reserv_eom': res_eom, 'reserv_som': res_som}
+                    # Disponible físico al cierre: arribó, no facturado, sin reserva viva
+                    sub_f = slice_df[slice_df['AGENCIA'] == ag]
+                    if len(sub_f):
+                        _lleg = sub_f['f_arribo'].notna() & (sub_f['f_arribo'] <= eom)
+                        _nofact = sub_f['f_factura_inv'].isna() | (sub_f['f_factura_inv'] > eom)
+                        _rv = sub_f['f_reserva_inv'].notna() & (sub_f['f_reserva_inv'].dt.year > 2020)
+                        _sinres = ~(_rv & (sub_f['f_reserva_inv'] <= eom))
+                        disp_eom = int((_lleg & _nofact & _sinres).sum())
+                    else:
+                        disp_eom = 0
+                    out_ag[ag] = {'ventas': ventas, 'reserv_eom': res_eom,
+                                  'reserv_som': res_som, 'disp_eom': disp_eom}
+                # Lo que está en tránsito o sin bodega: no lo puede mostrar nadie,
+                # pero sin esta fila la suma por agencia no cuadra contra el total.
+                _sin = slice_df[~slice_df['AGENCIA'].isin(agencias)]
+                if len(_sin):
+                    _lleg = _sin['f_arribo'].notna() & (_sin['f_arribo'] <= eom)
+                    _nofact = _sin['f_factura_inv'].isna() | (_sin['f_factura_inv'] > eom)
+                    _rv = _sin['f_reserva_inv'].notna() & (_sin['f_reserva_inv'].dt.year > 2020)
+                    _sinres = ~(_rv & (_sin['f_reserva_inv'] <= eom))
+                    out_ag['_sin_ubicar'] = {'disp_eom': int((_lleg & _nofact & _sinres).sum())}
                 return out_ag
 
             global_stats = _calc_for(sub)

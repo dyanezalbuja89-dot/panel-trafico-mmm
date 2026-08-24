@@ -2331,6 +2331,9 @@ def main():
         # Panel de Ventas mensual · pivot por marca/modelo/asesor con NETOS (sum Cantidad).
         # Permite ver ventas mes a mes y desplegar por modelo o por asesor comercial.
         "ventas_mensual": _compute_ventas_mensual(__import__('ventas').load_ventas()),
+        # Presupuesto de pauta digital por modelo, mes y zona. Es lo PLANIFICADO
+        # (los Excel mensuales de OneDrive), no lo ejecutado en Ads Manager.
+        "pauta": (lambda: (lambda m: m.build_pauta())(__import__('pauta')))(),
         # Nodo hermano, NO dentro de ventas_mensual: el panel hace
         # Object.keys(VENTAS_MENSUAL) y trata cada clave como una marca, así que
         # una nota ahí adentro saldría como marca fantasma en el selector.

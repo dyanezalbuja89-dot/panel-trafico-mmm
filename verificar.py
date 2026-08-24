@@ -190,6 +190,54 @@ def check_meses(d):
             fail(f'meses {k}', f'corte en el futuro: {cd}')
 
 
+def check_disp_por_agencia(d):
+    """El disponible desglosado por agencia tiene que sumar el total del modelo.
+    Si no cuadra, hay unidades con bodega sin mapear que desaparecen del reporte."""
+    mc = ((d.get('inventario') or {}).get('monthly_cross') or {}).get('FORD')
+    if not mc:
+        warn('disp por agencia', 'no hay monthly_cross')
+        return
+    malos, revisados = [], 0
+    for mes, m in mc.items():
+        for mod, pm in (m.get('por_modelo') or {}).items():
+            pa = pm.get('por_agencia') or {}
+            if not pa or 'disp_eom' not in pm:
+                continue
+            revisados += 1
+            suma = sum((v or {}).get('disp_eom', 0) for v in pa.values())
+            if suma != pm['disp_eom']:
+                malos.append(f'{mes}/{mod}: suma {suma} ≠ total {pm["disp_eom"]}')
+    if malos:
+        fail('disp por agencia', ' · '.join(malos[:3]) + (f' (+{len(malos)-3})' if len(malos) > 3 else ''))
+    else:
+        ok('disp por agencia', f'{revisados} combinaciones mes×modelo cuadran')
+
+
+def check_pauta(d):
+    """El presupuesto de pauta tiene que estar completo y cuadrar por sus tres cortes.
+    Un mes que falta suele ser un archivo con nombre distinto o una hoja renombrada."""
+    p = d.get('pauta')
+    if not p:
+        fail('pauta', 'falta el nodo pauta en data.json')
+        return
+    import datetime
+    esperados = datetime.date.today().month
+    if len(p.get('meses', [])) < esperados:
+        faltan = esperados - len(p['meses'])
+        warn('pauta', f'{len(p["meses"])} meses cargados, se esperaban {esperados} '
+                      f'(faltan {faltan} — revisar nombre de archivo y hoja "Digital Pauta")')
+    else:
+        ok('pauta', f'{len(p["meses"])} meses · ${p["total"]:,.0f}')
+    # los tres cortes deben sumar lo mismo
+    tm = sum(p['por_mes'].values())
+    tz = sum(sum(v.values()) for v in p['por_zona'].values())
+    tmod = sum(sum(v.values()) for v in p['por_modelo'].values())
+    if abs(tm - tz) > 1 or abs(tm - tmod) > 1:
+        fail('pauta', f'los cortes no cuadran: mes ${tm:,.0f} · zona ${tz:,.0f} · modelo ${tmod:,.0f}')
+    else:
+        ok('pauta cortes', f'mes = zona = modelo = ${tm:,.0f}')
+
+
 # ── 6 · Versión del caché ────────────────────────────────────────────────────
 def check_cache():
     """Si se cambia un criterio de cálculo sin subir la versión, los meses viejos
@@ -227,6 +275,8 @@ def main():
     check_contrato(d)
     check_metas(d)
     check_meses(d)
+    check_disp_por_agencia(d)
+    check_pauta(d)
     check_cache()
 
     print()
