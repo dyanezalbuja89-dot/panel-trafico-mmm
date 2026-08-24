@@ -5511,7 +5511,7 @@ HTML = r"""<!doctype html>
         La ubicación es la del último corte, así que en meses viejos es aproximada.<br>
         <strong>El tráfico responde al presupuesto del mes ANTERIOR</strong> (correlación +0,63 con un mes de desfase, −0,43 en el mismo mes).
       </div>
-      <div id="asig-kpis" class="cards-row" style="margin-bottom:14px"></div>
+      <div id="asig-kpis" class="stat-hero" style="margin-bottom:14px"></div>
     </div>
 
     <div class="ford-section">
