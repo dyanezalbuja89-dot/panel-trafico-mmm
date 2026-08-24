@@ -1874,10 +1874,10 @@ MONTHS_CONFIG = [
      "brand_metas_file": str(JUL_BRAND_METAS_FILE)},
     # Primer corte de agosto: no hay corte previo del mes, así que prev = curr y el
     # delta arranca en 0 (mismo criterio que se usó en febrero).
-    {"key": "agosto_2026", "label": "Agosto 2026", "month": 8, "year": 2026, "cut_day": 18,
-     "curr_file": "../Agosto/BD_AGOSTO/BD_AGO_18_08_26.xlsx",
-     "prev_file": "../Agosto/BD_AGOSTO/BD_AGO_17_08_26.xlsx",
-     "prev_date": "17/08/2026",
+    {"key": "agosto_2026", "label": "Agosto 2026", "month": 8, "year": 2026, "cut_day": 23,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_AGO_23_08_26.xlsx",
+     "prev_file": "../Agosto/BD_AGOSTO/BD_AGO_18_08_26.xlsx",
+     "prev_date": "18/08/2026",
      "ford_metas_file": str(AGO_FORD_METAS_FILE),
      "brand_metas_file": str(AGO_BRAND_METAS_FILE)},
 ]

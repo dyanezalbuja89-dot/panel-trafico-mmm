@@ -65,21 +65,31 @@ if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
 fi
 echo "✓ remoto al día ($(git rev-parse --short HEAD)) — el cron ya no puede revertirlo"
 
-LOCAL_MD5=$(md5 -q data.json)
-echo "→ data.json local md5: $LOCAL_MD5"
+# Se verifican LOS DOS archivos. Antes solo se comparaba data.json, así que un
+# index.html que no subía pasaba como deploy correcto: los números quedaban bien
+# y la interfaz vieja. Ojo con la URL: vercel.json trae cleanUrls, de modo que
+# pedir /index.html devuelve un redirect de 15 bytes — hay que pedir la raíz.
+LOCAL_DATA=$(md5 -q data.json)
+LOCAL_HTML=$(md5 -q index.html)
+echo "→ local · data.json $LOCAL_DATA · index.html $LOCAL_HTML"
 
 deploy_and_verify () {
   local extra=$1
   echo "→ vercel deploy $extra..."
   npx vercel --prod --yes $extra 2>&1 | grep -E "Aliased|Production" | head -2
   sleep 8
-  LIVE_MD5=$(curl -s "https://panel-trafico.vercel.app/data.json?_=$(date +%s%N)" | md5 -q)
-  echo "→ data.json LIVE md5: $LIVE_MD5"
-  [ "$LIVE_MD5" = "$LOCAL_MD5" ]
+  local bust="_=$(date +%s%N)"
+  LIVE_DATA=$(curl -s "https://panel-trafico.vercel.app/data.json?$bust" | md5 -q)
+  LIVE_HTML=$(curl -s "https://panel-trafico.vercel.app/?$bust" | md5 -q)
+  echo "→ LIVE  · data.json $LIVE_DATA · index.html $LIVE_HTML"
+  local ok=0
+  [ "$LIVE_DATA" != "$LOCAL_DATA" ] && { echo "   ✗ data.json difiere"; ok=1; }
+  [ "$LIVE_HTML" != "$LOCAL_HTML" ] && { echo "   ✗ index.html difiere"; ok=1; }
+  return $ok
 }
 
 if deploy_and_verify ""; then
-  echo "✓ DEPLOY VERIFICADO — LIVE coincide con local"
+  echo "✓ DEPLOY VERIFICADO — data.json e index.html coinciden con local"
 else
   echo "⚠ LIVE difiere de local — reintentando con --force..."
   if deploy_and_verify "--force"; then
