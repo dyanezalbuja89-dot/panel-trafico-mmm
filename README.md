@@ -351,6 +351,50 @@ eje izquierdo, línea de % en el derecho. Un 21,7% sobre 60 personas y un 6% sob
 historias distintas y el % solo no lo mostraba. Las barras de ventas llevan `minBarLength: 3`
 — una venta contra una escala de 120 sería invisible.
 
+## El mes en curso: la regla y dónde se aplica (25-ago-2026)
+
+**Los acumulados solo cuentan meses CERRADOS.** Una auditoría multi-agente encontró que la
+regla estaba escrita pero no propagada, y el efecto no era cosmético — invertía veredictos.
+
+| Vista | Antes | Después |
+|---|---|---|
+| Ford "YTD 2026" | **210% 🟢** (7.044 / 3.396) | **89% 🟡** (2.578 / 2.898) |
+| Ventas · Proyección FY Ford | 968, 🟥 bajo piso | **1.089, en banda** |
+| Ventas · Cumpl. Meta Ford | 86%, gap −103 | **101%, gap +4** |
+| Conversión · La Y | 9,2% | **10,2%** |
+| Cruce · junio | 71 (72%, incumplió) | **110 (111%, cumplió)** |
+
+### Los tres criterios de cierre (son distintos a propósito)
+
+Cada dominio tiene su propio corte porque sus fuentes cortan en fechas distintas:
+
+| Helper | Criterio | Usa |
+|---|---|---|
+| `AN_MONTHS_2026` | `cut_date` de `ford_months` cae el último día del mes | Análisis General |
+| `mesesCerrados2026(mapa)` | igual, pero para cualquier mapa mensual | Ford y Marcas (`buildYTD`) |
+| `convMesesOk()` | derivado de `AN_MONTHS_2026` | Conversión |
+| `vtMesesCerrados2026()` | `inventario.fecha_corte` ya pasó el último día del mes | Ventas |
+
+⚠ **Ventas corta distinto que tráfico**: el reporte de inventario es del 15-ago y la BD de
+tráfico del 23-ago. Por eso Ventas tiene su propio helper y no reusa `convMesesOk()`.
+
+### El cruce toma las ventas de la fuente oficial
+
+`monthly_cross` contaba facturas presentes en el snapshot de inventario, y una unidad
+entregada hace meses ya no está en esa foto: mostraba **542** unidades Ford ene–jul contra
+las **635** oficiales. `aggregate.py` ahora sobrescribe `ventas` —total, por modelo y por
+agencia— desde `ventas_mensual`. **Invariante 25** en `verificar.py` lo vigila.
+
+⚠ Al reconciliar, **el total del mes suma aunque el modelo no normalice**. Con el `continue`
+antes del total, dos descripciones raras hacían perder 2 unidades en dic-2025.
+
+### Conversión: el tráfico sale SIEMPRE de los clientes filtrados
+
+Nunca de `master_por_agencia`, que cuenta todo 2026 incluido el mes en curso. Con ese nodo,
+el numerador cortaba en julio y el denominador en agosto: una tasa de 7 meses sobre 8, con
+un hint que decía "solo meses cerrados". Aplica al hero, a la tabla por agencia y al
+promedio de los bullets.
+
 ## Auditoría de filtros (25-ago-2026)
 
 Se revisaron los filtros de las 14 pestañas. **El patrón de fallo no da error**: el
