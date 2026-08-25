@@ -4113,7 +4113,7 @@ HTML = r"""<!doctype html>
 
     <!-- TABLA 2: ROAS / CPV / CAC por modelo -->
     <div class="ford-section" style="margin-top:18px">
-      <h3>🎯 Cruce con tráfico y ventas <span class="sub">Inversión Digital vs tráfico ATRIBUIBLE a marketing (YTD 2026)</span></h3>
+      <h3>🎯 Cruce con tráfico y ventas <span class="sub">Inversión Digital vs tráfico ATRIBUIBLE a marketing · <span id="xiy-rango">YTD 2026</span></span></h3>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;background:#fff8e1;padding:10px;border-radius:6px">
         <strong>Tráfico Ford</strong> ya está filtrado a canales atribuibles a marketing: <em>Showroom · Hubspot · Ferias · Llamada In · Mailing</em>. Quedan FUERA: Referidos, Recompra, Gestión Externa, Talleres, Redes Sociales Propias, Empleado, Prospección.<br>
         <strong>CPV real</strong> = inversión digital / visitas marketing ·
@@ -4470,7 +4470,7 @@ HTML = r"""<!doctype html>
       </div>
 
       <div style="font-size:12px;color:var(--muted);margin:12px 0;line-height:1.5">
-        Datos de importaciones Ford a Ecuador (2 distribuidores autorizados: ORGU/AUTOSHARECORP y QM/Quito Motors). Cada registro aduanero = 1 vehículo. Histórico 2024 · 2025 · 2026 (parcial, ene–may).
+        Datos de importaciones Ford a Ecuador (2 distribuidores autorizados: ORGU/AUTOSHARECORP y QM/Quito Motors). Cada registro aduanero = 1 vehículo. Histórico 2024 · 2025 · 2026 <span id="comp-rango-2026"></span>.
       </div>
 
       <!-- HERO KPIs -->
@@ -4495,7 +4495,7 @@ HTML = r"""<!doctype html>
         <div style="margin-bottom:12px">
           <label style="font-size:12px;color:var(--muted)">Año:
             <select id="comp-margen-anio" style="font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;margin-left:8px">
-              <option value="2026" selected>2026 (ene–may)</option>
+              <option value="2026" selected>2026</option>
               <option value="2025">2025</option>
               <option value="2024">2024</option>
             </select>
@@ -13693,6 +13693,23 @@ HTML = r"""<!doctype html>
         </tr>`;
       }
     }
+    // La etiqueta del año dice hasta qué mes llega la aduana. Estaba escrita a mano
+    // como "2026 (ene–may)" y se habría quedado en mayo al llegar junio.
+    (function(){
+      const sel = document.getElementById('comp-margen-anio');
+      const meses = (DATA.competencia_data && DATA.competencia_data.meses) || [];
+      const nota = document.getElementById('comp-rango-2026');
+      if(nota){
+        const r = rangoDeMeses(meses, '2026');
+        nota.textContent = r ? `(parcial, ${r})` : '';
+      }
+      if(!sel) return;
+      [...sel.options].forEach(o=>{
+        const r = rangoDeMeses(meses, o.value);
+        const completo = r.startsWith('ene') && r.endsWith('dic');
+        o.textContent = (r && !completo) ? `${o.value} (${r})` : o.value;
+      });
+    })();
     const selMA = document.getElementById('comp-margen-anio');
     if(selMA && !selMA.dataset.bound){ selMA.addEventListener('change', renderCompMargen); selMA.dataset.bound='1'; }
     renderCompMargen();
@@ -14022,6 +14039,17 @@ HTML = r"""<!doctype html>
       cerrados.map(k=>`<option value="${k}">${AN_MONTH_LBL[k]} 2026</option>`).join('') +
       enCurso.map(k=>`<option value="${k}">${AN_MONTH_LBL[k]} 2026 (en curso)</option>`).join('');
     sel.value = anstate.view;
+  }
+
+  // Rango legible a partir de claves 'YYYY-MM' → "ene–may 2026". Sirve para que las
+  // etiquetas digan hasta dónde llega el dato REAL en vez de un rango escrito a mano
+  // que se queda viejo cuando llega un mes nuevo.
+  function rangoDeMeses(keys, anio){
+    const M = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const ms = (keys||[]).filter(k=>String(k).startsWith(anio+'-'))
+      .map(k=>Number(String(k).split('-')[1])).filter(n=>n>=1&&n<=12).sort((a,b)=>a-b);
+    if(!ms.length) return '';
+    return ms.length === 1 ? M[ms[0]-1] : (M[ms[0]-1] + '–' + M[ms[ms.length-1]-1]);
   }
 
   function anRangoYTD(){
@@ -17910,6 +17938,15 @@ HTML = r"""<!doctype html>
         `extraído ${meta.fetched_at}. Tráfico y ventas: BD interna ORGU cruzada con DATOS (FACTURADO).`;
     }
 
+    (function(){
+      const el = document.getElementById('xiy-rango');
+      if(!el) return;
+      const M = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+      const ms = ((DATA.digital && DATA.digital.months) || [])
+        .filter(m => Number(m.year) === 2026).map(m => Number(m.month)).sort((a,b)=>a-b);
+      el.textContent = ms.length
+        ? `YTD 2026 · ${M[ms[0]-1]}–${M[ms[ms.length-1]-1]}` : 'YTD 2026';
+    })();
     _xiyRendered = true;
   }
 
