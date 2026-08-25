@@ -10481,6 +10481,7 @@ HTML = r"""<!doctype html>
             data: stats.map(s => s.ventas),
             backgroundColor: '#2e7d32', maxBarThickness: 34,
             borderRadius: {topLeft:3, topRight:3},
+            minBarLength: 3,   // 1 venta contra una escala de 120 sería invisible
             yAxisID: 'yN',
             datalabels: {
               display: ctx => (stats[ctx.dataIndex].ventas || 0) > 0,
@@ -10521,17 +10522,14 @@ HTML = r"""<!doctype html>
                     labels:{ boxWidth:12, boxHeight:12, font:{size:11}, usePointStyle:true } },
           tooltip: {
             callbacks: {
-              title: items => items[0].label,
-              label: () => null,
-              afterBody: (items) => {
-                const s = stats[items[0].dataIndex];
-                if(!s || s.total === 0) return ['Sin tráfico'];
-                return [
-                  `Tráfico: ${fmt(s.total)} personas`,
-                  `Cerraron: ${s.cerraron} personas`,
-                  `Facturado: ${s.ventas} vehículos`,
-                  `Conversión: ${s.pct}%`,
-                ];
+              label: (ctx) => {
+                const s = stats[ctx.dataIndex];
+                if(!s || s.total === 0) return 'Sin tráfico';
+                if(ctx.dataset.label === '% Conversión')
+                  return `Conversión: ${s.pct}% · ${s.cerraron} personas cerraron`;
+                if(ctx.dataset.label === 'Vehículos facturados')
+                  return `Facturado: ${s.ventas} vehículos`;
+                return `Tráfico: ${fmt(s.total)} personas`;
               }
             }
           }
