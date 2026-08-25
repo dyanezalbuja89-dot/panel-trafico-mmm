@@ -9238,9 +9238,12 @@ HTML = r"""<!doctype html>
 
   function cpRenderEvolution(){
     destroy('cp-chart-evolution');
-    const labels = MONTHS_CONFIG.map(c=>c.label);
-    const labelsShort = MONTHS_CONFIG.map(c=>c.label.split(' ')[0].slice(0,3));
-    const monthDatas = MONTHS_CONFIG.map(c => cpGetData(c.key));
+    // Solo 2026 (Daniel, 25-ago-2026) y SOLO en este gráfico: el resto de la pestaña
+    // sigue comparando contra 2025, que es para lo que sirve el Comparativo.
+    const _MC_EVO = MONTHS_CONFIG.filter(c => String(c.key).endsWith('_2026'));
+    const labels = _MC_EVO.map(c=>c.label);
+    const labelsShort = _MC_EVO.map(c=>c.label.split(' ')[0].slice(0,3));
+    const monthDatas = _MC_EVO.map(c => cpGetData(c.key));
     const daysLab = monthDatas.map(d => d?.days_lab || 1);
     const norm = evstate.norm === 'day';
     const normVal = (v, i) => norm ? +(v / daysLab[i]).toFixed(2) : v;
@@ -9253,8 +9256,8 @@ HTML = r"""<!doctype html>
     // Punta a punta contra el último mes CERRADO. Con el mes en curso de extremo el
     // titular decía "▼ −24,4%" comparando enero completo contra 18 días de agosto,
     // cuando contra julio la variación real es +17,1%: invertía la historia.
-    let _iFin = MONTHS_CONFIG.length - 1;
-    while(_iFin > 0 && !cpMesCerrado(MONTHS_CONFIG[_iFin].key)) _iFin--;
+    let _iFin = _MC_EVO.length - 1;
+    while(_iFin > 0 && !cpMesCerrado(_MC_EVO[_iFin].key)) _iFin--;
     const first = totals[0]||0, last = totals[_iFin]||0;
     const dPctTot = first>0 ? (100*(last-first)/first) : null;
     const _rango = `de ${labels[0]} a ${labels[_iFin]}`;
