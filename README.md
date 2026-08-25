@@ -105,6 +105,17 @@ Por eso `_load_ford_metas_marketing()` lee **por nombre de columna**.
 meta inicial; las copias en carpetas posteriores tienen la revisada. Para la meta vigente de
 un mes pasado, leer **la copia más reciente**.
 
+### Ventas: la venta cuenta donde se FACTURÓ (confirmado 25-ago-2026)
+
+**El margen sigue a la factura.** Los $388.911 de margen Ford de La Y salen de sus 48
+facturas y el PyG los booked ahí; atribuir por reserva dejaría 13 unidades en Tumbaco con su
+margen en La Y y rompería el punto de equilibrio del punto.
+
+Existen otras dos bases —`AGENCIA_DE_RESERVA` (La Y 35) y equipo del asesor (35)— y ~10% de
+las ventas discrepan entre reserva y facturación por el **efecto placa**. Sirven para medir
+quién ORIGINÓ una venta; **nunca para nada financiero**.
+→ [[feedback_orgu_atribucion_venta_agencia]]
+
 ### Ventas: la venta cuenta donde se hizo (22-ago-2026)
 
 `by_agencia` = **vitrina que emitió la factura**. Es la cifra oficial y cuadra con finanzas.
