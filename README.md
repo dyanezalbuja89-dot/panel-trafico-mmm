@@ -161,27 +161,37 @@ ok 90–120 y sobre meta >120 los dos verdes.
 contra una meta y aplicarles esta las pintaría todas de rojo. La barra de participación
 por canal es azul Ford por lo mismo — es un share, no un cumplimiento.
 
-### 'Por definir' cuenta como Escape — solo en Análisis General (24-ago-2026)
+### 'Por definir' cuenta como Escape (24-ago-2026)
 
-El tráfico que llega sin modelo en la BD sale como `Por definir` (44 registros YTD 2026).
-En **Análisis General** se suma a **Escape**: no aparece como fila propia, no está en el
-selector de modelo y no sale en el heatmap.
+El registro Ford que llega sin modelo en la BD sale como `Por definir`. **Se pliega a
+ESCAPE en todo el panel**, no en una pestaña suelta.
 
-Implementado en `build.py` junto a `anAgg`:
+Se pliega **en el origen**, así todas las vistas lo ven igual y no hay que acordarse de
+plegarlo en cada vista nueva:
 
-```js
-const AN_FOLD = {'ESCAPE': ['ESCAPE', 'Por definir']};
-const anModelKeys = m => AN_FOLD[m] || [m];   // expande al leer
-const anModelList = arr => arr.filter(m => m !== 'Por definir');  // esconde al listar
-```
+| Archivo | Dónde |
+|---|---|
+| `aggregate.py` | `get_traffic_df()` — tráfico Ford |
+| `conversion.py` | `compute_conversion_metrics()` — vía `_sin_mod` |
+| `embudo.py` | `_split_modelos()` y el conteo por modelo |
 
-Los dos van juntos: se esconde de las listas y se expande en las lecturas
-(`anAgg`, `calcRow`, heatmap, canal, insights). **El total de la pestaña no se mueve** —
-Escape pasó de 297 a 341 y el total sigue en 2.578.
+La constante vive en `inventario.py` (`SIN_MODELO`, `SIN_MODELO_FORD`), que es el módulo
+hoja que los tres importan.
 
-⚠ **Solo esta pestaña.** En Ford y en Competencia `Por definir` sigue siendo su propia
-fila: ahí no hay meta por modelo contra la cual repartirlo, y esconderlo perdería
-registros sin dejar rastro.
+⚠ **El pliegue va DESPUÉS del dedupe por cédula.** Si se renombra antes, el flag
+`_has_model` da por válida una fila sin modelo y esa fila le gana a la que sí lo trae —
+justo lo contrario de lo que el dedupe intenta.
+
+⚠ **Solo Ford.** Las marcas ORGU conservan su fila `Por definir`: no tienen un Escape al
+cual plegarla. `compute_conversion_metrics` corre para las cinco marcas, así que ahí el
+pliegue está condicionado a `marca_filter == 'FORD'`.
+
+⚠ **Cambia el cálculo de los meses** → hubo que subir la llave de caché a
+`v6-sinmodelo-escape`. Sin eso los meses viejos se sirven con el criterio anterior y solo
+cambia el mes en curso.
+
+`verificar.py` falla el deploy si reaparece un `Por definir` bajo `ford`, `ford_months`,
+`conversion_data.FORD` o `embudo`.
 
 ### Otras reglas de cálculo
 
