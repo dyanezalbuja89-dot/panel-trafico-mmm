@@ -2203,7 +2203,7 @@ def main():
                 _f = cfg.get(_k)
                 _mt.append(str(Path(_resolve_local(_f)).stat().st_mtime_ns) if _f else '-')
             _cache_key = (f"{Path(_cp).stat().st_mtime_ns}|{Path(_pp).stat().st_mtime_ns}"
-                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v6-sinmodelo-escape")
+                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v7-familias-orgu")
         except Exception:
             _cache_key = None
         _cached_entry = _cache.get(cfg['key']) if _cache_key else None
