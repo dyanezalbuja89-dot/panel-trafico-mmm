@@ -433,6 +433,49 @@ ese criterio uniría a dos personas que comparten dos nombres.
 ⚠ Cambiar esa normalización **exige subir la llave de caché** (`v7-familias-orgu`), o los
 meses viejos siguen sirviéndose con las familias anteriores.
 
+## Hallazgos amarillos, cerrados (25-ago-2026)
+
+Agrupados por causa, no por pestaña — casi todos eran la misma falla repetida.
+
+**Umbrales escritos a mano → escala única.** 16 sitios: badges de anomalía (70/85/110),
+insights de Análisis General (100/70), KPI de Meta ventas (100/80), color del gauge (85) y
+las listas "en riesgo" (que usaban <100 y ahora usan `CUMPL_VERDE`). Todos leen
+`CUMPL_VERDE` / `CUMPL_AMARILLO`.
+
+**Textos y rangos congelados → derivados del dato.** La cabecera de Conversión decía
+"Ene a hoy" y citaba un 2.216 de Análisis General que hoy son 2.578; ahora imprime el rango
+real de meses cerrados. La lista de modelos del cruce estaba escrita a mano. El Embudo decía
+"todos los meses" sin decir cuáles, con data hasta mayo.
+
+**Etiquetas que mentían.** El hero de Ventas decía "YTD 2026" con el filtro Año en 2025, y
+con 2-4 marcas imprimía el literal `__MULTI__` (nuevo `vtScopeMarcas()`). El pie de cada
+bullet de Conversión mostraba personas mientras el número grande son vehículos ÷ tráfico:
+quien hiciera la división no llegaba al número de la tarjeta.
+
+**Totales que no eran totales.** Con Top N, la fila TOTAL y los % de share se calculaban
+sobre las filas visibles: con Top 5 cerraba en 475 cuando el total del filtro son 797, y el
+share del líder saltaba de 35,9% a 60,2%. Ahora se calculan antes de recortar y la fila
+avisa cuántas filas hay detrás.
+
+**Estado que sobrevivía a un cambio de contexto.** Cambiar de marca en Conversión no
+limpiaba el filtro de asesor —que se activa por clic y no tiene `<select>` que lo delate— y
+un nombre Ford en otra marca dejaba la pestaña en ceros. Con Año=2025, Proyección FY 2026 y
+Mix 2026 seguían visibles.
+
+**Selectores que ofrecían opciones muertas.** Modelo, canal, agencia y zona se poblaban sin
+aplicar `convMesesOk()`: un canal que solo existe en el mes en curso quedaba como opción
+seleccionable que devolvía cero.
+
+**`convAggregate` contaba FILAS** donde la columna dice "Clientes únicos". Ahora deduplica
+por `_ck`, igual que el KPI.
+
+### Fuera de alcance
+
+Los seis hallazgos de **Seguimiento Digital** (Ford y DF) quedaron sin tocar por la regla de
+no modificar esa pestaña: el `×10,25` fijo de llamadas estimadas, el 17% de leads invisibles
+al filtro de agencia en DF, el "133% asisten" de Explorer, el footer que nunca se llena, el
+builder de meses de DF que lee los de Ford, y la clave del gate en texto plano.
+
 ## Auditoría de filtros (25-ago-2026)
 
 Se revisaron los filtros de las 14 pestañas. **El patrón de fallo no da error**: el
