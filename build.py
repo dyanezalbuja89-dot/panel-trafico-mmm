@@ -5526,13 +5526,30 @@ HTML = r"""<!doctype html>
 
     <div class="ford-section">
       <h3>📊 Modelo por modelo <span class="sub">línea = tráfico · barras = stock (verde disponible, gris reservado) · área = inversión</span></h3>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-        <label style="font-size:12px;color:var(--muted)">Zona</label>
-        <select id="asig-zona-sel" style="padding:5px 8px;border-radius:6px">
-          <option value="TODAS">Toda la red</option>
-          <option value="Sierra">Sierra · Quito</option>
-          <option value="Costa">Costa</option>
-        </select>
+      <div style="display:flex;gap:18px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="font-size:12px;color:var(--muted)">Zona</label>
+          <select id="asig-zona-sel" style="padding:5px 8px;border-radius:6px">
+            <option value="TODAS">Toda la red</option>
+            <option value="Sierra">Sierra · Quito</option>
+            <option value="Costa">Costa</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)">
+          <span style="display:inline-flex;align-items:center;gap:6px">
+            <span style="width:16px;height:3px;background:#1565c0;border-radius:2px"></span>Tráfico · personas</span>
+          <span style="display:inline-flex;align-items:center;gap:6px">
+            <span style="width:11px;height:11px;background:#43a047;border-radius:3px"></span>Disponible para vender</span>
+          <span style="display:inline-flex;align-items:center;gap:6px">
+            <span style="width:11px;height:11px;background:#bdbdbd;border-radius:3px"></span>Ya reservado</span>
+          <span style="display:inline-flex;align-items:center;gap:6px">
+            <span style="width:16px;height:3px;background:#f9a825;border-radius:2px"></span>Inversión del mes</span>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:var(--muted);margin-bottom:12px">
+        Cada gráfico tiene <b>dos escalas</b>: la línea azul se lee en el eje izquierdo (personas) y las
+        barras en el derecho (unidades). Importa la <b>forma</b>, no comparar alturas entre ellas.
+        Bajo cada mes, las <b>personas por unidad disponible</b>.
       </div>
       <div id="asig-modelos"></div>
     </div>
