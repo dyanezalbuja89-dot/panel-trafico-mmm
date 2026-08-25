@@ -15351,10 +15351,11 @@ HTML = r"""<!doctype html>
   // Meses de 2026 CERRADOS para las vistas de ventas. Un mes está cerrado cuando el
   // corte del reporte ya pasó su último día.
   //
-  // ⚠ El corte de ventas es el 15-ago-2026 (REPORTE INVENTARIO 15-8-2026.xlsm), o sea
-  //   agosto trae 10 unidades Ford contra las ~91 de un mes normal. Compararlo contra
-  //   un presupuesto de mes completo le ponía "🟥 bajo piso" a cuatro agencias que van
-  //   SOBRE el piso, y hundía la proyección FY de Ford de 1.089 a 968.
+  // ⚠ El mes en curso viene incompleto y compararlo contra un presupuesto de mes
+  //   completo le ponía "🟥 bajo piso" a cuatro agencias que van SOBRE el piso, y
+  //   hundía la proyección FY de Ford de 1.089 a 968. Desde el 25-ago-2026 las
+  //   ventas salen de la Base de Ventas de Finanzas (corte 24-ago, 57 unidades Ford
+  //   en agosto), pero el cierre del mes lo sigue marcando el corte del inventario.
   function vtMesesCerrados2026(){
     const corte = String((DATA.inventario || {}).fecha_corte || '');   // aaaa-mm-dd
     if(!corte) return [];
@@ -15379,6 +15380,39 @@ HTML = r"""<!doctype html>
 
   // Helper: predicate para filtrar mes por año activo. '' = todos.
   function vtMatchAnio(mes){ return !vtstate.anio || (mes||'').startsWith(vtstate.anio + '-'); }
+
+  // ── Facturación ($) solo donde el revenue es el valor REAL de la factura.
+  // 2025 sale de la hoja DATOS del inventario, que NO trae valor de factura: lo
+  // único que queda ahí son los accesorios del PBD. En $ eso daba un ticket
+  // promedio de $6.539 contra $71.952 de 2026 — un crecimiento inventado de 11x.
+  function vtMesesConRevenue(){
+    const out = new Set();
+    (vtstate.marcas || []).forEach(mk => {
+      ((VENTAS_MENSUAL[mk] || {}).revenue_meses || []).forEach(m => out.add(m));
+    });
+    return out;
+  }
+  function vtRevenueDisponible(){
+    const ok = vtMesesConRevenue();
+    if(!ok.size) return false;
+    // el año activo tiene que estar cubierto ENTERO; '' = todo el histórico, que
+    // siempre incluye 2025.
+    const meses = (VENTAS_MENSUAL[(vtstate.marcas || [])[0]] || {}).months || [];
+    const enRango = meses.filter(vtMatchAnio);
+    return enRango.length > 0 && enRango.every(m => ok.has(m));
+  }
+  // Apaga la opción "Facturación ($)" cuando el rango no la soporta, y saca al
+  // usuario de ella si ya estaba seleccionada.
+  function vtSyncMetricDisponible(){
+    const sel = document.getElementById('vt-metric');
+    if(!sel) return;
+    const opt = Array.from(sel.options).find(o => o.value === 'revenue');
+    if(!opt) return;
+    const okRev = vtRevenueDisponible();
+    opt.disabled = !okRev;
+    opt.textContent = okRev ? 'Facturación ($)' : 'Facturación ($) — no disponible en este rango';
+    if(!okRev && vtstate.metric === 'revenue'){ vtstate.metric = 'cantidad'; sel.value = 'cantidad'; }
+  }
   // Alias legacy: vtstate.marca sigue leyéndose en algunos lugares (Meta Ventas Ford,
   // filter-summary). Devuelve 'FORD' si solo Ford está seleccionado, '__MULTI__' si varias,
   // primera marca si array de 1.
@@ -16124,8 +16158,19 @@ HTML = r"""<!doctype html>
     const valid = ventasPlot;
     const summary = document.getElementById('vt-cierre-summary');
     if(summary){
-      if(valid.length >= 2){
-        const first = valid[0], last = valid[valid.length-1];
+      // ⚠ El titular se mide contra el último mes CERRADO. La curva sí dibuja el
+      // mes en curso, pero compararlo contra un mes completo daba un desplome
+      // inventado: enero contra agosto al día 24 decía ▼ -46,2%.
+      const _cerrados = new Set(vtMesesCerrados2026());   // devuelve array, no Set
+      let _iFin = CFG.length - 1;
+      while(_iFin > 0){
+        const _ym = vtMonthKeyToYM(CFG[_iFin].key);
+        if(!_ym || !_ym.startsWith('2026') || _cerrados.has(_ym)) break;
+        _iFin--;
+      }
+      const _parcial = _iFin < CFG.length - 1;
+      if(valid.length >= 2 && _iFin > 0){
+        const first = valid[0], last = valid[_iFin];
         const d = last - first;
         const pct = first>0 ? (100*d/first) : null;
         const arrow = d > 0 ? '▲' : (d < 0 ? '▼' : '·');
@@ -16133,7 +16178,10 @@ HTML = r"""<!doctype html>
         const sign = d > 0 ? '+' : '';
         const pctTxt = pct==null ? '' : ' ('+sign+pct.toFixed(1)+'%)';
         const dTxt = _esRev ? vtFmtVal(d) : d + ' uds';
-        summary.innerHTML = `<span style="color:${col};font-weight:700">${arrow} ${sign}${dTxt}${pctTxt}</span>&nbsp;de ${labels[0]} a ${labels[labels.length-1]}`;
+        const nota = _parcial
+          ? ` <span style="color:var(--c-muted)">· ${labels[labels.length-1]} va en curso y no entra en la comparación</span>`
+          : '';
+        summary.innerHTML = `<span style="color:${col};font-weight:700">${arrow} ${sign}${dTxt}${pctTxt}</span>&nbsp;de ${labels[0]} a ${labels[_iFin]}${nota}`;
       } else summary.innerHTML = '';
     }
     // Banda de presupuesto BP2026: financiero (piso) y comercial (techo).
@@ -16381,6 +16429,7 @@ HTML = r"""<!doctype html>
   }
 
   function vtRenderAll(){
+    vtSyncMetricDisponible();
     vtFillMarca();
     vtFillZona();
     vtFillAgencia();
@@ -16426,7 +16475,9 @@ HTML = r"""<!doctype html>
     const anioEl = document.getElementById('vt-anio');
     if(anioEl){
       anioEl.value = vtstate.anio;
-      anioEl.addEventListener('change', e=>{ vtstate.anio = e.target.value; vtRenderAll(); });
+      anioEl.addEventListener('change', e=>{
+        vtstate.anio = e.target.value; vtSyncMetricDisponible(); vtRenderAll();
+      });
     }
     document.getElementById('vt-export').addEventListener('click', vtExportCSV);
     document.getElementById('vt-reset').addEventListener('click', ()=>{

@@ -177,6 +177,9 @@ def _compute_ventas_mensual(sales_df):
                     'Cantidad': int(r['cantidad']),
                     'marca': str(r['marca']).replace('_ORGU', ''),
                     'familia': r['familia'] if pd.notna(r['familia']) else r['modelo'],
+                    # la descripción COMPLETA se conserva: los accesorios del PBD
+                    # se cotizan por versión ('ESCAPE TITANIUM AC 1.5…'), no por modelo.
+                    'version_txt': r['modelo'],
                     # el nombre LARGO: fact_agency_norm() busca palabras clave
                     # ('CARLOS JULIO AROSEMENA'), no entiende la sigla 'CJA'.
                     'AGENCIA_FACTURACION': r['agencia_raw'],
@@ -435,6 +438,7 @@ def _compute_ventas_mensual(sales_df):
                 'familia': [normalize_familia(f, m) or str(f)
                             for f, m in zip(inv_hist.get('familia', '').astype(str),
                                             inv_hist.get('marca', '').astype(str))],
+                'version_txt': inv_hist.get('familia', '').astype(str),
                 'AGENCIA_FACTURACION': inv_hist.get('AGENCIA_FACTURACION', '').astype(str),
                 'ASESOR_FACTURACION': inv_hist.get('ASESOR_FACTURACION', '').astype(str).str.upper(),
                 'Chasis': inv_hist.get('vin', '').astype(str),
@@ -466,9 +470,15 @@ def _compute_ventas_mensual(sales_df):
     try:
         from presupuesto import accesorios_unidad as _acc_u
         _marca_bp = df['marca_up'].map(lambda m: 'FORD' if str(m).startswith('FORD') else m)
+        # ⚠ por VERSIÓN, no por modelo: version_key('FORD', 'ESCAPE') no existe en el
+        # PBD y devuelve 0. Pasar el modelo corto borraba $5,5 M de accesorios sin avisar.
+        if 'version_txt' not in df.columns:
+            df['version_txt'] = df['familia']
+        _ver = df['version_txt'].where(df['version_txt'].notna() & (df['version_txt'].astype(str) != ''),
+                                       df['familia'])
         df['_acc'] = [
-            _acc_u('FORD', fam) * float(q or 0) if str(m).startswith('FORD') else 0.0
-            for m, fam, q in zip(df['marca_up'], df['familia'], df['Cantidad'])
+            _acc_u('FORD', ver) * float(q or 0) if str(m).startswith('FORD') else 0.0
+            for m, ver, q in zip(df['marca_up'], _ver, df['Cantidad'])
         ]
         df['rev_signed'] = df['rev_signed'] + df['_acc']
         _tot_acc = df.loc[df['_acc'] != 0, '_acc'].sum()
@@ -616,6 +626,12 @@ def _compute_ventas_mensual(sales_df):
             'by_zona': by_zona,
             'flat': flat,
             'nc': nc_rows,
+            # Meses en los que `revenue` es el valor REAL de la factura. Fuera de esta
+            # lista solo hay accesorios del PBD: la hoja DATOS del inventario, única
+            # fuente de 2025, no trae valor de factura. Sin esta marca, la métrica
+            # "Facturación ($)" daba un ticket promedio de $6.539 en 2025 contra
+            # $71.952 en 2026 — un crecimiento inventado de 11x.
+            'revenue_meses': sorted(_base_meses & set(months_all)),
         }
     return result
 
