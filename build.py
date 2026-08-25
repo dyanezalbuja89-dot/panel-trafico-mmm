@@ -6162,19 +6162,24 @@ HTML = r"""<!doctype html>
 
     function stock(mesKey, modelo, zona){
       const mc = DATA.inventario?.monthly_cross?.FORD?.[mesKey];
-      if(!mc) return {libre:0, reservado:0};
+      if(!mc) return {libre:0, reservado:0, libre_som:0};
       const mods = modelo ? [modelo] : MODS;
-      let libre = 0, reservado = 0;
+      let libre = 0, reservado = 0, libre_som = 0;
       mods.forEach(m=>{
         const pm = (mc.por_modelo||{})[m]; if(!pm) return;
-        if(zona === 'TODAS'){ libre += num(pm.disp_eom); reservado += num(pm.reserv_eom); return; }
+        if(zona === 'TODAS'){
+          libre += num(pm.disp_eom); reservado += num(pm.reserv_eom);
+          libre_som += num(pm.disp_som);
+          return;
+        }
         const ags = zona === 'Sierra' ? SIERRA : COSTA;
         ags.forEach(ag=>{
           const pa = (pm.por_agencia||{})[ag]; if(!pa) return;
           libre += num(pa.disp_eom); reservado += num(pa.reserv_eom);
+          libre_som += num(pa.disp_som);
         });
       });
-      return {libre, reservado};
+      return {libre, reservado, libre_som};
     }
 
     function inversion(mesKey, modelo, zona){
@@ -6189,11 +6194,20 @@ HTML = r"""<!doctype html>
 
     // Solo meses CERRADOS para los agregados: el mes en curso va a medias y
     // ensucia cualquier ratio de costo por tráfico.
+    //
+    // ⚠ Antes buscaba `is_current` en ford_months, que NO EXISTE, y caía al reloj
+    //   del navegador: excluía "el mes del calendario", no el que está abierto. En
+    //   agosto acertaba de casualidad; en septiembre habría dejado entrar agosto,
+    //   que cerró con corte el día 23. Ahora usa el mismo criterio que el resto del
+    //   panel: el corte tiene que llegar al último día del mes.
     function mesesCerrados(){
-      const act = mesesActivos();
-      const cur = (DATA.months_config||[]).find(m=>DATA.ford_months[m.key]?.is_current);
-      const curKey = cur?.key || `${MESES[new Date().getMonth()]}_2026`;
-      return act.filter(m => m.key !== curKey);
+      return mesesActivos().filter(m => {
+        const fm = DATA.ford_months[m.key];
+        if(!fm || !(fm.total_curr > 0)) return false;
+        const p = String(fm.cut_date || '').split('/');   // dd/mm/aaaa
+        if(p.length !== 3) return false;
+        return Number(p[0]) >= new Date(2026, m.i + 1, 0).getDate();
+      });
     }
     return {MODS, SIERRA, COSTA, mesesActivos, mesesCerrados, trafico, stock, inversion, num};
   })();
@@ -6230,10 +6244,13 @@ HTML = r"""<!doctype html>
     const [si,co] = zs;
     const brecha = co.cpt ? (si.cpt/co.cpt) : 0;
     box.innerHTML =
-      card('Inversión 2026', '$'+Math.round(DATA.pauta.total).toLocaleString('es'),
-           DATA.pauta.total_neto
-             ? `${DATA.pauta.meses.length} meses · costo facturado · neto en plataforma $${Math.round(DATA.pauta.total_neto).toLocaleString('es')}`
-             : `${DATA.pauta.meses.length} meses de pauta`) +
+      // Mismo scope que las tres tarjetas de al lado: meses CERRADOS. Antes esta
+      // mostraba los 8 meses del nodo ($122.611) mientras los costos por tráfico se
+      // calculaban sobre 7 ($108.606) — cuatro tarjetas en fila, una con otro scope.
+      card('Inversión ' + (ms.length ? ms[0].lbl + '–' + ms[ms.length-1].lbl : '') + ' 2026',
+           '$'+Math.round(si.inv + co.inv).toLocaleString('es'),
+           `${ms.length} meses cerrados · costo facturado`
+             + (DATA.pauta.total_neto ? ` · los 8 meses del año suman $${Math.round(DATA.pauta.total).toLocaleString('es')}` : '')) +
       card('Costo por tráfico · Sierra', '$'+Math.round(si.cpt),
            `${Math.round(100*si.inv/(si.inv+co.inv))}% del presupuesto · ${Math.round(100*si.tr/(si.tr+co.tr))}% del tráfico`, '#c62828') +
       card('Costo por tráfico · Costa', '$'+Math.round(co.cpt),
@@ -6342,15 +6359,28 @@ HTML = r"""<!doctype html>
       if(!t.some(x=>x) && !inv.some(x=>x)) return;
       const T = ms.reduce((a,m,i)=>a+(cerr.includes(m.key)?t[i]:0),0);
       const I = ms.reduce((a,m,i)=>a+(cerr.includes(m.key)?inv[i]:0),0);
+      // No es "hoy": es el disponible al cierre del último mes con datos. Además el
+      // inventario corta el 15-ago y el tráfico el 23, así que "hoy" mezclaba dos
+      // fechas distintas en la misma línea.
       const libreHoy = st[st.length-1]?.libre ?? 0;
+      const lblUltimo = ms.length ? ms[ms.length-1].lbl : '';
       const card = document.createElement('div');
       card.className = 'ford-card';
       card.style.cssText = 'background:var(--card,#fff);border-radius:12px;padding:12px 14px 8px';
-      const ratios = t.map((x,i)=> st[i].libre ? Math.round(x/st[i].libre) : (x?null:0));
+      // El tráfico es de TODO el mes; el stock, del instante del cierre. Con Territory
+      // en febrero eso daba 186× (quedaba 1 unidad al 28) cuando al arrancar el mes
+      // había 43 → 4×. Y F-150 en abril salía "sin stock" teniendo 2 al inicio.
+      // Se usa el disponible PROMEDIO del mes; "sin stock" solo si no hubo ni al
+      // inicio ni al cierre.
+      const libreProm = st.map((x,i) => {
+        const som = ASIG.num(x.libre_som), eom = ASIG.num(x.libre);
+        return (som > 0 && eom > 0) ? (som + eom) / 2 : Math.max(som, eom);
+      });
+      const ratios = t.map((x,i)=> libreProm[i] > 0 ? Math.round(x/libreProm[i]) : (x?null:0));
       card.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:10px;flex-wrap:wrap">
           <span style="font-size:16px;font-weight:700">${mod}</span>
-          <span style="font-size:12.5px;color:var(--muted)">${T} pers · $${Math.round(I).toLocaleString('es')} · <b>$${T?Math.round(I/T):0}</b> c/u · hoy ${libreHoy} libres</span>
+          <span style="font-size:12.5px;color:var(--muted)">${T} pers · $${Math.round(I).toLocaleString('es')} · <b>$${T?Math.round(I/T):0}</b> c/u · ${libreHoy} libres al cierre de ${lblUltimo}</span>
         </div>
         <div style="display:grid;grid-template-columns:${GUTTER_ASIG}px minmax(0,1fr)">
           <span></span>
@@ -6360,7 +6390,7 @@ HTML = r"""<!doctype html>
           ${[
             ['Inversión', inv.map(x=>[ x>=1000 ? '$'+(x/1000).toFixed(1)+'k' : (x?'$'+Math.round(x):'—'), '#b8860b' ])],
             ['$ / persona', inv.map((x,i)=>[ t[i]&&x ? '$'+Math.round(x/t[i]) : '—', 'var(--muted)' ])],
-            ['Personas por unidad libre', ratios.map(r=>[
+            ['Personas por unidad libre<br><span style="font-size:9px;opacity:.7">stock promedio del mes</span>', ratios.map(r=>[
               r===null ? 'sin stock' : r+'×',
               r===null||r>=20 ? '#c62828' : (r>=8 ? '#ef6c00' : 'var(--muted)') ])]
           ].map(([lab,vals])=>`
