@@ -133,6 +133,29 @@ entró la persona.
 El nodo hermano `ventas_mensual_doc` documenta las tres claves. **No meter notas dentro de
 `ventas_mensual`**: el panel hace `Object.keys()` y las trataría como una marca.
 
+### ⚠ Notas de crédito huérfanas: la NC cae en otra agencia que la factura
+
+Una unidad se factura en una agencia, se anula y se **re-factura desde otra**. En el snapshot
+sobrevive la NC pero la factura original ya no está: la agencia que recibe la NC nunca sumó
+el +1 y sí carga el −1.
+
+**10 casos en Ford ene–jul 2026**: Orellana −5, Machala −3, Manta −2.
+Machala 60 + 3 = **63 = lo que da Finanzas**.
+
+Caso canónico `1FTFW5LD8SFC06543`: NC en Manta el **26**-feb, factura en La Y el **28**-feb.
+La NC precede a la factura — es una re-facturación, no una anulación. `DATOS` la da por
+*Entregado / VENTA* en La Y.
+
+⚠ **NUNCA netear FACT+NC contra todo el historial del VIN a nivel nacional**: un VIN puede
+tener dos ventas legítimas separadas por una anulación, y ese neteo borraría **10 ventas
+reales** (635 → 625). El neteo va por **par factura-NC**.
+
+⚠ No se corrigió: sumar las 10 lleva el nacional a 645 y Finanzas da 635, así que falta una
+pieza. Pendiente de decisión + confirmación de Finanzas.
+
+Detección: agrupar por VIN y buscar NC cuya bodega no esté entre las bodegas de sus facturas.
+El filtro "más NC que facturas" NO los encuentra — tienen 1 y 1.
+
 ### Los snapshots de inventario son fotos, no un log
 
 Cuando una factura se anula, la fila **desaparece de la foto siguiente** sin dejar nota de
