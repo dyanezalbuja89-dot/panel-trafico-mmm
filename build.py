@@ -4333,14 +4333,14 @@ HTML = r"""<!doctype html>
       <!-- HERO KPIs -->
       <div class="stat-hero stat-hero-4" style="margin-top:14px">
         <div class="card-big"><div class="lbl">Personas únicas (tráfico)</div><div class="val" id="conv-k-traf">—</div><div class="hint">1er toque en 2026 · identidad robusta</div></div>
-        <div class="card-big"><div class="lbl">Cerraron compra</div><div class="val pos" id="conv-k-cerr">—</div><div class="hint" id="conv-k-cerr-hint"></div></div>
-        <div class="card-big"><div class="lbl">% Conversión</div><div class="val" id="conv-k-rate">—</div><div class="hint">Personas que compraron / personas únicas</div></div>
+        <div class="card-big"><div class="lbl">Cerraron compra</div><div class="val pos" id="conv-k-cerr">—</div><div class="hint" id="conv-k-cerr-hint" title="Personas distintas que compraron / vehículos facturados"></div></div>
+        <div class="card-big"><div class="lbl">% Conversión</div><div class="val" id="conv-k-rate">—</div><div class="hint" id="conv-k-rate-hint">Vehículos facturados / personas de tráfico</div></div>
         <div class="card-big"><div class="lbl" title="Días desde el primer toque del cliente en BD tráfico hasta que se le facturó el vehículo">Tiempo cliente → factura</div><div class="val" id="conv-k-ciclo">—</div><div class="hint" id="conv-k-ciclo-hint">Mediana de días entre 1er toque y factura</div></div>
       </div>
 
       <!-- EVOLUCIÓN MENSUAL DE CONVERSIÓN -->
       <div class="ford-section" style="margin-top:18px">
-        <h3>📈 Evolución mensual de conversión <span class="sub" id="conv-evol-sub">barras = personas que entraron y vehículos que salieron · línea = % que cerró</span></h3>
+        <h3>📈 Evolución mensual de conversión <span class="sub" id="conv-evol-sub">barras = personas que entraron y vehículos que salieron · línea = vehículos ÷ personas</span></h3>
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
           Los meses más recientes muestran % menor porque su cohorte está aún en pipeline (no ha terminado el ciclo de venta).
         </div>
@@ -4360,7 +4360,7 @@ HTML = r"""<!doctype html>
               <th class="num">Clientes únicos</th>
               <th class="num">Cerraron</th>
               <th class="num" title="Vehículos facturados (un cliente puede comprar varios)">Vehículos</th>
-              <th class="num">% conversión</th>
+              <th class="num" title="Vehículos facturados ÷ clientes únicos de tráfico">% conversión</th>
               <th>Visual</th>
             </tr></thead>
             <tbody></tbody>
@@ -4378,7 +4378,7 @@ HTML = r"""<!doctype html>
               <th class="num">Clientes únicos</th>
               <th class="num">Cerraron</th>
               <th class="num" title="Vehículos facturados (un cliente puede comprar varios)">Vehículos</th>
-              <th class="num">% conversión</th>
+              <th class="num" title="Vehículos facturados ÷ clientes únicos de tráfico">% conversión</th>
               <th>Visual</th>
             </tr></thead>
             <tbody></tbody>
@@ -4422,7 +4422,7 @@ HTML = r"""<!doctype html>
               <th class="num">Clientes únicos</th>
               <th class="num">Cerraron</th>
               <th class="num" title="Vehículos facturados (un cliente puede comprar varios)">Vehículos</th>
-              <th class="num">% conversión</th>
+              <th class="num" title="Vehículos facturados ÷ clientes únicos de tráfico">% conversión</th>
               <th>Visual</th>
             </tr></thead>
             <tbody></tbody>
@@ -4441,7 +4441,7 @@ HTML = r"""<!doctype html>
               <th class="num">Clientes únicos</th>
               <th class="num">Cerraron</th>
               <th class="num" title="Vehículos facturados (un cliente puede comprar varios)">Vehículos</th>
-              <th class="num">% conversión</th>
+              <th class="num" title="Vehículos facturados ÷ clientes únicos de tráfico">% conversión</th>
               <th>Visual</th>
             </tr></thead>
             <tbody></tbody>
@@ -9794,13 +9794,18 @@ HTML = r"""<!doctype html>
     const cerraron = clientes.filter(c => c.cerro);
     // Ventas totales desde master_facturas (fuente única) — suma CON SIGNO (FACT + NC = neto).
     const n_ventas = _mstF.reduce((s, m) => s + (m.qty || 0), 0);
-    const conv = n_traf > 0 ? +(100*n_cerraron/n_traf).toFixed(1) : 0;
+    // Conversión = VEHÍCULOS facturados ÷ personas de tráfico (Daniel, 24-ago-2026).
+    // Antes era personas-que-compraron ÷ personas, que responde otra pregunta y dejaba
+    // fuera al cliente que se llevó dos autos.
+    const conv = n_traf > 0 ? +(100*n_ventas/n_traf).toFixed(1) : 0;
     const ciclo = convCalcCiclo(clientes);
 
     document.getElementById('conv-k-traf').textContent  = fmt(n_traf);
     document.getElementById('conv-k-cerr').textContent  = fmt(n_cerraron) + ' / ' + fmt(n_ventas);
     document.getElementById('conv-k-cerr-hint').textContent = `${n_cerraron} personas · ${n_ventas} vehículos facturados`;
     document.getElementById('conv-k-rate').textContent  = conv + '%';
+    document.getElementById('conv-k-rate-hint').textContent =
+      `${fmt(n_ventas)} vehículos / ${fmt(n_traf)} personas de tráfico`;
     if(ciclo.mediana != null){
       document.getElementById('conv-k-ciclo').textContent = ciclo.mediana + 'd';
       document.getElementById('conv-k-ciclo-hint').textContent = `prom ${ciclo.promedio}d · p75 ${ciclo.p75}d · n=${ciclo.n}`;
@@ -9821,13 +9826,21 @@ HTML = r"""<!doctype html>
       const colors = {green:'#2e7d32', yellow:'#fbc02d', orange:'#ef6c00', red:'#c62828'};
       return `<div style="height:16px;background:#eef0f3;border-radius:4px;overflow:hidden;min-width:160px"><div style="height:100%;width:${w}%;background:${colors[cls]}"></div></div>`;
     }
-    function renderTable(tbodySelector, data, labelHeader, sortByConv=true, minTraffic=0, topN=null){
+    // `total` (opcional) = las cifras del KPI. Sumar las filas NO da el total: los
+    // buckets se solapan — una persona que tocó dos canales cuenta en los dos, y quien
+    // compró dos modelos aparece en las dos filas. Sumando, la tabla de modelo daba 46
+    // compradores contra los 43 del KPI, y su total decía 8,7% donde el KPI decía 8,2%.
+    function renderTable(tbodySelector, data, labelHeader, sortByConv=true, minTraffic=0, topN=null, total=null){
       const allRows = Object.entries(data);
-      // Total = TODA la data (no solo el slice mostrado) para que coincida con KPI hero
-      const totAll = allRows.reduce((a,[,d])=>{
+      const suma = allRows.reduce((a,[,d])=>{
         a.t += d.traffic; a.m += (d.matched||0); a.v += (d.ventas||0); return a;
       }, {t:0,m:0,v:0});
-      const totConv = totAll.t > 0 ? +(100*totAll.m/totAll.t).toFixed(1) : 0;
+      const totAll = total || suma;
+      const totConv = totAll.t > 0 ? +(100*totAll.v/totAll.t).toFixed(1) : 0;
+      // Si las filas suman más que el total, decirlo en vez de dejar que no cuadre.
+      const solape = total && (suma.m > total.m || suma.t > total.t)
+        ? ` <span style="font-weight:400;color:var(--muted);font-size:10.5px">· las filas suman ${fmt(suma.m)} porque una persona puede aparecer en más de una</span>`
+        : '';
       // Slice de filas mostradas (filtro de display + top N)
       let rows = allRows.filter(([,d])=>d.traffic >= minTraffic);
       rows.sort((a,b)=> sortByConv ? (b[1].conv_pct - a[1].conv_pct) : ((b[1].matched||0) - (a[1].matched||0)));
@@ -9836,6 +9849,9 @@ HTML = r"""<!doctype html>
       const tbody = document.querySelector(tbodySelector);
       const isRank = labelHeader === 'rank';
       tbody.innerHTML = slice.map(([k,d], i)=>{
+        // Flota/Renting y B2B compran sin pasar por la BD de tráfico: traffic = 0.
+        // Mostrar 0,0% en rojo dice "no convierten" cuando es al revés.
+        const sinTraf = !d.traffic && (d.matched || d.ventas);
         const cls = pillColor(d.conv_pct);
         const rankCol = isRank ? `<td class="num" style="font-weight:700;color:var(--muted)">${i+1}</td>` : '';
         // El ranking de asesores es clickeable: filtra toda la pestaña por ese asesor.
@@ -9849,12 +9865,14 @@ HTML = r"""<!doctype html>
           <td class="num">${fmt(d.traffic)}</td>
           <td class="num" style="font-weight:700">${fmt(d.matched||0)}</td>
           <td class="num" style="color:var(--ford-2)">${fmt(d.ventas||0)}</td>
-          <td class="num"><span class="status-pill ${cls}">${d.conv_pct.toFixed(1)}%</span></td>
-          <td>${visualBar(d.conv_pct, maxPct)}</td>
+          <td class="num">${sinTraf
+              ? '<span class="status-pill" style="background:var(--c-slate-100);color:var(--c-muted)" title="Compraron sin pasar por la BD de tráfico: no hay denominador">sin tráfico</span>'
+              : `<span class="status-pill ${cls}">${d.conv_pct.toFixed(1)}%</span>`}</td>
+          <td>${sinTraf ? '' : visualBar(d.conv_pct, maxPct)}</td>
         </tr>`;
       }).join('') + `<tr class="total">
         ${isRank ? '<td></td>' : ''}
-        <td><strong>TOTAL</strong></td>
+        <td><strong>${isRank ? 'TOTAL DEL RANKING' : 'TOTAL'}</strong>${solape}</td>
         <td class="num"><strong>${fmt(totAll.t)}</strong></td>
         <td class="num"><strong>${fmt(totAll.m)}</strong></td>
         <td class="num"><strong>${fmt(totAll.v)}</strong></td>
@@ -9926,7 +9944,7 @@ HTML = r"""<!doctype html>
           traffic: t,
           matched: m,
           ventas: v,
-          conv_pct: t > 0 ? +(100*m/t).toFixed(1) : 0,
+          conv_pct: t > 0 ? +(100*v/t).toFixed(1) : 0,
         };
       });
     };
@@ -9948,7 +9966,7 @@ HTML = r"""<!doctype html>
         traffic: t,
         matched: m,
         ventas: v,
-        conv_pct: t > 0 ? +(100*m/t).toFixed(1) : 0,
+        conv_pct: t > 0 ? +(100*v/t).toFixed(1) : 0,
       };
     });
     // Top asesores: SOLO asesores comerciales del PDV — cierres del cohorte 2026 por
@@ -9990,7 +10008,7 @@ HTML = r"""<!doctype html>
     });
     Object.keys(aggAsesor).forEach(a => {
       const t = aggAsesor[a].traffic;
-      aggAsesor[a].conv_pct = t > 0 ? +(100*aggAsesor[a].matched/t).toFixed(1) : 0;
+      aggAsesor[a].conv_pct = t > 0 ? +(100*aggAsesor[a].ventas/t).toFixed(1) : 0;
     });
     // Umbral anti-ruido de ≥5 leads: solo aplica sin filtros finos. Con un
     // modelo/canal/mes filtrado casi nadie llega a 5 y el ranking escondía a
@@ -10001,9 +10019,13 @@ HTML = r"""<!doctype html>
 
     // Sin minTraffic en canal/modelo/agencia (mostrar todos para que cuadre TOTAL).
     // Asesores sí filtramos a >=5 leads para evitar ruido individual.
-    renderTable('#conv-tbl-canal tbody',   aggCanal,   'canal',   true);
-    renderTable('#conv-tbl-modelo tbody',  aggModelo,  'modelo',  true);
-    renderTable('#conv-tbl-agencia tbody', aggAgencia, 'agencia', true);
+    // Las tres primeras cierran contra el KPI. El ranking de asesores NO: filtra por
+    // ≥5 leads y por agencia-hogar, así que su total es el del ranking, no el de la
+    // agencia — por eso se rotula distinto.
+    const _totKPI = {t: n_traf, m: n_cerraron, v: n_ventas};
+    renderTable('#conv-tbl-canal tbody',   aggCanal,   'canal',   true, 0, null, _totKPI);
+    renderTable('#conv-tbl-modelo tbody',  aggModelo,  'modelo',  true, 0, null, _totKPI);
+    renderTable('#conv-tbl-agencia tbody', aggAgencia, 'agencia', true, 0, null, _totKPI);
     renderTable('#conv-tbl-asesor tbody',  aggAsesorFilt, 'rank',  false, 0, 20);
     // Aviso visible de si hay un asesor filtrando
     (function(){
@@ -10055,12 +10077,13 @@ HTML = r"""<!doctype html>
     const _allEntries = Object.values(_mpaAll).filter(v => (v.traffic||0) >= 5);
     if (_allEntries.length) {
       const gT = _allEntries.reduce((s,v)=>s+(v.traffic||0), 0);
-      const gM = _allEntries.reduce((s,v)=>s+(v.personas||0), 0);
+      // Vehículos, no personas: si el bullet mide ventas/tráfico, su promedio también.
+      const gM = _allEntries.reduce((s,v)=>s+(v.ventas||0), 0);
       avg = gT>0 ? 100*gM/gT : 0;
     } else {
       const totT = entries.reduce((s,[,v])=>s+v.traffic, 0);
-      const totM = entries.reduce((s,[,v])=>s+v.matched, 0);
-      avg = totT>0 ? 100*totM/totT : 0;
+      const totV = entries.reduce((s,[,v])=>s+(v.ventas||0), 0);
+      avg = totT>0 ? 100*totV/totT : 0;
     }
     // Construir filas estilo bullet (reusamos ffRenderBullet)
     const rows = entries.map(([name, v])=>{
@@ -10465,7 +10488,7 @@ HTML = r"""<!doctype html>
           && (!convState.modelo  || f.modelo_lead === convState.modelo)
           && (!convState.canal   || f.canal_lead  === convState.canal))
         .reduce((s,f) => s + (f.qty || 0), 0);
-      const pct = total > 0 ? Math.round(100*cerraron/total*10)/10 : null;
+      const pct = total > 0 ? Math.round(100*ventas/total*10)/10 : null;
       return { total, cerraron, ventas, pct };
     });
     // Y-axis dinámico con headroom para que las etiquetas no se corten.
@@ -10578,7 +10601,7 @@ HTML = r"""<!doctype html>
                 const s = stats[ctx.dataIndex];
                 if(!s || s.total === 0) return 'Sin tráfico';
                 if(ctx.dataset.label === '% Conversión')
-                  return `Conversión: ${s.pct}% · ${s.cerraron} personas cerraron`;
+                  return `Conversión: ${s.pct}% · ${s.ventas} vehículos / ${fmt(s.total)} personas`;
                 if(ctx.dataset.label === 'Vehículos facturados')
                   return `Facturado: ${s.ventas} vehículos`;
                 return `Tráfico: ${fmt(s.total)} personas`;
