@@ -130,7 +130,7 @@ def normalize_familia(fam, marca):
             ('NEW EXPEDITION','EXPEDITION'), ('EXPEDITION','EXPEDITION'),
             ('BRONCO','BRONCO'),
             ('F150','F-150'), ('F-150','F-150'),
-            ('RANGER','RANGER'),
+            ('RANGER','RANGER'), ('MAVERICK','MAVERICK'),
         ]:
             if s.startswith(k): return v
         return None
@@ -142,6 +142,7 @@ def normalize_familia(fam, marca):
         if s.startswith('RICH 6'): return 'RICH 6'
         if s.startswith('RICH 7'): return 'RICH 7'
         if s.startswith('Z9'): return 'Z9'
+        if s.startswith('AX7'): return 'AX7'
         return None
 
     if marca == 'CHERY':
@@ -247,6 +248,7 @@ def normalize_res_cola_modelo(modelo, marca):
         if s.startswith('RICH 6'): return 'RICH 6'
         if s.startswith('RICH 7'): return 'RICH 7'
         if s.startswith('Z9'): return 'Z9'
+        if s.startswith('AX7'): return 'AX7'
     if marca == 'RAM':
         if '1500' in s: return 'RAM 1500'
         if '700' in s:  return 'RAM 700'

@@ -147,7 +147,53 @@ def _compute_ventas_mensual(sales_df):
     df = df[df['fecha_fact'].dt.year >= 2025].copy()
     if len(df) == 0:
         return None
-    # ► OVERRIDE: archivos RANKING_<MES>_<YYYY>.xlsx = fuente OFICIAL de meses cerrados
+    # ► OVERRIDE 1: Base de Ventas de Finanzas = fuente OFICIAL del año en curso.
+    #
+    # Reemplaza TODOS los meses que cubre. Por qué manda sobre el reporte de inventario:
+    #   · trae el CANAL, así que incluye las ventas EXONERADAS — 12 unidades Ford
+    #     ene–jul 2026 (2 de La Y) que el inventario no tiene porque no llevan chasis;
+    #   · trae la AGENCIA ya resuelta (difiere de la bodega en 50 de 915 filas: es el
+    #     efecto placa);
+    #   · está más al día: llegó al 24-ago cuando el inventario iba al 15 — 57 ventas
+    #     Ford contra 10;
+    #   · no sufre el problema de los snapshots: es un libro de facturas, no una foto.
+    #
+    # ⚠ Solo trae el año en curso. 2025 sigue saliendo del inventario.
+    _base_meses = set()
+    try:
+        import base_ventas as _bv
+        _bdf = _bv.cargar()
+        if _bdf is not None and len(_bdf):
+            _bdf = _bdf[_bdf['marca'].notna() & _bdf['mes'].notna()].copy()
+            _base_meses = set(_bdf['mes'].dropna().unique())
+            if _base_meses:
+                df['_mes_ym'] = df['fecha_fact'].dt.strftime('%Y-%m')
+                _before = len(df)
+                df = df[~df['_mes_ym'].isin(_base_meses)].drop(columns=['_mes_ym'])
+                _drop = _before - len(df)
+                _fin_df = pd.DataFrame([{
+                    'fecha_fact': r['fecha'],
+                    'fecha de facturacion': r['fecha'],
+                    'Cantidad': int(r['cantidad']),
+                    'marca': str(r['marca']).replace('_ORGU', ''),
+                    'familia': r['familia'] if pd.notna(r['familia']) else r['modelo'],
+                    # el nombre LARGO: fact_agency_norm() busca palabras clave
+                    # ('CARLOS JULIO AROSEMENA'), no entiende la sigla 'CJA'.
+                    'AGENCIA_FACTURACION': r['agencia_raw'],
+                    'ASESOR_FACTURACION': str(r['asesor'] or 'Sin asesor').upper(),
+                    'Chasis': str(r['chasis'] or ''),
+                    'rev_signed': round(float(r['precio_neto'] or 0) * (1 if r['cantidad'] >= 0 else -1), 2),
+                    'canal_venta': r['canal'],
+                } for _, r in _bdf.iterrows()])
+                df = pd.concat([df, _fin_df], ignore_index=True, sort=False)
+                _exo = int(_bdf.loc[_bdf['exonerado'], 'cantidad'].sum())
+                print(f'[ventas_mensual] Base de Ventas ({_bdf["_archivo"].iloc[0]}): '
+                      f'{len(_bdf)} filas · {sorted(_base_meses)[0]}–{sorted(_base_meses)[-1]} · '
+                      f'{_exo} exonerados incluidos · {_drop} filas de inventario omitidas')
+    except Exception as e:
+        print(f'[ventas_mensual] WARN Base de Ventas no aplicada: {e}')
+
+    # ► OVERRIDE 2: archivos RANKING_<MES>_<YYYY>.xlsx = fuente OFICIAL de meses cerrados
     # (netos de NCs finales). Reemplazan cualquier cálculo desde inventario para el mes.
     _ranking_meses = set()
     try:
@@ -272,6 +318,11 @@ def _compute_ventas_mensual(sales_df):
         # Drop meses cubiertos por sales_df si sales_df tiene detalle transaccional
         # (evitar doble conteo). Priorizar DATOS 2 concat sobre sales_df para 2026.
         _datos2_meses = set(inv_tx[inv_tx['fecha_fact'].dt.year==2026]['mes_str'].unique())
+        # ⚠ La Base de Ventas de Finanzas manda sobre DATOS 2 en los meses que cubre:
+        # trae el canal (exonerados), la agencia resuelta y llega más lejos en el mes.
+        # Sin este descuento, DATOS 2 volvía a pisar el override y se perdían los 12
+        # exonerados y las dos semanas de agosto.
+        _datos2_meses -= _base_meses
         # Drop de sales_df los meses cubiertos por DATOS 2 (que ahora es más completo)
         if _datos2_meses:
             df['_mes_ym2'] = df['fecha_fact'].dt.strftime('%Y-%m')
@@ -280,7 +331,9 @@ def _compute_ventas_mensual(sales_df):
             _dropped = _before - len(df)
             if _dropped > 0:
                 print(f'[ventas_mensual] omitidas {_dropped} filas de sales_df cubiertas por DATOS 2 completo')
-        inv_tx = inv_tx[(inv_tx['fecha_fact'].dt.year==2026) & (~inv_tx['mes_str'].isin(_ranking_meses))].copy()
+        inv_tx = inv_tx[(inv_tx['fecha_fact'].dt.year==2026)
+                        & (~inv_tx['mes_str'].isin(_ranking_meses))
+                        & (~inv_tx['mes_str'].isin(_base_meses))].copy()
         print(f'[ventas_mensual] DATOS 2 fuente principal 2026: {sorted(_datos2_meses)} ({len(inv_tx)} TXs)')
         # No dedup VIN: DATOS 2 = fuente de verdad para meses post-mayo. Cada TX
         # cuenta tal cual (FACT +1, NC -1). User confirma "tengo 79 facturados"
@@ -376,7 +429,12 @@ def _compute_ventas_mensual(sales_df):
                 'fecha de facturacion': inv_hist['fecha_fact'],
                 'Cantidad': 1,
                 'marca': inv_hist.get('marca', '').astype(str),
-                'familia': inv_hist.get('familia', '').astype(str),
+                # La hoja DATOS trae la descripción completa ('RANGER XLT AC 2.0 CD
+                # 4X4 TA DIESEL'). Sin normalizar, 2025 abría 27 filas de modelo que
+                # NO se agregaban con las 8 de 2026 en ninguna vista por modelo.
+                'familia': [normalize_familia(f, m) or str(f)
+                            for f, m in zip(inv_hist.get('familia', '').astype(str),
+                                            inv_hist.get('marca', '').astype(str))],
                 'AGENCIA_FACTURACION': inv_hist.get('AGENCIA_FACTURACION', '').astype(str),
                 'ASESOR_FACTURACION': inv_hist.get('ASESOR_FACTURACION', '').astype(str).str.upper(),
                 'Chasis': inv_hist.get('vin', '').astype(str),
@@ -417,6 +475,17 @@ def _compute_ventas_mensual(sales_df):
         print(f"[ventas_mensual] accesorios PBD sumados al revenue: ${_tot_acc:,.0f} en {(df['_acc']!=0).sum()} filas Ford")
     except Exception as _e:
         print('[ventas_mensual] WARN accesorios no aplicados:', _e)
+    # ── Modelo canónico, punto ÚNICO para todos los orígenes (base de Finanzas,
+    # DATOS 2, RANKING, histórico). Cada fuente trae la descripción completa
+    # ('MAGE T AC 1.5 5P 4X2 TA HYBRID') y sin esto el mismo modelo abría varias
+    # filas: MAGE salía en 3, RICH 6 en 3, HUGE en 2. No cuadraba contra las metas.
+    _MARCA_NF = {'DONG FENG': 'DONGFENG', 'DONGFENG_ORGU': 'DONGFENG',
+                 'CHERY_ORGU': 'CHERY', 'MAZDA_ORGU': 'MAZDA', 'RAM_ORGU': 'RAM'}
+    def _modelo_canon(fam, marca):
+        m = str(marca or '').strip().upper()
+        m = _MARCA_NF.get(m, m.replace('_ORGU', ''))
+        return normalize_familia(fam, m) or str(fam).strip().upper()
+    df['familia'] = [_modelo_canon(f, m) for f, m in zip(df['familia'], df['marca'])]
     df['modelo_up'] = df['familia'].astype(str).str.strip().str.upper()
     df['asesor'] = df['ASESOR_FACTURACION'].astype(str).str.strip().str.upper().replace({'NAN': 'Sin asesor', '': 'Sin asesor'})
     # Agencia: el archivo de ventas trae "Bodega Venta Vehiculo" (e.g. "1001 VEHICULOS CARLOS JULIO AROSEMENA").

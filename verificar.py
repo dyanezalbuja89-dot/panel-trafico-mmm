@@ -13,6 +13,7 @@ que se ejecuta, sí. Los cuatro descuadres reales de agosto 2026 (ventas reverti
 que sobrevivían en la unión de snapshots) los detectó un check, no una nota.
 """
 import json
+import re
 import sys
 import warnings
 from pathlib import Path
@@ -64,8 +65,43 @@ def _inventario_vigente():
 
 # ── 1 · Ventas del panel contra finanzas ─────────────────────────────────────
 def check_ventas_vs_finanzas(d):
-    """La cifra oficial por agencia es la VITRINA, y tiene que dar igual que
-    DATOS 2 agrupado por Descripcion Bodega."""
+    """La cifra oficial por agencia es la VITRINA.
+
+    Jerarquía de fuentes: la **Base de Ventas** de Finanzas manda en los meses que
+    cubre (trae los exonerados y llega más lejos en el mes); `DATOS 2` cubre el resto.
+    Comparar contra DATOS 2 un mes que ya está en la base da falsos rojos: DATOS 2
+    solo ve unidades con chasis y corta a mitad de mes.
+    """
+    _base_meses = set()
+    try:
+        import base_ventas as _bv
+        _b = _bv.cargar()
+        if _b is not None and len(_b):
+            _b = _b[_b['marca'].notna() & _b['mes'].notna()]
+            _base_meses = set(_b['mes'].dropna().unique())
+    except Exception as e:
+        warn('ventas vs Base de Ventas', f'no pude leer la base: {e}')
+        _b = None
+    if _base_meses:
+        for key in ['FORD', 'DONGFENG_ORGU', 'CHERY_ORGU', 'MAZDA_ORGU', 'RAM_ORGU']:
+            vm = (d.get('ventas_mensual') or {}).get(key)
+            if not vm:
+                continue
+            sub = _b[_b['marca'] == key]
+            fin = sub.groupby('agencia')['cantidad'].sum().astype(int).to_dict()
+            pan = {a: sum(v.get(m, 0) for m in _base_meses)
+                   for a, v in (vm.get('by_agencia') or {}).items() if not a.startswith('_')}
+            difs = [f'{a}: panel {int(pan.get(a, 0))} vs finanzas {int(fin.get(a, 0))}'
+                    for a in sorted(set(fin) | set(pan))
+                    if int(fin.get(a, 0)) != int(pan.get(a, 0))]
+            tf, tp = int(sum(fin.values())), int(sum(pan.values()))
+            if difs or tf != tp:
+                fail(f'ventas {key} vs Base de Ventas',
+                     f'total panel {tp} vs finanzas {tf}' + (' · ' + ' · '.join(difs) if difs else ''))
+            else:
+                ok(f'ventas {key} vs Base de Ventas',
+                   f'{tp} uds, {len(fin)} agencias, {len(_base_meses)} meses')
+
     inv = _inventario_vigente()
     if inv is None:
         warn('ventas vs finanzas', 'no encontré snapshot de inventario')
@@ -86,7 +122,7 @@ def check_ventas_vs_finanzas(d):
         vm = (d.get('ventas_mensual') or {}).get(key)
         if not vm:
             continue
-        meses = [m for m in vm.get('months', []) if m.startswith('2026')]
+        meses = [m for m in vm.get('months', []) if m.startswith('2026') and m not in _base_meses]
         if not meses:
             continue
         sub = d2[(d2['Marca'].astype(str).str.upper() == marca_raw) & (d2['_mes'].isin(meses))]
@@ -321,6 +357,23 @@ def check_breakdowns_conversion(d):
         ok('breakdowns conversión', 'conv_pct = ventas/tráfico y todos llevan su aviso')
 
 
+def check_modelos_normalizados(d):
+    """Un modelo con la descripción completa ('RANGER XLT AC 2.0 CD 4X4 TA DIESEL')
+    no se agrega con su versión corta: abre una fila aparte en toda vista por modelo.
+    Así estuvo 2025 hasta el 25-ago-2026 — 27 filas de modelo en vez de 9."""
+    malos = []
+    for key, vm in (d.get('ventas_mensual') or {}).items():
+        for m in {r.get('modelo') for r in vm.get('flat', []) if r.get('modelo')}:
+            if re.search(r'\b(AC|TA|TM|CD|4X4|4X2|HYBRID|DIESEL)\b', str(m).upper()):
+                malos.append(f'{key}: {m}')
+    if malos:
+        fail('modelos normalizados', f'{len(malos)} sin normalizar · ' + ' · '.join(sorted(malos)[:4]))
+    else:
+        n = len({r.get('modelo') for vm in (d.get('ventas_mensual') or {}).values()
+                 for r in vm.get('flat', [])})
+        ok('modelos normalizados', f'{n} modelos, ninguno con la descripción completa')
+
+
 def check_cache():
     """Si se cambia un criterio de cálculo sin subir la versión, los meses viejos
     se sirven con el criterio anterior y solo cambia el mes en curso."""
@@ -396,6 +449,7 @@ def main():
     check_sin_modelo(d)
     check_cruce_ventas(d)
     check_breakdowns_conversion(d)
+    check_modelos_normalizados(d)
     check_cache()
 
     print()
