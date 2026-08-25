@@ -206,6 +206,32 @@ cambia el mes en curso.
 
 ---
 
+## Alinear números con el eje de un gráfico
+
+En la pestaña **Asignación**, las tres filas de abajo (Inversión / $ por persona / Personas
+por unidad libre) tienen que caer exactamente bajo su mes.
+
+No se puede clavar un ancho a mano: **Chart.js decide el ancho de los ejes en cada render**
+según cuántos dígitos tenga la escala — dos gráficos de la misma fila terminan con ejes de
+28 y 35 px. Cualquier `padding-left` fijo desalinea a la primera.
+
+La solución es un plugin, `ASIG_ALINEA`, que en `afterLayout` lee el `chartArea` real y lo
+traslada a padding de las filas de números:
+
+```js
+el.style.paddingLeft  = Math.round(c.chartArea.left) + 'px';
+el.style.paddingRight = Math.round(c.width - c.chartArea.right) + 'px';
+```
+
+Con las celdas en `repeat(N, 1fr)` dentro de ese ancho, cada una queda centrada sobre su
+tick (la escala de categorías las reparte en bandas iguales). `afterLayout` corre también
+al redimensionar, así que aguanta el cambio de ancho de ventana.
+
+Los **nombres de fila viven en un canalón de 118 px a la izquierda**, fuera del gráfico:
+el canvas arranca en esa misma coordenada, así que etiquetas y trazado no se pisan.
+
+Medido en producción: desvío máximo **0,36 px** en las 7 tarjetas.
+
 ## Verificación
 
 ```bash
