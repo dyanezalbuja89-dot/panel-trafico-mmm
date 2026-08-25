@@ -4340,7 +4340,7 @@ HTML = r"""<!doctype html>
 
       <!-- EVOLUCIÓN MENSUAL DE CONVERSIÓN -->
       <div class="ford-section" style="margin-top:18px">
-        <h3>📈 Evolución mensual de conversión <span class="sub" id="conv-evol-sub">barras = personas que entraron y vehículos que salieron · línea = vehículos ÷ personas</span></h3>
+        <h3>📈 Evolución mensual de conversión <span class="sub" id="conv-evol-sub">cada mes es una COHORTE: la gente que entró ese mes y lo que terminó comprando</span></h3>
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
           Los meses más recientes muestran % menor porque su cohorte está aún en pipeline (no ha terminado el ciclo de venta).
         </div>
@@ -10517,17 +10517,24 @@ HTML = r"""<!doctype html>
     const _persSin = new Set();
     Object.entries(_pvSin).forEach(([k, q]) => { if (q > 0) _persSin.add(k.split('||')[0]); });
     const _vehSin = _mfFiltradas.filter(f => !f.cohorte_ym).reduce((a, f) => a + (f.qty || 0), 0);
+    // El cuadre explícito. Sin esto, sumar las barras verdes da menos que las ventas
+    // del panel y parece un error: son ventas por COHORTE, no por mes de factura.
+    const _vehTotal = _mfFiltradas.reduce((a, f) => a + (f.qty || 0), 0);
+    const _vehEnBarras = stats.reduce((a, s) => a + (s.ventas || 0), 0);
     const _nota = document.getElementById('conv-evol-nota');
     if (_nota) {
-      if (_persSin.size > 0) {
-        _nota.innerHTML = `<div style="background:#eef4fb;border-left:3px solid #003478;padding:8px 12px;border-radius:0 6px 6px 0;color:var(--ink)">
-          <strong>${_persSin.size} compradores no salen en ninguna barra</strong> (${_vehSin} vehículos):
-          se les facturó pero nunca aparecieron en la BD de tráfico del año — flota, gestión externa
-          o primer contacto en 2025. La tarjeta de arriba sí los cuenta, por eso su % es mayor que el
-          de las barras.</div>`;
-      } else {
-        _nota.innerHTML = '';
-      }
+      const cuadre = `<div style="background:#eef4fb;border-left:3px solid #003478;padding:9px 12px;border-radius:0 6px 6px 0;color:var(--ink);line-height:1.65">
+        <strong>Las barras verdes no son las ventas del mes.</strong> El eje es el mes en que la
+        persona <em>entró</em>: la barra de junio son los autos que compró la gente que llegó en
+        junio, facturados cuando haya sido.
+        <div style="margin-top:5px">
+          Suman <strong>${fmt(_vehEnBarras)}</strong> vehículos
+          ${_vehSin ? `+ <strong>${fmt(_vehSin)}</strong> de ${_persSin.size} compradores sin cohorte
+             (flota, gestión externa o primer contacto en 2025, que no caen en ningún mes)` : ''}
+          = <strong>${fmt(_vehTotal)}</strong>, que es el total facturado de la tarjeta.
+        </div>
+      </div>`;
+      _nota.innerHTML = cuadre;
     }
 
     // El % solo no explica nada: un 21.7% sobre 60 personas y un 6% sobre 83 son
@@ -10555,7 +10562,7 @@ HTML = r"""<!doctype html>
             }
           },
           {
-            type: 'bar', label: 'Vehículos facturados', order: 3,
+            type: 'bar', label: 'Vehículos de esa cohorte', order: 3,
             data: stats.map(s => s.ventas),
             backgroundColor: '#2e7d32', maxBarThickness: 34,
             borderRadius: {topLeft:3, topRight:3},
@@ -10605,8 +10612,8 @@ HTML = r"""<!doctype html>
                 if(!s || s.total === 0) return 'Sin tráfico';
                 if(ctx.dataset.label === '% Conversión')
                   return `Conversión: ${s.pct}% · ${s.ventas} vehículos / ${fmt(s.total)} personas`;
-                if(ctx.dataset.label === 'Vehículos facturados')
-                  return `Facturado: ${s.ventas} vehículos`;
+                if(ctx.dataset.label === 'Vehículos de esa cohorte')
+                  return `${s.ventas} vehículos comprados por gente que entró en este mes`;
                 return `Tráfico: ${fmt(s.total)} personas`;
               }
             }
@@ -10627,7 +10634,9 @@ HTML = r"""<!doctype html>
             title: { display:true, text:'% Conversión', font:{size:11,weight:'600'}, color:'#003478' },
             grid: { display:false }
           },
-          x: { ticks:{font:{size:11}}, grid:{display:false} }
+          x: { ticks:{font:{size:11}}, grid:{display:false},
+               title: { display:true, text:'Mes del PRIMER TOQUE (no el de la factura)',
+                        font:{size:11,weight:'600'}, color:'var(--c-muted)' } }
         },
         layout: { padding: { top: 36, bottom: 12, left: 8, right: 16 } }
       }
