@@ -4340,7 +4340,7 @@ HTML = r"""<!doctype html>
 
       <!-- EVOLUCIÓN MENSUAL DE CONVERSIÓN -->
       <div class="ford-section" style="margin-top:18px">
-        <h3>📈 Evolución mensual de conversión <span class="sub" id="conv-evol-sub">% de personas con 1er toque en cada mes que terminaron facturando</span></h3>
+        <h3>📈 Evolución mensual de conversión <span class="sub" id="conv-evol-sub">barras = personas que entraron y vehículos que salieron · línea = % que cerró</span></h3>
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
           Los meses más recientes muestran % menor porque su cohorte está aún en pipeline (no ha terminado el ciclo de venta).
         </div>
@@ -10452,62 +10452,104 @@ HTML = r"""<!doctype html>
     const _maxPct = Math.max(0, ...stats.map(s => s.pct || 0));
     const _yMax = Math.max(20, Math.ceil((_maxPct + 12) / 10) * 10);
 
+    // El % solo no explica nada: un 21.7% sobre 60 personas y un 6% sobre 83 son
+    // historias distintas. Van las tres series juntas — cuánta gente entró, cuántos
+    // autos salieron y qué proporción cerró.
+    const _maxN = Math.max(1, ...stats.map(s => s.total || 0));
+
     if(convChartEvol){ convChartEvol.destroy(); }
     convChartEvol = new Chart(canvas, {
-      type: 'line',
       data: {
         labels,
-        datasets: [{
-          label: '% Conversión',
-          data: stats.map(s => s.pct),
-          borderColor: '#003478',
-          backgroundColor: 'rgba(0,52,120,0.10)',
-          borderWidth: 3,
-          pointRadius: 6,
-          pointBackgroundColor: '#003478',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2,
-          tension: 0.3,
-          fill: true,
-          spanGaps: true,
-        }]
+        datasets: [
+          {
+            type: 'bar', label: 'Personas (tráfico)', order: 3,
+            data: stats.map(s => s.total),
+            backgroundColor: 'rgba(21,101,192,.22)',
+            borderColor: 'rgba(21,101,192,.45)', borderWidth: 1,
+            borderRadius: {topLeft:3, topRight:3}, maxBarThickness: 34,
+            yAxisID: 'yN',
+            datalabels: {
+              display: ctx => (stats[ctx.dataIndex].total || 0) > 0,
+              anchor: 'end', align: 'top', offset: 2,
+              color: '#1565c0', font: { size: 10.5, weight: '700' },
+              formatter: (v, ctx) => fmt(stats[ctx.dataIndex].total)
+            }
+          },
+          {
+            type: 'bar', label: 'Vehículos facturados', order: 3,
+            data: stats.map(s => s.ventas),
+            backgroundColor: '#2e7d32', maxBarThickness: 34,
+            borderRadius: {topLeft:3, topRight:3},
+            yAxisID: 'yN',
+            datalabels: {
+              display: ctx => (stats[ctx.dataIndex].ventas || 0) > 0,
+              anchor: 'end', align: 'top', offset: 2,
+              color: '#2e7d32', font: { size: 10.5, weight: '700' },
+              formatter: (v, ctx) => stats[ctx.dataIndex].ventas
+            }
+          },
+          {
+            type: 'line', label: '% Conversión', order: 1,
+            data: stats.map(s => s.pct),
+            borderColor: '#003478',
+            backgroundColor: 'rgba(0,52,120,0.08)',
+            borderWidth: 3,
+            pointRadius: 5,
+            pointBackgroundColor: '#003478',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            tension: 0.3, fill: true, spanGaps: true,
+            yAxisID: 'y',
+            datalabels: {
+              display: ctx => stats[ctx.dataIndex].pct != null,
+              // Para pct === 0, anchor 'start' evita que la etiqueta caiga bajo el eje.
+              anchor: ctx => (stats[ctx.dataIndex].pct === 0 ? 'start' : 'end'),
+              align: 'top', offset: 8,
+              color: '#003478', font: { size: 12.5, weight: '700' },
+              formatter: (v, ctx) => stats[ctx.dataIndex].pct + '%'
+            }
+          }
+        ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode:'index', intersect:false },
         plugins: {
-          legend: { display:false },
+          legend: { display:true, position:'top', align:'end',
+                    labels:{ boxWidth:12, boxHeight:12, font:{size:11}, usePointStyle:true } },
           tooltip: {
             callbacks: {
-              label: (ctx) => {
-                const s = stats[ctx.dataIndex];
-                if(s.total === 0) return 'Sin tráfico';
+              title: items => items[0].label,
+              label: () => null,
+              afterBody: (items) => {
+                const s = stats[items[0].dataIndex];
+                if(!s || s.total === 0) return ['Sin tráfico'];
                 return [
+                  `Tráfico: ${fmt(s.total)} personas`,
+                  `Cerraron: ${s.cerraron} personas`,
+                  `Facturado: ${s.ventas} vehículos`,
                   `Conversión: ${s.pct}%`,
-                  `${s.cerraron} cerraron de ${s.total} personas`,
-                  `${s.ventas} vehículos facturados`,
                 ];
               }
             }
-          },
-          datalabels: {
-            display: ctx => stats[ctx.dataIndex].pct != null,
-            // Datalabels arriba del punto. Para pct === 0, anchor 'start' + align 'top'
-            // evita que la etiqueta caiga bajo el eje X y se recorte.
-            anchor: ctx => (stats[ctx.dataIndex].pct === 0 ? 'start' : 'end'),
-            align: 'top', offset: 10,
-            color: '#003478', font: { size: 13, weight: '700' },
-            formatter: (v, ctx) => stats[ctx.dataIndex].pct != null ? stats[ctx.dataIndex].pct + '%' : ''
           }
         },
         scales: {
+          yN: {
+            position: 'left', beginAtZero: true,
+            suggestedMax: Math.ceil(_maxN * 1.22),
+            ticks: { font:{size:11}, precision:0 },
+            title: { display:true, text:'Personas · vehículos', font:{size:11,weight:'600'} },
+            grid: { drawOnChartArea: true }
+          },
           y: {
-            beginAtZero: true,
-            suggestedMax: _yMax,
-            max: _yMax,
-            ticks: { callback: v => v + '%', font:{size:11} },
-            title: { display:true, text:'% Conversión', font:{size:11,weight:'600'} }
+            position: 'right', beginAtZero: true,
+            suggestedMax: _yMax, max: _yMax,
+            ticks: { callback: v => v + '%', font:{size:11}, color:'#003478' },
+            title: { display:true, text:'% Conversión', font:{size:11,weight:'600'}, color:'#003478' },
+            grid: { display:false }
           },
           x: { ticks:{font:{size:11}}, grid:{display:false} }
         },
