@@ -6729,6 +6729,22 @@ HTML = r"""<!doctype html>
     Object.entries(dmc).forEach(([k,v])=>{ if(set.has(k)) n += v||0; });
     return n;
   }
+  // Totales de un modelo (todas las agencias) o de una agencia (todos los modelos)
+  // RESPETANDO el canal. Sin esto había que caer a `models[m].curr` / `dealers[d].curr`,
+  // que por construcción del aggregate son marketing-only: el selector "Tipo canal"
+  // movía las tarjetas KPI y no movía ni una barra de los gráficos.
+  function getCntModelo(scope, m, canal){
+    if(!scope) return 0;
+    if(canal === 'marketing' || !canal) return scope.models?.[m]?.curr || 0;
+    return (scope.dealer_order || []).reduce((a, d) => a + getCnt(scope, m, d, canal), 0)
+         + getCnt(scope, m, 'Otros', canal);
+  }
+  function getCntAgencia(scope, d, canal){
+    if(!scope) return 0;
+    if(canal === 'marketing' || !canal) return scope.dealers?.[d]?.curr || 0;
+    return (scope.model_order || []).reduce((a, m) => a + getCnt(scope, m, d, canal), 0);
+  }
+
   function getCntPrev(scope, m, d, canal){
     if(!scope) return 0;
     if(canal === 'marketing' || !canal){
@@ -8671,6 +8687,14 @@ HTML = r"""<!doctype html>
     return Math.round(currFiltered * partial / total);
   }
 
+  // Un mes está CERRADO cuando su corte llegó al último día del mes. Vale para 2025
+  // y 2026 porque sale de MONTHS_CONFIG, no de una lista escrita a mano.
+  function cpMesCerrado(cfg){
+    if(!cfg) return false;
+    const ult = new Date(cfg.year, cfg.month, 0).getDate();
+    return (cfg.cut_day || 0) >= ult;
+  }
+
   function cpRenderKpis(){
     const A = cpGetData(cpstate.monthA);
     const B = cpGetData(cpstate.monthB);
@@ -8731,10 +8755,10 @@ HTML = r"""<!doctype html>
       let av, bv;
       if(cpstate.agencia){
         av = getCnt(A, m, cpstate.agencia, cpstate.canal);
-        bv = getCnt(B, m, cpstate.agencia, bstate.canal);
+        bv = getCnt(B, m, cpstate.agencia, cpstate.canal);
       } else {
-        av = A.models?.[m]?.curr || 0;
-        bv = B.models?.[m]?.curr || 0;
+        av = getCntModelo(A, m, cpstate.canal);
+        bv = getCntModelo(B, m, cpstate.canal);
       }
       av = norm(A, av); bv = norm(B, bv);
       if(av || bv) movers.push({type:'modelo', name:m, a:av, b:bv, delta:bv-av});
@@ -8745,10 +8769,10 @@ HTML = r"""<!doctype html>
         let av, bv;
         if(cpstate.modelo){
           av = getCnt(A, cpstate.modelo, d, cpstate.canal);
-          bv = getCnt(B, cpstate.modelo, d, bstate.canal);
+          bv = getCnt(B, cpstate.modelo, d, cpstate.canal);
         } else {
-          av = A.dealers?.[d]?.curr || 0;
-          bv = B.dealers?.[d]?.curr || 0;
+          av = getCntAgencia(A, d, cpstate.canal);
+          bv = getCntAgencia(B, d, cpstate.canal);
         }
         av = norm(A, av); bv = norm(B, bv);
         if(av || bv) movers.push({type:'agencia', name:d, a:av, b:bv, delta:bv-av});
@@ -8777,8 +8801,8 @@ HTML = r"""<!doctype html>
         av = getCnt(A, m, dealers[0], cpstate.canal);
         bv = getCnt(B, m, dealers[0], cpstate.canal);
       } else {
-        av = A.models?.[m]?.curr || 0;
-        bv = B.models?.[m]?.curr || 0;
+        av = getCntModelo(A, m, cpstate.canal);
+        bv = getCntModelo(B, m, cpstate.canal);
       }
       return {model:m, a:av, b:bv, delta:bv-av};
     }).filter(r=>r.a||r.b).sort((a,b)=>(b.a+b.b)-(a.a+a.b));
@@ -8832,10 +8856,10 @@ HTML = r"""<!doctype html>
       let av, bv;
       if(cpstate.modelo){
         av = getCnt(A, cpstate.modelo, d, cpstate.canal);
-        bv = getCnt(B, cpstate.modelo, d, bstate.canal);
+        bv = getCnt(B, cpstate.modelo, d, cpstate.canal);
       } else {
-        av = A.dealers?.[d]?.curr || 0;
-        bv = B.dealers?.[d]?.curr || 0;
+        av = getCntAgencia(A, d, cpstate.canal);
+        bv = getCntAgencia(B, d, cpstate.canal);
       }
       return {dealer:d, a:av, b:bv, delta:bv-av};
     }).filter(r=>r.a||r.b).sort((a,b)=>(b.a+b.b)-(a.a+a.b));
@@ -9099,7 +9123,7 @@ HTML = r"""<!doctype html>
       let rowDelta = 0;
       const cells = dealers.map(d=>{
         const av = getCnt(A, m, d, cpstate.canal);
-        const bv = getCnt(B, m, d, bstate.canal);
+        const bv = getCnt(B, m, d, cpstate.canal);
         const delta = bv-av;
         rowDelta += delta;
         if(av===0 && bv===0) return `<td class="cell dash" title="Sin tráfico en ambos meses">—</td>`;
@@ -9189,11 +9213,17 @@ HTML = r"""<!doctype html>
 
     // Header summary (always)
     const totals = monthDatas.map((md,i) => normVal(cpEvFilteredValueForMonth(md, 'TOTAL'), i));
-    const first = totals[0]||0, last = totals[totals.length-1]||0;
+    // Punta a punta contra el último mes CERRADO. Con el mes en curso de extremo el
+    // titular decía "▼ −24,4%" comparando enero completo contra 18 días de agosto,
+    // cuando contra julio la variación real es +17,1%: invertía la historia.
+    let _iFin = MONTHS_CONFIG.length - 1;
+    while(_iFin > 0 && !cpMesCerrado(MONTHS_CONFIG[_iFin])) _iFin--;
+    const first = totals[0]||0, last = totals[_iFin]||0;
     const dPctTot = first>0 ? (100*(last-first)/first) : null;
+    const _rango = `de ${labels[0]} a ${labels[_iFin]}`;
     const trendTxt = dPctTot==null ? '—'
-      : dPctTot>0 ? `<span style="color:var(--pos);font-weight:700">▲ +${dPctTot.toFixed(1)}%</span> de ${labels[0]} a ${labels[labels.length-1]}`
-      : dPctTot<0 ? `<span style="color:var(--neg);font-weight:700">▼ ${dPctTot.toFixed(1)}%</span> de ${labels[0]} a ${labels[labels.length-1]}`
+      : dPctTot>0 ? `<span style="color:var(--pos);font-weight:700">▲ +${dPctTot.toFixed(1)}%</span> ${_rango}`
+      : dPctTot<0 ? `<span style="color:var(--neg);font-weight:700">▼ ${dPctTot.toFixed(1)}%</span> ${_rango}`
       : `sin cambio neto`;
     document.getElementById('cp-ev-summary').innerHTML = trendTxt + (norm?' · normalizado por día lab.':'');
 
@@ -9371,8 +9401,13 @@ HTML = r"""<!doctype html>
     if(dataA && dataB){
       const dailyA = cpDailySeriesForMonth(dataA);
       const dailyB = cpDailySeriesForMonth(dataB);
-      const monthLenA = (dataA.pace || []).length || 31;
-      const monthLenB = (dataB.pace || []).length || 31;
+      // Si alguno de los dos meses sigue abierto, se truncan LOS DOS al mismo día
+      // calendario. Comparar un mes completo contra medio mes ponía "▼ −24,4%" a cinco
+      // centímetros del KPI que decía "+21,2%", con los mismos dos meses.
+      const _abierto = !cpMesCerrado(cfgA) || !cpMesCerrado(cfgB);
+      const _tope = _abierto ? Math.min(cfgA.cut_day || 31, cfgB.cut_day || 31) : 99;
+      const monthLenA = Math.min((dataA.pace || []).length || 31, _tope);
+      const monthLenB = Math.min((dataB.pace || []).length || 31, _tope);
       let totalA = 0, totalB = 0;
       for(let d=1; d<=monthLenA; d++) totalA += dailyA[d] || 0;
       for(let d=1; d<=monthLenB; d++) totalB += dailyB[d] || 0;
@@ -9385,7 +9420,8 @@ HTML = r"""<!doctype html>
       const labelB = cfgB.label.split(' ')[0];
       document.getElementById('cp-dc-summary').innerHTML =
         `Total · ${labelB} <strong>${fmt(totalB)}</strong> vs ${labelA} <strong>${fmt(totalA)}</strong> ` +
-        `<span style="color:${color};font-weight:700">${arrow} ${delta>0?'+':''}${delta}${pctStr}</span>`;
+        `<span style="color:${color};font-weight:700">${arrow} ${delta>0?'+':''}${delta}${pctStr}</span>` +
+        (_abierto ? `<span style="color:var(--muted);font-weight:400"> · ambos truncados al día ${_tope}, hay un mes en curso</span>` : '');
     } else {
       document.getElementById('cp-dc-summary').textContent = '';
     }
@@ -9645,6 +9681,11 @@ HTML = r"""<!doctype html>
   // Los fallbacks (`|| 'Gestión Externa'`, `|| modelo_fact`) tienen que ser los
   // MISMOS con los que las tablas agrupan, o filtrar por un canal deja fuera
   // facturas que esa misma tabla cuenta en esa fila.
+  // Zona de cada vitrina, para dar fallback a las facturas sin primer toque.
+  const CONV_ZONA_AG = {'La Y':'Quito', 'Tumbaco':'Quito', 'CJA':'Guayaquil',
+                        'Orellana':'Guayaquil', 'Manta':'Manta', 'Portoviejo':'Manta',
+                        'Machala':'Machala'};
+
   function convFiltraFacturas(lista, salvo){
     const sk = salvo || {};
     const ok = convMesesOk();
@@ -9657,7 +9698,12 @@ HTML = r"""<!doctype html>
       }
       if(!sk.mes     && convState.mes     && m.cohorte_ym !== convState.mes)     return false;
       if(!sk.agencia && convState.agencia && m.agencia    !== convState.agencia) return false;
-      if(!sk.zona    && convState.zona    && m.zona_lead  !== convState.zona)    return false;
+      // La zona necesita el mismo fallback que canal y modelo: las 132 facturas sin
+      // primer toque (66 unidades: flota, gestión externa, 1er contacto en 2025) tienen
+      // zona_lead nula y desaparecían al elegir una zona. Quito daba 107 cuando La Y +
+      // Tumbaco de la tabla de al lado sumaban 129. Se les asigna la zona de la vitrina
+      // que facturó, que es donde el resto del panel las cuenta.
+      if(!sk.zona    && convState.zona    && (m.zona_lead || CONV_ZONA_AG[m.agencia] || '') !== convState.zona) return false;
       if(!sk.modelo  && convState.modelo  && (m.modelo_lead || m.modelo_fact) !== convState.modelo) return false;
       if(!sk.canal   && convState.canal   && (m.canal_lead || 'Gestión Externa') !== convState.canal) return false;
       if(!sk.asesor  && convState.asesor  && m.asesor_lead !== convState.asesor) return false;
@@ -10075,8 +10121,41 @@ HTML = r"""<!doctype html>
     // Los nombres de factura y de tráfico difieren en grafía ("CARLA MELISSA
     // MONTOYA" vs "CARLA MONTOYA"), así que se reconcilian por tokens compartidos.
     const _mAsesorF = _bucketMaster(m => m.is_jefe_fact ? '_JEFE' : (m.asesor_fact || 'Sin asesor'));
-    const _tKeys = Object.keys(aggAsesor);
     const _tok = s => new Set(String(s).toUpperCase().split(/\s+/).filter(Boolean));
+
+    // ── Fusionar grafías duplicadas del MISMO asesor ──────────────────────────
+    // El tráfico trae a la misma persona escrita de dos formas: "VIVIANA VELEZ" (149
+    // leads) y "VIVIANA MAGDALENA VELEZ VALAREZO" (1 lead). Como el match exacto gana
+    // antes que el de tokens, las 31 ventas caían en la fila de 1 lead y el umbral de
+    // ≥5 la borraba de la tabla; la otra quedaba en el top-20 con 0 vehículos y 0,0%
+    // en ROJO. Eran tres asesoras y 116 unidades: la nota decía 620 y la tabla 504.
+    //
+    // Se fusiona solo cuando los tokens del nombre corto están TODOS en el largo
+    // ("VIVIANA VELEZ" ⊂ "VIVIANA MAGDALENA VELEZ VALAREZO"). Con "≥2 tokens en común"
+    // se corría el riesgo de unir a dos personas distintas que comparten dos nombres.
+    const _subconjunto = (corto, largo) => {
+      const a = _tok(corto), b = _tok(largo);
+      if (a.size < 2 || a.size >= b.size) return false;
+      for (const t of a) if (!b.has(t)) return false;
+      return true;
+    };
+    {
+      // El nombre con MÁS tráfico manda: es el que el asesor usa a diario.
+      const orden = Object.keys(aggAsesor).sort((a, b) => (aggAsesor[b].traffic || 0) - (aggAsesor[a].traffic || 0));
+      const canon = [];
+      orden.forEach(k => {
+        const hit = canon.find(c => _subconjunto(c, k) || _subconjunto(k, c));
+        if (hit) {
+          aggAsesor[hit].traffic  += aggAsesor[k].traffic  || 0;
+          aggAsesor[hit].matched  += aggAsesor[k].matched  || 0;
+          aggAsesor[hit].ventas   += aggAsesor[k].ventas   || 0;
+          delete aggAsesor[k];
+        } else {
+          canon.push(k);
+        }
+      });
+    }
+    const _tKeys = Object.keys(aggAsesor);
     const _matchNombre = fn => {
       if (aggAsesor[fn]) return fn;
       const ft = _tok(fn); let best = null, bestN = 0;
@@ -10263,7 +10342,12 @@ HTML = r"""<!doctype html>
     const cd = DATA.conversion_data || {};
     const marcas = Object.keys(cd);
     if(!marcas.length) return null;
+    // ⚠ `_ck` es un id de FILA dentro de cada marca ('r9555' existe en las cinco), así
+    // que al fusionar hay que prefijarlo: sin eso el dedupe global colapsaba personas
+    // de marcas distintas y se evaporaban 270 (6,2%).
     const cat = (campo) => marcas.flatMap(m => (cd[m] || {})[campo] || []);
+    const catClientes = () => marcas.flatMap(m =>
+      ((cd[m] || {}).clientes_flat || []).map(c => Object.assign({}, c, { _ck: m + '|' + c._ck })));
     const mergeObj = (campo) => Object.assign({}, ...marcas.map(m => (cd[m] || {})[campo] || {}));
     const g = {};
     marcas.forEach(m => {
@@ -10278,7 +10362,7 @@ HTML = r"""<!doctype html>
     if(g.n_facturas_total)   g.cov_rate_pct  = +(100 * g.n_facturas_atribuidas / g.n_facturas_total).toFixed(1);
     _convAllCache = {
       global: g,
-      clientes_flat:   cat('clientes_flat'),
+      clientes_flat:   catClientes(),
       master_facturas: cat('master_facturas'),
       asesor_home_agencia: mergeObj('asesor_home_agencia'),
       jefes_por_agencia:   mergeObj('jefes_por_agencia'),
@@ -14603,18 +14687,17 @@ HTML = r"""<!doctype html>
       const cr = mc[mk]; if(!cr) return null;
       const fm = anMonthData(mk); if(!fm) return null;
       let trafico, meta;
-      if(modeloOpt && agenciaOpt){
-        trafico = (fm.matrix_cnt?.[modeloOpt]?.[agenciaOpt]) || 0;
-        meta    = (fm.matrix_meta?.[modeloOpt]?.[agenciaOpt]) || 0;
-      } else if(modeloOpt){
-        trafico = (fm.models?.[modeloOpt]?.curr) || 0;
-        meta    = (fm.models?.[modeloOpt]?.meta) || 0;
-      } else if(agenciaOpt){
-        trafico = (fm.dealers?.[agenciaOpt]?.curr) || 0;
-        meta    = (fm.dealers?.[agenciaOpt]?.meta) || 0;
-      } else {
-        trafico = fm.total_curr || 0;
-        meta    = fm.meta_total || 0;
+      // El cruce usaba matrix_cnt / models[].curr / total_curr, que son SIEMPRE
+      // marketing (80%), mientras el resto de la pestaña respeta anstate.canal vía
+      // anAgg. Con "Todos los canales" la evolución mes a mes decía 578/515 = 112%
+      // y el cruce, tres secciones más abajo, 417/412 = 101% para el mismo mes.
+      // anAgg ya aplica canal al tráfico y escala la meta; se reusa.
+      {
+        const _ag = agenciaOpt ? [agenciaOpt] : null;
+        const _mo = modeloOpt ? [modeloOpt] : null;
+        const _r = anAgg([mk], _mo, _ag);
+        trafico = _r.curr;
+        meta    = _r.meta;
       }
       const cumpl = meta > 0 ? Math.round(100*trafico/meta) : null;
       const src = modeloOpt ? (cr.por_modelo?.[modeloOpt] || {}) : cr;

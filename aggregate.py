@@ -973,6 +973,33 @@ def _extract_traffic_meta_from_metas_ford(path):
                 except (ValueError, TypeError): pass
     return total, matrix_meta, per_ag
 
+# Familias canónicas de las marcas ORGU. Vive fuera de las funciones porque el
+# TRÁFICO tiene que normalizar igual que las METAS: Mazda traía la meta en 'CX30' y
+# el tráfico en 'CX-30', así que el mismo modelo salía en dos filas — una con meta y
+# sin tráfico, la otra al revés.
+# OJO: patrones más específicos PRIMERO (CX-30 antes que CX-3, RICH 7 antes que RICH).
+MODELO_FAM_ORGU = {
+    'HUGE': 'HUGE', 'MAGE': 'MAGE', 'PALADIN': 'PALADIN',
+    'RICH 6': 'RICH 6', 'RICH 7': 'RICH 7', 'Z9': 'Z9',
+    'BT-50': 'NEW BT-50', 'BT50': 'NEW BT-50',
+    'CX-30': 'CX30', 'CX30': 'CX30', 'CX-3': 'CX3',
+    'CX-60': 'CX60', 'CX60': 'CX60', 'CX-90': 'CX90', 'CX90': 'CX90',
+    'CX-5': 'CX5', 'CX5': 'CX5',
+    'ARRIZO': 'ARRIZO', 'TIGGO 2': 'TIGGO 2', 'TIGGO 4': 'TIGGO 4',
+    'TIGGO 7': 'TIGGO 7', 'TIGGO 8': 'TIGGO 8', 'HIMLA': 'HIMLA',
+    '1500': 'RAM 1500', '700': 'RAM 700',
+}
+
+
+def familia_orgu(nombre):
+    """Familia canónica de un modelo de marca ORGU, o None si no reconoce el patrón."""
+    u = str(nombre or '').upper().strip()
+    for kw, fam in MODELO_FAM_ORGU.items():
+        if kw in u:
+            return fam
+    return None
+
+
 def _extract_traffic_meta_marcas(path):
     path = _resolve_local(path)
     """Lee sección 'PRESUPUESTO DE TRÁFICO POR CONCESIONARIO MARKETING' de METAS_MARCAS.
@@ -1613,6 +1640,8 @@ def process_bd_brand(df, brand, channels=None):
     df = df[df['MARCA'] == brand].copy()
     df['MODELO_F'] = df['MODELO'].astype(str).str.strip().str.upper()
     df.loc[df['MODELO_F']=='F150','MODELO_F'] = 'F-150'
+    # Misma familia canónica que las metas, o el modelo se parte en dos filas.
+    df['MODELO_F'] = df['MODELO_F'].apply(lambda x: familia_orgu(x) or x)
     df.loc[df['MODELO_F'].isin(['NAN','NONE','']) | df['MODELO_F'].isna(), 'MODELO_F'] = 'Por definir'
     # ► Dedup por cédula: preferir la fila que TENGA modelo válido cuando hay
     # varias del mismo cliente (mismo razonamiento que get_traffic_df).
