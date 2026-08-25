@@ -241,16 +241,18 @@ _RX_GIRO = re.compile(
 
 
 def tipo_cliente_venta(nombre):
-    """'Flota/Renting' | 'B2B' | None (persona natural).
+    """'Flota/Renting' | None (persona natural).
 
     Solo mira el nombre de la factura: es la única señal disponible cuando no
     hay lead. No se usa para clientes CON lead — esos conservan su canal real.
+
+    Los dos patrones (renting y sociedad/giro) van al MISMO bucket: Daniel
+    (24-ago-2026) confirmó que flota y B2B son lo mismo para el negocio, y
+    separarlos partía en dos una fila que ya era chica.
     """
     n = ' ' + re.sub(r'[^A-Za-zÑñÁÉÍÓÚáéíóú.& ]', ' ', str(nombre or '')) + ' '
-    if _RX_RENTING.search(n):
+    if _RX_RENTING.search(n) or _RX_SOCIEDAD.search(n) or _RX_GIRO.search(n):
         return 'Flota/Renting'
-    if _RX_SOCIEDAD.search(n) or _RX_GIRO.search(n):
-        return 'B2B'
     return None
 
 
@@ -1212,7 +1214,7 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     # Ventas de flota/B2B SIN lead: las que nunca podían cruzar contra tráfico.
     # (Si una empresa sí pasó por el embudo, conserva su canal y NO cuenta aquí.)
     _n_flota = sum(m.get('qty', 0) for m in master_facturas if m.get('canal_lead') == 'Flota/Renting')
-    _n_b2b   = sum(m.get('qty', 0) for m in master_facturas if m.get('canal_lead') == 'B2B')
+    _n_b2b   = 0   # fusionado en Flota/Renting; se conserva la clave por compatibilidad
     n_vehiculos_atribuidos = sum(m.get('qty', 0) for m in master_facturas if m.get('es_cohorte_2026'))
     _pv_all, _pv_coh = {}, {}
     for m in master_facturas:

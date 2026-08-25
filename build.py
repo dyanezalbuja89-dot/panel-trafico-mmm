@@ -4388,7 +4388,7 @@ HTML = r"""<!doctype html>
 
       <!-- EVOLUCIÓN MENSUAL POR MODELO -->
       <div class="ford-section" style="margin-top:18px">
-        <h3>📈 Evolución mensual de conversión por modelo <span class="sub">% conversión mes a mes — una línea por modelo</span></h3>
+        <h3>📈 Evolución mensual de conversión por modelo <span class="sub">vehículos ÷ personas de la cohorte, mes a mes — una línea por modelo</span></h3>
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
           Cohorte = clientes con 1er toque en cada mes. Click en los chips para mostrar/ocultar modelos en el gráfico.
         </div>
@@ -10336,11 +10336,29 @@ HTML = r"""<!doctype html>
       modelosToShow = MODELO_ORDER.filter(m => convChartModelosOn[m]);
     }
 
+    // Vehículos desde master_facturas, misma fuente que el resto de la pestaña:
+    // clientes_flat.cerro cuenta personas y da menos (36 contra 43 en La Y).
+    const _mfMod = (CONV.master_facturas || []).filter(m => {
+      if(convState.agencia && m.agencia !== convState.agencia) return false;
+      if(convState.zona    && m.zona_lead !== convState.zona)   return false;
+      if(convState.canal   && (m.canal_lead || 'Gestión Externa') !== convState.canal) return false;
+      if(convState.asesor  && m.asesor_lead !== convState.asesor) return false;
+      return true;
+    });
+    const _vtaModMes = {};
+    _mfMod.forEach(m => {
+      if(!m.qty || !m.cohorte_ym) return;
+      const mod = m.modelo_lead || m.modelo_fact;
+      if(!mod) return;
+      const k = mod + '||' + m.cohorte_ym;
+      _vtaModMes[k] = (_vtaModMes[k] || 0) + m.qty;
+    });
+
     const datasets = modelosToShow.map(modelo => {
       const series = meses.map(ym => {
         const sub = filtered.filter(c => c.modelo === modelo && c.first_ym === ym);
         const tot = sub.length;
-        const cerr = sub.filter(c => c.cerro).length;
+        const cerr = _vtaModMes[modelo + '||' + ym] || 0;
         return {
           pct: tot > 0 ? Math.round(100*cerr/tot*10)/10 : null,
           tot, cerr
@@ -10383,7 +10401,7 @@ HTML = r"""<!doctype html>
                 const ds = ctx.dataset;
                 const s = ds._stats[ctx.dataIndex];
                 if(!s || s.tot === 0) return `${ds.label}: sin data`;
-                return `${ds.label}: ${s.pct}% (${s.cerr}/${s.tot})`;
+                return `${ds.label}: ${s.pct}% · ${s.cerr} vehículos / ${s.tot} personas`;
               }
             }
           },
@@ -10521,20 +10539,27 @@ HTML = r"""<!doctype html>
     // del panel y parece un error: son ventas por COHORTE, no por mes de factura.
     const _vehTotal = _mfFiltradas.reduce((a, f) => a + (f.qty || 0), 0);
     const _vehEnBarras = stats.reduce((a, s) => a + (s.ventas || 0), 0);
+    // Columna propia para lo que no cae en ningún mes, para que las barras sumen el
+    // total facturado. Sin ella el gráfico mostraba 39 de 49 y parecía un error.
+    if (_vehSin > 0) {
+      labels.push('Sin cohorte');
+      stats.push({ total: 0, cerraron: _persSin.size, ventas: _vehSin, pct: null, _sinCohorte: true });
+    }
+
     const _nota = document.getElementById('conv-evol-nota');
     if (_nota) {
-      const cuadre = `<div style="background:#eef4fb;border-left:3px solid #003478;padding:9px 12px;border-radius:0 6px 6px 0;color:var(--ink);line-height:1.65">
+      _nota.innerHTML = `<div style="background:#eef4fb;border-left:3px solid #003478;padding:9px 12px;border-radius:0 6px 6px 0;color:var(--ink);line-height:1.65">
         <strong>Las barras verdes no son las ventas del mes.</strong> El eje es el mes en que la
         persona <em>entró</em>: la barra de junio son los autos que compró la gente que llegó en
         junio, facturados cuando haya sido.
         <div style="margin-top:5px">
           Suman <strong>${fmt(_vehEnBarras)}</strong> vehículos
-          ${_vehSin ? `+ <strong>${fmt(_vehSin)}</strong> de ${_persSin.size} compradores sin cohorte
-             (flota, gestión externa o primer contacto en 2025, que no caen en ningún mes)` : ''}
-          = <strong>${fmt(_vehTotal)}</strong>, que es el total facturado de la tarjeta.
+          ${_vehSin ? `+ <strong>${fmt(_vehSin)}</strong> en <em>Sin cohorte</em> — ${_persSin.size}
+             compradores que nunca pasaron por la BD de tráfico (flota, gestión externa o primer
+             contacto en 2025), así que no tienen mes ni %` : ''}
+          = <strong>${fmt(_vehTotal)}</strong>, el total facturado de la tarjeta.
         </div>
       </div>`;
-      _nota.innerHTML = cuadre;
     }
 
     // El % solo no explica nada: un 21.7% sobre 60 personas y un 6% sobre 83 son
@@ -10609,6 +10634,11 @@ HTML = r"""<!doctype html>
             callbacks: {
               label: (ctx) => {
                 const s = stats[ctx.dataIndex];
+                if(s && s._sinCohorte){
+                  if(ctx.dataset.label === '% Conversión') return null;
+                  if(ctx.dataset.label === 'Personas (tráfico)') return null;
+                  return `${s.ventas} vehículos de ${s.cerraron} compradores sin primer toque en la BD`;
+                }
                 if(!s || s.total === 0) return 'Sin tráfico';
                 if(ctx.dataset.label === '% Conversión')
                   return `Conversión: ${s.pct}% · ${s.ventas} vehículos / ${fmt(s.total)} personas`;
@@ -10635,7 +10665,7 @@ HTML = r"""<!doctype html>
             grid: { display:false }
           },
           x: { ticks:{font:{size:11}}, grid:{display:false},
-               title: { display:true, text:'Mes del PRIMER TOQUE (no el de la factura)',
+               title: { display:true, text:'Mes del PRIMER TOQUE (no el de la factura) · las barras suman el total facturado',
                         font:{size:11,weight:'600'}, color:'var(--c-muted)' } }
         },
         layout: { padding: { top: 36, bottom: 12, left: 8, right: 16 } }
