@@ -12,7 +12,7 @@
 <!-- Cache-buster: force fresh reload cuando URL no tiene ?v= param. Deploy hash inline. -->
 <script>
 (function(){
-  var DEPLOY = '1787624552';
+  var DEPLOY = '1787624755';
   var u = new URL(location.href);
   if (u.searchParams.get('v') !== DEPLOY) {
     u.searchParams.set('v', DEPLOY);
@@ -5353,15 +5353,7 @@
           </select>
         </label>
         <label>Vista
-          <select id="an-view">
-            <option value="ytd">YTD 2026 (acumulado)</option>
-            <option value="enero_2026">Enero 2026</option>
-            <option value="febrero_2026">Febrero 2026</option>
-            <option value="marzo_2026">Marzo 2026</option>
-            <option value="abril_2026">Abril 2026</option>
-            <option value="mayo_2026">Mayo 2026</option>
-            <option value="junio_2026">Junio 2026 (en curso)</option>
-          </select>
+          <select id="an-view"><!-- se puebla en anPoblarVista(): meses cerrados de 2026 --></select>
         </label>
         <label>Modelo<select id="an-modelo"><option value="">Todos</option></select></label>
         <label>Agencia<select id="an-agencia"><option value="">Todas</option></select></label>
@@ -13830,8 +13822,33 @@
   // =========================================================
   //              ANÁLISIS COMPLETO (Otros tab)
   // =========================================================
-  const AN_MONTHS_2026 = ['enero_2026','febrero_2026','marzo_2026','abril_2026','mayo_2026','junio_2026'];
-  const AN_MONTH_LBL = {'enero_2026':'Enero','febrero_2026':'Febrero','marzo_2026':'Marzo','abril_2026':'Abril','mayo_2026':'Mayo','junio_2026':'Junio'};
+  // Meses del análisis: 2026 hasta el último mes CERRADO. El mes en curso se excluye
+  // a propósito — va a medias y arrastra hacia abajo cualquier acumulado o promedio.
+  // Antes esta lista estaba escrita a mano hasta junio y se quedó ahí: julio nunca
+  // entró al YTD aunque hacía semanas que había cerrado.
+  // Un mes está cerrado cuando su corte cae el último día del mes. Ese criterio
+  // también cubre el caso de mirar el panel en septiembre con un agosto que se quedó
+  // sin cortes: no lo da por bueno solo porque el calendario ya pasó.
+  const AN_MESES_ES = ['enero','febrero','marzo','abril','mayo','junio',
+                       'julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const AN_MONTHS_2026 = (function(){
+    return AN_MESES_ES.map((m,i)=>({key:m+'_2026', mes:i+1}))
+      .filter(o=>{
+        const fm = FORD_MONTHS[o.key];
+        if(!fm || !(fm.total_curr > 0)) return false;
+        const cut = String(fm.cut_date||'');           // dd/mm/aaaa
+        const p = cut.split('/');
+        if(p.length !== 3) return false;
+        const ultimoDia = new Date(2026, o.mes, 0).getDate();
+        return Number(p[0]) >= ultimoDia;
+      })
+      .map(o=>o.key);
+  })();
+  const AN_MONTH_LBL = (function(){
+    const o = {};
+    AN_MESES_ES.forEach((m,i)=>{ o[m+'_2026'] = m.charAt(0).toUpperCase()+m.slice(1); });
+    return o;
+  })();
   const anstate = { view:'ytd', marca:'FORD', modelo:'', agencia:'', canal:'marketing' };
   // Helpers brand-aware: devuelven el objeto-mes del mes/marca actual.
   // Para FORD usamos anMonthData(mk); para brand ORGU usamos BRANDS_MONTHS[mk][brand].
@@ -13936,6 +13953,7 @@
         renderAnalysis();
       });
     }
+    anPoblarVista();
     document.getElementById('an-view').addEventListener('change', e=>{ anstate.view = e.target.value; renderAnalysis(); });
     document.getElementById('an-modelo').addEventListener('change', e=>{ anstate.modelo = e.target.value; renderAnalysis(); });
     document.getElementById('an-agencia').addEventListener('change', e=>{ anstate.agencia = e.target.value; renderAnalysis(); });
@@ -13984,6 +14002,27 @@
   }
   function anScopeModels(){ return anstate.modelo ? [anstate.modelo] : null; }
   function anScopeDealers(){ return anstate.agencia ? [anstate.agencia] : null; }
+  // El selector de vista se arma con los meses CERRADOS, más el mes en curso al final
+  // y marcado como tal: sirve para mirarlo suelto, pero no entra en el acumulado.
+  function anPoblarVista(){
+    const sel = document.getElementById('an-view');
+    if(!sel) return;
+    const cerrados = AN_MONTHS_2026;
+    const enCurso = AN_MESES_ES.map(m=>m+'_2026')
+      .filter(k => FORD_MONTHS[k] && (FORD_MONTHS[k].total_curr > 0) && !cerrados.includes(k));
+    sel.innerHTML =
+      `<option value="ytd">YTD 2026 · ${anRangoYTD()}</option>` +
+      cerrados.map(k=>`<option value="${k}">${AN_MONTH_LBL[k]} 2026</option>`).join('') +
+      enCurso.map(k=>`<option value="${k}">${AN_MONTH_LBL[k]} 2026 (en curso)</option>`).join('');
+    sel.value = anstate.view;
+  }
+
+  function anRangoYTD(){
+    if(!AN_MONTHS_2026.length) return 'sin meses cerrados';
+    const a = AN_MONTH_LBL[AN_MONTHS_2026[0]].slice(0,3);
+    const b = AN_MONTH_LBL[AN_MONTHS_2026[AN_MONTHS_2026.length-1]].slice(0,3);
+    return AN_MONTHS_2026.length === 1 ? a : (a+'–'+b);
+  }
   function anViewLabel(){
     if(anstate.view !== 'ytd') return AN_MONTH_LBL[anstate.view]+' 2026';
     const lbls = AN_MONTHS_2026.map(mk=>AN_MONTH_LBL[mk]).filter(Boolean);
