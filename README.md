@@ -291,6 +291,26 @@ Los buckets se solapan. La tabla de modelo sumaba 46 compradores contra los 43 d
 su propio % (8,7% vs 8,2%). Ahora `renderTable` recibe el total del KPI y avisa cuánto suman
 las filas. **Nunca sumar filas de estas tablas para sacar un total.**
 
+#### Un solo filtro para toda la pestaña
+
+`convFiltraClientes(lista, salvo)` y `convFiltraFacturas(lista, salvo)`. **Ninguna vista
+filtra por su cuenta.** `salvo` omite la dimensión que esa vista usa de eje: el gráfico de
+evolución no aplica `mes`, el de modelos no aplica `modelo`.
+
+Había cinco copias del filtro de facturas y tres del de clientes. A dos les faltaba `zona`:
+con Quito filtrado el gráfico mostraba las 645 unidades de la red contra las 1.094 personas
+de Quito, y enero marcaba **117%**. Los fallbacks también divergían — el canal se filtraba
+con tres variantes (`'Sin canal atribuido'`, `'Gestión Externa'`, sin fallback) y el modelo
+con dos, así que filtrar por un canal dejaba fuera facturas que esa misma tabla contaba en
+esa fila. **Los fallbacks del filtro tienen que ser los mismos con los que la tabla agrupa.**
+
+#### La pestaña solo cuenta meses CERRADOS
+
+`convMesesOk()` deriva los meses de `AN_MONTHS_2026`, la misma fuente que Análisis General.
+Aplica al eje del gráfico, al selector de mes, a los clientes y a las facturas — estas
+últimas por su cohorte, o por su mes de factura si no tienen. Ver
+[[feedback_orgu_rangos_de_fecha]].
+
 #### El gráfico de cohortes cuadra con el total facturado
 
 Su eje X es el **mes del primer toque**, no el de la factura: la barra de junio son los
