@@ -12,7 +12,7 @@
 <!-- Cache-buster: force fresh reload cuando URL no tiene ?v= param. Deploy hash inline. -->
 <script>
 (function(){
-  var DEPLOY = '1787608677';
+  var DEPLOY = '1787622018';
   var u = new URL(location.href);
   if (u.searchParams.get('v') !== DEPLOY) {
     u.searchParams.set('v', DEPLOY);
@@ -6213,6 +6213,35 @@
       Con tan pocas visitas el costo por persona no es comparable.</div>` : '');
   }
 
+  // Números sobre cada punto y dentro de cada barra. Sin esto hay que pasar el
+  // mouse por cada mes para leer un valor, y el gráfico solo sirve para ver la forma.
+  const ASIG_ETQ = {
+    id:'asigEtq',
+    afterDatasetsDraw(ch){
+      const x = ch.ctx; x.save();
+      ch.data.datasets.forEach((ds,di)=>{
+        ch.getDatasetMeta(di).data.forEach((el,i)=>{
+          const v = ds.data[i];
+          if(v == null || v === 0) return;
+          if(ds.label === 'Tráfico'){
+            x.font = '700 11px system-ui,-apple-system,sans-serif';
+            x.fillStyle = '#1565c0'; x.textAlign = 'center'; x.textBaseline = 'bottom';
+            x.fillText(v, el.x, el.y - 7);
+          } else if(ds.type === 'bar'){
+            // Un segmento muy fino no tiene dónde poner el número sin que se monte
+            // sobre el de al lado; ese valor queda solo en el tooltip.
+            if(Math.abs(el.base - el.y) < 14) return;
+            x.font = '700 11px system-ui,-apple-system,sans-serif';
+            x.fillStyle = di === 0 ? '#0b3d1e' : '#3f3f3f';
+            x.textAlign = 'center'; x.textBaseline = 'middle';
+            x.fillText(v, el.x, (el.y + el.base) / 2);
+          }
+        });
+      });
+      x.restore();
+    }
+  };
+
   function renderAsigModelos(){
     const box = document.getElementById('asig-modelos'); if(!box) return;
     if(!DATA.pauta){ box.innerHTML='<div class="footer-note">Sin datos de pauta.</div>'; return; }
@@ -6247,6 +6276,7 @@
       box.appendChild(card);
       if(charts['asig-'+idx]) charts['asig-'+idx].destroy();
       charts['asig-'+idx] = new Chart(card.querySelector('canvas'),{
+        plugins:[ASIG_ETQ],
         data:{labels: ms.map(m=>m.lbl), datasets:[
           {type:'bar', label:'Disponible', data: st.map(x=>x.libre), backgroundColor:'#43a047',
            stack:'s', yAxisID:'y1', borderRadius:{topLeft:3,topRight:3}, maxBarThickness:24, order:3},
@@ -6258,11 +6288,13 @@
           {type:'line', label:'Tráfico', data: t, borderColor:'#1565c0', backgroundColor:'#1565c0',
            borderWidth:2.5, tension:.25, pointRadius:3, yAxisID:'y', order:1}]},
         options:{responsive:true, maintainAspectRatio:false,
+          layout:{padding:{top:18}},
           interaction:{mode:'index', intersect:false},
           plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>
             c.dataset.label+': '+(c.dataset.label==='Inversión'?'$'+Math.round(c.parsed.y).toLocaleString('es'):c.parsed.y)}}},
           scales:{
-            y:{position:'left', beginAtZero:true, ticks:{color:'#1565c0', font:{size:11}, maxTicksLimit:5}},
+            y:{position:'left', beginAtZero:true, suggestedMax: Math.max(...t,1)*1.18,
+               ticks:{color:'#1565c0', font:{size:11}, maxTicksLimit:5}},
             y1:{position:'right', beginAtZero:true, stacked:true, grid:{display:false},
                 ticks:{color:'#2e7d32', font:{size:11}, maxTicksLimit:5}},
             y2:{display:false, beginAtZero:true, suggestedMax: Math.max(...inv,1)*2.4},
