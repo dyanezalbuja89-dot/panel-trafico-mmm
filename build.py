@@ -4279,7 +4279,7 @@ HTML = r"""<!doctype html>
       </div>
 
       <div style="font-size:12px;color:var(--muted);margin:12px 0;line-height:1.5">
-        <strong>Período: 2026 (Ene a hoy).</strong> Contamos <strong>personas únicas</strong> que tocaron BD tráfico (GUC) por primera vez en 2026. Cada persona cuenta 1 sin importar cuántas veces vino. Identidad robusta: cédula natural ↔ RUC del titular ↔ mismo email/celular. Atribuimos al canal/modelo/agencia/asesor de su <strong>primer toque</strong>. <em>Nota: el conteo de "tráfico" en la pestaña Otros (2,216) usa otra metodología — cuenta atenciones mensuales y duplica clientes que vinieron en varios meses.</em>
+        <strong>Período: <span id="conv-cab-rango">2026</span>.</strong> Contamos <strong>personas únicas</strong> que tocaron BD tráfico (GUC) por primera vez en 2026. Cada persona cuenta 1 sin importar cuántas veces vino. Identidad robusta: cédula natural ↔ RUC del titular ↔ mismo email/celular. Atribuimos al canal/modelo/agencia/asesor de su <strong>primer toque</strong>. <em>Nota: el conteo de "tráfico" de Análisis General usa otra metodología — cuenta visitas por mes y una misma persona reingresa a los 60 días, así que da más alto.</em>
       </div>
 
       <div style="font-size:12px;color:#7f1d1d;background:#fef2f2;border-left:4px solid #dc2626;padding:10px 14px;border-radius:6px;margin:10px 0 14px;line-height:1.5">
@@ -6869,17 +6869,17 @@ HTML = r"""<!doctype html>
         fullProj.push(startVal + dailyVel * i);
       }
       drawSparkline(document.getElementById('hs-proj'), fullProj, {
-        color: k.cumpl_proj != null && k.cumpl_proj < 85 ? 'var(--c-warn)' : 'var(--c-primary)'
+        color: k.cumpl_proj != null && k.cumpl_proj < CUMPL_VERDE ? 'var(--c-warn)' : 'var(--c-primary)'
       });
     }
     // Anomaly también en cumplimiento proyectado (gauge cell)
     const gaugeCell = document.querySelector('#tab-ford .bento-cell.hero');
     if(k.cumpl_proj != null){
-      // Reformulamos: si cumpl < 70 → critico, < 85 → warn, > 110 → positivo
+      // Traducido a la escala única: rojo (<75) crítico · amarillo (75-89) alerta.
       let cumplPct;
-      if(k.cumpl_proj < 70)        cumplPct = -25;
-      else if(k.cumpl_proj < 85)   cumplPct = -12;
-      else if(k.cumpl_proj > 110)  cumplPct =  22;
+      if(k.cumpl_proj < CUMPL_AMARILLO)   cumplPct = -25;
+      else if(k.cumpl_proj < CUMPL_VERDE) cumplPct = -12;
+      else if(k.cumpl_proj > 110)         cumplPct =  22;
       else                          cumplPct = null;
       setAnomaly(gaugeCell, cumplPct, {
         thresholds:{warn:10, bad:20},
@@ -7463,7 +7463,7 @@ HTML = r"""<!doctype html>
       const meta = dealers.reduce((s,d)=>s+((FORD.matrix_meta[m]||{})[d]||0),0);
       const proj = Math.round((FORD.days_trans? curr/FORD.days_trans : 0) * FORD.days_lab);
       const cumpl = meta>0? Math.round(100*proj/meta) : null;
-      if(meta>0 && cumpl<100) riskModels.push({m, proj, meta, cumpl, needed: Math.max(0, meta-proj)});
+      if(meta>0 && cumpl<CUMPL_VERDE) riskModels.push({m, proj, meta, cumpl, needed: Math.max(0, meta-proj)});
     });
     const riskAg = [];
     dealers.forEach(d=>{
@@ -7471,7 +7471,7 @@ HTML = r"""<!doctype html>
       models.forEach(m=>{ curr += getCnt(FORD, m, d, fstate.canal); meta += (FORD.matrix_meta[m]||{})[d]||0; });
       const proj = Math.round((FORD.days_trans? curr/FORD.days_trans : 0) * FORD.days_lab);
       const cumpl = meta>0? Math.round(100*proj/meta) : null;
-      if(meta>0 && cumpl<100) riskAg.push({d, proj, meta, cumpl, needed: Math.max(0, meta-proj)});
+      if(meta>0 && cumpl<CUMPL_VERDE) riskAg.push({d, proj, meta, cumpl, needed: Math.max(0, meta-proj)});
     });
     const maxNeedM = Math.max(1, ...riskModels.map(r=>r.needed));
     document.getElementById('ff-risk-models').innerHTML = riskModels.length
@@ -7483,7 +7483,7 @@ HTML = r"""<!doctype html>
             <div class="rneed">+${r.needed} reg.</div>
           </div>`;
         }).join('') + '</div>'
-      : '<li style="color:#2e7d32;list-style:none">✓ Todos los modelos proyectan ≥100%</li>';
+      : '<li style="color:#2e7d32;list-style:none">✓ Todos los modelos proyectan ≥90%</li>';
     const maxNeedA = Math.max(1, ...riskAg.map(r=>r.needed));
     document.getElementById('ff-risk-agencies').innerHTML = riskAg.length
       ? '<div>' + riskAg.sort((a,b)=>b.needed-a.needed).map(r=>{
@@ -7494,7 +7494,7 @@ HTML = r"""<!doctype html>
             <div class="rneed">+${r.needed} reg.</div>
           </div>`;
         }).join('') + '</div>'
-      : '<li style="color:#2e7d32;list-style:none">✓ Todas las agencias proyectan ≥100%</li>';
+      : '<li style="color:#2e7d32;list-style:none">✓ Todas las agencias proyectan ≥90%</li>';
     document.getElementById('ff-channel').innerHTML = `<strong>${FORD.dominant_channel}</strong> concentra el <strong>${FORD.channel_pct}%</strong> del tráfico Ford — evaluar diversificación hacia canales digitales (Hubspot/RRSS).`;
   }
 
@@ -7886,8 +7886,8 @@ HTML = r"""<!doctype html>
     const gaugeCell = document.querySelector('#tab-brand .bento-cell.hero');
     if(k.cumpl_proj != null){
       let cumplPct;
-      if(k.cumpl_proj < 70)       cumplPct = -25;
-      else if(k.cumpl_proj < 85)  cumplPct = -12;
+      if(k.cumpl_proj < CUMPL_AMARILLO)   cumplPct = -25;
+      else if(k.cumpl_proj < CUMPL_VERDE) cumplPct = -12;
       else if(k.cumpl_proj > 110) cumplPct =  22;
       else                         cumplPct = null;
       setAnomaly(gaugeCell, cumplPct, {
@@ -7917,7 +7917,7 @@ HTML = r"""<!doctype html>
       for(let i=1; i<=remaining; i++){ fullProj.push(startVal + (k.velocity||0) * i); }
       const projCell = document.getElementById('br-hs-proj').parentElement;
       drawSparkline(projCell, fullProj, {
-        color: k.cumpl_proj != null && k.cumpl_proj < 85 ? 'var(--c-warn)' : 'var(--c-primary)'
+        color: k.cumpl_proj != null && k.cumpl_proj < CUMPL_VERDE ? 'var(--c-warn)' : 'var(--c-primary)'
       });
     }
   }
@@ -8141,7 +8141,7 @@ HTML = r"""<!doctype html>
       const meta = dealers.reduce((s,d)=>s+((B.matrix_meta[m]||{})[d]||0),0);
       const proj = Math.round((B.days_trans? curr/B.days_trans : 0)*B.days_lab);
       const cumpl = meta>0? Math.round(100*proj/meta) : null;
-      if(meta>0 && cumpl<100) riskModels.push({m,proj,meta,cumpl,needed:Math.max(0,meta-proj)});
+      if(meta>0 && cumpl<CUMPL_VERDE) riskModels.push({m,proj,meta,cumpl,needed:Math.max(0,meta-proj)});
     });
     const riskAg = [];
     dealers.forEach(d=>{
@@ -8149,7 +8149,7 @@ HTML = r"""<!doctype html>
       models.forEach(m=>{ curr += getCnt(B, m, d, bstate.canal); meta += (B.matrix_meta[m]||{})[d]||0; });
       const proj = Math.round((B.days_trans? curr/B.days_trans : 0)*B.days_lab);
       const cumpl = meta>0? Math.round(100*proj/meta) : null;
-      if(meta>0 && cumpl<100) riskAg.push({d,proj,meta,cumpl,needed:Math.max(0,meta-proj)});
+      if(meta>0 && cumpl<CUMPL_VERDE) riskAg.push({d,proj,meta,cumpl,needed:Math.max(0,meta-proj)});
     });
     const maxNm = Math.max(1, ...riskModels.map(r=>r.needed));
     document.getElementById('br-risk-models').innerHTML = riskModels.length
@@ -8159,7 +8159,7 @@ HTML = r"""<!doctype html>
             <div class="rbar" title="Cumpl. ${r.cumpl}% · Meta ${r.meta} · Proy ${r.proj}"><div class="fill" style="width:${w}%">${r.cumpl}% cumpl.</div></div>
             <div class="rneed">+${r.needed} reg.</div></div>`;
         }).join('')
-      : '<li style="color:#2e7d32;list-style:none">✓ Todos los modelos proyectan ≥100%</li>';
+      : '<li style="color:#2e7d32;list-style:none">✓ Todos los modelos proyectan ≥90%</li>';
     const maxNa = Math.max(1, ...riskAg.map(r=>r.needed));
     document.getElementById('br-risk-agencies').innerHTML = riskAg.length
       ? riskAg.sort((a,b)=>b.needed-a.needed).map(r=>{
@@ -8168,7 +8168,7 @@ HTML = r"""<!doctype html>
             <div class="rbar" title="Cumpl. ${r.cumpl}% · Meta ${r.meta} · Proy ${r.proj}"><div class="fill" style="width:${w}%">${r.cumpl}% cumpl.</div></div>
             <div class="rneed">+${r.needed} reg.</div></div>`;
         }).join('')
-      : '<li style="color:#2e7d32;list-style:none">✓ Todas las agencias proyectan ≥100%</li>';
+      : '<li style="color:#2e7d32;list-style:none">✓ Todas las agencias proyectan ≥90%</li>';
     document.getElementById('br-channel').innerHTML = `<strong>${B.dominant_channel}</strong> concentra el <strong>${B.channel_pct}%</strong> del tráfico ${B.display}.`;
   }
 
@@ -9726,9 +9726,15 @@ HTML = r"""<!doctype html>
   function convAggregate(clientes, by){
     // Definición B: 1 cliente único = 1 unidad de tráfico, sin importar cuántas veces vino
     const out = {};
+    // Personas, no filas: la columna se llama "Clientes únicos" en las cuatro tablas,
+    // y el KPI deduplica por _ck. Contar filas hacía que las tablas sumaran de más.
+    const _vistos = {};
     clientes.forEach(c => {
       const k = c[by] || 'Sin asignar';
-      if(!out[k]) out[k] = {traffic:0, matched:0, ventas:0};
+      if(!out[k]) { out[k] = {traffic:0, matched:0, ventas:0}; _vistos[k] = new Set(); }
+      const _id = c._ck || (c.asesor + '|' + c.first_ym);
+      if(_vistos[k].has(_id)) return;
+      _vistos[k].add(_id);
       out[k].traffic++;                              // 1 persona única
       if(c.cerro){
         out[k].matched++;                             // 1 persona que cerró
@@ -9759,8 +9765,12 @@ HTML = r"""<!doctype html>
     const CONV = convGet();
     if(!CONV || !CONV.clientes_flat) return;
     // Poblar modelo / canal dinámicamente
+    // Solo valores presentes en meses CERRADOS: si no, un canal o modelo que solo
+    // existe en el mes en curso queda como opción que deja la pestaña en cero.
+    const _okSel = convMesesOk();
     const modelos = new Set(), canales = new Set();
     CONV.clientes_flat.forEach(c => {
+      if(_okSel.size && !_okSel.has(c.first_ym)) return;
       if(c.modelo) modelos.add(c.modelo);
       if(c.canal)  canales.add(c.canal);
     });
@@ -9846,6 +9856,7 @@ HTML = r"""<!doctype html>
         convState.marca = e.target.value || 'FORD';
         // Reset sub-filtros porque dealer/model order podrían cambiar entre marcas
         convState.mes = ''; convState.agencia = ''; convState.zona = ''; convState.modelo = ''; convState.canal = '';
+        convState.asesor = '';   // se activa por clic en el ranking y no tiene <select> que lo delate
         ['mes','agencia','zona','modelo','canal'].forEach(k=>{
           const el = document.getElementById('conv-f-'+k); if(el) el.value = '';
         });
@@ -9919,6 +9930,16 @@ HTML = r"""<!doctype html>
 
     document.getElementById('conv-k-traf').textContent  = fmt(n_traf);
     (function(){
+      // La cabecera de la pestaña llevaba el rango escrito a mano ("Ene a hoy") y una
+      // cifra de Análisis General congelada (2.216, hoy 2.578). Se deriva del dato.
+      const cab = document.getElementById('conv-cab-rango');
+      if(cab){
+        const ok = [...convMesesOk()].sort();
+        const N3 = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+        cab.textContent = ok.length
+          ? `2026 · ${N3[+ok[0].slice(5,7)]}–${N3[+ok[ok.length-1].slice(5,7)]} (meses cerrados)`
+          : '2026';
+      }
       const el = document.getElementById('conv-k-traf-hint'); if(!el) return;
       const ok = [...convMesesOk()].sort();
       const NOM3 = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -10284,7 +10305,7 @@ HTML = r"""<!doctype html>
       const conv = v.conv_pct || 0;
       // Para bullets: proj = conv, meta = avg
       const cumpl = avg>0 ? 100*conv/avg : null;
-      return {name, proj:conv, meta:avg, cumpl, _ventas:v.ventas||0, _matched:v.matched, _traffic:v.traffic};
+      return {name, proj:conv, meta:avg, cumpl, _ventas:v.ventas||0, _matched:v.matched, _traffic:v.traffic};   // el pie usa _ventas: es lo que divide el número grande
     });
     rows.sort((a,b)=> b.proj - a.proj); // mejor a peor (descendente, las top primero)
     // Render
@@ -10303,11 +10324,11 @@ HTML = r"""<!doctype html>
           ${targetPct != null ? `<div class="bullet-target" style="left:${targetPct}%"></div>` : ''}
         </div>
         <div class="bullet-footer">
-          <span><span class="val">${fmt(r._matched)}</span> de ${fmt(r._traffic)}</span>
+          <span><span class="val">${fmt(r._ventas)}</span> veh. de ${fmt(r._traffic)} personas</span>
           <span>Prom. ORGU <span class="meta-val">${avg.toFixed(1)}%</span></span>
         </div>
         ${r.cumpl != null ? `<span class="bullet-tag ${cls.col}">${
-          r.cumpl >= 110 ? 'sobre promedio' :
+          r.cumpl >= 110 ? 'sobre promedio' :   // vs el PROMEDIO de la red, no vs meta
           r.cumpl >= 90  ? 'en promedio'    :
           r.cumpl >= 60  ? 'bajo promedio'  : 'muy bajo'
         }</span>` : ''}
@@ -11141,7 +11162,12 @@ HTML = r"""<!doctype html>
     if(!c) return;
     const ag = embudoAgencia();
     const modelo = document.getElementById('embudo-modelo').value;
-    const mesesLbl = c.meses.length === embudoMesesDisponibles().length ? 'todos los meses' : c.meses.join(' + ');
+    // "todos los meses" no dice cuáles, y la data del embudo llega hasta mayo: el
+    // lector asumía que cubría el año.
+    const _mDisp = embudoMesesDisponibles();
+    const mesesLbl = c.meses.length === _mDisp.length
+      ? (_mDisp.length ? `todos los meses con data (${_mDisp[0]}–${_mDisp[_mDisp.length-1]})` : 'todos los meses')
+      : c.meses.join(' + ');
     const agLbl = (ag === 'TODOS') ? `🌐 ORGU (${c.agencias.length} concesionario${c.agencias.length>1?'s':''})` : ag;
     document.getElementById('embudo-source').textContent =
       `${agLbl} · ${mesesLbl} · ${modelo||'todos los modelos'}`;
@@ -14878,7 +14904,13 @@ HTML = r"""<!doctype html>
 
     // ====================== HEATMAP MES × MODELO (rediseño UX) ======================
     // 1 métrica por celda · color en 5 niveles · sparkline trailing · headers con contexto
-    const modelOrder = ['TERRITORY','ESCAPE','EVEREST','EXPLORER','EXPEDITION','BRONCO','F-150','RANGER'];
+    // Sale del dato: con la lista a mano, un modelo nuevo no aparecía nunca en el cruce.
+    const modelOrder = (() => {
+      const ff = anMonthData(AN_MONTHS_2026[AN_MONTHS_2026.length - 1]) || anMonthData(AN_MONTHS_2026[0]);
+      const orden = (ff?.model_order || []).filter(m => m && m !== 'Por definir');
+      return orden.length ? orden
+        : ['TERRITORY','ESCAPE','EVEREST','EXPLORER','EXPEDITION','BRONCO','F-150','RANGER'];
+    })();
     const heatHead = document.querySelector('#an-tbl-cruce-heat thead');
     const heatBody = document.querySelector('#an-tbl-cruce-heat tbody');
 
@@ -15178,7 +15210,7 @@ HTML = r"""<!doctype html>
     // Total
     const {curr, meta} = anAgg(months, anScopeModels(), anScopeDealers());
     const pct = meta>0?100*curr/meta:null;
-    insights.push({type: pct==null?'warn': pct>=100?'good':pct>=70?'warn':'bad', title:'📊 Cumplimiento general',
+    insights.push({type: pct==null?'warn': {green:'good',yellow:'warn',red:'bad'}[cumplNivel(pct)], title:'📊 Cumplimiento general',
       html: `Bajo el scope <strong>${scope}</strong> (${anViewLabel()}), tráfico real es <span class="data">${curr}</span> contra meta <span class="data">${meta}</span> → cumplimiento <span class="data">${pct==null?'N/A':pct.toFixed(1)+'%'}</span>${meta>0?`, gap <span class="data">${fmtSigned(curr-meta)}</span>`:''}.`});
 
     // Best/worst model
@@ -15192,7 +15224,7 @@ HTML = r"""<!doctype html>
       if(withMeta.length){
         const best = [...withMeta].sort((a,b)=>b.p-a.p)[0];
         const worst = [...withMeta].sort((a,b)=>a.p-b.p)[0];
-        insights.push({type: best.p>=100?'good':'warn', title:'🚗 Mejor modelo vs meta',
+        insights.push({type: best.p>=CUMPL_VERDE?'good':'warn', title:'🚗 Mejor modelo vs meta',
           html:`<strong>${best.m}</strong> lidera con <span class="data">${best.p.toFixed(0)}%</span> (${best.c}/${best.me}).`});
         insights.push({type:'bad', title:'🚗 Peor modelo vs meta',
           html:`<strong>${worst.m}</strong> tiene el mayor gap con <span class="data">${worst.p.toFixed(0)}%</span> (${worst.c}/${worst.me}), faltan <span class="data">${worst.me-worst.c}</span> registros.`});
@@ -15209,7 +15241,7 @@ HTML = r"""<!doctype html>
       if(withMeta.length){
         const best = [...withMeta].sort((a,b)=>b.p-a.p)[0];
         const worst = [...withMeta].sort((a,b)=>a.p-b.p)[0];
-        insights.push({type: best.p>=100?'good':'warn', title:'🏢 Mejor agencia vs meta',
+        insights.push({type: best.p>=CUMPL_VERDE?'good':'warn', title:'🏢 Mejor agencia vs meta',
           html:`<strong>${best.d}</strong> lidera con <span class="data">${best.p.toFixed(0)}%</span> (${best.c}/${best.me}).`});
         insights.push({type:'bad', title:'🏢 Peor agencia vs meta',
           html:`<strong>${worst.d}</strong> tiene el mayor gap con <span class="data">${worst.p.toFixed(0)}%</span> (${worst.c}/${worst.me}), faltan <span class="data">${worst.me-worst.c}</span> registros.`});
@@ -15300,6 +15332,16 @@ HTML = r"""<!doctype html>
       if(ultimo <= corte) out.push('2026-' + mm);
     }
     return out;
+  }
+
+  // Etiqueta de las marcas activas. El alias legacy devuelve '__MULTI__' / '__ALL__',
+  // que se imprimían tal cual en pantalla con 2-4 marcas seleccionadas.
+  function vtScopeMarcas(){
+    const ms = vtstate.marcas || [];
+    if(!ms.length) return 'Sin marcas';
+    if(ms.length === Object.keys(VENTAS_MENSUAL).length) return 'Todas las marcas';
+    if(ms.length === 1) return DATA.brand_display?.[ms[0]] || ms[0].replace('_ORGU','');
+    return ms.map(m => DATA.brand_display?.[m] || m.replace('_ORGU','')).join(' + ');
   }
 
   // Helper: predicate para filtrar mes por año activo. '' = todos.
@@ -15593,10 +15635,12 @@ HTML = r"""<!doctype html>
     if(vtstate.zona) filterParts.push('Zona ' + vtstate.zona);
     if(vtstate.agencia) filterParts.push(vtstate.agencia);
     if(vtstate.modelo) filterParts.push(vtstate.modelo);
-    const scope = filterParts.length ? filterParts.join(' · ') : ((vtstate.marca === '__ALL__' ? 'Todas las marcas' : (DATA.brand_display?.[vtstate.marca] || vtstate.marca.replace('_ORGU',''))));
+    const scope = filterParts.length ? filterParts.join(' · ') : vtScopeMarcas();
     document.getElementById('vt-k-total').textContent = vtFmtVal(total);
     const ticket = totalUnits > 0 ? totalRev / totalUnits : 0;
-    document.getElementById('vt-k-total-hint').textContent = scope + ' · YTD 2026' + (ticket ? ' · ticket prom ' + vtFmtValRaw(ticket, 'revenue') : '');
+    document.getElementById('vt-k-total-hint').textContent =
+      scope + ' · ' + (vtstate.anio ? 'YTD ' + vtstate.anio : 'todo el histórico') +
+      (ticket ? ' · ticket prom ' + vtFmtValRaw(ticket, 'revenue') : '');
     let bestM = null, bestV = -Infinity;
     months.forEach(m=>{ const v = perMes[m] || 0; if(v > bestV){ bestV = v; bestM = m; } });
     const idxBest = allMonths.indexOf(bestM);
@@ -15666,15 +15710,21 @@ HTML = r"""<!doctype html>
       const av = a[sk] || 0, bv = b[sk] || 0;
       return (av < bv ? -1 : av > bv ? 1 : 0) * sd;
     });
-    // Top N
+    // Top N. El total y los % de share se calculan ANTES de recortar: con Top 5 la
+    // tabla cerraba en "TOTAL 475" cuando el total del filtro es 797, y el share del
+    // líder saltaba de 35,9% a 60,2%.
+    const _totalCompleto = rows.reduce((s, r) => s + (r._total || 0), 0);
+    const _totalMesesCompleto = months.map(m => rows.reduce((s, r) => s + (r[m] || 0), 0));
     const topN = parseInt(vtstate.topN, 10);
-    if(topN > 0 && rows.length > topN) rows = rows.slice(0, topN);
+    const _recortado = topN > 0 && rows.length > topN;
+    const _nCompleto = rows.length;
+    if(_recortado) rows = rows.slice(0, topN);
     if(!rows.length){
       tbody.innerHTML = '<tr><td colspan="'+(labels.length+5)+'" style="text-align:center;color:var(--c-muted)">Sin datos</td></tr>';
       return;
     }
-    const totalRow = months.map(m=> rows.reduce((s,r)=> s + (r[m]||0), 0));
-    const grandTotal = rows.reduce((s,r)=> s + (r._total||0), 0);
+    const totalRow = _totalMesesCompleto;
+    const grandTotal = _totalCompleto;
     const maxCell = Math.max(1, ...rows.flatMap(r => months.map(m => Math.abs(r[m]||0))));
     // Rank vs mes anterior (penúltimo)
     let rankPrev = null;
@@ -15730,7 +15780,7 @@ HTML = r"""<!doctype html>
       }
       return rowHtml;
     }).join('') + `<tr class="total" style="border-top:2px solid var(--c-border-strong);background:#f1f5f9">
-      <td></td><td><strong>TOTAL</strong></td>${totalRow.map(t=>`<td class="num"><strong>${vtFmtVal(t)}</strong></td>`).join('')}<td class="num"><strong>${vtFmtVal(grandTotal)}</strong></td><td class="num">100%</td><td>${vtSparkline(totalRow)}</td>
+      <td></td><td><strong>TOTAL</strong>${_recortado ? `<span style="font-weight:400;color:var(--c-muted);font-size:10.5px"> · de las ${_nCompleto} filas, no solo las ${rows.length} visibles</span>` : ''}</td>${totalRow.map(t=>`<td class="num"><strong>${vtFmtVal(t)}</strong></td>`).join('')}<td class="num"><strong>${vtFmtVal(grandTotal)}</strong></td><td class="num">100%</td><td>${vtSparkline(totalRow)}</td>
     </tr>`;
     // Sort header binding
     thead.querySelectorAll('.vt-sort-h').forEach(th=>{
@@ -15983,7 +16033,7 @@ HTML = r"""<!doctype html>
     const el = document.getElementById('vt-filter-summary');
     if(!el) return;
     const parts = [];
-    parts.push((vtstate.marca === '__ALL__' ? 'Todas las marcas' : (DATA.brand_display?.[vtstate.marca] || vtstate.marca.replace('_ORGU',''))));
+    parts.push(vtScopeMarcas());
     parts.push('Vista: ' + ({modelo:'Por modelo', asesor:'Por asesor', agencia:'Por agencia', zona:'Por zona'}[vtstate.view]));
     if(vtstate.zona) parts.push('Zona: ' + vtstate.zona);
     if(vtstate.agencia) parts.push('Agencia: ' + vtstate.agencia);
@@ -16182,6 +16232,14 @@ HTML = r"""<!doctype html>
                         MAZDA_ORGU:'Mazda', RAM_ORGU:'RAM'};
 
   function vtRenderProyeccion(){
+    // Con Año=2025 esta sección seguía mostrando 2026 al lado de tablas de 2025.
+    {
+      const _sec = document.getElementById('vt-fy-section');
+      if(_sec){
+        if(vtstate.anio === '2025'){ _sec.style.display = 'none'; return; }
+        _sec.style.display = '';
+      }
+    }
     const sec = document.getElementById('vt-fy-section');
     if(!sec) return;
     const BP = (DATA.presupuesto || {}).tipos;
@@ -16236,6 +16294,13 @@ HTML = r"""<!doctype html>
   }
 
   function vtRenderMix(){
+    {
+      const _sec = document.getElementById('vt-mix-section');
+      if(_sec){
+        if(vtstate.anio === '2025'){ _sec.style.display = 'none'; return; }
+        _sec.style.display = '';
+      }
+    }
     const sec = document.getElementById('vt-mix-section');
     if(!sec) return;
     const MIX = (DATA.presupuesto || {}).mix;
@@ -16655,7 +16720,7 @@ HTML = r"""<!doctype html>
     // KPI hero
     const totalPct = totalMeta > 0 ? Math.round(100*totalReal/totalMeta) : null;
     document.getElementById('mv-k-cumpl').textContent = totalPct != null ? totalPct + '%' : '—';
-    document.getElementById('mv-k-cumpl').style.color = (totalPct||0) >= 100 ? '#16a34a' : (totalPct||0) >= 80 ? '#eab308' : '#dc2626';
+    document.getElementById('mv-k-cumpl').style.color = cumplHex(totalPct);
     document.getElementById('mv-k-cumpl-hint').textContent = monthLabel + ' · ' + dimLbl.toLowerCase();
     document.getElementById('mv-k-real').textContent = totalReal + ' / ' + totalMeta;
     document.getElementById('mv-k-real-hint').textContent = 'netos vs meta';
