@@ -5549,7 +5549,9 @@ HTML = r"""<!doctype html>
       <div style="font-size:11.5px;color:var(--muted);margin-bottom:12px">
         Cada gráfico tiene <b>dos escalas</b>: la línea azul se lee en el eje izquierdo (personas) y las
         barras en el derecho (unidades). Importa la <b>forma</b>, no comparar alturas entre ellas.
-        Bajo cada mes, las <b>personas por unidad disponible</b>.
+        Bajo cada gráfico, tres filas por mes: lo <b>invertido</b>, el <b>costo por persona</b> y las
+        <b>personas por unidad libre</b> — cuánta gente compite por cada auto que sí se puede vender.
+        Un <b style="color:#c62828">192×</b> significa 192 visitas y una sola unidad disponible.
       </div>
       <div id="asig-modelos"></div>
     </div>
@@ -6297,11 +6299,18 @@ HTML = r"""<!doctype html>
           <span style="font-size:12.5px;color:var(--muted)">${T} pers · $${Math.round(I).toLocaleString('es')} · <b>$${T?Math.round(I/T):0}</b> c/u · hoy ${libreHoy} libres</span>
         </div>
         <div style="position:relative;height:250px"><canvas id="asig-c-${idx}"></canvas></div>
-        <div style="display:grid;grid-template-columns:repeat(${ms.length},1fr);gap:1px;margin-top:6px;font-size:11px;text-align:center">
-          ${ratios.map(r=>{
-            const c = r===null ? '#c62828' : (r>=20 ? '#c62828' : (r>=8 ? '#ef6c00' : 'var(--muted)'));
-            return `<span style="color:${c}">${r===null?'sin stock':r+'×'}</span>`;
-          }).join('')}
+        <div style="margin-top:8px;font-size:10.5px">
+          ${[
+            ['Inversión', inv.map(x=>[ x>=1000 ? '$'+(x/1000).toFixed(1)+'k' : (x?'$'+Math.round(x):'—'), '#b8860b' ])],
+            ['$ / persona', inv.map((x,i)=>[ t[i]&&x ? '$'+Math.round(x/t[i]) : '—', 'var(--muted)' ])],
+            ['Personas por unidad libre', ratios.map(r=>[
+              r===null ? 'sin stock' : r+'×',
+              r===null||r>=20 ? '#c62828' : (r>=8 ? '#ef6c00' : 'var(--muted)') ])]
+          ].map(([lab,vals])=>`
+            <div style="display:grid;grid-template-columns:132px repeat(${ms.length},1fr);gap:1px;align-items:center;margin-bottom:2px">
+              <span style="color:var(--muted);text-align:right;padding-right:8px;font-size:10px">${lab}</span>
+              ${vals.map(v=>`<span style="color:${v[1]};text-align:center">${v[0]}</span>`).join('')}
+            </div>`).join('')}
         </div>`;
       box.appendChild(card);
       if(charts['asig-'+idx]) charts['asig-'+idx].destroy();
@@ -14246,8 +14255,8 @@ HTML = r"""<!doctype html>
 
     // Calcula la fila por modelo (o Ford total) para un mes, con filtro opcional por agencia.
     // Cuando hay agenciaOpt: tráfico/meta usan matrix_cnt/matrix_meta por agencia;
-    //   ventas/reservas usan por_agencia; disp e arribos se mantienen a nivel modelo
-    //   total (no se atribuyen a agencia históricamente).
+    //   ventas, reservas y DISPONIBLE usan por_agencia; los arribos se mantienen a
+    //   nivel modelo porque llegan al país, no a una vitrina.
     function calcRow(mk, modeloOpt, agenciaOpt){
       const cr = mc[mk]; if(!cr) return null;
       const fm = anMonthData(mk); if(!fm) return null;
@@ -14291,11 +14300,25 @@ HTML = r"""<!doctype html>
           if(!r_som_has) reserv_som = null;
           if(!r_eom_has) reserv_eom = null;
         }
-        // Disp y arribos NO se desglosan por agencia (los VINs disponibles no
-        // están atribuidos a una agencia hasta que se reserven/facturen).
+        // Disponible SÍ se desglosa por agencia desde ago-2026: es el stock FÍSICO
+        // en esa vitrina (ubicación del chasis), o sea lo que un asesor puede mostrar
+        // hoy. Antes se mostraba el total nacional aunque hubiera filtro de agencia,
+        // y eso engañaba: con La Y filtrada salían 119 Explorer disponibles cuando
+        // La Y tiene cero.
+        // Los arribos siguen a nivel modelo — llegan al país, no a una vitrina.
         arribos  = src.arribos ?? null;
-        disp_som = src.disp_som;
-        disp_eom = src.disp_eom;
+        if(modeloOpt){
+          const agD = src.por_agencia?.[agenciaOpt] || {};
+          disp_eom = agD.disp_eom ?? null;
+        } else {
+          let d = 0, hay = false;
+          Object.values(cr.por_modelo || {}).forEach(srcM => {
+            const v = srcM.por_agencia?.[agenciaOpt]?.disp_eom;
+            if(v != null){ d += v; hay = true; }
+          });
+          disp_eom = hay ? d : null;
+        }
+        disp_som = null;   // no hay serie de inicio de mes por agencia
       } else {
         ventas = src.ventas || 0;
         arribos = src.arribos || 0;
