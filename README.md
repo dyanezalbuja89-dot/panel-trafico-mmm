@@ -232,6 +232,32 @@ el canvas arranca en esa misma coordenada, así que etiquetas y trazado no se pi
 
 Medido en producción: desvío máximo **0,36 px** en las 7 tarjetas.
 
+### Conversión: la tarjeta no cuadra con la suma de las barras (y está bien)
+
+En la pestaña **Conversión**, el KPI `% Conversión` y el gráfico de evolución mensual dan
+distinto a propósito:
+
+| | Denominador | Numerador |
+|---|---|---|
+| **Tarjeta** | personas únicas del filtro | **todo** el que compró |
+| **Gráfico** | cohorte del mes de 1er toque | solo el que tiene cohorte |
+
+La diferencia son los **compradores sin `cohorte_ym`**: se les facturó pero nunca
+aparecieron en la BD de tráfico del año — flota, gestión externa, o primer contacto en
+2025. La tarjeta los cuenta; el gráfico no puede ponerlos en ningún mes.
+
+Ejemplo verificado (La Y, YTD 2026): tarjeta **43 / 524 = 8,2%**, barras **38 / 525 = 7,2%**.
+La brecha son **5 personas y 10 vehículos** en 12 facturas sin cohorte. A nivel red son
+67 compradores.
+
+El gráfico lo dice ahora en una nota calculada (`#conv-evol-nota`), que respeta los filtros
+activos. Antes no lo decía y el gráfico parecía contradecir la tarjeta.
+
+**El gráfico lleva las tres series** desde ago-2026: barras de personas y de vehículos en el
+eje izquierdo, línea de % en el derecho. Un 21,7% sobre 60 personas y un 6% sobre 83 son
+historias distintas y el % solo no lo mostraba. Las barras de ventas llevan `minBarLength: 3`
+— una venta contra una escala de 120 sería invisible.
+
 ## Verificación
 
 ```bash
