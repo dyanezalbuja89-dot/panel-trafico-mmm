@@ -20,6 +20,21 @@ from datetime import datetime
 import pandas as pd
 from inventario import SIN_MODELO, SIN_MODELO_FORD
 
+# ⚠ Los breakdowns de este módulo NO son la cifra de pantalla.
+#
+# Dos diferencias con lo que calcula el panel, y las dos importan:
+#   1. PERÍODO: acá entra TODO 2026, incluido el mes en curso. El panel solo
+#      cuenta meses CERRADOS. Con La Y eso es 525 personas contra 469.
+#   2. VENTANA del numerador: el panel atribuye por COHORTE de primer toque; acá
+#      la venta cuenta si el cliente compró, sin recortar por mes.
+#
+# `conv_pct` ya usa la definición vigente — vehículos ÷ personas — pero sobre ese
+# universo más ancho. Para citar conversión, la fuente es la PANTALLA, no este
+# nodo: ver `feedback_orgu_definicion_conversion` y el README del panel.
+_AVISO_BREAKDOWN = ('período = todo 2026 incluido el mes en curso; el panel usa '
+                    'solo meses cerrados. Para citar conversión, usar la pantalla.')
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Normalización
@@ -773,7 +788,11 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
                 bd[k]['ventas'] += valid_ck_to_n_ventas[ck]
         for k in bd:
             d = bd[k]
-            d['conv_pct'] = round(100*d['matched']/d['traffic'], 1) if d['traffic'] else 0
+            # Vehículos ÷ personas (regla de Daniel, 24-ago-2026). Antes era
+            # matched/traffic — personas ÷ personas — que dejaba fuera al cliente
+            # que se lleva dos autos y daba La Y 6,9% donde la pantalla dice 10,2%.
+            d['conv_pct'] = round(100*d['ventas']/d['traffic'], 1) if d['traffic'] else 0
+            d['_aviso'] = _AVISO_BREAKDOWN
         return bd
 
     # ══ Qué base usa cada bloque de esta pestaña ══════════════════════════════
@@ -872,7 +891,9 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
                 bd[key]['ventas'] += n_v
     for bd in (modelo_mkt, agencia_mkt, canal_mkt):
         for k, v in bd.items():
-            v['conv_pct'] = round(100 * v['matched'] / v['traffic'], 1) if v['traffic'] else 0
+            # Vehículos ÷ personas, igual que la pantalla (ver _AVISO_BREAKDOWN).
+            v['conv_pct'] = round(100 * v['ventas'] / v['traffic'], 1) if v['traffic'] else 0
+            v['_aviso'] = _AVISO_BREAKDOWN
 
     # ========== TABLA PLANA DE CLIENTES ==========
     # Para que JS pueda filtrar/agregar dinámicamente sin recalcular en backend.
@@ -1077,7 +1098,8 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
             agencia_breakdown[ag_s]['personas_reales'] = int(len(_keys))
     for k in agencia_breakdown:
         d = agencia_breakdown[k]
-        d['conv_pct'] = round(100 * d['matched'] / d['traffic'], 1) if d['traffic'] else 0
+        d['conv_pct'] = round(100 * d['ventas'] / d['traffic'], 1) if d['traffic'] else 0
+        d['_aviso'] = _AVISO_BREAKDOWN
     # ► Vehículos atribuidos: suma cohort-aware (solo facturas ≥ first_fecha)
     # Antes usábamos n_facturas_atribuidas (count crudo de matched_sales) que
     # incluía facturas anteriores al primer toque — inconsistente con clientes_flat.

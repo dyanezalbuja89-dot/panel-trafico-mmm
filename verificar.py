@@ -292,6 +292,35 @@ def check_cruce_ventas(d):
         ok('cruce vs ventas', f'{n} mes×marca cuadran con ventas_mensual')
 
 
+def check_breakdowns_conversion(d):
+    """Los breakdowns de conversion.py NO son la cifra de pantalla — su período
+    incluye el mes en curso. Pero al menos su conv_pct tiene que usar la DEFINICIÓN
+    vigente (vehículos ÷ personas) y llevar su aviso. Con matched/traffic daba
+    La Y 6,9% donde la pantalla dice 10,2%, y esa trampa ya costó un día de análisis
+    en otra sesión."""
+    cd = d.get('conversion_data') or {}
+    malos, sin_aviso = [], []
+    for marca, C in cd.items():
+        if not isinstance(C, dict):
+            continue
+        for nodo in ('por_agencia', 'por_modelo', 'por_canal',
+                     'por_agencia_mkt', 'por_modelo_mkt', 'por_canal_mkt'):
+            for k, v in (C.get(nodo) or {}).items():
+                if not isinstance(v, dict) or not v.get('traffic'):
+                    continue
+                esp = round(100 * (v.get('ventas') or 0) / v['traffic'], 1)
+                if abs((v.get('conv_pct') or 0) - esp) > 0.05:
+                    malos.append(f'{marca}/{nodo}/{k}: {v.get("conv_pct")} vs {esp}')
+                if '_aviso' not in v:
+                    sin_aviso.append(f'{marca}/{nodo}')
+    if malos:
+        fail('breakdowns conversión', f'{len(malos)} con conv_pct fuera de definición: {malos[:3]}')
+    elif sin_aviso:
+        warn('breakdowns conversión', f'sin _aviso: {sorted(set(sin_aviso))[:4]}')
+    else:
+        ok('breakdowns conversión', 'conv_pct = ventas/tráfico y todos llevan su aviso')
+
+
 def check_cache():
     """Si se cambia un criterio de cálculo sin subir la versión, los meses viejos
     se sirven con el criterio anterior y solo cambia el mes en curso."""
@@ -366,6 +395,7 @@ def main():
     check_pauta_costo(d)
     check_sin_modelo(d)
     check_cruce_ventas(d)
+    check_breakdowns_conversion(d)
     check_cache()
 
     print()
