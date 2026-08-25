@@ -842,18 +842,23 @@ def load_inventario(path=None, today=None, months_config=None):
                                        & (sub_r['f_factura_inv'].isna() | (sub_r['f_factura_inv'] > som_minus1))).sum())
                     else:
                         res_som = None
-                    # Disponible físico al cierre: arribó, no facturado, sin reserva viva
+                    # Disponible físico: arribó, no facturado y sin reserva viva a esa
+                    # fecha. Se calcula al cierre y al inicio del mes para poder leer si
+                    # la vitrina empezó el mes con piso o se quedó seca en el camino.
                     sub_f = slice_df[slice_df['AGENCIA'] == ag]
-                    if len(sub_f):
-                        _lleg = sub_f['f_arribo'].notna() & (sub_f['f_arribo'] <= eom)
-                        _nofact = sub_f['f_factura_inv'].isna() | (sub_f['f_factura_inv'] > eom)
-                        _rv = sub_f['f_reserva_inv'].notna() & (sub_f['f_reserva_inv'].dt.year > 2020)
-                        _sinres = ~(_rv & (sub_f['f_reserva_inv'] <= eom))
-                        disp_eom = int((_lleg & _nofact & _sinres).sum())
-                    else:
-                        disp_eom = 0
+
+                    def _disp_ag(corte, df=sub_f):
+                        if not len(df):
+                            return 0
+                        lleg = df['f_arribo'].notna() & (df['f_arribo'] <= corte)
+                        nofact = df['f_factura_inv'].isna() | (df['f_factura_inv'] > corte)
+                        rv = df['f_reserva_inv'].notna() & (df['f_reserva_inv'].dt.year > 2020)
+                        return int((lleg & nofact & ~(rv & (df['f_reserva_inv'] <= corte))).sum())
+
                     out_ag[ag] = {'ventas': ventas, 'reserv_eom': res_eom,
-                                  'reserv_som': res_som, 'disp_eom': disp_eom}
+                                  'reserv_som': res_som,
+                                  'disp_eom': _disp_ag(eom),
+                                  'disp_som': _disp_ag(som_minus1) if include_som else None}
                 # Lo que está en tránsito o sin bodega: no lo puede mostrar nadie,
                 # pero sin esta fila la suma por agencia no cuadra contra el total.
                 _sin = slice_df[~slice_df['AGENCIA'].isin(agencias)]
@@ -863,6 +868,12 @@ def load_inventario(path=None, today=None, months_config=None):
                     _rv = _sin['f_reserva_inv'].notna() & (_sin['f_reserva_inv'].dt.year > 2020)
                     _sinres = ~(_rv & (_sin['f_reserva_inv'] <= eom))
                     out_ag['_sin_ubicar'] = {'disp_eom': int((_lleg & _nofact & _sinres).sum())}
+                    if include_som:
+                        _l2 = _sin['f_arribo'].notna() & (_sin['f_arribo'] <= som_minus1)
+                        _n2 = _sin['f_factura_inv'].isna() | (_sin['f_factura_inv'] > som_minus1)
+                        _r2 = _sin['f_reserva_inv'].notna() & (_sin['f_reserva_inv'].dt.year > 2020)
+                        out_ag['_sin_ubicar']['disp_som'] = int(
+                            (_l2 & _n2 & ~(_r2 & (_sin['f_reserva_inv'] <= som_minus1))).sum())
                 return out_ag
 
             global_stats = _calc_for(sub)

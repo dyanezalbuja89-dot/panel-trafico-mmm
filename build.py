@@ -14318,7 +14318,17 @@ HTML = r"""<!doctype html>
           });
           disp_eom = hay ? d : null;
         }
-        disp_som = null;   // no hay serie de inicio de mes por agencia
+        // Inicio de mes por agencia (existe desde el cambio de inventario.py)
+        if(modeloOpt){
+          disp_som = (src.por_agencia?.[agenciaOpt] || {}).disp_som ?? null;
+        } else {
+          let d0 = 0, hay0 = false;
+          Object.values(cr.por_modelo || {}).forEach(srcM => {
+            const v = srcM.por_agencia?.[agenciaOpt]?.disp_som;
+            if(v != null){ d0 += v; hay0 = true; }
+          });
+          disp_som = hay0 ? d0 : null;
+        }
       } else {
         ventas = src.ventas || 0;
         arribos = src.arribos || 0;
