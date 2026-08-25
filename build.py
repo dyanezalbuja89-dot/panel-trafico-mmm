@@ -6820,7 +6820,7 @@ HTML = r"""<!doctype html>
     document.getElementById('hp-proj').style.width = pctProj+'%';
     document.getElementById('hp-proj').style.background = k.cumpl_proj==null?'linear-gradient(90deg,#003478,#5c84d6)'
       : cumplNivel(k.cumpl_proj)==='green' ? 'linear-gradient(90deg,#2e7d32,#66bb6a)'
-      : cumplNivel(k.cumpl_proj)==='yellow'? 'linear-gradient(90deg,#f57f17,#ffb74d)'
+      : cumplNivel(k.cumpl_proj)==='yellow'? 'linear-gradient(90deg,#eab308,#fde047)'
       :                                      'linear-gradient(90deg,#c62828,#ef5350)';
     const meta = document.getElementById('hp-meta');
     if(pctMeta==null){ meta.style.display='none'; }
@@ -6851,7 +6851,7 @@ HTML = r"""<!doctype html>
     else { val=cumpl; rem=100-cumpl; }
     const color = cumpl==null?'#d1d5db'
       : cumplNivel(cumpl)==='green' ?'#2e7d32'
-      : cumplNivel(cumpl)==='yellow'?'#f57f17'
+      : cumplNivel(cumpl)==='yellow'?'#eab308'
       :            '#c62828';
     charts['ff-gauge'] = new Chart(document.getElementById('ff-gauge'),{
       type:'doughnut',
@@ -7743,7 +7743,7 @@ HTML = r"""<!doctype html>
     else if(cumpl>=100){ val=100; rem=0; }
     else { val=cumpl; rem=100-cumpl; }
     const color = cumpl==null?'#d1d5db'
-      : cumplNivel(cumpl)==='green'?'#2e7d32' : cumplNivel(cumpl)==='yellow'?'#f57f17' : '#c62828';
+      : cumplNivel(cumpl)==='green'?'#2e7d32' : cumplNivel(cumpl)==='yellow'?'#eab308' : '#c62828';
     charts['br-gauge'] = new Chart(document.getElementById('br-gauge'),{
       type:'doughnut',
       data:{labels:['Cumpl','Resto'],datasets:[{data:[val,rem],backgroundColor:[color,'#eef1f5'],borderWidth:0,circumference:270,rotation:225,cutout:'78%'}]},
@@ -7776,7 +7776,7 @@ HTML = r"""<!doctype html>
     document.getElementById('br-hp-proj').style.width = (100*k.projection/maxScale)+'%';
     document.getElementById('br-hp-proj').style.background = k.cumpl_proj==null?'linear-gradient(90deg,#003478,#5c84d6)'
       : cumplNivel(k.cumpl_proj)==='green' ? 'linear-gradient(90deg,#2e7d32,#66bb6a)'
-      : cumplNivel(k.cumpl_proj)==='yellow'? 'linear-gradient(90deg,#f57f17,#ffb74d)'
+      : cumplNivel(k.cumpl_proj)==='yellow'? 'linear-gradient(90deg,#eab308,#fde047)'
       :                                      'linear-gradient(90deg,#c62828,#ef5350)';
     const m = document.getElementById('br-hp-meta');
     if(k.meta<=0){ m.style.display='none'; } else { m.style.display=''; m.style.left = (100*k.meta/maxScale)+'%'; }
@@ -14094,7 +14094,7 @@ HTML = r"""<!doctype html>
       ${meta>0?`<div class="marker" style="left:${metaPos}%"></div>`:''}
     </div>`;
   }
-  function pctColor(pct){ const nv=cumplNivel(pct); return nv==='green'?'var(--pos)':nv==='yellow'?'#f57f17':'var(--neg)'; }
+  function pctColor(pct){ const nv=cumplNivel(pct); return nv==='green'?'var(--pos)':nv==='yellow'?'#ca8a04':'var(--neg)'; }
   function fmtSigned(n){ return (n>=0?'+':'')+n; }
 
   function renderAnalysisFilterSummary(){
@@ -14803,7 +14803,7 @@ HTML = r"""<!doctype html>
       const cumplStr = cumplT == null ? '—' : cumplT + '%';
       const cumplCls = cumplT == null ? 'color:var(--muted)'
                      : cumplT >= CUMPL_VERDE    ? 'color:var(--pos);font-weight:700'
-                     : cumplT >= CUMPL_AMARILLO ? 'color:#f57f17;font-weight:700'
+                     : cumplT >= CUMPL_AMARILLO ? 'color:#ca8a04;font-weight:700'
                      : 'color:var(--neg);font-weight:700';
       const trafStr = r.meta > 0 ? `${r.trafico} / ${r.meta}` : `${r.trafico}`;
       const ventasStr = r.metaVentas > 0
