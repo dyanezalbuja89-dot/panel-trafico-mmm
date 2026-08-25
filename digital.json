@@ -1,9 +1,44 @@
 {
   "available": true,
-  "updated_at": "2026-08-25T01:41:08.197292+00:00",
+  "updated_at": "2026-08-25T02:16:59.527419+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
+    {
+      "label": "ene-26",
+      "year": 2026,
+      "month": 1,
+      "leads": 696,
+      "cont": 610,
+      "agen": 279,
+      "efec": 86,
+      "vent": 1,
+      "tope": 247,
+      "nos": 177,
+      "confirmadas": 138,
+      "conf": [
+        [
+          "Confirma",
+          138
+        ],
+        [
+          "No contesta",
+          70
+        ],
+        [
+          "Desiste",
+          65
+        ],
+        [
+          "Sin gestión",
+          4
+        ],
+        [
+          "Reagenda",
+          2
+        ]
+      ]
+    },
     {
       "label": "feb-26",
       "year": 2026,
@@ -348,16 +383,16 @@
     ]
   },
   "kpis": {
-    "period_leads": 5428,
-    "period_cont": 4577,
-    "period_agen": 2022,
-    "period_efec": 693,
-    "period_vent": 22,
-    "rate_cont": 84.3,
-    "rate_agen": 37.3,
-    "rate_show": 34.3,
-    "rate_no_show": 65.7,
-    "rate_close": 3.2,
+    "period_leads": 6124,
+    "period_cont": 5187,
+    "period_agen": 2301,
+    "period_efec": 779,
+    "period_vent": 23,
+    "rate_cont": 84.7,
+    "rate_agen": 37.6,
+    "rate_show": 33.9,
+    "rate_no_show": 66.1,
+    "rate_close": 3.0,
     "rate_lead_to_sale": 0.4
   },
   "cc_desperdicio": {
@@ -930,6 +965,168 @@
             [
               "Perdido",
               4
+            ]
+          ]
+        }
+      },
+      "jul·26": {
+        "no_contactados": {
+          "total": 88,
+          "by_llamada": [
+            [
+              "12ª",
+              87
+            ],
+            [
+              "5ª",
+              1
+            ]
+          ]
+        },
+        "contactados": {
+          "total": 504,
+          "by_estatus": [
+            [
+              "Contactado",
+              235
+            ],
+            [
+              "Barreras técnicas/No contesta",
+              119
+            ],
+            [
+              "Posponer contacto",
+              48
+            ],
+            [
+              "No interesado",
+              47
+            ],
+            [
+              "Sin recursos económicos",
+              32
+            ],
+            [
+              "Errores operativos",
+              18
+            ]
+          ]
+        },
+        "no_show": {
+          "total": 155,
+          "by_estatus": [
+            [
+              "Cita agendada (atascado)",
+              147
+            ],
+            [
+              "Cita Efectiva (error)",
+              4
+            ],
+            [
+              "Perdido",
+              3
+            ],
+            [
+              "Reagendar",
+              1
+            ]
+          ]
+        }
+      },
+      "ago·26": {
+        "no_contactados": {
+          "total": 174,
+          "by_llamada": [
+            [
+              "12ª",
+              85
+            ],
+            [
+              "7ª",
+              32
+            ],
+            [
+              "2ª",
+              11
+            ],
+            [
+              "8ª",
+              10
+            ],
+            [
+              "9ª",
+              9
+            ],
+            [
+              "3ª",
+              6
+            ],
+            [
+              "6ª",
+              6
+            ],
+            [
+              "10ª",
+              4
+            ],
+            [
+              "11ª",
+              4
+            ],
+            [
+              "5ª",
+              3
+            ],
+            [
+              "1ª",
+              2
+            ],
+            [
+              "4ª",
+              2
+            ]
+          ]
+        },
+        "contactados": {
+          "total": 557,
+          "by_estatus": [
+            [
+              "Contactado",
+              225
+            ],
+            [
+              "Barreras técnicas/No contesta",
+              146
+            ],
+            [
+              "Posponer contacto",
+              71
+            ],
+            [
+              "No interesado",
+              51
+            ],
+            [
+              "Sin recursos económicos",
+              46
+            ],
+            [
+              "Errores operativos",
+              18
+            ]
+          ]
+        },
+        "no_show": {
+          "total": 112,
+          "by_estatus": [
+            [
+              "Cita agendada (atascado)",
+              111
+            ],
+            [
+              "Cita Efectiva (error)",
+              1
             ]
           ]
         }

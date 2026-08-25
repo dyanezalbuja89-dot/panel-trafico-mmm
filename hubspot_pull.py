@@ -54,21 +54,35 @@ BASE = 'https://api.hubapi.com'
 PIPELINE_VENTAS_FORD = 'default'
 
 # Ventana de análisis: últimos 7 meses (incluido el mes en curso)
-def _months_window(n=7):
-    out = []
+ES_MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+
+def _months_window(n=None):
+    """Meses a consultar: **el año corrido**, de enero al mes en curso.
+
+    Antes era una ventana móvil de 7 meses hacia atrás, y eso hacía que el panel
+    fuera perdiendo el arranque del año sin que nadie lo notara: en agosto el
+    "Total" del Control CC decía feb–ago porque enero se había caído de la ventana,
+    y en septiembre se habría caído febrero. Con el año corrido el acumulado
+    siempre significa lo mismo y las comparaciones contra el inicio del año se
+    sostienen.
+
+    `n` se acepta por compatibilidad: si se pasa, se comporta como la ventana
+    móvil vieja (últimos n meses).
+    """
     now = datetime.now(timezone.utc)
-    y, m = now.year, now.month
-    months = []
-    for _ in range(n):
-        months.append((y, m))
-        m -= 1
-        if m == 0:
-            m = 12; y -= 1
-    months.reverse()
-    es = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
-    for y, m in months:
-        out.append((f"{es[m-1]}-{str(y)[2:]}", y, m-1))  # m-1 porque Python Date.UTC usa 0-idx
-    return out
+    if n:
+        y, m, months = now.year, now.month, []
+        for _ in range(n):
+            months.append((y, m))
+            m -= 1
+            if m == 0:
+                m = 12; y -= 1
+        months.reverse()
+    else:
+        months = [(now.year, m) for m in range(1, now.month + 1)]
+    # m-1 porque _month_bounds usa índice 0-11
+    return [(f"{ES_MES[m-1]}-{str(y)[2:]}", y, m - 1) for y, m in months]
 
 def _month_bounds(y, m_idx):
     """m_idx: 0-11. Devuelve (start_ms, end_ms) en UTC epoch ms."""
@@ -298,7 +312,10 @@ _MES_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
              'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 # Meses 2026 con dato del CC para el desglose mensual del desperdicio (H1).
 # Extender al avanzar el año (jul=7, ...).
-_DESP_MONTHS_2026 = [1, 2, 3, 4, 5, 6]
+# Meses del año corrido para el análisis de desperdicio. Antes estaba fijo en
+# [1..6] y se quedó clavado en junio: julio y agosto no aparecían.
+_DESP_YEAR = datetime.now(timezone.utc).year
+_DESP_MONTHS_2026 = list(range(1, datetime.now(timezone.utc).month + 1))
 
 
 def _desp_window(s, e, incl_c_by=True):
@@ -372,8 +389,8 @@ def fetch_cc_desperdicio(months):
 
         by_month = {}
         for m in _DESP_MONTHS_2026:
-            ms = int(datetime(2026, m, 1, tzinfo=timezone.utc).timestamp() * 1000)
-            ny, nm = (2026, m + 1) if m < 12 else (2027, 1)
+            ms = int(datetime(_DESP_YEAR, m, 1, tzinfo=timezone.utc).timestamp() * 1000)
+            ny, nm = (_DESP_YEAR, m + 1) if m < 12 else (_DESP_YEAR + 1, 1)
             me = int(datetime(ny, nm, 1, tzinfo=timezone.utc).timestamp() * 1000) - 1
             label = _MES_ABBR[m - 1] + '·26'
             by_month[label] = _desp_window(ms, me, incl_c_by=False)
@@ -402,7 +419,7 @@ def main(output_path='digital.json'):
         }
     else:
         print('[hubspot_pull] Iniciando fetch live · portal 21339231 · Ventas-Ford', flush=True)
-        months = _months_window(7)
+        months = _months_window()
         print(f'[hubspot_pull] Meses: {[m[0] for m in months]}', flush=True)
         print('[hubspot_pull] Fetch monthly funnel...', flush=True)
         funnel = fetch_monthly_funnel(months)
