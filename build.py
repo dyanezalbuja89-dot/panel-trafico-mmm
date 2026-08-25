@@ -13957,7 +13957,7 @@ HTML = r"""<!doctype html>
     const ff = anMonthData(AN_MONTHS_2026[AN_MONTHS_2026.length-1])
             || anMonthData(AN_MONTHS_2026[0])
             || (anstate.marca === 'FORD' ? FORD : null);
-    const modelos = anModelList(ff?.model_order);
+    const modelos = ff?.model_order || [];
     const agencias = ff?.dealer_order || [];
     const elMod = document.getElementById('an-modelo');
     if(elMod){
@@ -14019,21 +14019,13 @@ HTML = r"""<!doctype html>
   // la escalamos según la categoría activa (×1.0 / ×0.25 / ×1.25).
   // Para el mes en curso usamos meta-al-día (× days_trans/days_lab) para que el cumpl%
   // no se vea artificialmente bajo cuando todavía no terminan los días laborables.
-  // ─── 'Por definir' se cuenta como ESCAPE ─────────────────────
-  // Decisión de Daniel (24-ago-2026). El tráfico que llega sin modelo en la BD
-  // sale como 'Por definir' y en la práctica es Escape. Aplica SOLO a Análisis
-  // General: en el resto del panel sigue siendo su propia fila.
-  const AN_FOLD = {'ESCAPE': ['ESCAPE', 'Por definir']};
-  const anModelKeys = m => AN_FOLD[m] || [m];
-  const anModelList = arr => (arr || []).filter(m => m !== 'Por definir');
-
   function anAgg(monthKeys, models, dealers){
     let curr=0, metaMkt=0;
     const canalSet = anCanalSet();
     monthKeys.forEach(mk=>{
       const fm = anMonthData(mk); if(!fm) return;
       const dayFactor = anMonthDayFactor(fm);
-      const mods = anModelList(models && models.length ? models : (fm.model_order||[])).flatMap(anModelKeys);
+      const mods = models && models.length ? models : (fm.model_order||[]);
       const deals = dealers && dealers.length ? dealers : (fm.dealer_order||[]);
       const dmc = fm.dealer_model_channel || {};
       mods.forEach(m=>{
@@ -14145,7 +14137,7 @@ HTML = r"""<!doctype html>
   function renderAnPorModelo(){
     const months = anScopeMonths();
     const ff = anMonthData(months[months.length-1]) || anMonthData(AN_MONTHS_2026[0]);
-    const modelos = anModelList(ff?.model_order);
+    const modelos = ff?.model_order || [];
     // filter by anstate.modelo if set
     const inModels = anstate.modelo ? [anstate.modelo] : null;
     document.getElementById('an-mod-sub').textContent = anViewLabel() + (anstate.agencia?` · ${anstate.agencia}`:'') + (inModels?` · sólo ${anstate.modelo}`:'');
@@ -14225,7 +14217,7 @@ HTML = r"""<!doctype html>
       const fm = anMonthData(mk); if(!fm) return;
       const dmc = fm.dealer_model_channel || {};
       const deals = anstate.agencia ? [anstate.agencia] : (fm.dealer_order || []);
-      const mods = anModelList(anstate.modelo ? [anstate.modelo] : (fm.model_order || [])).flatMap(anModelKeys);
+      const mods = anstate.modelo ? [anstate.modelo] : (fm.model_order || []);
       // include Otros if no agency filter
       const dealList = anstate.agencia ? deals : [...deals, 'Otros'];
       dealList.forEach(d=>{
@@ -14257,7 +14249,7 @@ HTML = r"""<!doctype html>
     const months = anScopeMonths();
     const ff = anMonthData(months[months.length-1]) || anMonthData(AN_MONTHS_2026[0]);
     document.getElementById('an-heat-sub').textContent = anViewLabel() + ' · ' + anCanalLabel();
-    const modelos = anModelList(anstate.modelo ? [anstate.modelo] : (ff?.model_order||[]));
+    const modelos = anstate.modelo ? [anstate.modelo] : (ff?.model_order||[]);
     const dealers = anstate.agencia ? [anstate.agencia] : (ff?.dealer_order||[]);
     const canalSet = anCanalSet();
     document.getElementById('an-heat-head').innerHTML =
@@ -14270,11 +14262,9 @@ HTML = r"""<!doctype html>
         months.forEach(mk=>{
           const fm = anMonthData(mk); if(!fm) return;
           const dayFactor = anMonthDayFactor(fm);
-          anModelKeys(m).forEach(mm=>{
-            const chMap = (fm.dealer_model_channel?.[d]||{})[mm] || {};
-            for(const k in chMap){ if(canalSet.has(k)) real += chMap[k]||0; }
-            metaMkt += ((fm.matrix_meta?.[mm]?.[d])||0) * dayFactor;
-          });
+          const chMap = (fm.dealer_model_channel?.[d]||{})[m] || {};
+          for(const k in chMap){ if(canalSet.has(k)) real += chMap[k]||0; }
+          metaMkt += ((fm.matrix_meta?.[m]?.[d])||0) * dayFactor;
         });
         const meta = Math.round(anScaleMeta(metaMkt));
         rowReal+=real; rowMeta+=meta;
@@ -14360,11 +14350,11 @@ HTML = r"""<!doctype html>
       const fm = anMonthData(mk); if(!fm) return null;
       let trafico, meta;
       if(modeloOpt && agenciaOpt){
-        trafico = anModelKeys(modeloOpt).reduce((t,mm)=> t + ((fm.matrix_cnt?.[mm]?.[agenciaOpt]) || 0), 0);
-        meta    = anModelKeys(modeloOpt).reduce((t,mm)=> t + ((fm.matrix_meta?.[mm]?.[agenciaOpt]) || 0), 0);
+        trafico = (fm.matrix_cnt?.[modeloOpt]?.[agenciaOpt]) || 0;
+        meta    = (fm.matrix_meta?.[modeloOpt]?.[agenciaOpt]) || 0;
       } else if(modeloOpt){
-        trafico = anModelKeys(modeloOpt).reduce((t,mm)=> t + ((fm.models?.[mm]?.curr) || 0), 0);
-        meta    = anModelKeys(modeloOpt).reduce((t,mm)=> t + ((fm.models?.[mm]?.meta) || 0), 0);
+        trafico = (fm.models?.[modeloOpt]?.curr) || 0;
+        meta    = (fm.models?.[modeloOpt]?.meta) || 0;
       } else if(agenciaOpt){
         trafico = (fm.dealers?.[agenciaOpt]?.curr) || 0;
         meta    = (fm.dealers?.[agenciaOpt]?.meta) || 0;
@@ -14850,7 +14840,7 @@ HTML = r"""<!doctype html>
     // Best/worst model
     const ff = anMonthData(AN_MONTHS_2026[0]) || FORD;
     if(!anstate.modelo){
-      const perModel = anModelList(ff?.model_order).map(m=>{
+      const perModel = (ff?.model_order||[]).map(m=>{
         const {curr:c,meta:me} = anAgg(months, [m], anScopeDealers());
         return {m,c,me,p: me>0?100*c/me:null};
       }).filter(r=>r.c>0||r.me>0);
@@ -14904,7 +14894,7 @@ HTML = r"""<!doctype html>
       const fm = anMonthData(mk); if(!fm) return;
       const dmc = fm.dealer_model_channel || {};
       const deals = anstate.agencia ? [anstate.agencia] : (fm.dealer_order || []);
-      const mods = anModelList(anstate.modelo ? [anstate.modelo] : (fm.model_order || [])).flatMap(anModelKeys);
+      const mods = anstate.modelo ? [anstate.modelo] : (fm.model_order || []);
       const dealList = anstate.agencia ? deals : [...deals, 'Otros'];
       dealList.forEach(d=>{
         mods.forEach(m=>{

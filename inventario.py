@@ -921,3 +921,16 @@ def load_inventario(path=None, today=None, months_config=None):
             'pipeline_nac':     int(len(proc)),
         },
     }
+
+# ── 'Por definir' se cuenta como ESCAPE ────────────────────────────────
+# Decisión de Daniel (24-ago-2026): el registro Ford que llega sin modelo en la BD
+# es, en la práctica, Escape. Se pliega en TODO el panel, no en una pestaña suelta.
+#
+# ⚠ Aplicar SIEMPRE después de resolver el modelo del registro — dedupe incluido.
+# Si se pliega antes, `_has_model` da por válida una fila vacía y esa fila le gana
+# a la que sí trae modelo.
+#
+# ⚠ Solo Ford. Las marcas ORGU (DongFeng, Chery, Mazda, RAM) conservan su fila
+# 'Por definir': no tienen un Escape al cual plegarla.
+SIN_MODELO = 'Por definir'
+SIN_MODELO_FORD = 'ESCAPE'

@@ -262,6 +262,39 @@ def check_cache():
         ok('cache', f'versión {ver} · {len(c)} meses alineados')
 
 
+def check_sin_modelo(d):
+    """'Por definir' se pliega a ESCAPE en Ford (ver inventario.py). Si reaparece
+    es que algún camino nuevo escribe el modelo sin pasar por el pliegue.
+    Las marcas ORGU SÍ lo conservan: ahí no hay Escape al cual plegarlo."""
+    rastro = []
+
+    def walk(o, path, ford):
+        if isinstance(o, dict):
+            for k, val in o.items():
+                if k == 'Por definir' and ford:
+                    rastro.append(path + '.' + k)
+                walk(val, path + '.' + str(k), ford)
+        elif isinstance(o, list):
+            for x in o[:500]:
+                walk(x, path + '[]', ford)
+
+    for nodo in ('ford', 'ford_months', 'conversion_data', 'embudo'):
+        sub = d.get(nodo)
+        if sub is None:
+            continue
+        if nodo == 'conversion_data':
+            sub = sub.get('FORD')       # las marcas ORGU conservan su fila
+            if sub is None:
+                continue
+        walk(sub, nodo, True)
+
+    if rastro:
+        fail('sin modelo → Escape', f'{len(rastro)} apariciones de "Por definir" en Ford: '
+                                    f'{rastro[:3]}{"…" if len(rastro) > 3 else ""}')
+    else:
+        ok('sin modelo → Escape', 'ningún "Por definir" en los nodos Ford')
+
+
 def main():
     strict = '--strict' in sys.argv
     d = _data()
@@ -277,6 +310,7 @@ def main():
     check_meses(d)
     check_disp_por_agencia(d)
     check_pauta(d)
+    check_sin_modelo(d)
     check_cache()
 
     print()

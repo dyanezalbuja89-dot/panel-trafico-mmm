@@ -18,6 +18,7 @@ import unicodedata
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
+from inventario import SIN_MODELO, SIN_MODELO_FORD
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -621,6 +622,10 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     if traffic.empty:
         return None
 
+    # 'Por definir' se pliega a ESCAPE solo en Ford (ver inventario.py): las marcas
+    # ORGU no tienen un Escape al cual plegarlo y conservan su fila.
+    _sin_mod = SIN_MODELO_FORD if (marca_filter or 'FORD').upper() == 'FORD' else SIN_MODELO
+
     if marca_filter:
         traffic = traffic[traffic['MARCA'].astype(str).str.upper().str.contains(marca_filter.upper())]
     from aggregate import short_agency, norm_channel
@@ -774,7 +779,7 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
     # NO combinar las dos: dividir facturas-por-equipo entre tráfico-por-vitrina
     # da un ratio sin significado. Hoy ningún indicador lo hace.
     canal_breakdown   = _build_breakdown(lambda ft: ft.get('first_canal') or 'Sin canal')
-    modelo_breakdown  = _build_breakdown(lambda ft: (ft.get('first_modelo') or 'Por definir').upper().strip())
+    modelo_breakdown  = _build_breakdown(lambda ft: (ft.get('first_modelo') or _sin_mod).upper().strip())
     agencia_breakdown = _build_breakdown(lambda ft: ft.get('first_agencia') or 'Sin agencia')
 
     # Top asesores (mismo patrón cohort-aware)
@@ -845,7 +850,7 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
         canal = ft.get('first_canal') or 'Sin canal'
         if canal not in MKT_CHANNELS:
             continue
-        modelo = (ft.get('first_modelo') or 'Por definir').upper().strip()
+        modelo = (ft.get('first_modelo') or _sin_mod).upper().strip()
         ag = ft.get('first_agencia') or 'Sin agencia'
         n_v = valid_ck_to_n_ventas.get(ck, 0)
         cerro = n_v > 0
@@ -971,7 +976,7 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
                 clientes_flat.append({
                     '_ck':      str(ck),
                     'canal':    ft.get('first_canal'),
-                    'modelo':   (ft.get('first_modelo') or '').upper().strip() or 'Por definir',
+                    'modelo':   (ft.get('first_modelo') or '').upper().strip() or _sin_mod,
                     'agencia':  f['ag'],
                     'zona':     ft.get('first_zona') or 'Otra',
                     'asesor':   _ase,
@@ -1001,7 +1006,7 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
             clientes_flat.append({
                 '_ck':      str(ck),
                 'canal':    ft.get('first_canal'),
-                'modelo':   (ft.get('first_modelo') or '').upper().strip() or 'Por definir',
+                'modelo':   (ft.get('first_modelo') or '').upper().strip() or _sin_mod,
                 'agencia':  _ag_final,
                 'zona':     ft.get('first_zona') or 'Otra',
                 'asesor':   _ase,
@@ -1083,10 +1088,10 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
                 out = _norm_fam_inv(familia, marca or '')
                 if out: return str(out).upper()
             except Exception: pass
-            return (str(familia).split()[0].upper() if familia else 'Por definir')
+            return (str(familia).split()[0].upper() if familia else _sin_mod)
     except Exception:
         def _norm_fam_master(familia, marca):
-            return (str(familia).split()[0].upper() if familia else 'Por definir')
+            return (str(familia).split()[0].upper() if familia else _sin_mod)
     if len(facturas_full):
         _mf = facturas_full.copy()
         _mf['_ag_short'] = _mf['AGENCIA_FACTURACION'].apply(_ag_fact_short)
@@ -1133,7 +1138,7 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
                 'ck': _ck,
                 'first_ym': _ft.get('first_fecha').strftime('%Y-%m') if pd.notna(_ft.get('first_fecha')) else None,
                 'first_canal': _ft.get('first_canal'),
-                'first_modelo': (_ft.get('first_modelo') or '').upper().strip() or 'Por definir',
+                'first_modelo': (_ft.get('first_modelo') or '').upper().strip() or _sin_mod,
                 'first_agencia': _ft.get('first_agencia'),
                 'first_asesor': _ft.get('first_asesor'),
                 'first_zona': _ft.get('first_zona'),

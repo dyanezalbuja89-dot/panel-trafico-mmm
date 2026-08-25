@@ -15,7 +15,7 @@ from pathlib import Path
 import warnings
 import pandas as pd
 
-from inventario import DEFAULT_INVENTORY_PATH, normalize_familia, normalize_version
+from inventario import DEFAULT_INVENTORY_PATH, normalize_familia, normalize_version, SIN_MODELO_FORD
 
 # Cache local prioridad, OneDrive fallback
 _EMBUDO_LOCAL = Path.home() / 'dev' / 'panel-datos' / 'embudo'
@@ -142,7 +142,7 @@ def _ventas_inventario(agencia_short, mes, asesores_canonicos=None, anio=2026):
     por_modelo, por_version, por_asesor, por_asesor_modelo = {}, {}, {}, {}
     # ► Usamos Cantidad con signo (FACTURA=+1, NC=-1) para obtener cierres NETOS.
     for _, r in sub.iterrows():
-        mod = r['MODELO'] or 'Por definir'
+        mod = r['MODELO'] or SIN_MODELO_FORD
         ver = r['VERSION'] or mod
         cnt = int(r.get('Cantidad', 1))
         por_modelo[mod] = por_modelo.get(mod, 0) + cnt
@@ -191,10 +191,10 @@ def _split_modelos(m):
     """Un campo Modelo puede traer varios modelos separados por coma
     ('ESCAPE,EVEREST'). Devuelve lista normalizada de modelos."""
     if not isinstance(m, str):
-        return ['Por definir']
+        return [SIN_MODELO_FORD]
     parts = [_norm_one(p) for p in m.split(',')]
     parts = [p for p in parts if p]
-    return parts or ['Por definir']
+    return parts or [SIN_MODELO_FORD]
 
 
 def _norm_asesor(s):
@@ -401,12 +401,11 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     for lbl in labels:
         modelos.update(stage_dfs[lbl]['MODELO_N'].dropna().unique().tolist())
     modelos.update(cierre_modelo.keys())
-    modelos.discard('Por definir')
     modelos = sorted(modelos)
 
     por_modelo = {}
     por_version = {}  # {modelo: {version: cierre_count}} — solo cierre tiene versión
-    for mod in modelos + ['Por definir']:
+    for mod in modelos:
         fila = {}
         for lbl in labels:
             if lbl == 'Cierre':
@@ -454,7 +453,7 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         if sum(fila.values()) > 0:
             por_asesor[ase] = fila
         # por modelo
-        for mod in modelos + ['Por definir']:
+        for mod in modelos:
             fila_m = {}
             for lbl in labels:
                 if lbl == 'Cierre':

@@ -5,7 +5,7 @@ import json
 import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
-from inventario import load_inventario, DEFAULT_INVENTORY_PATH, _INVENTORY_DIRS
+from inventario import load_inventario, DEFAULT_INVENTORY_PATH, _INVENTORY_DIRS, SIN_MODELO, SIN_MODELO_FORD
 from conversion import compute_conversion_metrics, norm_ced as _conv_norm_ced, cedula_base as _conv_cedula_base, norm_email as _conv_norm_email, norm_cel as _conv_norm_cel
 from competencia import compute_competencia_data
 from embudo import compute_embudo_data
@@ -842,10 +842,12 @@ def process_bd_ford(df, channels=None):
     # la última que TENGA modelo válido. Antes hacíamos keep='last' por fecha,
     # lo que podía dejar 'Por definir' si la fila más reciente del cliente
     # estaba sin modelo (típico cuando un asesor reabre el negocio sin completarlo).
-    df["_has_model"] = (~df["MODELO_F"].isin(['Por definir'])).astype(int)
+    df["_has_model"] = (~df["MODELO_F"].isin([SIN_MODELO])).astype(int)
     df = df.sort_values(["FECHA", "_has_model"])  # con modelo va al final
     df = df.drop_duplicates(subset=["CEDULA"], keep="last")
     df = df.drop(columns=["_has_model"])
+    # ► 'Por definir' se pliega a ESCAPE — DESPUÉS del dedupe (ver inventario.py).
+    df.loc[df["MODELO_F"] == SIN_MODELO, "MODELO_F"] = SIN_MODELO_FORD
     df = df[df["CANAL"].isin(channels)]
     return df
 
@@ -2171,7 +2173,7 @@ def main():
                 _f = cfg.get(_k)
                 _mt.append(str(Path(_resolve_local(_f)).stat().st_mtime_ns) if _f else '-')
             _cache_key = (f"{Path(_cp).stat().st_mtime_ns}|{Path(_pp).stat().st_mtime_ns}"
-                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v5-reingreso-60d")
+                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v6-sinmodelo-escape")
         except Exception:
             _cache_key = None
         _cached_entry = _cache.get(cfg['key']) if _cache_key else None
