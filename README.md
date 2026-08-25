@@ -395,6 +395,44 @@ el numerador cortaba en julio y el denominador en agosto: una tasa de 7 meses so
 un hint que decía "solo meses cerrados". Aplica al hero, a la tabla por agencia y al
 promedio de los bullets.
 
+## Hallazgos naranjas de la auditoría, corregidos (25-ago-2026)
+
+| Qué | Antes | Ahora |
+|---|---|---|
+| Comparativo · Mes B | leía `bstate.canal` (¡de la pestaña **Marcas**!) | `cpstate.canal` en los 4 puntos |
+| Comparativo · Por modelo / Por agencia | ignoraban "Tipo canal" (356 fijo) | responden: 356 mkt · 463 todos |
+| Comparativo · encabezado Evolución | ▼ −24,4% contra agosto en curso | **▲ +17,1%** hasta julio |
+| Comparativo · resumen diario | −24,4% junto a un KPI de +21,2% | **+21,2%**, ambos al día 23 |
+| Conversión · filtro Zona | las 4 zonas sumaban 573 de 639 | **suman 639** |
+| Conversión · "Todas las marcas" | tabla en ceros, 4.070 personas | **4.340 personas, 18,2%** |
+| Conversión · ranking asesores | nota 620 · tabla **504** | **620 = 620** |
+| Análisis General · cruce | ignoraba "Tipo canal" | 417/412 mkt · **578/515** todos |
+| Marcas · Mazda | `CX30` con meta y `CX-30` con tráfico | **una sola fila** |
+
+### Lo que hay que saber para no repetirlos
+
+**`months_config` NO trae `cut_day`, `year` ni `month`** — vienen en `null`. El cierre de un
+mes se deriva de `cut_date` (`'dd/mm/aaaa'`) del propio dato: `cpDiaCorte()` / `cpMesCerrado()`.
+
+**Las ramas "sin filtro" leían `models[m].curr` y `dealers[d].curr`**, que por construcción
+del aggregate son **marketing-only** y no pasan por `getCnt`. Por eso el selector movía las
+tarjetas y no movía las barras. Ahora existen `getCntModelo()` y `getCntAgencia()`, que
+agregan respetando el canal.
+
+**El filtro de zona necesita el mismo fallback que canal y modelo.** Las facturas sin primer
+toque tienen `zona_lead` nula; se les asigna la zona de la vitrina (`CONV_ZONA_AG`).
+
+**`_ck` es un id de FILA por marca** (`r9555` existe en las cinco). Al fusionar marcas hay
+que prefijarlo o el dedupe global colapsa personas distintas: se perdían 270.
+
+**Las grafías duplicadas de un asesor se fusionan por SUBCONJUNTO de tokens**
+(`"VIVIANA VELEZ"` ⊂ `"VIVIANA MAGDALENA VELEZ VALAREZO"`), no por "≥2 tokens en común":
+ese criterio uniría a dos personas que comparten dos nombres.
+
+**El tráfico de marcas ORGU normaliza con `familia_orgu()`**, el mismo mapa que las metas.
+⚠ Cambiar esa normalización **exige subir la llave de caché** (`v7-familias-orgu`), o los
+meses viejos siguen sirviéndose con las familias anteriores.
+
 ## Auditoría de filtros (25-ago-2026)
 
 Se revisaron los filtros de las 14 pestañas. **El patrón de fallo no da error**: el
