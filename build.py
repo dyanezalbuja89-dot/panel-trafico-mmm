@@ -4338,6 +4338,8 @@ HTML = r"""<!doctype html>
         <div class="card-big"><div class="lbl" title="Días entre el primer toque en la BD de tráfico y la factura. Excluye a quienes fueron registrados el MISMO día que compraron: ahí no hubo ciclo capturado, hubo registro tardío.">Tiempo cliente → factura</div><div class="val" id="conv-k-ciclo">—</div><div class="hint" id="conv-k-ciclo-hint">Mediana de días entre 1er toque y factura</div></div>
       </div>
 
+      <div id="conv-ciclo-nota" style="font-size:12px;margin-top:10px"></div>
+
       <!-- EVOLUCIÓN MENSUAL DE CONVERSIÓN -->
       <div class="ford-section" style="margin-top:18px">
         <h3>📈 Evolución mensual de conversión <span class="sub" id="conv-evol-sub">cada mes es una COHORTE: la gente que entró ese mes y lo que terminó comprando</span></h3>
@@ -9824,6 +9826,32 @@ HTML = r"""<!doctype html>
       document.getElementById('conv-k-ciclo').textContent = '—';
       document.getElementById('conv-k-ciclo-hint').textContent = 'Sin cierres en este filtro';
     }
+
+    // El ciclo de la tarjeta mide primer toque → factura y SOLO sobre quien ya compró.
+    // El que reservó y sigue esperando su unidad no está en la muestra, así que el
+    // número subestima la espera real. La espera de verdad vive en el inventario
+    // (reserva → factura), y ahí sí aparecen los casos largos.
+    (function(){
+      const el = document.getElementById('conv-ciclo-nota'); if(!el) return;
+      const wt = DATA.inventario?.wait_times?.[convState.marca]?.global_window;
+      const enTrafico = n_traf || 0;
+      const sinCerrar = Math.max(0, enTrafico - n_cerraron);
+      let largos = '';
+      if (wt?.buckets) {
+        const b = wt.buckets, tot = Object.values(b).reduce((a,x)=>a+x, 0);
+        const l = (b.m3_6 || 0) + (b.m6_plus || 0);
+        if (tot) largos = `<strong>${l}</strong> de ${fmt(tot)} reservas (${Math.round(100*l/tot)}%) esperaron <strong>más de 3 meses</strong>`;
+      }
+      el.innerHTML = `<div style="background:#fff8e6;border-left:3px solid #b8860b;padding:9px 12px;border-radius:0 6px 6px 0;color:var(--ink);line-height:1.65">
+        <strong>El ciclo de la tarjeta se queda corto a propósito, y hay que leerlo así.</strong>
+        Mide <em>primer toque → factura</em> y solo sobre quien <strong>ya compró</strong>:
+        las ${fmt(sinCerrar)} personas del filtro que aún no cierran —incluidas las que
+        reservaron y esperan su unidad— no entran hasta que se les facture.
+        ${wt ? `<div style="margin-top:5px">La espera real por la unidad se mide en Inventario
+          (<em>reserva → factura</em>): mediana <strong>${wt.mediana}d</strong>,
+          p75 <strong>${wt.p75}d</strong>, máximo <strong>${wt.max}d</strong>${largos ? ` — ${largos}` : ''}.</div>` : ''}
+      </div>`;
+    })();
 
     function pillColor(pct){
       if(pct >= 15) return 'green';
