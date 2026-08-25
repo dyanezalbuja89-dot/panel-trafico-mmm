@@ -6092,8 +6092,11 @@ HTML = r"""<!doctype html>
       setTopbarSub(tab);
       // Chart.js mide el contenedor al construirse. Si se llama en el mismo tick en
       // que la pestaña recibe .active, el layout todavía no se aplicó y el canvas
-      // queda con ancho 0: los gráficos no se dibujan nunca. Hay que esperar un frame.
-      if(tab === 'asignacion') requestAnimationFrame(()=>requestAnimationFrame(renderAsignacion));
+      // queda con ancho 0: los gráficos no se dibujan nunca.
+      // Se difiere con setTimeout y NO con requestAnimationFrame: rAF no dispara
+      // cuando la pestaña del navegador está en segundo plano, y entonces la vista
+      // queda permanentemente vacía.
+      if(tab === 'asignacion') setTimeout(renderAsignacion, 0);
       showSkeletonsForTab('tab-'+tab);
       URLState.set('tab', tab === 'ford' ? '' : tab);  // ford = default, no ensucia URL
     });
