@@ -2014,6 +2014,9 @@ HTML = r"""<!doctype html>
   .meta-bar .fill.green{background:linear-gradient(90deg,#2e7d32,#66bb6a)}
   .meta-bar .fill.yellow{background:linear-gradient(90deg,#eab308,#fde047);color:#422006;text-shadow:none}
   .meta-bar .fill.red{background:linear-gradient(90deg,#c62828,#ef5350)}
+  /* Barra de PARTICIPACIÓN (no cumplimiento): azul Ford, para que no se lea
+     contra la escala verde/amarillo/rojo. */
+  .meta-bar .fill.share{background:linear-gradient(90deg,#003478,#5c84d6)}
   .meta-bar .marker{position:absolute;top:-2px;bottom:-2px;width:2px;background:#1c2434;z-index:2}
 
   /* ─── INSIGHT CARDS (refactorizado con tokens) ─── */
@@ -14237,7 +14240,7 @@ HTML = r"""<!doctype html>
         <td><strong>${k}</strong></td>
         <td class="num">${fmt(v)}</td>
         <td class="num" style="font-weight:700">${pct.toFixed(1)}%</td>
-        <td class="bar-cell"><div class="meta-bar"><div class="fill green" style="width:${Math.max(2,w)}%">${pct>=8?pct.toFixed(0)+'%':''}</div></div></td>
+        <td class="bar-cell"><div class="meta-bar"><div class="fill share" style="width:${Math.max(2,w)}%">${pct>=8?pct.toFixed(0)+'%':''}</div></div></td>
       </tr>`;
     }).join('') + `<tr class="total"><td>TOTAL</td><td class="num">${fmt(total)}</td><td class="num">100%</td><td></td></tr>`;
   }
