@@ -135,12 +135,12 @@ el df que recibe y vuelve a leer `DATOS 2` por su cuenta) y `checks_asesores.py`
 
 ### Escala de color del cumplimiento (24-ago-2026)
 
-**≥90% verde · 80–89% amarillo · <80% rojo.** Vale para todo el panel, en las 14 pestañas.
+**≥90% verde · 75–89% amarillo · <75% rojo.** Vale para todo el panel, en las 14 pestañas.
 
 Definición única en `build.py`, junto al helper de anomalías:
 
 ```js
-const CUMPL_VERDE = 90, CUMPL_AMARILLO = 80;
+const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
 cumplNivel(p)  // 'green' | 'yellow' | 'red' | null
 cumplClass(p)  // clase CSS: green/yellow/red
 cumplHex(p)    // #16a34a / #eab308 / #dc2626
@@ -153,13 +153,35 @@ las tablas de ventas, ≥85 en el cruce) y el mismo 88% salía naranja en Análi
 y amarillo en Ventas.
 
 **El heatmap del cruce conserva sus 5 tonos** (`level()`), pero sus cortes caen dentro
-de las bandas: crítico <50 y bajo 50–79 son los dos rojos, alerta 80–89 el amarillo,
+de las bandas: crítico <50 y bajo 50–74 son los dos rojos, alerta 75–89 el amarillo,
 ok 90–120 y sobre meta >120 los dos verdes.
 
 ⚠ **La regla es solo para % contra meta.** Las tasas de conversión (≥30/≥15), de cierre
 (≥15/≥10) y de aprobación de crédito (≥80/≥60) tienen su propia escala: no se miden
 contra una meta y aplicarles esta las pintaría todas de rojo. La barra de participación
 por canal es azul Ford por lo mismo — es un share, no un cumplimiento.
+
+### 'Por definir' cuenta como Escape — solo en Análisis General (24-ago-2026)
+
+El tráfico que llega sin modelo en la BD sale como `Por definir` (44 registros YTD 2026).
+En **Análisis General** se suma a **Escape**: no aparece como fila propia, no está en el
+selector de modelo y no sale en el heatmap.
+
+Implementado en `build.py` junto a `anAgg`:
+
+```js
+const AN_FOLD = {'ESCAPE': ['ESCAPE', 'Por definir']};
+const anModelKeys = m => AN_FOLD[m] || [m];   // expande al leer
+const anModelList = arr => arr.filter(m => m !== 'Por definir');  // esconde al listar
+```
+
+Los dos van juntos: se esconde de las listas y se expande en las lecturas
+(`anAgg`, `calcRow`, heatmap, canal, insights). **El total de la pestaña no se mueve** —
+Escape pasó de 297 a 341 y el total sigue en 2.578.
+
+⚠ **Solo esta pestaña.** En Ford y en Competencia `Por definir` sigue siendo su propia
+fila: ahí no hay meta por modelo contra la cual repartirlo, y esconderlo perdería
+registros sin dejar rastro.
 
 ### Otras reglas de cálculo
 
