@@ -6261,6 +6261,23 @@ HTML = r"""<!doctype html>
 
   // Números sobre cada punto y dentro de cada barra. Sin esto hay que pasar el
   // mouse por cada mes para leer un valor, y el gráfico solo sirve para ver la forma.
+  // Los números de abajo tienen que caer bajo su mes. El ancho de los ejes lo
+  // decide Chart.js en cada render (depende de cuántos dígitos tenga la escala),
+  // así que no se puede clavar a mano: se lee el chartArea y se traslada a padding.
+  const GUTTER_ASIG = 118;   // canalón donde viven los nombres de fila, FUERA del gráfico
+  const ASIG_ALINEA = {
+    id: 'asig-alinea',
+    afterLayout(c){
+      const card = c.canvas.closest('.ford-card'); if(!card) return;
+      const ca = c.chartArea; if(!ca) return;
+      const izq = Math.round(ca.left), der = Math.round(c.width - ca.right);
+      card.querySelectorAll('.asig-vals').forEach(el=>{
+        el.style.paddingLeft  = izq + 'px';
+        el.style.paddingRight = der + 'px';
+      });
+    }
+  };
+
   const ASIG_ETQ = {
     id:'asigEtq',
     afterDatasetsDraw(ch){
@@ -6312,7 +6329,10 @@ HTML = r"""<!doctype html>
           <span style="font-size:16px;font-weight:700">${mod}</span>
           <span style="font-size:12.5px;color:var(--muted)">${T} pers · $${Math.round(I).toLocaleString('es')} · <b>$${T?Math.round(I/T):0}</b> c/u · hoy ${libreHoy} libres</span>
         </div>
-        <div style="position:relative;height:250px"><canvas id="asig-c-${idx}"></canvas></div>
+        <div style="display:grid;grid-template-columns:${GUTTER_ASIG}px minmax(0,1fr)">
+          <span></span>
+          <div style="position:relative;height:250px"><canvas id="asig-c-${idx}"></canvas></div>
+        </div>
         <div style="margin-top:8px;font-size:10.5px">
           ${[
             ['Inversión', inv.map(x=>[ x>=1000 ? '$'+(x/1000).toFixed(1)+'k' : (x?'$'+Math.round(x):'—'), '#b8860b' ])],
@@ -6321,15 +6341,17 @@ HTML = r"""<!doctype html>
               r===null ? 'sin stock' : r+'×',
               r===null||r>=20 ? '#c62828' : (r>=8 ? '#ef6c00' : 'var(--muted)') ])]
           ].map(([lab,vals])=>`
-            <div style="display:grid;grid-template-columns:132px repeat(${ms.length},1fr);gap:1px;align-items:center;margin-bottom:2px">
-              <span style="color:var(--muted);text-align:right;padding-right:8px;font-size:10px">${lab}</span>
-              ${vals.map(v=>`<span style="color:${v[1]};text-align:center">${v[0]}</span>`).join('')}
+            <div style="display:grid;grid-template-columns:${GUTTER_ASIG}px minmax(0,1fr);align-items:center;margin-bottom:3px">
+              <span style="color:var(--muted);text-align:right;padding-right:10px;font-size:10px;line-height:1.2">${lab}</span>
+              <div class="asig-vals" style="display:grid;grid-template-columns:repeat(${ms.length},minmax(0,1fr))">
+                ${vals.map(v=>`<span style="color:${v[1]};text-align:center">${v[0]}</span>`).join('')}
+              </div>
             </div>`).join('')}
         </div>`;
       box.appendChild(card);
       if(charts['asig-'+idx]) charts['asig-'+idx].destroy();
       charts['asig-'+idx] = new Chart(card.querySelector('canvas'),{
-        plugins:[ASIG_ETQ],
+        plugins:[ASIG_ETQ, ASIG_ALINEA],
         data:{labels: ms.map(m=>m.lbl), datasets:[
           {type:'bar', label:'Disponible', data: st.map(x=>x.libre), backgroundColor:'#43a047',
            stack:'s', yAxisID:'y1', borderRadius:{topLeft:3,topRight:3}, maxBarThickness:24, order:3},
