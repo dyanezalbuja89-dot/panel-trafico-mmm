@@ -9838,8 +9838,11 @@ HTML = r"""<!doctype html>
       const totAll = total || suma;
       const totConv = totAll.t > 0 ? +(100*totAll.v/totAll.t).toFixed(1) : 0;
       // Si las filas suman más que el total, decirlo en vez de dejar que no cuadre.
-      const solape = total && (suma.m > total.m || suma.t > total.t)
-        ? ` <span style="font-weight:400;color:var(--muted);font-size:10.5px">· las filas suman ${fmt(suma.m)} porque una persona puede aparecer en más de una</span>`
+      const _sol = [];
+      if (total && suma.t > total.t) _sol.push(`${fmt(suma.t)} de tráfico`);
+      if (total && suma.m > total.m) _sol.push(`${fmt(suma.m)} compradores`);
+      const solape = _sol.length
+        ? ` <span style="font-weight:400;color:var(--muted);font-size:10.5px">· las filas suman ${_sol.join(' y ')}: una misma persona puede caer en más de una</span>`
         : '';
       // Slice de filas mostradas (filtro de display + top N)
       let rows = allRows.filter(([,d])=>d.traffic >= minTraffic);
