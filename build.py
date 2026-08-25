@@ -4332,7 +4332,7 @@ HTML = r"""<!doctype html>
 
       <!-- HERO KPIs -->
       <div class="stat-hero stat-hero-4" style="margin-top:14px">
-        <div class="card-big"><div class="lbl">Personas únicas (tráfico)</div><div class="val" id="conv-k-traf">—</div><div class="hint">1er toque en 2026 · identidad robusta</div></div>
+        <div class="card-big"><div class="lbl">Personas únicas (tráfico)</div><div class="val" id="conv-k-traf">—</div><div class="hint" id="conv-k-traf-hint">1er toque en 2026 · identidad robusta</div></div>
         <div class="card-big"><div class="lbl">Cerraron compra</div><div class="val pos" id="conv-k-cerr">—</div><div class="hint" id="conv-k-cerr-hint" title="Personas distintas que compraron / vehículos facturados"></div></div>
         <div class="card-big"><div class="lbl">% Conversión</div><div class="val" id="conv-k-rate">—</div><div class="hint" id="conv-k-rate-hint">Vehículos facturados / personas de tráfico</div></div>
         <div class="card-big"><div class="lbl" title="Días entre el primer toque en la BD de tráfico y la factura. Excluye a quienes fueron registrados el MISMO día que compraron: ahí no hubo ciclo capturado, hubo registro tardío.">Tiempo cliente → factura</div><div class="val" id="conv-k-ciclo">—</div><div class="hint" id="conv-k-ciclo-hint">Mediana de días entre 1er toque y factura</div></div>
@@ -9580,18 +9580,71 @@ HTML = r"""<!doctype html>
   // `asesor` no tiene <select> propio: se activa haciendo clic en una fila del
   // ranking "Top asesores" y se limpia con otro clic o con el botón Limpiar.
   const convState = { mes:'', agencia:'', zona:'', modelo:'', canal:'', asesor:'', marca:'FORD' };
+  // ── Meses CERRADOS ────────────────────────────────────────────────────
+  // La pestaña no contempla el mes en curso (Daniel, 24-ago-2026): su cohorte va
+  // a medias y hunde cualquier promedio. Se derivan de la MISMA fuente que
+  // Análisis General para que las dos pestañas cierren igual.
+  function convMesesOk(){
+    const out = new Set();
+    try {
+      AN_MONTHS_2026.forEach(k => {
+        const i = AN_MESES_ES.indexOf(String(k).replace('_2026',''));
+        if(i >= 0) out.add('2026-' + String(i+1).padStart(2,'0'));
+      });
+    } catch(e){ /* si aún no está inicializado, no se filtra nada */ }
+    return out;
+  }
+
+  // ── UN SOLO filtro de clientes y otro de facturas ─────────────────────
+  // Había tres copias del de clientes y cinco del de facturas, cada una con su
+  // propio subconjunto de condiciones. A dos les faltaba `zona`: con Quito
+  // filtrado el gráfico mostraba las 645 unidades de toda la red contra las
+  // 1.094 personas de Quito y marcaba 117% en enero.
+  //
+  // `salvo` omite una dimensión concreta: el gráfico de evolución no aplica
+  // `mes` porque el mes ES su eje, y el de modelos no aplica `modelo`.
+  function convFiltraClientes(lista, salvo){
+    const sk = salvo || {};
+    const ok = convMesesOk();
+    return (lista || []).filter(c => {
+      if(ok.size && !ok.has(c.first_ym)) return false;
+      if(!sk.mes     && convState.mes     && c.first_ym !== convState.mes)    return false;
+      if(!sk.agencia && convState.agencia && c.agencia  !== convState.agencia) return false;
+      if(!sk.zona    && convState.zona    && c.zona     !== convState.zona)    return false;
+      if(!sk.modelo  && convState.modelo  && c.modelo   !== convState.modelo)  return false;
+      if(!sk.canal   && convState.canal   && c.canal    !== convState.canal)   return false;
+      if(!sk.asesor  && convState.asesor  && c.asesor   !== convState.asesor)  return false;
+      return true;
+    });
+  }
+
+  // Los fallbacks (`|| 'Gestión Externa'`, `|| modelo_fact`) tienen que ser los
+  // MISMOS con los que las tablas agrupan, o filtrar por un canal deja fuera
+  // facturas que esa misma tabla cuenta en esa fila.
+  function convFiltraFacturas(lista, salvo){
+    const sk = salvo || {};
+    const ok = convMesesOk();
+    return (lista || []).filter(m => {
+      if(ok.size){
+        // Con cohorte manda su mes de primer toque; sin cohorte, el de la factura
+        // (que es donde el gráfico las coloca).
+        const ym = m.cohorte_ym || String(m.fecha || '').slice(0, 7);
+        if(!ok.has(ym)) return false;
+      }
+      if(!sk.mes     && convState.mes     && m.cohorte_ym !== convState.mes)     return false;
+      if(!sk.agencia && convState.agencia && m.agencia    !== convState.agencia) return false;
+      if(!sk.zona    && convState.zona    && m.zona_lead  !== convState.zona)    return false;
+      if(!sk.modelo  && convState.modelo  && (m.modelo_lead || m.modelo_fact) !== convState.modelo) return false;
+      if(!sk.canal   && convState.canal   && (m.canal_lead || 'Gestión Externa') !== convState.canal) return false;
+      if(!sk.asesor  && convState.asesor  && m.asesor_lead !== convState.asesor) return false;
+      return true;
+    });
+  }
+
   function convFilterClientes(){
     const CONV = convGet();
     if(!CONV || !CONV.clientes_flat) return [];
-    return CONV.clientes_flat.filter(c => {
-      if(convState.mes     && c.first_ym !== convState.mes)    return false;
-      if(convState.agencia && c.agencia !== convState.agencia) return false;
-      if(convState.zona    && c.zona    !== convState.zona)    return false;
-      if(convState.modelo  && c.modelo  !== convState.modelo)  return false;
-      if(convState.canal   && c.canal   !== convState.canal)   return false;
-      if(convState.asesor  && c.asesor  !== convState.asesor)  return false;
-      return true;
-    });
+    return convFiltraClientes(CONV.clientes_flat);
   }
   function convAggregate(clientes, by){
     // Definición B: 1 cliente único = 1 unidad de tráfico, sin importar cuántas veces vino
@@ -9677,15 +9730,11 @@ HTML = r"""<!doctype html>
     // el selector no se queda atrás cuando entra un mes nuevo.
     const selMes = document.getElementById('conv-f-mes');
     if(selMes && needsRepop){
-      const meses = [...new Set(CONV.clientes_flat.map(c => c.first_ym).filter(Boolean))].sort();
-      // "en curso" solo si el corte del panel todavía no llegó a fin de mes.
-      // cut_date viene como DD/MM/YYYY en ford_months.
-      const enCurso = (() => {
-        const fm = (DATA.ford_months||{})[DATA.default_month_key];
-        if(!fm || !fm.cut_date) return null;
-        const [d, m, y] = fm.cut_date.split('/').map(Number);
-        return d < new Date(y, m, 0).getDate() ? `${y}-${String(m).padStart(2,'0')}` : null;
-      })();
+      // Solo meses CERRADOS: la pestaña no contempla el mes en curso, así que
+      // tampoco se puede filtrar por él.
+      const _okMes = convMesesOk();
+      const meses = [...new Set(CONV.clientes_flat.map(c => c.first_ym).filter(Boolean))]
+        .filter(m => !_okMes.size || _okMes.has(m)).sort();
       const NOM = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
                    'Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
       const prev = selMes.value;
@@ -9693,7 +9742,7 @@ HTML = r"""<!doctype html>
       meses.forEach(ym => {
         const o = document.createElement('option');
         o.value = ym;
-        o.textContent = NOM[+ym.slice(5,7)] + (ym === enCurso ? ' (en curso)' : '');
+        o.textContent = NOM[+ym.slice(5,7)];
         selMes.appendChild(o);
       });
       if(prev && meses.includes(prev)) selMes.value = prev;
@@ -9761,23 +9810,7 @@ HTML = r"""<!doctype html>
     const _uniq = arr => new Set(arr.map(c => c._ck || c.asesor + '|' + c.first_ym)).size;
     // Hero: TODO desde master_facturas para cuadre perfecto con widgets.
     const _mst = CONV.master_facturas || [];
-    const _mstF = _mst.filter(m => {
-      if (convState.agencia && m.agencia !== convState.agencia) return false;
-      // Solo cohorte_ym: sin fallback a la fecha de factura. El filtro es de
-      // COHORTE de primer toque; una factura sin cohorte no pertenece a ningún mes.
-      if (convState.mes && m.cohorte_ym !== convState.mes) return false;
-      // Modelo, canal y zona faltaban: el denominador (clientes_flat) sí los
-      // aplicaba y el numerador no, así que filtrar por un modelo daba el total
-      // de ventas de la marca sobre el tráfico de ese modelo (Bronco: 1390%).
-      // Se usan los campos del PRIMER TOQUE, igual que el denominador: el
-      // cliente puede haber entrado por Territory y facturado un Escape.
-      if (convState.modelo && m.modelo_lead !== convState.modelo) return false;
-      if (convState.canal  && m.canal_lead  !== convState.canal)  return false;
-      if (convState.zona   && m.zona_lead   !== convState.zona)   return false;
-      // Filtro por asesor: mismo criterio que el ranking (asesor del primer toque).
-      if (convState.asesor && m.asesor_lead !== convState.asesor) return false;
-      return true;
-    });
+    const _mstF = convFiltraFacturas(_mst);
     const _mpaX = CONV.master_por_agencia || {};
     let n_traf, n_cerraron;
     // Con filtro de asesor el tráfico sale de los clientes ya filtrados; el total de
@@ -9811,6 +9844,14 @@ HTML = r"""<!doctype html>
     const ciclo = convCalcCiclo(clientes);
 
     document.getElementById('conv-k-traf').textContent  = fmt(n_traf);
+    (function(){
+      const el = document.getElementById('conv-k-traf-hint'); if(!el) return;
+      const ok = [...convMesesOk()].sort();
+      const NOM3 = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+      el.textContent = ok.length
+        ? `1er toque ${NOM3[+ok[0].slice(5,7)]}–${NOM3[+ok[ok.length-1].slice(5,7)]} 2026 · solo meses cerrados`
+        : '1er toque en 2026 · identidad robusta';
+    })();
     document.getElementById('conv-k-cerr').textContent  = fmt(n_cerraron) + ' / ' + fmt(n_ventas);
     document.getElementById('conv-k-cerr-hint').textContent = `${n_cerraron} personas · ${n_ventas} vehículos facturados`;
     document.getElementById('conv-k-rate').textContent  = conv + '%';
@@ -9928,17 +9969,7 @@ HTML = r"""<!doctype html>
     // Todos los breakdowns (canal/modelo/agencia) se derivan de la misma lista de
     // facturas — cuadre matemático garantizado.
     const _master = CONV.master_facturas || [];
-    const _mFilt = _master.filter(m => {
-      if (convState.agencia && m.agencia !== convState.agencia) return false;
-      // Solo cohorte_ym: sin fallback a la fecha de factura. El filtro es de
-      // COHORTE de primer toque; una factura sin cohorte no pertenece a ningún mes.
-      if (convState.mes && m.cohorte_ym !== convState.mes) return false;
-      if (convState.canal && (m.canal_lead || 'Sin canal atribuido') !== convState.canal) return false;
-      if (convState.modelo && (m.modelo_lead || m.modelo_fact) !== convState.modelo) return false;
-      if (convState.zona && m.zona_lead !== convState.zona) return false;
-      if (convState.asesor && m.asesor_lead !== convState.asesor) return false;
-      return true;
-    });
+    const _mFilt = convFiltraFacturas(_master);
     // ¿Hay algún filtro que achique el universo? Decide dos cosas más abajo:
     // si el tráfico por agencia puede salir del total del backend, y si el
     // umbral de ≥5 leads del ranking tiene sentido.
@@ -10376,13 +10407,7 @@ HTML = r"""<!doctype html>
     }
 
     // Filtros activos EXCEPTO modelo (queremos ver todos los modelos activos)
-    const filtered = CONV.clientes_flat.filter(c => {
-      if(convState.agencia && c.agencia !== convState.agencia) return false;
-      if(convState.zona    && c.zona    !== convState.zona)    return false;
-      if(convState.canal   && c.canal   !== convState.canal)   return false;
-      if(convState.asesor  && c.asesor  !== convState.asesor)  return false;
-      return true;
-    });
+    const filtered = convFiltraClientes(CONV.clientes_flat, {mes:true, modelo:true});
 
     const { meses, labels } = convMesesEje(CONV);
     const MODELO_ORDER = convModelosForBrand();
@@ -10398,13 +10423,7 @@ HTML = r"""<!doctype html>
 
     // Vehículos desde master_facturas, misma fuente que el resto de la pestaña:
     // clientes_flat.cerro cuenta personas y da menos (36 contra 43 en La Y).
-    const _mfMod = (CONV.master_facturas || []).filter(m => {
-      if(convState.agencia && m.agencia !== convState.agencia) return false;
-      if(convState.zona    && m.zona_lead !== convState.zona)   return false;
-      if(convState.canal   && (m.canal_lead || 'Gestión Externa') !== convState.canal) return false;
-      if(convState.asesor  && m.asesor_lead !== convState.asesor) return false;
-      return true;
-    });
+    const _mfMod = convFiltraFacturas(CONV.master_facturas, {mes:true, modelo:true});
     const _vtaModMes = {};
     _mfMod.forEach(m => {
       if(!m.qty || !m.cohorte_ym) return;
@@ -10492,12 +10511,8 @@ HTML = r"""<!doctype html>
   // contaba con clientes_flat.cerro y por eso no cuadraba con las tarjetas.
   function convCompradoresCohorte(CONV, ym){
     const pv = {};
-    (CONV.master_facturas || []).forEach(m => {
+    convFiltraFacturas(CONV.master_facturas, {mes:true}).forEach(m => {
       if (m.cohorte_ym !== ym || !m.persona_id || !m.qty) return;
-      if (convState.agencia && m.agencia !== convState.agencia) return;
-      if (convState.asesor  && m.asesor_lead !== convState.asesor) return;
-      if (convState.modelo  && m.modelo_lead !== convState.modelo) return;
-      if (convState.canal   && m.canal_lead  !== convState.canal)  return;
       const k = m.persona_id + '||' + (m.vin || '');
       pv[k] = (pv[k] || 0) + m.qty;
     });
@@ -10511,7 +10526,9 @@ HTML = r"""<!doctype html>
   function convMesesEje(CONV){
     const NOM = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
                  'Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    const meses = [...new Set((CONV.clientes_flat||[]).map(c => c.first_ym).filter(Boolean))].sort();
+    const ok = convMesesOk();
+    const meses = [...new Set((CONV.clientes_flat||[]).map(c => c.first_ym).filter(Boolean))]
+      .filter(m => !ok.size || ok.has(m)).sort();
     return { meses, labels: meses.map(m => NOM[+m.slice(5,7)]) };
   }
 
@@ -10546,20 +10563,9 @@ HTML = r"""<!doctype html>
     }
 
     // Aplicar todos los demás filtros (el gráfico separa por mes en el eje X)
-    const filtered = CONV.clientes_flat.filter(c => {
-      if(convState.agencia && c.agencia !== convState.agencia) return false;
-      if(convState.zona    && c.zona    !== convState.zona)    return false;
-      if(convState.modelo  && c.modelo  !== convState.modelo)  return false;
-      if(convState.canal   && c.canal   !== convState.canal)   return false;
-      if(convState.asesor  && c.asesor  !== convState.asesor)  return false;
-      return true;
-    });
+    const filtered = convFiltraClientes(CONV.clientes_flat, {mes:true});
 
-    const _mfFiltradas = (CONV.master_facturas || []).filter(f =>
-      (!convState.agencia || f.agencia === convState.agencia) &&
-      (!convState.asesor  || f.asesor_lead === convState.asesor) &&
-      (!convState.modelo  || f.modelo_lead === convState.modelo) &&
-      (!convState.canal   || f.canal_lead  === convState.canal));
+    const _mfFiltradas = convFiltraFacturas(CONV.master_facturas, {mes:true});
 
     // Compradores sin cohorte: se les facturó pero nunca aparecieron en la BD de
     // tráfico del año (flota, gestión externa, o primer contacto en 2025). No tienen
