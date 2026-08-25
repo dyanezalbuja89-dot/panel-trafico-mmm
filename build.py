@@ -6371,7 +6371,18 @@ HTML = r"""<!doctype html>
 
   function renderAsignacion(){
     try {
-      renderAsigKPIs(); renderAsigZona(); renderAsigModelos(); renderAsigInsights();
+      renderAsigKPIs(); renderAsigZona(); renderAsigInsights();
+      // Chart.js fija el tamaño del canvas al construirse. Si el contenedor todavía
+      // no tiene ancho (la pestaña acaba de recibir .active y el navegador aún no
+      // aplicó el layout), los canvas quedan en 0px de ancho y no se dibuja nada.
+      // Se espera a que el contenedor mida, con un tope para no colgarse.
+      const box = document.getElementById('asig-modelos');
+      let intentos = 0;
+      (function esperarAncho(){
+        if(box && box.clientWidth > 0) return renderAsigModelos();
+        if(++intentos > 40) return renderAsigModelos();   // ~2s: dibuja igual
+        setTimeout(esperarAncho, 50);
+      })();
     } catch(e){ console.error('[asignacion]', e); }
   }
   // Red de seguridad: si algún canvas quedó con ancho 0 (pestaña oculta al construir,
