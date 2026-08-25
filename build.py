@@ -5506,6 +5506,7 @@ HTML = r"""<!doctype html>
     <div class="ford-section">
       <h3>💰 Dónde está la plata y dónde está el producto
         <span class="sub">Inversión de pauta, tráfico y unidades disponibles, por modelo y zona · 2026</span></h3>
+      <div id="asig-costo-nota" style="font-size:12px;margin:2px 0 12px"></div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;background:#fff8e1;padding:10px;border-radius:6px">
         <strong>Sierra</strong> = Quito (La Y + Tumbaco) · <strong>Costa</strong> = Guayaquil, Manta, Portoviejo y Machala.<br>
         <strong>Disponible</strong> = unidades en esa vitrina, ya arribadas, sin facturar y sin reserva de cliente: lo que un asesor puede mostrar hoy.
@@ -6047,7 +6048,7 @@ HTML = r"""<!doctype html>
     if(tab === 'asignacion'){
       const p = DATA.pauta;
       const inv = p ? ('$' + Math.round(p.total).toLocaleString('es')) : '—';
-      return 'Pauta × tráfico × producto · ' + inv + ' invertidos en 2026';
+      return 'Pauta × tráfico × producto · ' + inv + ' facturados en 2026';
     }
     if(tab === 'conv'){
       const g = convGet()?.global;
@@ -6194,6 +6195,22 @@ HTML = r"""<!doctype html>
     return {MODS, SIERRA, COSTA, mesesActivos, mesesCerrados, trafico, stock, inversion, num};
   })();
 
+  // Qué se está contando como inversión. Sin esto, el número parece el consumo de
+  // Ads Manager y no lo es: le faltarían un tercio de los costos reales.
+  function renderAsigCostoNota(){
+    const el = document.getElementById('asig-costo-nota'); if(!el) return;
+    const c = DATA.pauta?.costo;
+    if(!c){ el.innerHTML = ''; return; }
+    const r = c.recargos || {};
+    const pc = v => (v*100).toFixed(v*100 % 1 ? 1 : 0).replace('.', ',') + '%';
+    el.innerHTML = `<div style="background:#fff8e6;border-left:3px solid #b8860b;padding:8px 12px;border-radius:0 6px 6px 0;color:var(--ink)">
+      <strong>Las cifras son el costo facturado, no el consumo de plataforma.</strong>
+      Sobre el neto van ${pc(r.rep_medios)} del representante de medios y ${pc(r.isd)} de ISD;
+      sobre ese subtotal, dos comisiones de agencia de ${pc(r.ag_xiy)}. Factor
+      <strong>${String(c.factor).replace('.', ',')}×</strong> — las comisiones se calculan sobre el
+      PVP, no sobre el neto, por eso no es 1,30.</div>`;
+  }
+
   function renderAsigKPIs(){
     const box = document.getElementById('asig-kpis'); if(!box) return;
     if(!DATA.pauta){ box.innerHTML = '<div class="footer-note">Sin datos de pauta.</div>'; return; }
@@ -6211,7 +6228,9 @@ HTML = r"""<!doctype html>
     const brecha = co.cpt ? (si.cpt/co.cpt) : 0;
     box.innerHTML =
       card('Inversión 2026', '$'+Math.round(DATA.pauta.total).toLocaleString('es'),
-           `${DATA.pauta.meses.length} meses de pauta`) +
+           DATA.pauta.total_neto
+             ? `${DATA.pauta.meses.length} meses · costo facturado · neto en plataforma $${Math.round(DATA.pauta.total_neto).toLocaleString('es')}`
+             : `${DATA.pauta.meses.length} meses de pauta`) +
       card('Costo por tráfico · Sierra', '$'+Math.round(si.cpt),
            `${Math.round(100*si.inv/(si.inv+co.inv))}% del presupuesto · ${Math.round(100*si.tr/(si.tr+co.tr))}% del tráfico`, '#c62828') +
       card('Costo por tráfico · Costa', '$'+Math.round(co.cpt),
@@ -6417,7 +6436,7 @@ HTML = r"""<!doctype html>
 
   function renderAsignacion(){
     try {
-      renderAsigKPIs(); renderAsigZona(); renderAsigInsights();
+      renderAsigCostoNota(); renderAsigKPIs(); renderAsigZona(); renderAsigInsights();
       // Chart.js fija el tamaño del canvas al construirse. Si el contenedor todavía
       // no tiene ancho (la pestaña acaba de recibir .active y el navegador aún no
       // aplicó el layout), los canvas quedan en 0px de ancho y no se dibuja nada.

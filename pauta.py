@@ -23,6 +23,30 @@ MES_KEY = {c: f'{c.lower()}_2026' for c in CARPETAS}
 
 FAMILIAS = ['TERRITORY', 'RANGER', 'EVEREST', 'EXPLORER', 'ESCAPE', 'BRONCO', 'EXPEDITION']
 
+# ── Costo REAL de la pauta ────────────────────────────────────────────────
+# El Excel de presupuesto trae el CONSUMIDO EN PLATAFORMA (neto). Lo que ORGU
+# termina pagando es bastante más: encima van el representante de medios, el ISD
+# y las dos comisiones de agencia. Estructura tomada de la liquidación Meta
+# (24-ago-2026), donde $11.944,58 de consumo se facturan como $15.796,71:
+#
+#   PVP        = neto × (1 + rep_medios + isd)     ← 10% + 5%   = ×1,15
+#   a facturar = PVP  × (1 + ag_xiy + ag_bba)      ← 7,5% + 7,5% = ×1,15
+#
+# ⚠ Las comisiones de agencia se calculan sobre el PVP, NO sobre el neto: por eso
+#   el factor total es 1,15 × 1,15 = 1,3225 y no 1 + 10 + 5 + 7,5 + 7,5 = 1,30.
+#
+# ⚠ El factor sale de una liquidación de META. Se aplica a todos los canales
+#   mientras no haya evidencia de otra estructura para Google/TikTok/influencers.
+RECARGOS = {
+    'rep_medios': 0.100,   # Cisneros — representante de Meta en Ecuador
+    'isd':        0.050,   # impuesto a la salida de divisas
+    'ag_xiy':     0.075,   # comisión de agencia
+    'ag_bba':     0.075,   # comisión de agencia
+}
+FACTOR_PVP   = 1 + RECARGOS['rep_medios'] + RECARGOS['isd']   # 1.15
+FACTOR_AGENC = 1 + RECARGOS['ag_xiy'] + RECARGOS['ag_bba']    # 1.15
+FACTOR_COSTO = FACTOR_PVP * FACTOR_AGENC                      # 1.3225
+
 # Canales que aparecen como bloque propio en algún mes (julio trae TIKTOK con su
 # propia columna Costa). Son inversión igual que los demás bloques.
 CANALES_EXTRA = {'TIKTOK', 'INFLUENCERS', 'GOOGLE', 'GOOGLE SEARCH'}
@@ -130,7 +154,11 @@ def _leer_mes(path):
             filas.append({'producto': str(r.iloc[j_prod]).strip(), 'familia': fam,
                           'cpl': _n0(r.iloc[j_cpl]) if j_cpl is not None else 0.0,
                           'leads': _n0(r.iloc[j_leads]) if j_leads is not None else 0.0,
-                          'zona': zona, 'bloque': bloque, 'monto': monto})
+                          'zona': zona, 'bloque': bloque,
+                          # `monto` es lo que se FACTURA. El neto de plataforma queda
+                          # aparte para poder auditar el recargo.
+                          'monto': monto * FACTOR_COSTO,
+                          'monto_neto': monto})
     return filas
 
 
@@ -158,16 +186,19 @@ def build_pauta():
     if not flat:
         return None
 
-    def _agg(claves):
+    def _agg(claves, campo='monto'):
         out = {}
         for f in flat:
             k = tuple(f[c] for c in claves)
-            out[k] = out.get(k, 0.0) + f['monto']
+            out[k] = out.get(k, 0.0) + f[campo]
         return out
 
     por_mes = {}
     for (m,), v in _agg(['mes']).items():
         por_mes[m] = round(v, 2)
+    por_mes_neto = {}
+    for (m,), v in _agg(['mes'], 'monto_neto').items():
+        por_mes_neto[m] = round(v, 2)
     por_modelo = {}
     for (mod, m), v in _agg(['familia', 'mes']).items():
         por_modelo.setdefault(mod, {})[m] = round(v, 2)
@@ -199,9 +230,26 @@ def build_pauta():
         'por_bloque': por_bloque,
         'leads_presupuestados': {k: round(v) for k, v in leads_mes.items()},
         'total': round(sum(por_mes.values()), 2),
+        # Neto de plataforma, para auditar el recargo
+        'por_mes_neto': por_mes_neto,
+        'total_neto': round(sum(por_mes_neto.values()), 2),
+        'costo': {
+            'factor': round(FACTOR_COSTO, 6),
+            'recargos': RECARGOS,
+            'formula': 'facturado = neto × (1 + rep_medios + isd) × (1 + ag_xiy + ag_bba)',
+            'nota': 'Las comisiones de agencia van sobre el PVP, no sobre el neto: '
+                    'el factor es 1,15 × 1,15 = 1,3225, no 1,30.',
+            'fuente': 'Liquidación Meta compartida el 24-ago-2026 '
+                      '($11.944,58 de consumo → $15.796,71 a facturar).',
+        },
         'doc': {
             'que_es': 'Presupuesto de pauta digital Ford, de los Excel mensuales de OneDrive. '
                       'Es lo PLANIFICADO, no lo ejecutado en Ads Manager.',
+            'cuanto_cuesta': 'Las cifras son el COSTO FACTURADO: el neto de plataforma más el '
+                             '10% del representante, el 5% de ISD y dos comisiones de agencia '
+                             'de 7,5% sobre el PVP. El neto vive en total_neto / por_mes_neto.',
+            'ojo_cpl': 'El CPL y los leads presupuestados vienen del Excel y están calculados '
+                       'sobre el NETO. No se les aplicó el recargo.',
             'zonas': 'Sierra = Quito (La Y + Tumbaco). Costa = Guayaquil, Manta, Portoviejo y Machala.',
             'bloques': 'ene–jul: leads · awareness (AYF) · posicionamiento. '
                        'Desde agosto: leads · awareness · consideración.',
@@ -216,7 +264,8 @@ if __name__ == '__main__':
     r = build_pauta()
     if not r:
         raise SystemExit('sin datos de pauta')
-    print(f"total ${r['total']:,.0f} · {len(r['meses'])} meses")
+    print(f"total facturado ${r['total']:,.0f} · neto ${r['total_neto']:,.0f} "
+          f"· factor {r['costo']['factor']} · {len(r['meses'])} meses")
     for m in r['meses']:
         print(f"  {m:16} ${r['por_mes'][m]:>10,.0f}")
     print('\npor zona:', {k: round(sum(v.values())) for k, v in r['por_zona'].items()})

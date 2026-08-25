@@ -239,6 +239,28 @@ def check_pauta(d):
 
 
 # ── 6 · Versión del caché ────────────────────────────────────────────────────
+def check_pauta_costo(d):
+    """La pauta se publica como costo FACTURADO. Si alguien vuelve a emitir el neto
+    (o cambia un recargo sin querer), el costo por persona del panel se desploma
+    un 24% sin que nada falle."""
+    p = (d.get('pauta') or {})
+    c = p.get('costo') or {}
+    neto, tot, factor = p.get('total_neto'), p.get('total'), c.get('factor')
+    if not (neto and tot and factor):
+        warn('pauta costo', 'falta total_neto / total / costo.factor en el nodo pauta')
+        return
+    esperado = round(neto * factor, 2)
+    if abs(esperado - tot) > 1.0:
+        fail('pauta costo', f'facturado ${tot:,.0f} ≠ neto ${neto:,.0f} × {factor} = ${esperado:,.0f}')
+        return
+    r = c.get('recargos') or {}
+    f_calc = (1 + r.get('rep_medios', 0) + r.get('isd', 0)) * (1 + r.get('ag_xiy', 0) + r.get('ag_bba', 0))
+    if abs(f_calc - factor) > 1e-6:
+        fail('pauta costo', f'el factor {factor} no sale de los recargos declarados ({f_calc:.6f})')
+        return
+    ok('pauta costo', f'neto ${neto:,.0f} × {factor} = ${tot:,.0f} facturados')
+
+
 def check_cache():
     """Si se cambia un criterio de cálculo sin subir la versión, los meses viejos
     se sirven con el criterio anterior y solo cambia el mes en curso."""
@@ -310,6 +332,7 @@ def main():
     check_meses(d)
     check_disp_por_agencia(d)
     check_pauta(d)
+    check_pauta_costo(d)
     check_sin_modelo(d)
     check_cache()
 
