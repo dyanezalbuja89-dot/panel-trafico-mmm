@@ -2012,7 +2012,7 @@ HTML = r"""<!doctype html>
   .meta-bar{position:relative;background:#eef1f5;height:18px;border-radius:5px;overflow:hidden;margin-top:3px}
   .meta-bar .fill{position:absolute;top:0;left:0;bottom:0;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding:0 6px;font-size:10px;font-weight:700;color:#fff;min-width:24px}
   .meta-bar .fill.green{background:linear-gradient(90deg,#2e7d32,#66bb6a)}
-  .meta-bar .fill.yellow{background:linear-gradient(90deg,#f57f17,#ffb74d);color:#fff}
+  .meta-bar .fill.yellow{background:linear-gradient(90deg,#eab308,#fde047);color:#422006;text-shadow:none}
   .meta-bar .fill.red{background:linear-gradient(90deg,#c62828,#ef5350)}
   .meta-bar .marker{position:absolute;top:-2px;bottom:-2px;width:2px;background:#1c2434;z-index:2}
 
@@ -2355,16 +2355,16 @@ HTML = r"""<!doctype html>
   @keyframes hm-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
   @media (prefers-reduced-motion: reduce){.hm-cur-icon{animation:none}}
   /* 5 niveles de color (light) */
-  #an-tbl-cruce-heat .hm-c-crit{background:#fecaca; color:#7f1d1d}
-  #an-tbl-cruce-heat .hm-c-bad {background:#fde0d8; color:#9a3412}
+  #an-tbl-cruce-heat .hm-c-crit{background:#f87171; color:#450a0a}
+  #an-tbl-cruce-heat .hm-c-bad {background:#fecaca; color:#7f1d1d}
   #an-tbl-cruce-heat .hm-c-warn{background:#fef3c7; color:#854d09}
   #an-tbl-cruce-heat .hm-c-ok  {background:#d1fae5; color:#14532d}
   #an-tbl-cruce-heat .hm-c-over{background:#86efac; color:#052e16}
   #an-tbl-cruce-heat .hm-c-cur {background:#e0e7ff; color:#3730a3}
   #an-tbl-cruce-heat .hm-c-na  {background:var(--c-slate-50); color:var(--c-muted)}
   /* Dark mode */
-  html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-crit{background:#7f1d1d; color:#fecaca}
-  html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-bad {background:#7c2d12; color:#fed7aa}
+  html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-crit{background:#991b1b; color:#fecaca}
+  html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-bad {background:#7f1d1d; color:#fca5a5}
   html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-warn{background:#78350f; color:#fde68a}
   html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-ok  {background:#14532d; color:#a7f3d0}
   html[data-theme="dark"] #an-tbl-cruce-heat .hm-c-over{background:#052e16; color:#6ee7b7}
@@ -3106,7 +3106,7 @@ HTML = r"""<!doctype html>
             <span style="width:6px;height:8px;background:var(--c-amber-100)"></span>
             <span style="width:10px;height:8px;background:var(--c-emerald-100)"></span>
           </span>
-          Bandas: &lt;50% riesgo · 50-70% alerta · ≥70% sano
+          Bandas: &lt;80% riesgo · 80-89% alerta · ≥90% sano
         </span>
       </div>
     </div>
@@ -3160,7 +3160,7 @@ HTML = r"""<!doctype html>
         <tbody></tbody>
       </table>
       </div>
-      <div class="legend">🟢 ≥100% al ritmo &nbsp;|&nbsp; 🟡 ≥70% &nbsp;|&nbsp; 🔴 &lt;70% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta, con tráfico. <em>Hover para ver ambos valores.</em></div>
+      <div class="legend">🟢 ≥90% al ritmo &nbsp;|&nbsp; 🟡 80-89% &nbsp;|&nbsp; 🔴 &lt;80% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta, con tráfico. <em>Hover para ver ambos valores.</em></div>
     </div>
 
     <!-- DISTRIBUCIÓN POR CANAL -->
@@ -3357,7 +3357,7 @@ HTML = r"""<!doctype html>
               <span style="width:6px;height:8px;background:var(--c-amber-100)"></span>
               <span style="width:10px;height:8px;background:var(--c-emerald-100)"></span>
             </span>
-            Bandas: &lt;50% riesgo · 50-70% alerta · ≥70% sano
+            Bandas: &lt;80% riesgo · 80-89% alerta · ≥90% sano
           </span>
         </div>
       </div>
@@ -3403,7 +3403,7 @@ HTML = r"""<!doctype html>
           <tbody></tbody>
         </table>
         </div>
-        <div class="legend">🟢 ≥100% al ritmo &nbsp;|&nbsp; 🟡 ≥70% &nbsp;|&nbsp; 🔴 &lt;70% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta, con tráfico. <em>Hover para ver ambos valores.</em></div>
+        <div class="legend">🟢 ≥90% al ritmo &nbsp;|&nbsp; 🟡 80-89% &nbsp;|&nbsp; 🔴 &lt;80% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta, con tráfico. <em>Hover para ver ambos valores.</em></div>
       </div>
 
       <!-- DISTRIBUCIÓN POR CANAL -->
@@ -3736,7 +3736,7 @@ HTML = r"""<!doctype html>
           <tbody></tbody>
         </table>
       </div>
-      <div style="font-size:11px;color:var(--c-muted);margin-top:6px">Cada celda: real / meta · color = cumplimiento (verde ≥100% · amarillo 80-99 · naranja 50-79 · rojo &lt;50). Solo Ford tiene meta de ventas oficial cargada.</div>
+      <div style="font-size:11px;color:var(--c-muted);margin-top:6px">Cada celda: real / meta · color = cumplimiento (verde ≥90% · amarillo 80-89% · rojo &lt;80%). Solo Ford tiene meta de ventas oficial cargada.</div>
     </div>
 
     <!-- NOTAS DE CRÉDITO · auditoría -->
@@ -3806,7 +3806,7 @@ HTML = r"""<!doctype html>
       </div>
     </div>
 
-    <div class="footer-note">Cumpl% por fila · color verde ≥100% · amarillo 80-99% · naranja 50-79% · rojo &lt;50% · Fuente meta: NUEVO_AI_FORD; Fuente real: Base de ventas YTD NETOS.</div>
+    <div class="footer-note">Cumpl% por fila · color verde ≥90% · amarillo 80-89% · rojo &lt;80% · Fuente meta: NUEVO_AI_FORD; Fuente real: Base de ventas YTD NETOS.</div>
   </section>
 
   <!-- ======================= TAB INVENTARIO ======================= -->
@@ -5419,7 +5419,7 @@ HTML = r"""<!doctype html>
             <tbody></tbody>
           </table>
         </div>
-        <div class="legend">🟢 ≥100% &nbsp;|&nbsp; 🟡 ≥70% &nbsp;|&nbsp; 🔴 &lt;70% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta</div>
+        <div class="legend">🟢 ≥90% &nbsp;|&nbsp; 🟡 80-89% &nbsp;|&nbsp; 🔴 &lt;80% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta</div>
       </div>
 
       <!-- EVOLUCIÓN MES A MES -->
@@ -5437,9 +5437,9 @@ HTML = r"""<!doctype html>
         <div style="font-size:12px;color:var(--c-muted);margin-bottom:10px">
           Cada celda muestra el <strong>% cumplimiento de tráfico</strong>. <strong>Tap en la celda</strong> para ver detalle completo del modelo en todos los meses.
           <span style="display:inline-flex;flex-wrap:wrap;gap:6px;margin-left:8px;vertical-align:middle">
-            <span style="background:#fecaca;color:#7f1d1d;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">crítico &lt;50%</span>
-            <span style="background:#fde0d8;color:#9a3412;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">bajo 50-70%</span>
-            <span style="background:#fef3c7;color:#854d09;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">alerta 70-90%</span>
+            <span style="background:#f87171;color:#450a0a;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">crítico &lt;50%</span>
+            <span style="background:#fecaca;color:#7f1d1d;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">bajo 50-79%</span>
+            <span style="background:#fef3c7;color:#854d09;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">alerta 80-89%</span>
             <span style="background:#d1fae5;color:#14532d;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">ok 90-120%</span>
             <span style="background:#86efac;color:#052e16;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">sobre meta &gt;120%</span>
           </span>
@@ -5447,9 +5447,9 @@ HTML = r"""<!doctype html>
         <!-- Filtros rápidos por estado -->
         <div class="hm-filters" id="hm-filter-chips">
           <button class="hm-chip active" data-filter="all" type="button">Todos</button>
-          <button class="hm-chip" data-filter="crit" type="button"><span class="hm-chip-dot" style="background:#dc2626"></span> Críticos</button>
-          <button class="hm-chip" data-filter="bad" type="button"><span class="hm-chip-dot" style="background:#ea580c"></span> Bajos</button>
-          <button class="hm-chip" data-filter="warn" type="button"><span class="hm-chip-dot" style="background:#d97706"></span> En alerta</button>
+          <button class="hm-chip" data-filter="crit" type="button"><span class="hm-chip-dot" style="background:#991b1b"></span> Críticos</button>
+          <button class="hm-chip" data-filter="bad" type="button"><span class="hm-chip-dot" style="background:#dc2626"></span> Bajos</button>
+          <button class="hm-chip" data-filter="warn" type="button"><span class="hm-chip-dot" style="background:#eab308"></span> En alerta</button>
           <button class="hm-chip" data-filter="over" type="button"><span class="hm-chip-dot" style="background:#16a34a"></span> Sobre meta ★</button>
         </div>
         <!-- Heatmap mes × modelo -->
@@ -5463,7 +5463,7 @@ HTML = r"""<!doctype html>
         <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;margin-bottom:14px;padding:10px 14px;background:#f5f7fb;border-radius:6px;border:1px solid #e5e7eb;line-height:1.8">
           <strong style="text-transform:uppercase;letter-spacing:.4px;color:var(--ford-2);font-size:11px;width:100%">Cómo leer el color del fondo:</strong>
           <span><span style="display:inline-block;width:14px;height:14px;background:#c8e6c9;border-radius:3px;vertical-align:-2px"></span> ✅ <strong>verde</strong>: tráfico cumple meta Y se está vendiendo · o tráfico bajo está justificado por reservas con stock</span>
-          <span><span style="display:inline-block;width:14px;height:14px;background:#fff59d;border-radius:3px;vertical-align:-2px"></span> ⚠️ <strong>amarillo</strong>: tráfico parcial (60-85% meta)</span>
+          <span><span style="display:inline-block;width:14px;height:14px;background:#fff59d;border-radius:3px;vertical-align:-2px"></span> ⚠️ <strong>amarillo</strong>: tráfico parcial (80-89% meta)</span>
           <span><span style="display:inline-block;width:14px;height:14px;background:#ffcc80;border-radius:3px;vertical-align:-2px"></span> ⚠️ <strong>naranja</strong>: tráfico cumplió pero hay sobre-stock y no se vende — problema comercial</span>
           <span><span style="display:inline-block;width:14px;height:14px;background:#ffcdd2;border-radius:3px;vertical-align:-2px"></span> 🟥 <strong>rojo</strong>: 📦 sin stock · 🟥 sobre-stock crónico · 📉 caída real sin explicación</span>
           <span><span style="display:inline-block;width:14px;height:14px;background:#eceff1;border-radius:3px;vertical-align:-2px"></span> <strong>gris</strong>: sin meta o mes en curso</span>
@@ -5827,6 +5827,29 @@ HTML = r"""<!doctype html>
     return days.map(d => obj[d] || 0);
   }
 
+  // ─── ESCALA ÚNICA DE CUMPLIMIENTO VS META ───────────────────
+  // Regla (24-ago-2026): ≥90% verde · 80-89% amarillo · <80% rojo.
+  // Una sola definición para las 14 pestañas. Si el criterio cambia,
+  // se cambia AQUÍ y no hay que perseguir umbrales sueltos por el archivo.
+  // OJO: aplica solo a % de cumplimiento contra meta. Las tasas de
+  // conversión, cierre y aprobación de crédito tienen su propia escala.
+  const CUMPL_VERDE = 90, CUMPL_AMARILLO = 80;
+  function cumplNivel(p){
+    if(p == null || isNaN(p)) return null;
+    return p >= CUMPL_VERDE ? 'green' : p >= CUMPL_AMARILLO ? 'yellow' : 'red';
+  }
+  const CUMPL_HEX  = {green:'#16a34a', yellow:'#eab308', red:'#dc2626'};
+  const cumplClass = p => cumplNivel(p) || 'red';
+  const cumplHex   = p => CUMPL_HEX[cumplNivel(p)] || '#9ca3af';
+  // Fondo suave para celdas de tabla (real vs meta)
+  function cumplBg(p, alpha){
+    const nv = cumplNivel(p); if(!nv) return '';
+    const a = alpha || 0.25;
+    return nv === 'green'  ? `background:rgba(22,163,74,${a});color:#0f3d20`
+         : nv === 'yellow' ? `background:rgba(234,179,8,${a});color:#713f12`
+         :                   `background:rgba(220,38,38,${a + 0.04});color:#7f1d1d`;
+  }
+
   // ─── ANOMALY MARKER HELPER ──────────────────────────────────
   // setAnomaly(el, pct, opts) → pone/quita un pill en la esquina
   // pct: número porcentual (no fracción). 15 = 15%.
@@ -5976,11 +5999,7 @@ HTML = r"""<!doctype html>
     if(lbl) lbl.textContent = 'Cumplimiento de Tráfico · ' + item.display;
     if(v){
       v.textContent = item.cumpl == null ? '—' : item.cumpl + '%';
-      // Thresholds: ≥90% verde intenso · 80-89% amarillo intenso · <80% rojo intenso.
-      v.style.color = item.cumpl == null ? '#fff'
-        : item.cumpl >= 90 ? '#16a34a'   /* green-600 — verde intenso */
-        : item.cumpl >= 80 ? '#eab308'   /* yellow-500 — amarillo intenso */
-        : '#dc2626';                      /* red-600 — rojo intenso */
+      v.style.color = item.cumpl == null ? '#fff' : cumplHex(item.cumpl);
       v.style.textShadow = item.cumpl == null ? 'none' : '0 0 1px rgba(0,0,0,.3)';
       v.style.fontWeight = '800';
       // Fade-in suave
@@ -6467,7 +6486,6 @@ HTML = r"""<!doctype html>
   const CLEAN_MODEL = m => m && m !== 'NAN' && m !== 'nan';
   const CLEAN_BRAND = b => b && b !== 'nan';
   const deltaCell = d => d>0?`<span class="delta-pos">▲ ${d}</span>`:d<0?`<span class="delta-neg">▼ ${Math.abs(d)}</span>`:`<span class="delta-zero">— 0</span>`;
-  const cumplClass = p => p>=100?'green':p>=70?'yellow':'red';
   function topN(obj,n,filter){
     let e = Object.entries(obj||{});
     if(filter) e = e.filter(([k])=>filter(k));
@@ -6801,9 +6819,9 @@ HTML = r"""<!doctype html>
     document.getElementById('hp-actual').style.width = pctCurr+'%';
     document.getElementById('hp-proj').style.width = pctProj+'%';
     document.getElementById('hp-proj').style.background = k.cumpl_proj==null?'linear-gradient(90deg,#003478,#5c84d6)'
-      : k.cumpl_proj>=100?'linear-gradient(90deg,#2e7d32,#66bb6a)'
-      : k.cumpl_proj>=70 ?'linear-gradient(90deg,#f57f17,#ffb74d)'
-      :                    'linear-gradient(90deg,#c62828,#ef5350)';
+      : cumplNivel(k.cumpl_proj)==='green' ? 'linear-gradient(90deg,#2e7d32,#66bb6a)'
+      : cumplNivel(k.cumpl_proj)==='yellow'? 'linear-gradient(90deg,#f57f17,#ffb74d)'
+      :                                      'linear-gradient(90deg,#c62828,#ef5350)';
     const meta = document.getElementById('hp-meta');
     if(pctMeta==null){ meta.style.display='none'; }
     else { meta.style.display=''; meta.style.left = pctMeta+'%'; }
@@ -6817,8 +6835,8 @@ HTML = r"""<!doctype html>
     document.getElementById('ff-gauge-value').textContent = k.cumpl_proj==null? '—' : k.cumpl_proj+'%';
     const tag = document.getElementById('ff-gauge-tag');
     if(k.cumpl_proj==null){ tag.textContent='sin meta'; tag.style.background='#f5f5f5'; tag.style.color='#999'; }
-    else if(k.cumpl_proj>=100){ tag.textContent='🟢 en meta'; tag.style.background='var(--green-bg)'; tag.style.color='var(--green-tx)'; }
-    else if(k.cumpl_proj>=70){ tag.textContent='🟡 alerta'; tag.style.background='var(--yellow-bg)'; tag.style.color='var(--yellow-tx)'; }
+    else if(k.cumpl_proj>=CUMPL_VERDE){ tag.textContent='🟢 en meta'; tag.style.background='var(--green-bg)'; tag.style.color='var(--green-tx)'; }
+    else if(k.cumpl_proj>=CUMPL_AMARILLO){ tag.textContent='🟡 alerta'; tag.style.background='var(--yellow-bg)'; tag.style.color='var(--yellow-tx)'; }
     else{ tag.textContent='🔴 riesgo'; tag.style.background='var(--red-bg)'; tag.style.color='var(--red-tx)'; }
     // El topbar-hero ya no se actualiza desde aquí — corre en rotación
     // automática vía topbarHeroRotateTick() · ver inicialización al final del script.
@@ -6832,8 +6850,8 @@ HTML = r"""<!doctype html>
     else if(cumpl>=100){ val=100; rem=0; }
     else { val=cumpl; rem=100-cumpl; }
     const color = cumpl==null?'#d1d5db'
-      : cumpl>=100?'#2e7d32'
-      : cumpl>=70 ?'#f57f17'
+      : cumplNivel(cumpl)==='green' ?'#2e7d32'
+      : cumplNivel(cumpl)==='yellow'?'#f57f17'
       :            '#c62828';
     charts['ff-gauge'] = new Chart(document.getElementById('ff-gauge'),{
       type:'doughnut',
@@ -6888,14 +6906,14 @@ HTML = r"""<!doctype html>
   // ─── BULLET CHARTS: cumplimiento por agencia/modelo ───
   // Reemplaza el chart canvas (que era código muerto) por una vista
   // CSS-pura más compacta y profesional. Cada bullet muestra:
-  //   - Banda de zonas (rojo <50%, ámbar 50-70%, verde ≥70%)
+  //   - Banda de zonas según la escala única de cumplimiento
   //   - Barra azul Ford con la proyección
   //   - Marker negro en la meta
   //   - % cumplimiento + valores absolutos
   function ffBulletClasses(cumpl){
     if(cumpl == null) return {col:'zero', tag:'sin meta'};
-    if(cumpl >= 100)  return {col:'good', tag:'en meta'};
-    if(cumpl >= 70)   return {col:'warn', tag:'alerta'};
+    if(cumpl >= CUMPL_VERDE)    return {col:'good', tag:'en meta'};
+    if(cumpl >= CUMPL_AMARILLO) return {col:'warn', tag:'alerta'};
     return {col:'bad', tag:'riesgo'};
   }
   function ffRenderBullet(item, isActive, onClickHandler){
@@ -7318,7 +7336,7 @@ HTML = r"""<!doctype html>
         const metaAlDia = meta * dayRatio;
         const pctAlDia = metaAlDia>0 ? (cnt/metaAlDia*100) : 0;
         const pctMes = 100*cnt/meta;
-        const cls = pctAlDia>=100?'green':pctAlDia>=70?'yellow':'red';
+        const cls = cumplClass(pctAlDia);
         const tip = `Al ritmo del día: ${pctAlDia.toFixed(0)}% (esperado ${metaAlDia.toFixed(1)})\nAvance del mes: ${pctMes.toFixed(0)}% (${cnt} de ${meta})`;
         return `<td class="cell ${cls}" title="${tip}" data-model="${m}" data-dealer="${d}" style="cursor:pointer"><div class="cell-with-count"><span>${pctAlDia.toFixed(0)}%</span><span class="ct">${cnt}/${meta}</span></div></td>`;
       }).join('');
@@ -7331,7 +7349,7 @@ HTML = r"""<!doctype html>
       let estado='—';
       if(vals.length){
         const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
-        estado = vals.every(v=>v>=100)?'🟢': avg>=70?'🟡':'🔴';
+        estado = vals.every(v=>v>=CUMPL_VERDE)?'🟢': avg>=CUMPL_AMARILLO?'🟡':'🔴';
       }
       return `<tr><td class="left">${m}${fstate.modelo===m?'<span class="pill active-filter">✓</span>':''}</td>${cells}<td style="font-weight:700">${estado}</td></tr>`;
     }).join('');
@@ -7725,7 +7743,7 @@ HTML = r"""<!doctype html>
     else if(cumpl>=100){ val=100; rem=0; }
     else { val=cumpl; rem=100-cumpl; }
     const color = cumpl==null?'#d1d5db'
-      : cumpl>=100?'#2e7d32' : cumpl>=70?'#f57f17' : '#c62828';
+      : cumplNivel(cumpl)==='green'?'#2e7d32' : cumplNivel(cumpl)==='yellow'?'#f57f17' : '#c62828';
     charts['br-gauge'] = new Chart(document.getElementById('br-gauge'),{
       type:'doughnut',
       data:{labels:['Cumpl','Resto'],datasets:[{data:[val,rem],backgroundColor:[color,'#eef1f5'],borderWidth:0,circumference:270,rotation:225,cutout:'78%'}]},
@@ -7757,9 +7775,9 @@ HTML = r"""<!doctype html>
     document.getElementById('br-hp-actual').style.width = (100*k.curr/maxScale)+'%';
     document.getElementById('br-hp-proj').style.width = (100*k.projection/maxScale)+'%';
     document.getElementById('br-hp-proj').style.background = k.cumpl_proj==null?'linear-gradient(90deg,#003478,#5c84d6)'
-      : k.cumpl_proj>=100?'linear-gradient(90deg,#2e7d32,#66bb6a)'
-      : k.cumpl_proj>=70 ?'linear-gradient(90deg,#f57f17,#ffb74d)'
-      :                    'linear-gradient(90deg,#c62828,#ef5350)';
+      : cumplNivel(k.cumpl_proj)==='green' ? 'linear-gradient(90deg,#2e7d32,#66bb6a)'
+      : cumplNivel(k.cumpl_proj)==='yellow'? 'linear-gradient(90deg,#f57f17,#ffb74d)'
+      :                                      'linear-gradient(90deg,#c62828,#ef5350)';
     const m = document.getElementById('br-hp-meta');
     if(k.meta<=0){ m.style.display='none'; } else { m.style.display=''; m.style.left = (100*k.meta/maxScale)+'%'; }
     document.getElementById('br-hp-summary').innerHTML =
@@ -7770,8 +7788,8 @@ HTML = r"""<!doctype html>
     document.getElementById('br-gauge-value').textContent = k.cumpl_proj==null?'—': k.cumpl_proj+'%';
     const tag = document.getElementById('br-gauge-tag');
     if(k.cumpl_proj==null){ tag.textContent='sin meta'; tag.style.background='#f5f5f5'; tag.style.color='#999'; }
-    else if(k.cumpl_proj>=100){ tag.textContent='🟢 en meta'; tag.style.background='var(--green-bg)'; tag.style.color='var(--green-tx)'; }
-    else if(k.cumpl_proj>=70){ tag.textContent='🟡 alerta'; tag.style.background='var(--yellow-bg)'; tag.style.color='var(--yellow-tx)'; }
+    else if(k.cumpl_proj>=CUMPL_VERDE){ tag.textContent='🟢 en meta'; tag.style.background='var(--green-bg)'; tag.style.color='var(--green-tx)'; }
+    else if(k.cumpl_proj>=CUMPL_AMARILLO){ tag.textContent='🟡 alerta'; tag.style.background='var(--yellow-bg)'; tag.style.color='var(--yellow-tx)'; }
     else{ tag.textContent='🔴 riesgo'; tag.style.background='var(--red-bg)'; tag.style.color='var(--red-tx)'; }
 
     // ─── Anomaly markers (Brand) ───
@@ -7998,7 +8016,7 @@ HTML = r"""<!doctype html>
         const metaAlDia = meta * dayRatio;
         const pctAlDia = metaAlDia>0 ? (cnt/metaAlDia*100) : 0;
         const pctMes = 100*cnt/meta;
-        const cls = pctAlDia>=100?'green':pctAlDia>=70?'yellow':'red';
+        const cls = cumplClass(pctAlDia);
         const tip = `Al ritmo del día: ${pctAlDia.toFixed(0)}% (esperado ${metaAlDia.toFixed(1)})\nAvance del mes: ${pctMes.toFixed(0)}% (${cnt} de ${meta})`;
         return `<td class="cell ${cls}" title="${tip}" data-model="${m}" data-dealer="${d}" style="cursor:pointer"><div class="cell-with-count"><span>${pctAlDia.toFixed(0)}%</span><span class="ct">${cnt}/${meta}</span></div></td>`;
       }).join('');
@@ -8011,7 +8029,7 @@ HTML = r"""<!doctype html>
       let estado='—';
       if(vals.length){
         const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
-        estado = vals.every(v=>v>=100)?'🟢': avg>=70?'🟡':'🔴';
+        estado = vals.every(v=>v>=CUMPL_VERDE)?'🟢': avg>=CUMPL_AMARILLO?'🟡':'🔴';
       }
       return `<tr><td class="left">${m}${bstate.modelo===m?'<span class="pill active-filter">✓</span>':''}</td>${cells}<td style="font-weight:700">${estado}</td></tr>`;
     }).join('');
@@ -14069,14 +14087,14 @@ HTML = r"""<!doctype html>
     const ratio = meta>0 ? Math.min(1.5, real/meta) : 0;
     const w = Math.max(2, Math.round(100*ratio/1.5));
     const metaPos = Math.round(100*1/1.5);
-    const cls = pct==null?'red':pct>=100?'green':pct>=70?'yellow':'red';
+    const cls = cumplClass(pct);
     const pctStr = pct==null ? '—' : pct.toFixed(0)+'%';
     return `<div class="meta-bar">
       <div class="fill ${cls}" style="width:${w}%">${pct>=8?pctStr:''}</div>
       ${meta>0?`<div class="marker" style="left:${metaPos}%"></div>`:''}
     </div>`;
   }
-  function pctColor(pct){ return pct>=100?'var(--pos)':pct>=70?'#f57f17':'var(--neg)'; }
+  function pctColor(pct){ const nv=cumplNivel(pct); return nv==='green'?'var(--pos)':nv==='yellow'?'#f57f17':'var(--neg)'; }
   function fmtSigned(n){ return (n>=0?'+':'')+n; }
 
   function renderAnalysisFilterSummary(){
@@ -14101,7 +14119,7 @@ HTML = r"""<!doctype html>
     const gap = curr - meta;
     const k1 = document.getElementById('an-k1');
     k1.textContent = pct==null ? '—' : pct.toFixed(1)+'%';
-    k1.className = 'val ' + (pct==null?'':pct>=100?'pos':pct>=70?'warn':'neg');
+    k1.className = 'val ' + (pct==null?'':{green:'pos',yellow:'warn',red:'neg'}[cumplNivel(pct)]);
     document.getElementById('an-k1-lbl').textContent = 'Cumplimiento';
     const proRata = anHasInProgressMonth(months);
     document.getElementById('an-k1-hint').textContent = anViewLabel() + ' · ' + anCanalLabel() + (meta>0?` · ${curr}/${meta}`:'') + (proRata?' · meta al día':'');
@@ -14250,14 +14268,14 @@ HTML = r"""<!doctype html>
         if(meta===0 && real===0) return `<td class="cell dash" title="Sin tráfico ni meta">—</td>`;
         if(meta===0 && real>0) return `<td class="cell grey" title="${real} reg, sin meta"><div class="cell-with-count"><span>N/A</span><span class="ct">${real} reg</span></div></td>`;
         const pct = 100*real/meta;
-        const cls = pct>=100?'green':pct>=70?'yellow':'red';
+        const cls = cumplClass(pct);
         return `<td class="cell ${cls}" title="${m} en ${d}: ${real}/${meta} (${pct.toFixed(0)}%)"><div class="cell-with-count"><span>${pct.toFixed(0)}%</span><span class="ct">${real}/${meta}</span></div></td>`;
       }).join('');
       let totCell;
       if(rowMeta===0){ totCell = rowReal===0?`<td class="cell dash">—</td>`:`<td class="cell grey">N/A<br><span class="ct">${rowReal}</span></td>`; }
       else {
         const pct = 100*rowReal/rowMeta;
-        const cls = pct>=100?'green':pct>=70?'yellow':'red';
+        const cls = cumplClass(pct);
         totCell = `<td class="cell ${cls}" style="font-weight:700"><div class="cell-with-count"><span>${pct.toFixed(0)}%</span><span class="ct">${rowReal}/${rowMeta}</span></div></td>`;
       }
       return `<tr><td class="left">${m}</td>${cells}${totCell}</tr>`;
@@ -14469,7 +14487,7 @@ HTML = r"""<!doctype html>
         return {cls:'gray', emoji:'—', cumpl:null, sub:'sin meta', detail:'No hay meta cargada y no hubo actividad'};
       }
       const cumplT = r.cumpl;  // % cumplimiento de tráfico
-      const trafEnMeta = cumplT >= 85;
+      const trafEnMeta = cumplT >= CUMPL_VERDE;
       // Cumpl de ventas (puede ser null si no hay meta de ventas)
       const cumplV = r.metaVentas > 0 ? Math.round(100 * r.ventas / r.metaVentas) : null;
       const stockSom = r.disp_som ?? 0;
@@ -14503,7 +14521,7 @@ HTML = r"""<!doctype html>
         return {cls:'red', emoji:'📦', cumpl:cumplT, sub:'sin stock',
                 detail:`Solo ${stockSom} disp al inicio del mes — no había con qué generar interés`};
       }
-      if(cumplT >= 60){
+      if(cumplT >= CUMPL_AMARILLO){
         return {cls:'yellow', emoji:'⚠️', cumpl:cumplT, sub:'parcial',
                 detail:`Tráfico ${r.trafico}/${r.meta} (${cumplT}%) — bajo objetivo pero recuperable`};
       }
@@ -14541,9 +14559,9 @@ HTML = r"""<!doctype html>
     // 5 niveles de color (tokens semánticos)
     function level(cumpl){
       if(cumpl == null) return 'na';
-      if(cumpl < 50)  return 'crit';
-      if(cumpl < 70)  return 'bad';
-      if(cumpl < 90)  return 'warn';
+      if(cumpl < 50)             return 'crit';
+      if(cumpl < CUMPL_AMARILLO) return 'bad';
+      if(cumpl < CUMPL_VERDE)    return 'warn';
       if(cumpl <= 120)return 'ok';
       return 'over';
     }
@@ -14784,8 +14802,8 @@ HTML = r"""<!doctype html>
       const cumplT = r.cumpl;
       const cumplStr = cumplT == null ? '—' : cumplT + '%';
       const cumplCls = cumplT == null ? 'color:var(--muted)'
-                     : cumplT >= 100 ? 'color:var(--pos);font-weight:700'
-                     : cumplT >= 85  ? 'color:#f57f17;font-weight:700'
+                     : cumplT >= CUMPL_VERDE    ? 'color:var(--pos);font-weight:700'
+                     : cumplT >= CUMPL_AMARILLO ? 'color:#f57f17;font-weight:700'
                      : 'color:var(--neg);font-weight:700';
       const trafStr = r.meta > 0 ? `${r.trafico} / ${r.meta}` : `${r.trafico}`;
       const ventasStr = r.metaVentas > 0
@@ -15462,13 +15480,7 @@ HTML = r"""<!doctype html>
     thead.innerHTML = '<tr><th>Modelo</th>' +
       monthLabels.map(l=>`<th class="num">${l}</th>`).join('') +
       '<th class="num">YTD</th><th class="num">Cumpl</th></tr>';
-    function cumplColor(pct){
-      if(pct == null) return '';
-      if(pct >= 100) return 'background:rgba(22,163,74,0.25);color:#0f3d20';
-      if(pct >= 80)  return 'background:rgba(234,179,8,0.25);color:#713f12';
-      if(pct >= 50)  return 'background:rgba(234,88,12,0.25);color:#7c2d12';
-      return 'background:rgba(220,38,38,0.30);color:#7f1d1d';
-    }
+    const cumplColor = pct => cumplBg(pct, 0.25);
     let totalRealYTD = 0, totalMetaYTD = 0;
     let riskModel = null, riskGap = 0;
     const trs = modelos.map(m=>{
@@ -16047,13 +16059,7 @@ HTML = r"""<!doctype html>
     return 'OTROS';
   }
 
-  function mvCumplColor(pct){
-    if(pct == null) return '';
-    if(pct >= 100) return 'background:rgba(22,163,74,0.28);color:#0f3d20';
-    if(pct >= 80)  return 'background:rgba(234,179,8,0.28);color:#713f12';
-    if(pct >= 50)  return 'background:rgba(234,88,12,0.28);color:#7c2d12';
-    return 'background:rgba(220,38,38,0.32);color:#7f1d1d';
-  }
+  function mvCumplColor(pct){ return cumplBg(pct, 0.28); }
 
   function mvFillSelectors(){
     // (Marca ya no es <select> — es dropdown multi-check inicializado en initMetaVentas)
@@ -16240,7 +16246,7 @@ HTML = r"""<!doctype html>
       const w = Math.max(2, Math.round(100*ratio/1.5));
       const markerLeft = Math.round(100*1/1.5);
       const pct = Math.round(100*real/meta);
-      const col = pct >= 100 ? '#16a34a' : pct >= 80 ? '#eab308' : pct >= 50 ? '#ea580c' : '#dc2626';
+      const col = cumplHex(pct);
       return `<div style="position:relative;height:14px;background:#e5e7eb;border-radius:7px;width:160px">
         <div style="position:absolute;left:0;top:0;bottom:0;width:${w}%;background:${col};border-radius:7px"></div>
         <div style="position:absolute;left:${markerLeft}%;top:-2px;bottom:-2px;width:2px;background:#1e293b"></div>
