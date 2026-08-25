@@ -5,7 +5,8 @@ import json
 import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
-from inventario import load_inventario, DEFAULT_INVENTORY_PATH, _INVENTORY_DIRS, SIN_MODELO, SIN_MODELO_FORD
+from inventario import (load_inventario, DEFAULT_INVENTORY_PATH, _INVENTORY_DIRS,
+                        SIN_MODELO, SIN_MODELO_FORD, normalize_familia)
 from conversion import compute_conversion_metrics, norm_ced as _conv_norm_ced, cedula_base as _conv_cedula_base, norm_email as _conv_norm_email, norm_cel as _conv_norm_cel
 from competencia import compute_competencia_data
 from embudo import compute_embudo_data
@@ -2370,6 +2371,54 @@ def main():
             "base_in_matrix_meta": "marketing",    # qué representa matrix_meta
         },
     }
+    # ── Ventas del cruce: la cifra OFICIAL, no un reconteo del inventario ──────
+    # monthly_cross contaba las facturas presentes en el snapshot de inventario, y una
+    # unidad vendida y entregada hace meses ya no está en esa foto: el cruce mostraba
+    # 542 unidades Ford ene-jul contra las 635 de la pestaña Ventas (-15%), y junio
+    # salía 71 ("incumplió") contra 110 ("cumplió"). Es la misma familia del bug de
+    # snapshots ya corregido en ventas.py, _compute_ventas_mensual y checks_asesores;
+    # este era el cuarto archivo que quedó fuera.
+    #
+    # Se sobrescribe con ventas_mensual, que sale de DATOS 2 y cuadra con finanzas.
+    try:
+        _mc = (out.get("inventario") or {}).get("monthly_cross") or {}
+        _vm = out.get("ventas_mensual") or {}
+        _MARCA_INV = {"FORD": "FORD", "DONGFENG_ORGU": "DONGFENG", "CHERY_ORGU": "CHERY",
+                      "MAZDA_ORGU": "MAZDA", "RAM_ORGU": "RAM"}
+        _reemplazos = 0
+        for _marca, _meses in _mc.items():
+            _flat = ((_vm.get(_marca) or {}).get("flat")) or []
+            if not _flat:
+                continue
+            # {ym: total}, {(ym, familia): n}, {(ym, familia, agencia): n}
+            _tot, _porMod, _porModAg = {}, {}, {}
+            for _r in _flat:
+                _ym = str(_r.get("mes") or "")
+                if not _ym:
+                    continue
+                _q = _r.get("cantidad") or 0
+                _f = normalize_familia(_r.get("modelo"), _MARCA_INV.get(_marca, _marca))
+                if not _f:
+                    continue
+                _ag = _r.get("agencia")
+                _tot[_ym] = _tot.get(_ym, 0) + _q
+                _porMod[(_ym, _f)] = _porMod.get((_ym, _f), 0) + _q
+                if _ag:
+                    _porModAg[(_ym, _f, _ag)] = _porModAg.get((_ym, _f, _ag), 0) + _q
+            for _mk, _mv in _meses.items():
+                _ym = str(_mv.get("mes_start") or "")[:7]
+                if not _ym:
+                    continue
+                _mv["ventas"] = int(round(_tot.get(_ym, 0)))
+                for _mod, _md in (_mv.get("por_modelo") or {}).items():
+                    _md["ventas"] = int(round(_porMod.get((_ym, _mod), 0)))
+                    for _ag, _ad in (_md.get("por_agencia") or {}).items():
+                        _ad["ventas"] = int(round(_porModAg.get((_ym, _mod, _ag), 0)))
+                _reemplazos += 1
+        print(f"[monthly_cross] ventas tomadas de ventas_mensual en {_reemplazos} mes×marca")
+    except Exception as _e:
+        print(f"[monthly_cross] WARN no se pudo reconciliar ventas: {_e}")
+
     # Merge de inversión publicitaria Xiy (si existe data_xiy.json con el bloque
     # consolidated_for_panel listo). Lo metemos como out["xiy"] para que el panel
     # lo lea desde DATA.xiy en el tab Inversión.

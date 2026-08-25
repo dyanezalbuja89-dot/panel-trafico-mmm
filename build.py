@@ -6566,6 +6566,30 @@ HTML = r"""<!doctype html>
   //   dealer_model_channel, dealer_model_channel_prev,
   //   model_order, dealer_order, zone_order, zones (del último mes — typicalmente todas idénticas).
   // Campos de "día" (pace, daily, daily_breakdown) van vacíos — los charts dependientes manejan ese caso.
+  // Meses de 2026 CERRADOS de cualquier mapa mensual (Ford o una marca ORGU).
+  // Un mes está cerrado cuando su corte cae el último día del mes — mismo criterio
+  // que AN_MONTHS_2026 en Análisis General.
+  //
+  // ⚠ De aquí salían dos errores a la vez en el selector "YTD 2026":
+  //   1. se recorría MONTHS_CONFIG completo (20 meses: 2025 + 2026), así que el
+  //      numerador sumaba dos años contra una meta que solo existe en 2026 → Ford
+  //      mostraba 7.044 / 3.396 = 210% en VERDE cuando lo real es 2.578 / 2.898 = 89%;
+  //   2. entraba el mes en curso, contra su meta completa.
+  const _MESES_ES_YTD = ['enero','febrero','marzo','abril','mayo','junio','julio',
+                         'agosto','septiembre','octubre','noviembre','diciembre'];
+  function mesesCerrados2026(monthsMap){
+    return _MESES_ES_YTD
+      .map((m, i) => ({ key: m + '_2026', mes: i + 1 }))
+      .filter(o => {
+        const fm = monthsMap[o.key];
+        if(!fm || !(fm.total_curr > 0)) return false;
+        const p = String(fm.cut_date || '').split('/');   // dd/mm/aaaa
+        if(p.length !== 3) return false;
+        return Number(p[0]) >= new Date(2026, o.mes, 0).getDate();
+      })
+      .map(o => o.key);
+  }
+
   function buildYTD(monthsMap, keys){
     const ms = keys.map(k=>monthsMap[k]).filter(Boolean);
     if(!ms.length) return null;
@@ -6667,7 +6691,7 @@ HTML = r"""<!doctype html>
   (function initFFMonth(){
     const sel = document.getElementById('ff-month');
     if(!sel) return;
-    const ytdOpt = `<option value="ytd">YTD 2026 (acumulado)</option>`;
+    const ytdOpt = `<option value="ytd">YTD 2026 (meses cerrados)</option>`;
     sel.innerHTML = ytdOpt + MONTHS_CONFIG.map(c=>`<option value="${c.key}" ${c.key===currentMonthFF?'selected':''}>${c.label}</option>`).join('');
   })();
   // Populate Ford filters
@@ -7487,7 +7511,7 @@ HTML = r"""<!doctype html>
     ffMonthEl.addEventListener('change', e=>{
       const key = e.target.value;
       if(key === 'ytd'){
-        FORD = buildYTD(FORD_MONTHS, MONTHS_CONFIG.map(c=>c.key));
+        FORD = buildYTD(FORD_MONTHS, mesesCerrados2026(FORD_MONTHS));
         if(!FORD) return;
         currentMonthFF = 'ytd';
       } else {
@@ -7719,7 +7743,7 @@ HTML = r"""<!doctype html>
   (function initBRMonth(){
     const sel = document.getElementById('br-month');
     if(!sel) return;
-    const ytdOpt = `<option value="ytd">YTD 2026 (acumulado)</option>`;
+    const ytdOpt = `<option value="ytd">YTD 2026 (meses cerrados)</option>`;
     sel.innerHTML = ytdOpt + MONTHS_CONFIG.map(c=>`<option value="${c.key}" ${c.key===currentMonthBR?'selected':''}>${c.label}</option>`).join('');
   })();
 
@@ -8402,7 +8426,7 @@ HTML = r"""<!doctype html>
         BRANDS.forEach(b=>{
           const perMonthMap = {};
           monthKeys.forEach(mk=>{ const v = (BRANDS_MONTHS[mk]||{})[b]; if(v) perMonthMap[mk] = v; });
-          const ytd = buildYTD(perMonthMap, Object.keys(perMonthMap));
+          const ytd = buildYTD(perMonthMap, mesesCerrados2026(perMonthMap));
           if(ytd) ytdBrands[b] = ytd;
         });
         BRANDS_DATA = ytdBrands;
@@ -9811,19 +9835,16 @@ HTML = r"""<!doctype html>
     // Hero: TODO desde master_facturas para cuadre perfecto con widgets.
     const _mst = CONV.master_facturas || [];
     const _mstF = convFiltraFacturas(_mst);
-    const _mpaX = CONV.master_por_agencia || {};
     let n_traf, n_cerraron;
-    // Con filtro de asesor el tráfico sale de los clientes ya filtrados; el total de
-    // la agencia incluiría a los demás asesores.
-    // El total del backend solo vale cuando el único filtro es la agencia:
-    // cualquier otro filtro achica el universo y hay que contar el subset.
-    const _soloAgencia = convState.agencia && !convState.mes && !convState.zona &&
-                         !convState.modelo && !convState.canal && !convState.asesor;
-    if (_soloAgencia && _mpaX[convState.agencia]) {
-      n_traf = _mpaX[convState.agencia].traffic || 0;
-    } else {
-      n_traf = _uniq(clientes);
-    }
+    // El tráfico SIEMPRE sale de los clientes ya filtrados, nunca del nodo
+    // master_por_agencia del backend.
+    //
+    // ⚠ Ese nodo cuenta TODO 2026, incluido el mes en curso, mientras el numerador
+    //   corta en el último mes cerrado: daba una tasa de 7 meses sobre 8. La Y salía
+    //   48/524 = 9,2% cuando lo correcto es 48/469 = 10,2%, y las siete agencias
+    //   quedaban subestimadas (Machala 21,1% contra 25,7%). Además el hint del KPI
+    //   afirma "solo meses cerrados", o sea decía lo contrario de lo que calculaba.
+    n_traf = _uniq(clientes);
     // Compradores reales = pid con al menos un (pid,VIN) neto > 0.
     const _pvQtyH = {};
     _mstF.forEach(m => {
@@ -10023,16 +10044,12 @@ HTML = r"""<!doctype html>
     };
     _merge(aggCanal,   aggCanalT,   _mCanal);
     _merge(aggModelo,  aggModeloT,  _mModelo);
-    // Agencia: traffic desde master_por_agencia. Solo agencias en _mAgencia (respeta filtro).
-    const _mpa = CONV.master_por_agencia || {};
+    // Agencia: el tráfico sale SIEMPRE de los clientes filtrados, igual que el KPI.
+    // Con el nodo del backend las filas sumaban 3.554 contra un TOTAL de 3.221, y el
+    // aviso culpaba al solape de personas cuando el solape real son 15 y los otros
+    // 318 eran tráfico del mes en curso.
     Object.keys(_mAgencia).forEach(ag => {
-      // El total del backend es TODO el tráfico de la agencia. Solo sirve cuando
-      // ningún filtro achica el universo; con mes/zona/modelo/canal/asesor activo
-      // hay que contar desde los clientes filtrados, o la conversión sale contra
-      // un denominador inflado.
-      const t = _hayFiltroFino
-        ? (aggAgenciaT[ag] ? aggAgenciaT[ag].traffic : 0)
-        : (_mpa[ag] ? (_mpa[ag].traffic || 0) : 0);
+      const t = aggAgenciaT[ag] ? aggAgenciaT[ag].traffic : 0;
       const m = _mAgencia[ag].matched;
       const v = _mAgencia[ag].ventas;
       aggAgencia[ag] = {
@@ -10162,22 +10179,19 @@ HTML = r"""<!doctype html>
                    convState.canal || convState.asesor) ? 1 : 5;
     const entries = Object.entries(agg).filter(([,v])=>v.traffic >= _minB);
     if(entries.length === 0){ wrap.innerHTML = ''; return; }
-    // Promedio ORGU GLOBAL: siempre desde el breakdown backend completo (todas las
-    // agencias), no del subset filtrado — si filtras 1 agencia el "promedio" no puede
-    // ser esa misma agencia.
+    // Promedio ORGU GLOBAL: la red completa, sin el filtro de agencia — si filtras una
+    // agencia el "promedio" no puede ser esa misma agencia. Se recalcula de los mismos
+    // clientes y facturas que el resto de la pestaña (meses cerrados incluidos), NO del
+    // nodo master_por_agencia del backend, que cuenta también el mes en curso: con él,
+    // los bullets decían "Prom. ORGU 18,1%" mientras el KPI de arriba decía 19,8%.
     const CONVg = convGet() || {};
-    const _mpaAll = CONVg.master_por_agencia || {};
     let avg;
-    const _allEntries = Object.values(_mpaAll).filter(v => (v.traffic||0) >= 5);
-    if (_allEntries.length) {
-      const gT = _allEntries.reduce((s,v)=>s+(v.traffic||0), 0);
-      // Vehículos, no personas: si el bullet mide ventas/tráfico, su promedio también.
-      const gM = _allEntries.reduce((s,v)=>s+(v.ventas||0), 0);
-      avg = gT>0 ? 100*gM/gT : 0;
-    } else {
-      const totT = entries.reduce((s,[,v])=>s+v.traffic, 0);
-      const totV = entries.reduce((s,[,v])=>s+(v.ventas||0), 0);
-      avg = totT>0 ? 100*totV/totT : 0;
+    {
+      const cl = convFiltraClientes(CONVg.clientes_flat, { agencia: true, zona: true });
+      const gT = new Set(cl.map(c => c._ck || c.asesor + '|' + c.first_ym)).size;
+      const gV = convFiltraFacturas(CONVg.master_facturas, { agencia: true, zona: true })
+        .reduce((a, m) => a + (m.qty || 0), 0);
+      avg = gT > 0 ? 100 * gV / gT : 0;
     }
     // Construir filas estilo bullet (reusamos ffRenderBullet)
     const rows = entries.map(([name, v])=>{
@@ -15179,6 +15193,25 @@ HTML = r"""<!doctype html>
   const VENTAS_MENSUAL = DATA.ventas_mensual || {};
   // vtstate.marcas = array de marcas seleccionadas (default: todas). Vacío = ninguna.
   const vtstate = { marcas: Object.keys(VENTAS_MENSUAL), view:'modelo', metric:'cantidad', modelo:'', agencia:'', zona:'', topN:'', sortKey:'_total', sortDir:'desc', expanded:new Set(), anio:'2026' };
+  // Meses de 2026 CERRADOS para las vistas de ventas. Un mes está cerrado cuando el
+  // corte del reporte ya pasó su último día.
+  //
+  // ⚠ El corte de ventas es el 15-ago-2026 (REPORTE INVENTARIO 15-8-2026.xlsm), o sea
+  //   agosto trae 10 unidades Ford contra las ~91 de un mes normal. Compararlo contra
+  //   un presupuesto de mes completo le ponía "🟥 bajo piso" a cuatro agencias que van
+  //   SOBRE el piso, y hundía la proyección FY de Ford de 1.089 a 968.
+  function vtMesesCerrados2026(){
+    const corte = String((DATA.inventario || {}).fecha_corte || '');   // aaaa-mm-dd
+    if(!corte) return [];
+    const out = [];
+    for(let m = 1; m <= 12; m++){
+      const mm = String(m).padStart(2, '0');
+      const ultimo = '2026-' + mm + '-' + String(new Date(2026, m, 0).getDate()).padStart(2, '0');
+      if(ultimo <= corte) out.push('2026-' + mm);
+    }
+    return out;
+  }
+
   // Helper: predicate para filtrar mes por año activo. '' = todos.
   function vtMatchAnio(mes){ return !vtstate.anio || (mes||'').startsWith(vtstate.anio + '-'); }
   // Alias legacy: vtstate.marca sigue leyéndose en algunos lugares (Meta Ventas Ford,
@@ -15660,7 +15693,14 @@ HTML = r"""<!doctype html>
     section.style.display = '';
     const FMB = DATA.ford_meta_breakdown || {};
     const monthsCfg = DATA.months_config || [];
-    const monthKeys2026 = monthsCfg.filter(c => c.key.endsWith('_2026')).map(c=>c.key);
+    // Solo meses cerrados: con la meta completa de agosto contra 10 unidades reales,
+    // el cumplimiento YTD caía de 101% a 86% y el gap de +4 a −103.
+    const _okMV = new Set(vtMesesCerrados2026());
+    const _NMES = {enero:'01',febrero:'02',marzo:'03',abril:'04',mayo:'05',junio:'06',
+                   julio:'07',agosto:'08',septiembre:'09',octubre:'10',noviembre:'11',diciembre:'12'};
+    const monthKeys2026 = monthsCfg.filter(c => c.key.endsWith('_2026'))
+      .map(c => c.key)
+      .filter(k => _okMV.has('2026-' + (_NMES[k.replace('_2026','')] || 'xx')));
     const monthLabels = monthKeys2026.map(k => {
       const c = monthsCfg.find(x=>x.key===k);
       return c ? c.label.replace(' 2026','') : k;
@@ -15985,7 +16025,7 @@ HTML = r"""<!doctype html>
     const BP = (DATA.presupuesto || {}).tipos;
     if(!BP || vtstate.anio === '2025'){ sec.style.display = 'none'; return; }
     // Meses 2026 ya transcurridos según el panel (el corte manda).
-    const yms = MONTHS_CONFIG.map(c => vtMonthKeyToYM(c.key)).filter(y => y && y.startsWith('2026'));
+    const yms = vtMesesCerrados2026();
     const nM = yms.length;
     if(!nM){ sec.style.display = 'none'; return; }
     sec.style.display = '';
@@ -16002,8 +16042,9 @@ HTML = r"""<!doctype html>
     const real = {};
     (vtstate.marcas || []).forEach(mk => {
       const d = (VENTAS_MENSUAL || {})[mk];
+      const _okBP = new Set(yms);
       (d && d.flat || []).forEach(r => {
-        if(!(r.mes||'').startsWith('2026')) return;
+        if(!_okBP.has(String(r.mes || ''))) return;
         if(!r.agencia) return;
         real[r.agencia] = (real[r.agencia] || 0) + (r[_mkBP] || 0);
       });
@@ -16061,13 +16102,15 @@ HTML = r"""<!doctype html>
     const _mks = Object.keys(VT_MARCA_LBL).filter(mk => (vtstate.marcas || []).includes(mk));
     _mks.forEach(mk => {
       const flat = ((VENTAS_MENSUAL || {})[mk] || {}).flat || [];
-      const meses = new Set(); let real = 0;
+      // Solo meses cerrados: con agosto a medias el ritmo mensual baja y la
+      // proyección se hunde un 11%.
+      const _okV = new Set(vtMesesCerrados2026());
+      let real = 0;
       flat.forEach(r => { const m = String(r.mes || '');
-        if(!m.startsWith('2026')) return;
-        meses.add(m);   // el mes cuenta aunque la agencia filtrada no venda en él
+        if(!_okV.has(m)) return;
         if(vtstate.agencia && r.agencia !== vtstate.agencia) return;
         real += r.cantidad || 0; });
-      const n = meses.size || 1;
+      const n = _okV.size || 1;
       const proy = Math.round(real / n * 12);
       // Con agencia filtrada, el presupuesto es el bloque de esa agencia (si la
       // marca no opera ahí, queda en 0 y la fila lo dice).
