@@ -133,6 +133,41 @@ La lógica está **duplicada en tres archivos** — si algo descuadra, revisar l
 `ventas.py` (`load_ventas_completo`), `aggregate.py` (`_compute_ventas_mensual`, que descarta
 el df que recibe y vuelve a leer `DATOS 2` por su cuenta) y `checks_asesores.py`.
 
+### La pauta se cuenta a costo FACTURADO (24-ago-2026)
+
+El Excel de presupuesto trae el **consumido en plataforma**. Eso no es lo que ORGU paga.
+Encima van:
+
+| Recargo | % | Sobre qué |
+|---|---|---|
+| Representante de medios (Cisneros) | 10% | neto |
+| ISD | 5% | neto |
+| Comisión de agencia XIY | 7,5% | **PVP** |
+| Comisión de agencia BBA | 7,5% | **PVP** |
+
+```
+PVP        = neto × (1 + 0,10 + 0,05)      = neto × 1,15
+a facturar = PVP  × (1 + 0,075 + 0,075)    = PVP  × 1,15
+factor total                                = 1,3225
+```
+
+⚠ **No es 1,30.** Las comisiones de agencia se calculan sobre el PVP, no sobre el neto.
+Verificado contra la liquidación Meta: $11.944,58 → $15.796,71, exacto.
+
+2026 pasa de **$92.711 netos a $122.611 facturados**. Todo lo derivado se mueve con él:
+costo por persona, brecha Sierra/Costa, ranking de eficiencia por modelo. Como el factor es
+uniforme, **las proporciones y el ranking no cambian** — solo la escala.
+
+Vive en `pauta.py` (`RECARGOS`, `FACTOR_COSTO`). El neto queda en `total_neto` y
+`por_mes_neto` para poder auditar; el nodo `costo` publica el factor y sus componentes.
+`verificar.py` comprueba las dos cosas.
+
+⚠ **El CPL y los leads presupuestados NO llevan recargo**: vienen del Excel calculados
+sobre el neto.
+
+⚠ El factor sale de una liquidación de **Meta**. Se aplica a todos los canales mientras no
+haya evidencia de otra estructura para Google, TikTok o influencers.
+
 ### Escala de color del cumplimiento (24-ago-2026)
 
 **≥90% verde · 75–89% amarillo · <75% rojo.** Vale para todo el panel, en las 14 pestañas.
