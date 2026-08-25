@@ -291,6 +291,37 @@ Los buckets se solapan. La tabla de modelo sumaba 46 compradores contra los 43 d
 su propio % (8,7% vs 8,2%). Ahora `renderTable` recibe el total del KPI y avisa cuánto suman
 las filas. **Nunca sumar filas de estas tablas para sacar un total.**
 
+#### Cohorte vs fecha de factura (y por qué no cuadra con finanzas)
+
+El numerador se filtra por `cohorte_ym`, no por `fecha`. Son **4 vehículos** de diferencia:
+cohorte ene–jul facturados en agosto. El panel da **639**, contar por fecha da **635**.
+
+Se usa cohorte porque **el denominador son cohortes**: personas con primer toque en esos
+meses. El numerador coherente es lo que compraron, facturen cuando facturen.
+
+⚠ **Finanzas cuenta por fecha de factura → 635.** La conversión del panel **no puede**
+cuadrar contra las ventas de finanzas, y ninguna de las dos está mal.
+
+⚠ Costura: los compradores sin cohorte van al mes de FACTURA, así que el numerador es mixto.
+
+#### Los breakdowns de `conversion.py` no son la cifra de pantalla
+
+`conversion_data[marca].por_agencia` y variantes incluyen **todo 2026 con el mes en curso**
+(La Y 525 personas contra 469). Desde el 25-ago su `conv_pct` usa la definición vigente
+—vehículos ÷ personas— y cada entrada lleva `_aviso`, pero **la fuente para citar conversión
+es la pantalla**. Invariante 26 lo vigila.
+
+No se pueden borrar: `xiyTrafficBreakdowns()` (Inversión Digital) los consume.
+
+#### La conversión se descompone en cierre × ticket
+
+`veh ÷ pers = (compradores ÷ pers) × (veh ÷ comprador)`. La Y **10,2% = 9,0% × 1,14**;
+red **19,8% = 18,5% × 1,07**. La Y tiene el mejor ticket de la red y toda su brecha está en
+el cierre.
+
+⚠ El promedio de la red **sumando agencias (3.236) da 18,9%**, no 18,5%: 15 personas tocaron
+dos vitrinas. Usar personas únicas, 3.221.
+
 #### Un solo filtro para toda la pestaña
 
 `convFiltraClientes(lista, salvo)` y `convFiltraFacturas(lista, salvo)`. **Ninguna vista
