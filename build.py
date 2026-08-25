@@ -4335,7 +4335,7 @@ HTML = r"""<!doctype html>
         <div class="card-big"><div class="lbl">Personas únicas (tráfico)</div><div class="val" id="conv-k-traf">—</div><div class="hint">1er toque en 2026 · identidad robusta</div></div>
         <div class="card-big"><div class="lbl">Cerraron compra</div><div class="val pos" id="conv-k-cerr">—</div><div class="hint" id="conv-k-cerr-hint" title="Personas distintas que compraron / vehículos facturados"></div></div>
         <div class="card-big"><div class="lbl">% Conversión</div><div class="val" id="conv-k-rate">—</div><div class="hint" id="conv-k-rate-hint">Vehículos facturados / personas de tráfico</div></div>
-        <div class="card-big"><div class="lbl" title="Días desde el primer toque del cliente en BD tráfico hasta que se le facturó el vehículo">Tiempo cliente → factura</div><div class="val" id="conv-k-ciclo">—</div><div class="hint" id="conv-k-ciclo-hint">Mediana de días entre 1er toque y factura</div></div>
+        <div class="card-big"><div class="lbl" title="Días entre el primer toque en la BD de tráfico y la factura. Excluye a quienes fueron registrados el MISMO día que compraron: ahí no hubo ciclo capturado, hubo registro tardío.">Tiempo cliente → factura</div><div class="val" id="conv-k-ciclo">—</div><div class="hint" id="conv-k-ciclo-hint">Mediana de días entre 1er toque y factura</div></div>
       </div>
 
       <!-- EVOLUCIÓN MENSUAL DE CONVERSIÓN -->
@@ -4433,6 +4433,7 @@ HTML = r"""<!doctype html>
       <!-- TOP ASESORES -->
       <div class="ford-section" style="margin-top:18px">
         <h3>🏆 Top asesores — ranking por cierres <span class="sub" id="conv-asesor-sub">Solo asesores con ≥5 clientes en tráfico · clic en una fila para filtrar toda la pestaña</span></h3>
+        <div id="conv-asesor-fuera" style="font-size:12px;margin-bottom:10px"></div>
         <div style="overflow-x:auto">
           <table class="analysis" id="conv-tbl-asesor">
             <thead><tr>
@@ -9607,13 +9608,20 @@ HTML = r"""<!doctype html>
     });
     return out;
   }
+  // El ciclo mide días entre el primer toque en la BD y la factura. El 21% de los
+  // compradores tiene CERO días: el asesor los registró el mismo día que facturó, así
+  // que ahí no hay ciclo capturado — hay un registro tardío. Contarlos arrastraba la
+  // mediana de 16 a 10 días y la tarjeta decía un ciclo comercial que no existe.
+  // Se excluyen del cálculo y se reportan aparte.
   function convCalcCiclo(clientes){
-    const ds = clientes.filter(c => c.ciclo_dias != null).map(c => c.ciclo_dias).sort((a,b)=>a-b);
-    if(ds.length === 0) return {n:0, mediana:null, promedio:null, p75:null};
+    const todos = clientes.filter(c => c.ciclo_dias != null).map(c => c.ciclo_dias);
+    const ds = todos.filter(x => x > 0).sort((a,b)=>a-b);
+    const mismoDia = todos.length - ds.length;
+    if(ds.length === 0) return {n:0, mediana:null, promedio:null, p75:null, mismoDia, nTotal:todos.length};
     const med = ds[Math.floor(ds.length/2)];
     const prom = ds.reduce((s,x)=>s+x,0) / ds.length;
     const p75 = ds[Math.floor(ds.length*0.75)];
-    return {n:ds.length, mediana:med, promedio:+prom.toFixed(1), p75};
+    return {n:ds.length, mediana:med, promedio:+prom.toFixed(1), p75, mismoDia, nTotal:todos.length};
   }
   function convInitFilters(){
     const CONV = convGet();
@@ -9808,7 +9816,10 @@ HTML = r"""<!doctype html>
       `${fmt(n_ventas)} vehículos / ${fmt(n_traf)} personas de tráfico`;
     if(ciclo.mediana != null){
       document.getElementById('conv-k-ciclo').textContent = ciclo.mediana + 'd';
-      document.getElementById('conv-k-ciclo-hint').textContent = `prom ${ciclo.promedio}d · p75 ${ciclo.p75}d · n=${ciclo.n}`;
+      const _pctMismo = ciclo.nTotal ? Math.round(100*ciclo.mismoDia/ciclo.nTotal) : 0;
+      document.getElementById('conv-k-ciclo-hint').textContent =
+        `prom ${ciclo.promedio}d · p75 ${ciclo.p75}d · n=${ciclo.n}` +
+        (ciclo.mismoDia ? ` · fuera ${ciclo.mismoDia} registrados el mismo día que compraron (${_pctMismo}%)` : '');
     } else {
       document.getElementById('conv-k-ciclo').textContent = '—';
       document.getElementById('conv-k-ciclo-hint').textContent = 'Sin cierres en este filtro';
@@ -10030,6 +10041,27 @@ HTML = r"""<!doctype html>
     renderTable('#conv-tbl-modelo tbody',  aggModelo,  'modelo',  true, 0, null, _totKPI);
     renderTable('#conv-tbl-agencia tbody', aggAgencia, 'agencia', true, 0, null, _totKPI);
     renderTable('#conv-tbl-asesor tbody',  aggAsesorFilt, 'rank',  false, 0, 20);
+
+    // Qué NO entra en el ranking. Sin esto parece que a la agencia le faltan ventas:
+    // en La Y el ranking muestra 29 de 49 unidades.
+    (function(){
+      const el = document.getElementById('conv-asesor-fuera'); if(!el) return;
+      const _jf = _mFilt.filter(m => m.is_jefe_fact).reduce((a,m)=>a+(m.qty||0), 0);
+      const _otra = convState.agencia
+        ? _mFilt.filter(m => !m.is_jefe_fact && m.asesor_fact
+            && _homeAg[m.asesor_fact] && _homeAg[m.asesor_fact] !== convState.agencia)
+            .reduce((a,m)=>a+(m.qty||0), 0)
+        : 0;
+      const partes = [];
+      if(_jf)   partes.push(`<strong>${fmt(_jf)}</strong> facturadas por un jefe de agencia`);
+      if(_otra) partes.push(`<strong>${fmt(_otra)}</strong> de asesores cuya agencia-hogar es otra`);
+      if(!partes.length){ el.innerHTML = ''; return; }
+      el.innerHTML = `<div style="background:#fff8e6;border-left:3px solid #b8860b;padding:8px 12px;border-radius:0 6px 6px 0;color:var(--ink);line-height:1.6">
+        El ranking suma <strong>${fmt(n_ventas - _jf - _otra)}</strong> de las
+        <strong>${fmt(n_ventas)}</strong> unidades del filtro. Fuera quedan ${partes.join(' y ')}.
+        <span style="color:var(--c-muted)">Las flotas NO se excluyen: entran si las facturó un asesor de la casa.</span>
+      </div>`;
+    })();
     // Aviso visible de si hay un asesor filtrando
     (function(){
       const sub = document.getElementById('conv-asesor-sub');
@@ -10495,6 +10527,35 @@ HTML = r"""<!doctype html>
       return true;
     });
 
+    const _mfFiltradas = (CONV.master_facturas || []).filter(f =>
+      (!convState.agencia || f.agencia === convState.agencia) &&
+      (!convState.asesor  || f.asesor_lead === convState.asesor) &&
+      (!convState.modelo  || f.modelo_lead === convState.modelo) &&
+      (!convState.canal   || f.canal_lead  === convState.canal));
+
+    // Compradores sin cohorte: se les facturó pero nunca aparecieron en la BD de
+    // tráfico del año (flota, gestión externa, o primer contacto en 2025). No tienen
+    // mes de primer toque, pero sí de factura, y ahí van — decisión de Daniel
+    // (24-ago-2026). Antes quedaban fuera y las barras sumaban 39 de 49.
+    //
+    // ⚠ Suben el % de su mes sin sumar al denominador: no fueron tráfico. Por eso el
+    //   gráfico lleva la nota que dice cuántos son.
+    const _sinPorMes = {};
+    let _vehSin = 0;
+    const _pvSin = {};
+    _mfFiltradas.forEach(f => {
+      if (f.cohorte_ym || !f.qty) return;
+      _vehSin += f.qty;
+      const ym = String(f.fecha || '').slice(0, 7);
+      if (ym) _sinPorMes[ym] = (_sinPorMes[ym] || 0) + f.qty;
+      if (f.persona_id) {
+        const k = f.persona_id + '||' + (f.vin || '');
+        _pvSin[k] = (_pvSin[k] || 0) + f.qty;
+      }
+    });
+    const _persSin = new Set();
+    Object.entries(_pvSin).forEach(([k, q]) => { if (q > 0) _persSin.add(k.split('||')[0]); });
+
     const { meses, labels } = convMesesEje(CONV);
     const stats = meses.map(m => {
       const sub = filtered.filter(c => c.first_ym === m);
@@ -10502,63 +10563,32 @@ HTML = r"""<!doctype html>
       // agencias aparece dos veces en clientes_flat).
       const total = new Set(sub.map(c => c._ck || c.asesor + '|' + c.first_ym)).size;
       const cerraron = convCompradoresCohorte(CONV, m);
-      const ventas = (CONV.master_facturas || [])
-        .filter(f => f.cohorte_ym === m
-          && (!convState.agencia || f.agencia === convState.agencia)
-          && (!convState.asesor  || f.asesor_lead === convState.asesor)
-          && (!convState.modelo  || f.modelo_lead === convState.modelo)
-          && (!convState.canal   || f.canal_lead  === convState.canal))
+      const vCoh = _mfFiltradas
+        .filter(f => f.cohorte_ym === m)
         .reduce((s,f) => s + (f.qty || 0), 0);
+      const vSin = _sinPorMes[m] || 0;
+      const ventas = vCoh + vSin;
       const pct = total > 0 ? Math.round(100*ventas/total*10)/10 : null;
-      return { total, cerraron, ventas, pct };
+      return { total, cerraron, ventas, pct, vCoh, vSin };
     });
     // Y-axis dinámico con headroom para que las etiquetas no se corten.
     const _maxPct = Math.max(0, ...stats.map(s => s.pct || 0));
     const _yMax = Math.max(20, Math.ceil((_maxPct + 12) / 10) * 10);
-
-    // Por qué el KPI de arriba no cuadra con la suma de las barras: hay compradores
-    // sin cohorte — se les facturó pero nunca aparecieron en la BD de tráfico del año
-    // (flota, gestión externa, o primer contacto en 2025). El KPI los cuenta en el
-    // numerador; el gráfico no puede ponerlos en ningún mes. Sin decirlo, el gráfico
-    // parece contradecir la tarjeta.
-    const _mfFiltradas = (CONV.master_facturas || []).filter(f =>
-      (!convState.agencia || f.agencia === convState.agencia) &&
-      (!convState.asesor  || f.asesor_lead === convState.asesor) &&
-      (!convState.modelo  || f.modelo_lead === convState.modelo) &&
-      (!convState.canal   || f.canal_lead  === convState.canal));
-    const _pvSin = {};
-    _mfFiltradas.forEach(f => {
-      if (f.cohorte_ym || !f.persona_id || !f.qty) return;
-      const k = f.persona_id + '||' + (f.vin || '');
-      _pvSin[k] = (_pvSin[k] || 0) + f.qty;
-    });
-    const _persSin = new Set();
-    Object.entries(_pvSin).forEach(([k, q]) => { if (q > 0) _persSin.add(k.split('||')[0]); });
-    const _vehSin = _mfFiltradas.filter(f => !f.cohorte_ym).reduce((a, f) => a + (f.qty || 0), 0);
-    // El cuadre explícito. Sin esto, sumar las barras verdes da menos que las ventas
-    // del panel y parece un error: son ventas por COHORTE, no por mes de factura.
     const _vehTotal = _mfFiltradas.reduce((a, f) => a + (f.qty || 0), 0);
-    const _vehEnBarras = stats.reduce((a, s) => a + (s.ventas || 0), 0);
-    // Columna propia para lo que no cae en ningún mes, para que las barras sumen el
-    // total facturado. Sin ella el gráfico mostraba 39 de 49 y parecía un error.
-    if (_vehSin > 0) {
-      labels.push('Sin cohorte');
-      stats.push({ total: 0, cerraron: _persSin.size, ventas: _vehSin, pct: null, _sinCohorte: true });
-    }
 
     const _nota = document.getElementById('conv-evol-nota');
     if (_nota) {
       _nota.innerHTML = `<div style="background:#eef4fb;border-left:3px solid #003478;padding:9px 12px;border-radius:0 6px 6px 0;color:var(--ink);line-height:1.65">
-        <strong>Las barras verdes no son las ventas del mes.</strong> El eje es el mes en que la
-        persona <em>entró</em>: la barra de junio son los autos que compró la gente que llegó en
-        junio, facturados cuando haya sido.
-        <div style="margin-top:5px">
-          Suman <strong>${fmt(_vehEnBarras)}</strong> vehículos
-          ${_vehSin ? `+ <strong>${fmt(_vehSin)}</strong> en <em>Sin cohorte</em> — ${_persSin.size}
-             compradores que nunca pasaron por la BD de tráfico (flota, gestión externa o primer
-             contacto en 2025), así que no tienen mes ni %` : ''}
-          = <strong>${fmt(_vehTotal)}</strong>, el total facturado de la tarjeta.
-        </div>
+        <strong>El eje es el mes en que la persona entró</strong>, no el de la factura: la barra de
+        junio son los autos que compró la gente que llegó en junio, facturados cuando haya sido.
+        ${_vehSin ? `<div style="margin-top:5px">
+          Los <strong>${fmt(_vehSin)}</strong> vehículos de ${_persSin.size} compradores
+          <strong>sin primer toque</strong> (flota, gestión externa o primer contacto en 2025) van
+          en su <strong>mes de factura</strong>. Suben el % de ese mes sin sumar al tráfico, porque
+          nunca fueron tráfico.
+        </div>` : ''}
+        <div style="margin-top:5px">Las barras suman <strong>${fmt(_vehTotal)}</strong> vehículos,
+        el total facturado de la tarjeta.</div>
       </div>`;
     }
 
@@ -10587,7 +10617,7 @@ HTML = r"""<!doctype html>
             }
           },
           {
-            type: 'bar', label: 'Vehículos de esa cohorte', order: 3,
+            type: 'bar', label: 'Vehículos del mes', order: 3,
             data: stats.map(s => s.ventas),
             backgroundColor: '#2e7d32', maxBarThickness: 34,
             borderRadius: {topLeft:3, topRight:3},
@@ -10634,16 +10664,13 @@ HTML = r"""<!doctype html>
             callbacks: {
               label: (ctx) => {
                 const s = stats[ctx.dataIndex];
-                if(s && s._sinCohorte){
-                  if(ctx.dataset.label === '% Conversión') return null;
-                  if(ctx.dataset.label === 'Personas (tráfico)') return null;
-                  return `${s.ventas} vehículos de ${s.cerraron} compradores sin primer toque en la BD`;
-                }
-                if(!s || s.total === 0) return 'Sin tráfico';
+                if(!s || (s.total === 0 && !s.ventas)) return 'Sin tráfico';
                 if(ctx.dataset.label === '% Conversión')
                   return `Conversión: ${s.pct}% · ${s.ventas} vehículos / ${fmt(s.total)} personas`;
-                if(ctx.dataset.label === 'Vehículos de esa cohorte')
-                  return `${s.ventas} vehículos comprados por gente que entró en este mes`;
+                if(ctx.dataset.label === 'Vehículos del mes')
+                  return s.vSin
+                    ? `${s.ventas} vehículos · ${s.vCoh} de la cohorte + ${s.vSin} sin primer toque`
+                    : `${s.ventas} vehículos comprados por gente que entró en este mes`;
                 return `Tráfico: ${fmt(s.total)} personas`;
               }
             }
@@ -10665,7 +10692,7 @@ HTML = r"""<!doctype html>
             grid: { display:false }
           },
           x: { ticks:{font:{size:11}}, grid:{display:false},
-               title: { display:true, text:'Mes del PRIMER TOQUE (no el de la factura) · las barras suman el total facturado',
+               title: { display:true, text:'Mes del primer toque · las barras suman el total facturado',
                         font:{size:11,weight:'600'}, color:'var(--c-muted)' } }
         },
         layout: { padding: { top: 36, bottom: 12, left: 8, right: 16 } }

@@ -550,6 +550,14 @@ def cross_traffic_sales(traffic_df, sales_df):
 
     matched_sales = sales_df[sales_df['matched_ck'].notna()].copy()
 
+    # 'AUTORIZACION DE DATOS' es un estado del CRM que se coló como canal: no dice de
+    # dónde vino el prospecto. En esta pestaña va como 'Otros' (Daniel, 24-ago-2026).
+    # Se hace acá y no en norm_channel para no tocar el resto del panel.
+    _CANAL_OTROS = {'AUTORIZACION DE DATOS', 'AUTORIZACIÓN DE DATOS'}
+    traffic_df = traffic_df.copy()
+    traffic_df['CANAL'] = traffic_df['CANAL'].apply(
+        lambda c: 'Otros' if str(c or '').strip().upper() in _CANAL_OTROS else c)
+
     # Tomar la fila de tráfico más temprana por client_key (primer toque)
     traffic_df_sorted = traffic_df.sort_values('FECHA')
     first_touch = traffic_df_sorted.groupby('client_key').agg(
