@@ -4344,6 +4344,7 @@ HTML = r"""<!doctype html>
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
           Los meses más recientes muestran % menor porque su cohorte está aún en pipeline (no ha terminado el ciclo de venta).
         </div>
+        <div id="conv-evol-nota" style="font-size:12px;margin-bottom:8px"></div>
         <div style="position:relative;height:320px">
           <canvas id="conv-chart-evol"></canvas>
         </div>
@@ -10451,6 +10452,38 @@ HTML = r"""<!doctype html>
     // Y-axis dinámico con headroom para que las etiquetas no se corten.
     const _maxPct = Math.max(0, ...stats.map(s => s.pct || 0));
     const _yMax = Math.max(20, Math.ceil((_maxPct + 12) / 10) * 10);
+
+    // Por qué el KPI de arriba no cuadra con la suma de las barras: hay compradores
+    // sin cohorte — se les facturó pero nunca aparecieron en la BD de tráfico del año
+    // (flota, gestión externa, o primer contacto en 2025). El KPI los cuenta en el
+    // numerador; el gráfico no puede ponerlos en ningún mes. Sin decirlo, el gráfico
+    // parece contradecir la tarjeta.
+    const _mfFiltradas = (CONV.master_facturas || []).filter(f =>
+      (!convState.agencia || f.agencia === convState.agencia) &&
+      (!convState.asesor  || f.asesor_lead === convState.asesor) &&
+      (!convState.modelo  || f.modelo_lead === convState.modelo) &&
+      (!convState.canal   || f.canal_lead  === convState.canal));
+    const _pvSin = {};
+    _mfFiltradas.forEach(f => {
+      if (f.cohorte_ym || !f.persona_id || !f.qty) return;
+      const k = f.persona_id + '||' + (f.vin || '');
+      _pvSin[k] = (_pvSin[k] || 0) + f.qty;
+    });
+    const _persSin = new Set();
+    Object.entries(_pvSin).forEach(([k, q]) => { if (q > 0) _persSin.add(k.split('||')[0]); });
+    const _vehSin = _mfFiltradas.filter(f => !f.cohorte_ym).reduce((a, f) => a + (f.qty || 0), 0);
+    const _nota = document.getElementById('conv-evol-nota');
+    if (_nota) {
+      if (_persSin.size > 0) {
+        _nota.innerHTML = `<div style="background:#eef4fb;border-left:3px solid #003478;padding:8px 12px;border-radius:0 6px 6px 0;color:var(--ink)">
+          <strong>${_persSin.size} compradores no salen en ninguna barra</strong> (${_vehSin} vehículos):
+          se les facturó pero nunca aparecieron en la BD de tráfico del año — flota, gestión externa
+          o primer contacto en 2025. La tarjeta de arriba sí los cuenta, por eso su % es mayor que el
+          de las barras.</div>`;
+      } else {
+        _nota.innerHTML = '';
+      }
+    }
 
     // El % solo no explica nada: un 21.7% sobre 60 personas y un 6% sobre 83 son
     // historias distintas. Van las tres series juntas — cuánta gente entró, cuántos
