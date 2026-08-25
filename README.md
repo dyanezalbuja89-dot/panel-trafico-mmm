@@ -133,6 +133,34 @@ La lógica está **duplicada en tres archivos** — si algo descuadra, revisar l
 `ventas.py` (`load_ventas_completo`), `aggregate.py` (`_compute_ventas_mensual`, que descarta
 el df que recibe y vuelve a leer `DATOS 2` por su cuenta) y `checks_asesores.py`.
 
+### Escala de color del cumplimiento (24-ago-2026)
+
+**≥90% verde · 80–89% amarillo · <80% rojo.** Vale para todo el panel, en las 14 pestañas.
+
+Definición única en `build.py`, junto al helper de anomalías:
+
+```js
+const CUMPL_VERDE = 90, CUMPL_AMARILLO = 80;
+cumplNivel(p)  // 'green' | 'yellow' | 'red' | null
+cumplClass(p)  // clase CSS: green/yellow/red
+cumplHex(p)    // #16a34a / #eab308 / #dc2626
+cumplBg(p, a)  // fondo suave para celdas de tabla
+```
+
+Cualquier vista nueva que coloree cumplimiento usa estos helpers. **No escribir el
+umbral a mano**: antes cada pestaña tenía el suyo (≥100/≥70 en tráfico, ≥100/≥80/≥50 en
+las tablas de ventas, ≥85 en el cruce) y el mismo 88% salía naranja en Análisis General
+y amarillo en Ventas.
+
+**El heatmap del cruce conserva sus 5 tonos** (`level()`), pero sus cortes caen dentro
+de las bandas: crítico <50 y bajo 50–79 son los dos rojos, alerta 80–89 el amarillo,
+ok 90–120 y sobre meta >120 los dos verdes.
+
+⚠ **La regla es solo para % contra meta.** Las tasas de conversión (≥30/≥15), de cierre
+(≥15/≥10) y de aprobación de crédito (≥80/≥60) tienen su propia escala: no se miden
+contra una meta y aplicarles esta las pintaría todas de rojo. La barra de participación
+por canal es azul Ford por lo mismo — es un share, no un cumplimiento.
+
 ### Otras reglas de cálculo
 
 - **Días laborables:** el sábado (10–14h) cuenta como día completo. Usar `working_days()`,
