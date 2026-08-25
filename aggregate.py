@@ -2397,11 +2397,14 @@ def main():
                 if not _ym:
                     continue
                 _q = _r.get("cantidad") or 0
+                # El TOTAL del mes suma SIEMPRE, aunque el modelo no normalice: si no,
+                # una descripción rara se cae del total y el cruce vuelve a diferir de
+                # la pestaña Ventas (así perdía 2 unidades en dic-2025).
+                _tot[_ym] = _tot.get(_ym, 0) + _q
                 _f = normalize_familia(_r.get("modelo"), _MARCA_INV.get(_marca, _marca))
                 if not _f:
                     continue
                 _ag = _r.get("agencia")
-                _tot[_ym] = _tot.get(_ym, 0) + _q
                 _porMod[(_ym, _f)] = _porMod.get((_ym, _f), 0) + _q
                 if _ag:
                     _porModAg[(_ym, _f, _ag)] = _porModAg.get((_ym, _f, _ag), 0) + _q

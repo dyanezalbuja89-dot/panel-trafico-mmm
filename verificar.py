@@ -261,6 +261,37 @@ def check_pauta_costo(d):
     ok('pauta costo', f'neto ${neto:,.0f} × {factor} = ${tot:,.0f} facturados')
 
 
+def check_cruce_ventas(d):
+    """El cruce de Análisis General mostraba 542 ventas Ford donde la pestaña Ventas
+    decía 635: contaba facturas del snapshot de inventario y las unidades entregadas
+    hace meses se caen de esa foto. Ahora se reconcilia contra ventas_mensual; este
+    invariante evita que vuelva a divergir."""
+    mc = ((d.get('inventario') or {}).get('monthly_cross') or {})
+    vm = d.get('ventas_mensual') or {}
+    fallos = []
+    for marca, meses in mc.items():
+        flat = ((vm.get(marca) or {}).get('flat')) or []
+        if not flat:
+            continue
+        oficial = {}
+        for r in flat:
+            ym = str(r.get('mes') or '')
+            if ym:
+                oficial[ym] = oficial.get(ym, 0) + (r.get('cantidad') or 0)
+        for mk, mv in meses.items():
+            ym = str(mv.get('mes_start') or '')[:7]
+            if not ym:
+                continue
+            esp = int(round(oficial.get(ym, 0)))
+            if int(mv.get('ventas') or 0) != esp:
+                fallos.append(f'{marca}/{mk}: cruce {mv.get("ventas")} vs oficial {esp}')
+    if fallos:
+        fail('cruce vs ventas', f'{len(fallos)} meses no cuadran: {fallos[:3]}')
+    else:
+        n = sum(len(m) for m in mc.values())
+        ok('cruce vs ventas', f'{n} mes×marca cuadran con ventas_mensual')
+
+
 def check_cache():
     """Si se cambia un criterio de cálculo sin subir la versión, los meses viejos
     se sirven con el criterio anterior y solo cambia el mes en curso."""
@@ -334,6 +365,7 @@ def main():
     check_pauta(d)
     check_pauta_costo(d)
     check_sin_modelo(d)
+    check_cruce_ventas(d)
     check_cache()
 
     print()
