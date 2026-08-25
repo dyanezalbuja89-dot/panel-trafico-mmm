@@ -8687,12 +8687,19 @@ HTML = r"""<!doctype html>
     return Math.round(currFiltered * partial / total);
   }
 
-  // Un mes está CERRADO cuando su corte llegó al último día del mes. Vale para 2025
-  // y 2026 porque sale de MONTHS_CONFIG, no de una lista escrita a mano.
-  function cpMesCerrado(cfg){
-    if(!cfg) return false;
-    const ult = new Date(cfg.year, cfg.month, 0).getDate();
-    return (cfg.cut_day || 0) >= ult;
+  // Día del corte de un mes, leído de cut_date ('dd/mm/aaaa') del propio dato.
+  // ⚠ months_config NO trae cut_day/year/month — vienen en null, así que no se puede
+  //   usar como fuente del cierre.
+  function cpDiaCorte(key){
+    const p = String(cpGetData(key)?.cut_date || '').split('/');
+    return p.length === 3 ? Number(p[0]) : null;
+  }
+  // Un mes está CERRADO cuando su corte llegó al último día del mes.
+  function cpMesCerrado(key){
+    const p = String(cpGetData(key)?.cut_date || '').split('/');
+    if(p.length !== 3) return false;
+    const mes = Number(p[1]), anio = Number(p[2]);
+    return Number(p[0]) >= new Date(anio, mes, 0).getDate();
   }
 
   function cpRenderKpis(){
@@ -9217,7 +9224,7 @@ HTML = r"""<!doctype html>
     // titular decía "▼ −24,4%" comparando enero completo contra 18 días de agosto,
     // cuando contra julio la variación real es +17,1%: invertía la historia.
     let _iFin = MONTHS_CONFIG.length - 1;
-    while(_iFin > 0 && !cpMesCerrado(MONTHS_CONFIG[_iFin])) _iFin--;
+    while(_iFin > 0 && !cpMesCerrado(MONTHS_CONFIG[_iFin].key)) _iFin--;
     const first = totals[0]||0, last = totals[_iFin]||0;
     const dPctTot = first>0 ? (100*(last-first)/first) : null;
     const _rango = `de ${labels[0]} a ${labels[_iFin]}`;
@@ -9404,8 +9411,8 @@ HTML = r"""<!doctype html>
       // Si alguno de los dos meses sigue abierto, se truncan LOS DOS al mismo día
       // calendario. Comparar un mes completo contra medio mes ponía "▼ −24,4%" a cinco
       // centímetros del KPI que decía "+21,2%", con los mismos dos meses.
-      const _abierto = !cpMesCerrado(cfgA) || !cpMesCerrado(cfgB);
-      const _tope = _abierto ? Math.min(cfgA.cut_day || 31, cfgB.cut_day || 31) : 99;
+      const _abierto = !cpMesCerrado(cfgA.key) || !cpMesCerrado(cfgB.key);
+      const _tope = _abierto ? Math.min(cpDiaCorte(cfgA.key) || 31, cpDiaCorte(cfgB.key) || 31) : 99;
       const monthLenA = Math.min((dataA.pace || []).length || 31, _tope);
       const monthLenB = Math.min((dataB.pace || []).length || 31, _tope);
       let totalA = 0, totalB = 0;
