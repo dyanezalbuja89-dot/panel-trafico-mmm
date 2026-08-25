@@ -6090,7 +6090,10 @@ HTML = r"""<!doctype html>
       const tab = btn.dataset.tab;
       document.getElementById('tab-'+tab).classList.add('active');
       setTopbarSub(tab);
-      if(tab === 'asignacion') renderAsignacion();
+      // Chart.js mide el contenedor al construirse. Si se llama en el mismo tick en
+      // que la pestaña recibe .active, el layout todavía no se aplicó y el canvas
+      // queda con ancho 0: los gráficos no se dibujan nunca. Hay que esperar un frame.
+      if(tab === 'asignacion') requestAnimationFrame(()=>requestAnimationFrame(renderAsignacion));
       showSkeletonsForTab('tab-'+tab);
       URLState.set('tab', tab === 'ford' ? '' : tab);  // ford = default, no ensucia URL
     });
@@ -6368,6 +6371,16 @@ HTML = r"""<!doctype html>
       renderAsigKPIs(); renderAsigZona(); renderAsigModelos(); renderAsigInsights();
     } catch(e){ console.error('[asignacion]', e); }
   }
+  // Red de seguridad: si algún canvas quedó con ancho 0 (pestaña oculta al construir,
+  // ventana redimensionada, zoom), se reajusta en cuanto entra en pantalla.
+  (function(){
+    const box = document.getElementById('asig-modelos');
+    if(!box || !('ResizeObserver' in window)) return;
+    new ResizeObserver(()=>{
+      if(!box.clientWidth) return;
+      Object.keys(charts).forEach(k=>{ if(k.startsWith('asig-')) charts[k]?.resize(); });
+    }).observe(box);
+  })();
   document.getElementById('asig-zona-sel')?.addEventListener('change', renderAsigModelos);
 
   // ─── Aplica URL state al inicio: navegar al tab si viene ?tab=X ───
