@@ -20,6 +20,7 @@ produce un `index.html` autocontenido y lo publica en Vercel.
 | Metas Ford | `.../<Mes>/METAS/<MES>_NUEVO_AI_FORD.xlsx`, hoja `METAS_FORD` |
 | Metas otras marcas | `.../<Mes>/METAS/<MES>_NUEVO_AI_MARCAS.xlsx` |
 | Inventario | OneDrive `Marketing/2026/Inventrario/REPORTE INVENTARIO <fecha>.xlsm` |
+| **Base de Ventas** (fuente oficial de ventas) | `~/Downloads/Base de Ventas a <Mes>.xlsx` — mensual, la genera Finanzas |
 
 El aggregate lee del caché local **primero** y usa OneDrive como fallback.
 La data corporativa se comparte con el equipo Ford y no se puede sacar de OneDrive.
@@ -610,14 +611,38 @@ del backend solo valen sin filtros finos; umbral de ≥5 leads solo sin filtros.
 
 ## Cifras de control · Ford ene–jul 2026
 
-Vitrina (cuadra con finanzas, corte de inventario 15-ago):
+Vitrina, contra la **Base de Ventas** de Finanzas (25-ago-2026). Cuadra celda por celda:
+53 combinaciones agencia × modelo, cero discrepancias.
 
 | CJA | Orellana | Manta | Tumbaco | Machala | La Y | Portoviejo | Total |
 |---|---|---|---|---|---|---|---|
-| 160 | 158 | 92 | 81 | 60 | **48** | 36 | **635** |
+| 161 | 158 | 96 | 81 | 63 | **48** | 40 | **647** |
+
+Agosto (al 24): **57** unidades Ford. Año 2026 completo: 704.
 
 Por equipo del asesor, la misma base da La Y 35 y Tumbaco 89. **Si ves 35 como cifra oficial
 de La Y, el dato es viejo.**
+
+**Si ves 635 en vez de 647, el dato es de antes del 25-ago:** son las 12 unidades
+EXONERADAS que `DATOS 2` no veía porque no tienen chasis. Dos de ellas son de La Y
+(enero y abril) y parecían "Everest fantasma".
+
+### La Base de Ventas manda sobre DATOS 2
+
+Finanzas publica cada mes `Base de Ventas a <Mes>.xlsx`. **Es una tabla dinámica y los
+datos de origen no están en ninguna hoja**: viven en `xl/pivotCache/` dentro del .xlsx
+(el archivo es un ZIP). Los lee `base_ventas.py`.
+
+Gana sobre `DATOS 2` en los meses que cubre porque trae el **canal** (RETAIL /
+EXONERADO), la **agencia ya resuelta** —distinta de la bodega en 50 de 915 filas, es el
+efecto placa—, **costo y utilidad por chasis**, y **corta más tarde en el mes** (24 contra
+14: 57 ventas de agosto en vez de 10).
+
+⚠ Solo trae el año en curso. 2025 y todo lo de producto siguen viniendo del inventario.
+
+⚠ A `fact_agency_norm()` hay que pasarle el nombre **largo**: busca palabras clave
+('CARLOS JULIO AROSEMENA'), no entiende la sigla `CJA`. Con la sigla, las 175 unidades
+de CJA caían calladas en 'Sin agencia' y el total seguía cuadrando.
 
 ---
 
@@ -637,6 +662,16 @@ python3 hubspot_pull.py && python3 _merge_digital.py && ./deploy.sh --skip-aggre
 ---
 
 ## Bugs resueltos que conviene no repetir
+
+- **El modelo llegaba con la descripción completa** (25-ago-2026): sin normalizar, el mismo
+  modelo abría **filas paralelas que no se agregan** y ninguna cuadra contra las metas. 2025
+  tenía 27 filas de modelo Ford en vez de 9; MAGE salía en 3, RICH 6 en 3, HUGE en 2. El bug
+  no descuadra ningún total —solo reparte una cifra correcta— así que sobrevive a cualquier
+  chequeo de suma. Fix: normalizar en **un punto único** de `aggregate.py` para todos los
+  orígenes a la vez. El invariante 27 lo caza.
+- **La sigla de agencia mataba 175 unidades sin ruido** (25-ago-2026): `fact_agency_norm()`
+  recibe `CJA` en vez de `CARLOS JULIO AROSEMENA`, devuelve `None` y todo cae en
+  'Sin agencia'. El total nacional seguía cuadrando; solo la fila de CJA salía en cero.
 
 - **Ventas revertidas sobreviviendo en la unión de snapshots** (22-ago-2026): el panel daba
   639 unidades Ford ene–jul contra 635 de finanzas. Cuatro chasis facturados y luego anulados
