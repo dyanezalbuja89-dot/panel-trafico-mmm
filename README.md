@@ -267,7 +267,31 @@ el canvas arranca en esa misma coordenada, así que etiquetas y trazado no se pi
 
 Medido en producción: desvío máximo **0,36 px** en las 7 tarjetas.
 
-### Conversión: la tarjeta no cuadra con la suma de las barras (y está bien)
+### Conversión = vehículos ÷ personas de tráfico (24-ago-2026)
+
+**No** personas-que-compraron ÷ personas únicas: esa versión dejaba fuera al cliente que se
+lleva dos autos. Aplica al KPI, a las cuatro tablas, a los bullets y al gráfico.
+
+La Y ene–ago 2026: **49 vehículos / 524 personas = 9,4%**. Red: 645 / 3.554 = 18,1%.
+
+#### Tres cifras de tráfico para la misma agencia, y ninguna está mal
+
+| Cifra | Qué cuenta | Dónde sale |
+|---|---|---|
+| 480 | visitas, sólo canales de marketing | Comparativo (filtro por defecto) |
+| 561 | visitas, todos los canales | Comparativo sin filtro |
+| 527 | **personas distintas** con 1er toque en 2026 | Conversión |
+
+El tráfico cuenta **visitas** (reingreso a los 60 días); la conversión cuenta **personas**,
+una vez en el año. Además la pestaña de Conversión no filtra por categoría de canal.
+
+#### Los TOTAL no son la suma de las filas
+
+Los buckets se solapan. La tabla de modelo sumaba 46 compradores contra los 43 del KPI, con
+su propio % (8,7% vs 8,2%). Ahora `renderTable` recibe el total del KPI y avisa cuánto suman
+las filas. **Nunca sumar filas de estas tablas para sacar un total.**
+
+#### Conversión: la tarjeta no cuadra con la suma de las barras (y está bien)
 
 En la pestaña **Conversión**, el KPI `% Conversión` y el gráfico de evolución mensual dan
 distinto a propósito:
