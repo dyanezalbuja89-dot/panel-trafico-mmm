@@ -3109,7 +3109,7 @@ HTML = r"""<!doctype html>
             <span style="width:6px;height:8px;background:var(--c-amber-100)"></span>
             <span style="width:10px;height:8px;background:var(--c-emerald-100)"></span>
           </span>
-          Bandas: &lt;80% riesgo · 80-89% alerta · ≥90% sano
+          Bandas: &lt;75% riesgo · 75-89% alerta · ≥90% sano
         </span>
       </div>
     </div>
@@ -3163,7 +3163,7 @@ HTML = r"""<!doctype html>
         <tbody></tbody>
       </table>
       </div>
-      <div class="legend">🟢 ≥90% al ritmo &nbsp;|&nbsp; 🟡 80-89% &nbsp;|&nbsp; 🔴 &lt;80% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta, con tráfico. <em>Hover para ver ambos valores.</em></div>
+      <div class="legend">🟢 ≥90% al ritmo &nbsp;|&nbsp; 🟡 75-89% &nbsp;|&nbsp; 🔴 &lt;75% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta, con tráfico. <em>Hover para ver ambos valores.</em></div>
     </div>
 
     <!-- DISTRIBUCIÓN POR CANAL -->
@@ -3360,7 +3360,7 @@ HTML = r"""<!doctype html>
               <span style="width:6px;height:8px;background:var(--c-amber-100)"></span>
               <span style="width:10px;height:8px;background:var(--c-emerald-100)"></span>
             </span>
-            Bandas: &lt;80% riesgo · 80-89% alerta · ≥90% sano
+            Bandas: &lt;75% riesgo · 75-89% alerta · ≥90% sano
           </span>
         </div>
       </div>
@@ -3406,7 +3406,7 @@ HTML = r"""<!doctype html>
           <tbody></tbody>
         </table>
         </div>
-        <div class="legend">🟢 ≥90% al ritmo &nbsp;|&nbsp; 🟡 80-89% &nbsp;|&nbsp; 🔴 &lt;80% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta, con tráfico. <em>Hover para ver ambos valores.</em></div>
+        <div class="legend">🟢 ≥90% al ritmo &nbsp;|&nbsp; 🟡 75-89% &nbsp;|&nbsp; 🔴 &lt;75% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta, con tráfico. <em>Hover para ver ambos valores.</em></div>
       </div>
 
       <!-- DISTRIBUCIÓN POR CANAL -->
@@ -3739,7 +3739,7 @@ HTML = r"""<!doctype html>
           <tbody></tbody>
         </table>
       </div>
-      <div style="font-size:11px;color:var(--c-muted);margin-top:6px">Cada celda: real / meta · color = cumplimiento (verde ≥90% · amarillo 80-89% · rojo &lt;80%). Solo Ford tiene meta de ventas oficial cargada.</div>
+      <div style="font-size:11px;color:var(--c-muted);margin-top:6px">Cada celda: real / meta · color = cumplimiento (verde ≥90% · amarillo 75-89% · rojo &lt;75%). Solo Ford tiene meta de ventas oficial cargada.</div>
     </div>
 
     <!-- NOTAS DE CRÉDITO · auditoría -->
@@ -3809,7 +3809,7 @@ HTML = r"""<!doctype html>
       </div>
     </div>
 
-    <div class="footer-note">Cumpl% por fila · color verde ≥90% · amarillo 80-89% · rojo &lt;80% · Fuente meta: NUEVO_AI_FORD; Fuente real: Base de ventas YTD NETOS.</div>
+    <div class="footer-note">Cumpl% por fila · color verde ≥90% · amarillo 75-89% · rojo &lt;75% · Fuente meta: NUEVO_AI_FORD; Fuente real: Base de ventas YTD NETOS.</div>
   </section>
 
   <!-- ======================= TAB INVENTARIO ======================= -->
@@ -5422,7 +5422,7 @@ HTML = r"""<!doctype html>
             <tbody></tbody>
           </table>
         </div>
-        <div class="legend">🟢 ≥90% &nbsp;|&nbsp; 🟡 80-89% &nbsp;|&nbsp; 🔴 &lt;80% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta</div>
+        <div class="legend">🟢 ≥90% &nbsp;|&nbsp; 🟡 75-89% &nbsp;|&nbsp; 🔴 &lt;75% &nbsp;|&nbsp; — sin tráfico ni meta &nbsp;|&nbsp; N/A sin meta</div>
       </div>
 
       <!-- EVOLUCIÓN MES A MES -->
@@ -5441,8 +5441,8 @@ HTML = r"""<!doctype html>
           Cada celda muestra el <strong>% cumplimiento de tráfico</strong>. <strong>Tap en la celda</strong> para ver detalle completo del modelo en todos los meses.
           <span style="display:inline-flex;flex-wrap:wrap;gap:6px;margin-left:8px;vertical-align:middle">
             <span style="background:#f87171;color:#450a0a;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">crítico &lt;50%</span>
-            <span style="background:#fecaca;color:#7f1d1d;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">bajo 50-79%</span>
-            <span style="background:#fef3c7;color:#854d09;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">alerta 80-89%</span>
+            <span style="background:#fecaca;color:#7f1d1d;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">bajo 50-74%</span>
+            <span style="background:#fef3c7;color:#854d09;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">alerta 75-89%</span>
             <span style="background:#d1fae5;color:#14532d;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">ok 90-120%</span>
             <span style="background:#86efac;color:#052e16;padding:1px 6px;border-radius:4px;font-weight:700;font-size:11px">sobre meta &gt;120%</span>
           </span>
@@ -5466,7 +5466,7 @@ HTML = r"""<!doctype html>
         <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;margin-bottom:14px;padding:10px 14px;background:#f5f7fb;border-radius:6px;border:1px solid #e5e7eb;line-height:1.8">
           <strong style="text-transform:uppercase;letter-spacing:.4px;color:var(--ford-2);font-size:11px;width:100%">Cómo leer el color del fondo:</strong>
           <span><span style="display:inline-block;width:14px;height:14px;background:#c8e6c9;border-radius:3px;vertical-align:-2px"></span> ✅ <strong>verde</strong>: tráfico cumple meta Y se está vendiendo · o tráfico bajo está justificado por reservas con stock</span>
-          <span><span style="display:inline-block;width:14px;height:14px;background:#fff59d;border-radius:3px;vertical-align:-2px"></span> ⚠️ <strong>amarillo</strong>: tráfico parcial (80-89% meta)</span>
+          <span><span style="display:inline-block;width:14px;height:14px;background:#fff59d;border-radius:3px;vertical-align:-2px"></span> ⚠️ <strong>amarillo</strong>: tráfico parcial (75-89% meta)</span>
           <span><span style="display:inline-block;width:14px;height:14px;background:#ffcc80;border-radius:3px;vertical-align:-2px"></span> ⚠️ <strong>naranja</strong>: tráfico cumplió pero hay sobre-stock y no se vende — problema comercial</span>
           <span><span style="display:inline-block;width:14px;height:14px;background:#ffcdd2;border-radius:3px;vertical-align:-2px"></span> 🟥 <strong>rojo</strong>: 📦 sin stock · 🟥 sobre-stock crónico · 📉 caída real sin explicación</span>
           <span><span style="display:inline-block;width:14px;height:14px;background:#eceff1;border-radius:3px;vertical-align:-2px"></span> <strong>gris</strong>: sin meta o mes en curso</span>
@@ -5831,12 +5831,12 @@ HTML = r"""<!doctype html>
   }
 
   // ─── ESCALA ÚNICA DE CUMPLIMIENTO VS META ───────────────────
-  // Regla (24-ago-2026): ≥90% verde · 80-89% amarillo · <80% rojo.
+  // Regla (24-ago-2026): ≥90% verde · 75-89% amarillo · <75% rojo.
   // Una sola definición para las 14 pestañas. Si el criterio cambia,
   // se cambia AQUÍ y no hay que perseguir umbrales sueltos por el archivo.
   // OJO: aplica solo a % de cumplimiento contra meta. Las tasas de
   // conversión, cierre y aprobación de crédito tienen su propia escala.
-  const CUMPL_VERDE = 90, CUMPL_AMARILLO = 80;
+  const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
   function cumplNivel(p){
     if(p == null || isNaN(p)) return null;
     return p >= CUMPL_VERDE ? 'green' : p >= CUMPL_AMARILLO ? 'yellow' : 'red';
@@ -13957,7 +13957,7 @@ HTML = r"""<!doctype html>
     const ff = anMonthData(AN_MONTHS_2026[AN_MONTHS_2026.length-1])
             || anMonthData(AN_MONTHS_2026[0])
             || (anstate.marca === 'FORD' ? FORD : null);
-    const modelos = ff?.model_order || [];
+    const modelos = anModelList(ff?.model_order);
     const agencias = ff?.dealer_order || [];
     const elMod = document.getElementById('an-modelo');
     if(elMod){
@@ -14019,13 +14019,21 @@ HTML = r"""<!doctype html>
   // la escalamos según la categoría activa (×1.0 / ×0.25 / ×1.25).
   // Para el mes en curso usamos meta-al-día (× days_trans/days_lab) para que el cumpl%
   // no se vea artificialmente bajo cuando todavía no terminan los días laborables.
+  // ─── 'Por definir' se cuenta como ESCAPE ─────────────────────
+  // Decisión de Daniel (24-ago-2026). El tráfico que llega sin modelo en la BD
+  // sale como 'Por definir' y en la práctica es Escape. Aplica SOLO a Análisis
+  // General: en el resto del panel sigue siendo su propia fila.
+  const AN_FOLD = {'ESCAPE': ['ESCAPE', 'Por definir']};
+  const anModelKeys = m => AN_FOLD[m] || [m];
+  const anModelList = arr => (arr || []).filter(m => m !== 'Por definir');
+
   function anAgg(monthKeys, models, dealers){
     let curr=0, metaMkt=0;
     const canalSet = anCanalSet();
     monthKeys.forEach(mk=>{
       const fm = anMonthData(mk); if(!fm) return;
       const dayFactor = anMonthDayFactor(fm);
-      const mods = models && models.length ? models : (fm.model_order||[]);
+      const mods = anModelList(models && models.length ? models : (fm.model_order||[])).flatMap(anModelKeys);
       const deals = dealers && dealers.length ? dealers : (fm.dealer_order||[]);
       const dmc = fm.dealer_model_channel || {};
       mods.forEach(m=>{
@@ -14137,7 +14145,7 @@ HTML = r"""<!doctype html>
   function renderAnPorModelo(){
     const months = anScopeMonths();
     const ff = anMonthData(months[months.length-1]) || anMonthData(AN_MONTHS_2026[0]);
-    const modelos = ff?.model_order || [];
+    const modelos = anModelList(ff?.model_order);
     // filter by anstate.modelo if set
     const inModels = anstate.modelo ? [anstate.modelo] : null;
     document.getElementById('an-mod-sub').textContent = anViewLabel() + (anstate.agencia?` · ${anstate.agencia}`:'') + (inModels?` · sólo ${anstate.modelo}`:'');
@@ -14217,7 +14225,7 @@ HTML = r"""<!doctype html>
       const fm = anMonthData(mk); if(!fm) return;
       const dmc = fm.dealer_model_channel || {};
       const deals = anstate.agencia ? [anstate.agencia] : (fm.dealer_order || []);
-      const mods = anstate.modelo ? [anstate.modelo] : (fm.model_order || []);
+      const mods = anModelList(anstate.modelo ? [anstate.modelo] : (fm.model_order || [])).flatMap(anModelKeys);
       // include Otros if no agency filter
       const dealList = anstate.agencia ? deals : [...deals, 'Otros'];
       dealList.forEach(d=>{
@@ -14249,7 +14257,7 @@ HTML = r"""<!doctype html>
     const months = anScopeMonths();
     const ff = anMonthData(months[months.length-1]) || anMonthData(AN_MONTHS_2026[0]);
     document.getElementById('an-heat-sub').textContent = anViewLabel() + ' · ' + anCanalLabel();
-    const modelos = anstate.modelo ? [anstate.modelo] : (ff?.model_order||[]);
+    const modelos = anModelList(anstate.modelo ? [anstate.modelo] : (ff?.model_order||[]));
     const dealers = anstate.agencia ? [anstate.agencia] : (ff?.dealer_order||[]);
     const canalSet = anCanalSet();
     document.getElementById('an-heat-head').innerHTML =
@@ -14262,9 +14270,11 @@ HTML = r"""<!doctype html>
         months.forEach(mk=>{
           const fm = anMonthData(mk); if(!fm) return;
           const dayFactor = anMonthDayFactor(fm);
-          const chMap = (fm.dealer_model_channel?.[d]||{})[m] || {};
-          for(const k in chMap){ if(canalSet.has(k)) real += chMap[k]||0; }
-          metaMkt += ((fm.matrix_meta?.[m]?.[d])||0) * dayFactor;
+          anModelKeys(m).forEach(mm=>{
+            const chMap = (fm.dealer_model_channel?.[d]||{})[mm] || {};
+            for(const k in chMap){ if(canalSet.has(k)) real += chMap[k]||0; }
+            metaMkt += ((fm.matrix_meta?.[mm]?.[d])||0) * dayFactor;
+          });
         });
         const meta = Math.round(anScaleMeta(metaMkt));
         rowReal+=real; rowMeta+=meta;
@@ -14350,11 +14360,11 @@ HTML = r"""<!doctype html>
       const fm = anMonthData(mk); if(!fm) return null;
       let trafico, meta;
       if(modeloOpt && agenciaOpt){
-        trafico = (fm.matrix_cnt?.[modeloOpt]?.[agenciaOpt]) || 0;
-        meta    = (fm.matrix_meta?.[modeloOpt]?.[agenciaOpt]) || 0;
+        trafico = anModelKeys(modeloOpt).reduce((t,mm)=> t + ((fm.matrix_cnt?.[mm]?.[agenciaOpt]) || 0), 0);
+        meta    = anModelKeys(modeloOpt).reduce((t,mm)=> t + ((fm.matrix_meta?.[mm]?.[agenciaOpt]) || 0), 0);
       } else if(modeloOpt){
-        trafico = (fm.models?.[modeloOpt]?.curr) || 0;
-        meta    = (fm.models?.[modeloOpt]?.meta) || 0;
+        trafico = anModelKeys(modeloOpt).reduce((t,mm)=> t + ((fm.models?.[mm]?.curr) || 0), 0);
+        meta    = anModelKeys(modeloOpt).reduce((t,mm)=> t + ((fm.models?.[mm]?.meta) || 0), 0);
       } else if(agenciaOpt){
         trafico = (fm.dealers?.[agenciaOpt]?.curr) || 0;
         meta    = (fm.dealers?.[agenciaOpt]?.meta) || 0;
@@ -14840,7 +14850,7 @@ HTML = r"""<!doctype html>
     // Best/worst model
     const ff = anMonthData(AN_MONTHS_2026[0]) || FORD;
     if(!anstate.modelo){
-      const perModel = (ff?.model_order||[]).map(m=>{
+      const perModel = anModelList(ff?.model_order).map(m=>{
         const {curr:c,meta:me} = anAgg(months, [m], anScopeDealers());
         return {m,c,me,p: me>0?100*c/me:null};
       }).filter(r=>r.c>0||r.me>0);
@@ -14894,7 +14904,7 @@ HTML = r"""<!doctype html>
       const fm = anMonthData(mk); if(!fm) return;
       const dmc = fm.dealer_model_channel || {};
       const deals = anstate.agencia ? [anstate.agencia] : (fm.dealer_order || []);
-      const mods = anstate.modelo ? [anstate.modelo] : (fm.model_order || []);
+      const mods = anModelList(anstate.modelo ? [anstate.modelo] : (fm.model_order || [])).flatMap(anModelKeys);
       const dealList = anstate.agencia ? deals : [...deals, 'Otros'];
       dealList.forEach(d=>{
         mods.forEach(m=>{
