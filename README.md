@@ -351,6 +351,40 @@ eje izquierdo, línea de % en el derecho. Un 21,7% sobre 60 personas y un 6% sob
 historias distintas y el % solo no lo mostraba. Las barras de ventas llevan `minBarLength: 3`
 — una venta contra una escala de 120 sería invisible.
 
+## Auditoría de filtros (25-ago-2026)
+
+Se revisaron los filtros de las 14 pestañas. **El patrón de fallo no da error**: el
+selector está en el HTML, se ve normal, pero o no llega a poblarse o una de las
+computaciones no lo aplica. El número que sale es plausible y viejo.
+
+| Pestaña | Hallazgo |
+|---|---|
+| Conversión | a 2 de 7 filtros de facturas les faltaba `zona` → **arreglado** |
+| Ventas | el selector Zona nunca se poblaba → **arreglado** |
+| Inversión Digital | los 3 filtros muertos: faltaba el nodo `xiy` → **arreglado** |
+| Ford · Marcas · Comparativo · Análisis General · Meta ventas · Embudo · Asignación · Seguimiento Digital | responden correctamente |
+
+Dos causas distintas, misma consecuencia:
+
+- **`vtBrandData()`** fusionaba `by_modelo` y `by_agencia` de varias marcas pero no
+  `by_zona`. Como el default son todas las marcas, siempre entraba por esa rama.
+- **`data_xiy.json`** se buscaba en `OneDrive/.../Abril/panel-trafico/`, ruta que quedó
+  atrás cuando el repo salió de OneDrive. Sin el archivo no se emite el nodo `xiy` y
+  `xiyInitFilters()` hace `return` — escondiendo hasta el botón Limpiar. Ahora se busca
+  junto al script.
+
+### Comportamientos por diseño (no son bugs)
+
+- **Ford · tabla de zonas** y **Asignación · KPIs**: son vistas comparativas entre zonas;
+  muestran todas y marcan la activa.
+- **Ventas · `vt-mix-tbl` y `vt-bp-tbl`**: van contra presupuesto nacional, no filtran por
+  zona ni agencia.
+- **Ventas · `vt-meta-tbl`**: solo aparece con Ford aislado.
+- **Marcas · agencia y modelo**: se pueblan al elegir una marca.
+
+⚠ **`data_xiy.json` está congelado en abril-2026.** Los filtros ya funcionan, pero la
+pestaña no tiene datos de mayo en adelante.
+
 ## Verificación
 
 ```bash
