@@ -291,6 +291,20 @@ Los buckets se solapan. La tabla de modelo sumaba 46 compradores contra los 43 d
 su propio % (8,7% vs 8,2%). Ahora `renderTable` recibe el total del KPI y avisa cuánto suman
 las filas. **Nunca sumar filas de estas tablas para sacar un total.**
 
+#### El gráfico de cohortes cuadra con el total facturado
+
+Su eje X es el **mes del primer toque**, no el de la factura: la barra de junio son los
+autos que compró la gente que llegó en junio, facturados cuando haya sido. Por eso no
+coincide con el calendario de ventas — La Y vendió 10 en junio pero solo 5 fueron a gente
+que entró ese mes.
+
+Los compradores **sin cohorte** (flota, gestión externa, primer contacto en 2025) no caen en
+ningún mes. Antes quedaban fuera y las barras sumaban 39 de 49; ahora van en una columna
+**"Sin cohorte"** al final, sin % porque no tienen denominador. Verificado: barras = KPI =
+total de la tabla en las 7 agencias, en toda ORGU y en Ford/DongFeng/Chery.
+
+Por **fecha de factura** el nodo cuadra exacto con `ventas_mensual`: La Y 4·11·8·3·3·10·9·1 = 49.
+
 #### Conversión: la tarjeta no cuadra con la suma de las barras (y está bien)
 
 En la pestaña **Conversión**, el KPI `% Conversión` y el gráfico de evolución mensual dan
