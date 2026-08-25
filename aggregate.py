@@ -2373,7 +2373,13 @@ def main():
     # Merge de inversión publicitaria Xiy (si existe data_xiy.json con el bloque
     # consolidated_for_panel listo). Lo metemos como out["xiy"] para que el panel
     # lo lea desde DATA.xiy en el tab Inversión.
-    xiy_path = ABRIL_BASE / "panel-trafico/data_xiy.json"
+    # El repo salió de OneDrive y esta ruta se quedó apuntando al lugar viejo, así
+    # que el nodo `xiy` no se generaba y los tres filtros de Inversión Digital
+    # quedaban muertos (xiyInitFilters hace `return` sin _lines_flat). Se busca
+    # primero junto al script.
+    xiy_path = Path(__file__).resolve().parent / "data_xiy.json"
+    if not xiy_path.exists():
+        xiy_path = ABRIL_BASE / "panel-trafico/data_xiy.json"
     if xiy_path.exists():
         try:
             with open(xiy_path, "r", encoding="utf-8") as f:

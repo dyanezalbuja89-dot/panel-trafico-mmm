@@ -15262,7 +15262,7 @@ HTML = r"""<!doctype html>
   const _vtMergedCache = new Map();
   function vtBrandData(){
     const marcas = (vtstate.marcas || []).slice().sort();
-    if(!marcas.length) return {flat:[], months:[], months_labels:[], by_modelo:{}, by_agencia:{}, totals:{_total:0}};
+    if(!marcas.length) return {flat:[], months:[], months_labels:[], by_modelo:{}, by_agencia:{}, by_zona:{}, totals:{_total:0}};
     if(marcas.length === 1) return VENTAS_MENSUAL[marcas[0]] || null;
     const key = marcas.join('|');
     if(_vtMergedCache.has(key)) return _vtMergedCache.get(key);
@@ -15274,12 +15274,15 @@ HTML = r"""<!doctype html>
     const labelsMap = {};
     brands.forEach(b => (b.months||[]).forEach((m,i)=>{ if(!labelsMap[m]) labelsMap[m] = (b.months_labels||[])[i] || m; }));
     const months_labels = months.map(m => labelsMap[m] || m);
-    const by_modelo = {}; const by_agencia = {};
+    // by_zona faltaba en el merge: con varias marcas activas (el default) el select
+    // Zona se quedaba vacío y no se podía filtrar la pestaña por ciudad.
+    const by_modelo = {}; const by_agencia = {}; const by_zona = {};
     brands.forEach(b=>{
       Object.keys(b.by_modelo||{}).forEach(k=>{ by_modelo[k] = true; });
       Object.keys(b.by_agencia||{}).forEach(k=>{ by_agencia[k] = true; });
+      Object.keys(b.by_zona||{}).forEach(k=>{ by_zona[k] = true; });
     });
-    const merged = {flat, months, months_labels, by_modelo, by_agencia, totals:{_total:0}};
+    const merged = {flat, months, months_labels, by_modelo, by_agencia, by_zona, totals:{_total:0}};
     _vtMergedCache.set(key, merged);
     return merged;
   }
