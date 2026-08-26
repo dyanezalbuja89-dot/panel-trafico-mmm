@@ -631,6 +631,79 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     }
 
 
+# Nodos del embudo que llevan el nombre del asesor como CLAVE del dict.
+_NODOS_ASESOR = (
+    'por_asesor', 'por_asesor_modelo', 'enfriados_por_asesor', 'avanzados_por_asesor',
+    'cotiz_asesor_canal', 'cierre_asesor_canal', 'sol_asesor_canal', 'apr_asesor_canal',
+    'cotiz_ase_ch_mod', 'cierre_ase_ch_mod', 'sol_ase_ch_mod', 'apr_ase_ch_mod',
+)
+
+
+def _fusionar_hondo(dst, src):
+    """Suma `src` dentro de `dst` respetando la profundidad (n, {k:n}, {k:{k:n}})."""
+    for k, v in src.items():
+        if isinstance(v, dict):
+            _fusionar_hondo(dst.setdefault(k, {}), v)
+        else:
+            dst[k] = (dst.get(k) or 0) + v
+
+
+def _canonizar_asesores(out):
+    """Un asesor escrito de dos formas abría dos filas en cada tabla del Embudo.
+
+    "IVANA ZURITA" (228 registros) e "IVANA ALEJANDRA ZURITA HUAYAMABE" (1) son la
+    misma persona: sus números salían partidos y la fila larga aparecía con un
+    resultado ridículo. Mismo caso de María Castrellón.
+
+    Se fusiona solo cuando los tokens del nombre corto están TODOS en el largo
+    ("IVANA ZURITA" ⊂ "IVANA ALEJANDRA ZURITA HUAYAMABE"), nunca por tokens
+    compartidos: en la red conviven RODRIGO MIER y RODRIGO HILAÑO, KAREN FERNÁNDEZ
+    y KAREN BAJAÑA. Manda el nombre con MÁS volumen — el que la agencia usa a
+    diario — igual que en el ranking de Conversión.
+
+    El pase corre sobre la red completa, no por agencia, para que el canónico sea
+    el mismo en todas partes.
+    """
+    vol = {}
+    for meses in out['agencias'].values():
+        for c in meses.values():
+            for ase, fila in (c.get('por_asesor') or {}).items():
+                n = sum(v for v in fila.values() if isinstance(v, (int, float)))
+                vol[ase] = vol.get(ase, 0) + n
+    tok = lambda s: set(str(s).split())
+
+    def subconjunto(corto, largo):
+        a, b = tok(corto), tok(largo)
+        return 2 <= len(a) < len(b) and a <= b
+
+    alias = {}
+    for a in sorted(vol, key=lambda x: -vol[x]):          # el de más volumen manda
+        if a in alias:
+            continue                                       # ya es alias de otro
+        for b in vol:
+            if b == a or b in alias:
+                continue
+            if subconjunto(a, b) or subconjunto(b, a):
+                alias[b] = a
+    if not alias:
+        return 0
+    for meses in out['agencias'].values():
+        for c in meses.values():
+            for nodo in _NODOS_ASESOR:
+                d = c.get(nodo)
+                if not isinstance(d, dict):
+                    continue
+                for viejo, nuevo in alias.items():
+                    if viejo not in d:
+                        continue
+                    v = d.pop(viejo)
+                    if isinstance(v, dict):
+                        _fusionar_hondo(d.setdefault(nuevo, {}), v)
+                    else:
+                        d[nuevo] = (d.get(nuevo) or 0) + v
+    return len(alias)
+
+
 def compute_embudo_data():
     """Procesa todas las agencias configuradas. Devuelve {agencias: {...}, default}."""
     out = {'agencias': {}, 'meses': {}}
@@ -648,6 +721,9 @@ def compute_embudo_data():
                 out['agencias'][short][mes] = r
     if not out['agencias']:
         return None
+    _n = _canonizar_asesores(out)
+    if _n:
+        print(f'[embudo] {_n} grafías de asesor fusionadas en su nombre canónico')
     out['default_agencia'] = next(iter(out['agencias'].keys()))
     # Mapa agencia → región (provincia) y agrupación inversa región → [agencias]
     out['region_agencia'] = {ag: AGENCY_REGION.get(ag, '(Sin región)') for ag in out['agencias'].keys()}
