@@ -4787,7 +4787,7 @@ HTML = r"""<!doctype html>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6a6 6 0 1 0 6 6"/><path d="M12 10a2 2 0 1 0 2 2"/><path d="M20 2l2 2-10 10"/></svg>
             Control CC · 2026
           </div>
-          <div class="cc-section-sub">snapshot jun-2026 · datos estáticos verificados · solo 2026</div>
+          <div class="cc-section-sub" id="cc26-fuente-sub">datos en vivo de HubSpot · pipeline Ventas-Ford · 2026</div>
         </div>
         <div style="display:flex; gap:10px; align-items:flex-end">
           <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end">
@@ -5841,7 +5841,21 @@ HTML = r"""<!doctype html>
   // se cambia AQUÍ y no hay que perseguir umbrales sueltos por el archivo.
   // OJO: aplica solo a % de cumplimiento contra meta. Las tasas de
   // conversión, cierre y aprobación de crédito tienen su propia escala.
-  const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
+  // ── Asesores que ya no están en la red. NO se sacan de ninguna tabla: sus ventas y
+// su tráfico siguen sumando. Solo se marcan, porque un resultado individual de alguien
+// que ya salió no es algo a lo que se le pueda pedir un plan de acción.
+// El set lo resuelve aggregate.py contra las grafías que de verdad quedaron en
+// data.json (Karen vive en 3, Ivana en 3 incluida el typo IVANNA), así que aquí basta
+// el lookup exacto: si aparece una grafía nueva la recoge el próximo aggregate.
+function aseSalidoBadge(nombre){
+  if (!(DATA.asesores_salidos || {})[nombre]) return '';
+  return ' <span style="font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;'
+    + 'color:#6b7280;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;'
+    + 'padding:1px 6px;margin-left:6px;vertical-align:middle;white-space:nowrap"'
+    + ' title="Ya no trabaja en la red · sus cifras siguen contando en los totales">ya salió</span>';
+}
+
+const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
   function cumplNivel(p){
     if(p == null || isNaN(p)) return null;
     return p >= CUMPL_VERDE ? 'green' : p >= CUMPL_AMARILLO ? 'yellow' : 'red';
@@ -10072,7 +10086,7 @@ HTML = r"""<!doctype html>
           : '';
         return `<tr${trAttrs}>
           ${rankCol}
-          <td class="left"><strong>${k}</strong>${isRank ? _salioBadge(k) : ''}${sel ? ' <span style="font-size:10px;color:var(--ford-2);font-weight:700">● filtrando</span>' : ''}</td>
+          <td class="left"><strong>${k}</strong>${isRank ? aseSalidoBadge(k) : ''}${sel ? ' <span style="font-size:10px;color:var(--ford-2);font-weight:700">● filtrando</span>' : ''}</td>
           <td class="num">${fmt(d.traffic)}</td>
           <td class="num" style="font-weight:700">${fmt(d.matched||0)}</td>
           <td class="num" style="color:var(--ford-2)">${fmt(d.ventas||0)}</td>
@@ -10194,21 +10208,6 @@ HTML = r"""<!doctype html>
     // Se fusiona solo cuando los tokens del nombre corto están TODOS en el largo
     // ("VIVIANA VELEZ" ⊂ "VIVIANA MAGDALENA VELEZ VALAREZO"). Con "≥2 tokens en común"
     // se corría el riesgo de unir a dos personas distintas que comparten dos nombres.
-    // ── Asesores que ya no están en la red. NO se sacan del ranking: sus ventas y su
-    // tráfico siguen sumando. Solo se marcan, porque un resultado individual de alguien
-    // que ya salió no es algo a lo que se le pueda pedir un plan de acción.
-    // El set lo resuelve aggregate.py contra las grafías reales (Karen vive en 3, Ivana
-    // en 3 incluida un typo), así que aquí basta el lookup exacto.
-    const _salioBadge = (nombre) => {
-      const S = (DATA.asesores_salidos || {});
-      return S[nombre]
-        ? ' <span style="font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;'
-          + 'color:#6b7280;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;'
-          + 'padding:1px 6px;margin-left:6px;vertical-align:middle;white-space:nowrap"'
-          + ' title="Ya no trabaja en la red · sus cifras siguen contando en los totales">ya salió</span>'
-        : '';
-    };
-
     const _subconjunto = (corto, largo) => {
       const a = _tok(corto), b = _tok(largo);
       if (a.size < 2 || a.size >= b.size) return false;
@@ -10277,19 +10276,40 @@ HTML = r"""<!doctype html>
     // en La Y el ranking muestra 29 de 49 unidades.
     (function(){
       const el = document.getElementById('conv-asesor-fuera'); if(!el) return;
+      // ⚠ El total se toma de lo que la tabla DE VERDAD suma, no de restar categorías.
+      // Restando, el aviso prometía 57 de 61 en DongFeng·La Y mientras la tabla mostraba
+      // 54: las 4 de Karen Fernández no las descontaba nadie porque `asesor_home_agencia`
+      // la tiene como "KAREN FERNANDEZ BRAVO" y la factura como "KAREN JOHANNA FERNANDEZ
+      // BRAVO" — el lookup exacto devolvía undefined. Partir del total real hace que el
+      // aviso no pueda mentir aunque una causa se nos escape.
+      const _enRank = Object.values(aggAsesorFilt).reduce((a,v)=>a+(v.ventas||0), 0);
+      const _fuera = n_ventas - _enRank;
+      if(!_fuera){ el.innerHTML = ''; return; }
+      // Mismo criterio de grafía que el ranking: exacto y, si no, ≥2 tokens en común.
+      const _homeDe = (fn) => {
+        if (_homeAg[fn]) return _homeAg[fn];
+        const ft = _tok(fn); let best = null, bestN = 0;
+        Object.keys(_homeAg).forEach(hn => {
+          let n = 0; _tok(hn).forEach(t => { if (ft.has(t)) n++; });
+          if (n > bestN) { bestN = n; best = hn; }
+        });
+        return bestN >= 2 ? _homeAg[best] : null;
+      };
       const _jf = _mFilt.filter(m => m.is_jefe_fact).reduce((a,m)=>a+(m.qty||0), 0);
       const _otra = convState.agencia
         ? _mFilt.filter(m => !m.is_jefe_fact && m.asesor_fact
-            && _homeAg[m.asesor_fact] && _homeAg[m.asesor_fact] !== convState.agencia)
+            && _homeDe(m.asesor_fact) && _homeDe(m.asesor_fact) !== convState.agencia)
             .reduce((a,m)=>a+(m.qty||0), 0)
         : 0;
       const partes = [];
       if(_jf)   partes.push(`<strong>${fmt(_jf)}</strong> facturadas por un jefe de agencia`);
       if(_otra) partes.push(`<strong>${fmt(_otra)}</strong> de asesores cuya agencia-hogar es otra`);
-      if(!partes.length){ el.innerHTML = ''; return; }
+      const _resto = _fuera - _jf - _otra;
+      if(_resto > 0) partes.push(`<strong>${fmt(_resto)}</strong> de asesores que no llegan al mínimo de clientes en tráfico`);
+      if(_resto < 0) partes.push(`<strong>${fmt(-_resto)}</strong> que el ranking cuenta de más (notas de crédito de asesores sin fila propia)`);
       el.innerHTML = `<div style="background:#fff8e6;border-left:3px solid #b8860b;padding:8px 12px;border-radius:0 6px 6px 0;color:var(--ink);line-height:1.6">
-        El ranking suma <strong>${fmt(n_ventas - _jf - _otra)}</strong> de las
-        <strong>${fmt(n_ventas)}</strong> unidades del filtro. Fuera quedan ${partes.join(' y ')}.
+        El ranking suma <strong>${fmt(_enRank)}</strong> de las
+        <strong>${fmt(n_ventas)}</strong> unidades del filtro. Fuera quedan ${partes.join(', ')}.
         <span style="color:var(--c-muted)">Las flotas NO se excluyen: entran si las facturó un asesor de la casa.</span>
       </div>`;
     })();
@@ -11289,7 +11309,7 @@ HTML = r"""<!doctype html>
     aBody.innerHTML = ases.length ? ases.map(([ase,fila])=>{
       const t = fila[etapas[0]]||0, ci = fila[etapas[etapas.length-1]]||0;
       const cierrePct = t? (100*ci/t).toFixed(0):0;
-      return `<tr><td class="left"><strong>${ase}</strong></td>`+
+      return `<tr><td class="left"><strong>${ase}</strong>${aseSalidoBadge(ase)}</td>`+
         etapas.map(e=>`<td class="num">${fila[e]||''}</td>`).join('')+
         `<td class="num" style="font-weight:600">${cierrePct}%</td></tr>`;
     }).join('') : `<tr><td colspan="${etapas.length+2}" style="text-align:center;color:var(--muted);padding:14px">Sin datos</td></tr>`;
@@ -11531,7 +11551,7 @@ HTML = r"""<!doctype html>
     }
     const tbAse = document.querySelector('#embudo-credito-asesor-tbl tbody');
     tbAse.innerHTML = filasAse.length ? filasAse.map(r=>
-      `<tr><td class="left"><strong>${r.ase}</strong></td>`+
+      `<tr><td class="left"><strong>${r.ase}</strong>${aseSalidoBadge(r.ase)}</td>`+
       `<td class="num">${r.sol}</td>`+
       `<td class="num">${r.apr}</td>`+
       `<td class="num">${rateBadge(r.sol, r.apr)}</td></tr>`
@@ -11623,7 +11643,7 @@ HTML = r"""<!doctype html>
         : `<span style="color:#94a3b8">—</span>`;
       return `<tr>
         <td style="text-align:center">${r.valid ? dot(sCol) : dot('#cbd5e1')}</td>
-        <td class="left"><strong>${r.ase}</strong></td>
+        <td class="left"><strong>${r.ase}</strong>${aseSalidoBadge(r.ase)}</td>
         <td class="num">${r.cot}</td>
         <td class="num">${modelo ? '<span style="color:#94a3b8">—</span>' : badge(r.avPct, 'av')}</td>
         <td class="num">${badge(r.coldPct, 'cold')}</td>
@@ -11691,7 +11711,7 @@ HTML = r"""<!doctype html>
     }
     tb.innerHTML = ases.length ? ases.map(({ase,totC,totK})=>{
       const totRate = totC? 100*totK/totC : null;
-      return `<tr><td class="left"><strong>${ase}</strong></td>`+
+      return `<tr><td class="left"><strong>${ase}</strong>${aseSalidoBadge(ase)}</td>`+
         canales.map(ch => cellHTML((cot[ase]||{})[ch]||0, (cie[ase]||{})[ch]||0)).join('')+
         cellHTML(totC, totK)+
         `</tr>`;
@@ -13982,6 +14002,24 @@ HTML = r"""<!doctype html>
       // si el HTML deployado embebió un digital vacío/roto (p.ej. cron pisó data.json entre merge
       // y build), el fetch trae el dato bueno de GitHub raw y aquí se rearma leads/cont/tope; antes
       // era const del arranque → se quedaba en el fallback estático (síntoma: jun=624, agendadas 0).
+      // Sello de frescura. Nadie escribía #dig-footer-updated: el pie decía "actualizado —"
+      // desde siempre. Importa porque el fetch a GitHub raw cae en silencio al dato
+      // embebido si falla, y sin fecha visible no hay forma de notar que es viejo.
+      (function(){
+        const el = document.getElementById('dig-footer-updated');
+        const iso = (typeof DATA !== 'undefined' && DATA.digital && DATA.digital.updated_at) || '';
+        if (!el) return;
+        if (!iso) { el.textContent = 'sin fecha'; el.style.color = 'var(--neg)'; return; }
+        const d = new Date(iso);
+        if (isNaN(d)) { el.textContent = iso; return; }
+        const horas = (Date.now() - d.getTime()) / 36e5;
+        el.textContent = d.toLocaleString('es-EC', { day: '2-digit', month: 'short',
+          hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Guayaquil' });
+        // El cron corre cada hora: más de 6 sin refrescar es algo que hay que ver.
+        el.style.color = horas > 6 ? 'var(--neg)' : 'inherit';
+        el.style.fontWeight = '700';
+        if (horas > 6) el.title = 'El pull no refresca hace ' + Math.round(horas) + ' h';
+      })();
       _CC26_liveM = _cc26BuildLiveM();
       _CC26_M = (_CC26_liveM && Object.keys(_CC26_liveM).length) ? _CC26_liveM : _CC26_M_FALLBACK;
       // RECOMPUTA order/Q de AMBAS marcas desde el M ya refrescado por el override. El ORDER
@@ -15846,7 +15884,7 @@ HTML = r"""<!doctype html>
       }
       const sub = isAsesor ? `<div style="font-size:10px;color:var(--c-muted);font-weight:400">${r._agencia||''}${r._zona?' · '+r._zona:''}</div>` : '';
       const caret = opts.allowExpand ? `<span class="vt-caret" data-key="${r.k}" style="cursor:pointer;margin-right:4px;color:var(--c-muted)">${expanded?'▼':'▶'}</span>` : '';
-      let rowHtml = `<tr><td>${idx+1} ${rankArrow}</td><td>${caret}<strong>${r.k}</strong>${sub}</td>${cells}<td class="num" ${tCls}>${vtFmtVal(r._total||0)}</td><td class="num" style="color:var(--c-muted)">${share}</td><td>${spark}</td></tr>`;
+      let rowHtml = `<tr><td>${idx+1} ${rankArrow}</td><td>${caret}<strong>${r.k}</strong>${isAsesor ? aseSalidoBadge(r.k) : ''}${sub}</td>${cells}<td class="num" ${tCls}>${vtFmtVal(r._total||0)}</td><td class="num" style="color:var(--c-muted)">${share}</td><td>${spark}</td></tr>`;
       if(expanded){
         const porModelo = Object.entries(r._por_modelo || {})
           .sort((a,b)=> b[1] - a[1])
