@@ -2605,6 +2605,35 @@ def main():
         from presupuesto import build_mix
         out['presupuesto']['mix'] = build_mix(out['presupuesto'], out.get('ventas_mensual'))
 
+    # ► Asesores que ya salieron de la red. Se resuelven CONTRA EL OUTPUT YA ARMADO
+    # para cubrir todas las grafías que de verdad quedaron (Karen vive en 3, Ivana
+    # en 3 incluida un typo). El panel solo hace lookup exacto: si mañana aparece
+    # una grafía nueva, la recoge el próximo aggregate y no hay que tocar el JS.
+    try:
+        from asesores_salidos import resolver as _resolver_salidos
+        _nombres = set()
+
+        def _rec_asesores(o):
+            if isinstance(o, dict):
+                for k, v in o.items():
+                    if 'asesor' in str(k).lower():   # hay dicts con claves int
+                        if isinstance(v, str):
+                            _nombres.add(v)
+                        elif isinstance(v, dict):
+                            _nombres.update(x for x in v if isinstance(x, str))
+                    _rec_asesores(v)
+            elif isinstance(o, list):
+                for v in o:
+                    _rec_asesores(v)
+
+        _rec_asesores(out)
+        out['asesores_salidos'] = _resolver_salidos(n for n in _nombres if n and len(n) > 3)
+        print(f"[asesores] {len(set(out['asesores_salidos'].values()))} salidos "
+              f"· {len(out['asesores_salidos'])} grafías marcadas")
+    except Exception as _e:
+        print('[asesores] WARN no se pudo marcar salidos:', _e)
+        out['asesores_salidos'] = {}
+
     outpath = Path(__file__).parent / "data.json"
     # ► Sanea NaN/Infinity antes de serializar. Python json.dump por default
     # escribe los tokens literales NaN/Infinity (no son JSON válido). El

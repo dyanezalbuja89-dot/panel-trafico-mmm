@@ -10072,7 +10072,7 @@ HTML = r"""<!doctype html>
           : '';
         return `<tr${trAttrs}>
           ${rankCol}
-          <td class="left"><strong>${k}</strong>${sel ? ' <span style="font-size:10px;color:var(--ford-2);font-weight:700">● filtrando</span>' : ''}</td>
+          <td class="left"><strong>${k}</strong>${isRank ? _salioBadge(k) : ''}${sel ? ' <span style="font-size:10px;color:var(--ford-2);font-weight:700">● filtrando</span>' : ''}</td>
           <td class="num">${fmt(d.traffic)}</td>
           <td class="num" style="font-weight:700">${fmt(d.matched||0)}</td>
           <td class="num" style="color:var(--ford-2)">${fmt(d.ventas||0)}</td>
@@ -10194,6 +10194,21 @@ HTML = r"""<!doctype html>
     // Se fusiona solo cuando los tokens del nombre corto están TODOS en el largo
     // ("VIVIANA VELEZ" ⊂ "VIVIANA MAGDALENA VELEZ VALAREZO"). Con "≥2 tokens en común"
     // se corría el riesgo de unir a dos personas distintas que comparten dos nombres.
+    // ── Asesores que ya no están en la red. NO se sacan del ranking: sus ventas y su
+    // tráfico siguen sumando. Solo se marcan, porque un resultado individual de alguien
+    // que ya salió no es algo a lo que se le pueda pedir un plan de acción.
+    // El set lo resuelve aggregate.py contra las grafías reales (Karen vive en 3, Ivana
+    // en 3 incluida un typo), así que aquí basta el lookup exacto.
+    const _salioBadge = (nombre) => {
+      const S = (DATA.asesores_salidos || {});
+      return S[nombre]
+        ? ' <span style="font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;'
+          + 'color:#6b7280;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:999px;'
+          + 'padding:1px 6px;margin-left:6px;vertical-align:middle;white-space:nowrap"'
+          + ' title="Ya no trabaja en la red · sus cifras siguen contando en los totales">ya salió</span>'
+        : '';
+    };
+
     const _subconjunto = (corto, largo) => {
       const a = _tok(corto), b = _tok(largo);
       if (a.size < 2 || a.size >= b.size) return false;
