@@ -11,6 +11,7 @@ Los archivos viven en OneDrive, uno por mes, y **cambiaron de estructura en agos
 todo se mapea leyendo las dos filas de encabezado, nunca por posición fija.
 """
 import re
+import time
 import warnings
 from pathlib import Path
 
@@ -99,8 +100,29 @@ def _archivo_del_mes(carpeta):
     return None
 
 
+def _materializar(path, intentos=3):
+    """Fuerza la descarga de un archivo de OneDrive con Files On-Demand.
+
+    Los presupuestos viven en OneDrive, no en el caché local. Un archivo que el
+    Finder muestra normal puede estar `dataless` (solo el marcador, sin bytes) y
+    entonces pandas falla. El 26-ago-2026 así se perdieron enero y febrero: la
+    pauta cayó de $122.611 a $83.503 y de 8 meses a 6, sin más señal que un aviso
+    al final del log. Leer los bytes obliga a OneDrive a hidratarlo.
+    """
+    ultimo = None
+    for i in range(intentos):
+        try:
+            if path.read_bytes():
+                return path
+        except OSError as e:
+            ultimo = e
+            time.sleep(2 * (i + 1))    # darle tiempo a OneDrive
+    raise OSError(f'{path.name}: OneDrive no lo materializó ({ultimo})')
+
+
 def _leer_mes(path):
     """Devuelve [{producto, familia, cpl, leads, zona, monto, bloque}] de un archivo."""
+    _materializar(path)
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         d = pd.read_excel(path, sheet_name='Digital Pauta', header=None)
@@ -169,11 +191,14 @@ def build_pauta():
         p = _archivo_del_mes(carpeta)
         if p is None:
             continue
+        # Un archivo que EXISTE pero no se deja leer es un error, no un mes ausente:
+        # tragárselo con un `continue` publicaba una inversión incompleta en verde.
         try:
             filas = _leer_mes(p)
         except Exception as e:
-            print(f'[pauta] {carpeta}: no se pudo leer ({e})')
-            continue
+            raise RuntimeError(
+                f'[pauta] {carpeta}: el archivo existe ({p.name}) pero no se pudo leer: {e}. '
+                f'Si es OneDrive, ábrelo una vez en Finder para forzar la descarga.') from e
         if not filas:
             continue
         key = MES_KEY[carpeta]
