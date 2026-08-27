@@ -374,6 +374,29 @@ def check_modelos_normalizados(d):
         ok('modelos normalizados', f'{n} modelos, ninguno con la descripción completa')
 
 
+def check_asesor_unico(d):
+    """Una persona = una fila. Regla de Daniel: da igual la grafía, es la misma
+    asesora, y no puede haber duplicidad.
+
+    Sin este chequeo el panel llegó a tener 98 grafías para 64 personas: Doménica
+    Romero en cuatro formas, Karen Fernández y Anthony Zavala en tres. Cada grafía
+    abría su propia fila con los números partidos, y la fila chica salía con 0
+    ventas y 0,0% en rojo mientras sus unidades se acreditaban a la otra.
+    """
+    try:
+        import asesores as _a
+    except Exception as e:
+        warn('asesor único', f'no pude importar asesores.py: {e}')
+        return
+    freq = _a.frecuencias(d)
+    mapa = _a.construir_mapa(freq)
+    if mapa:
+        ej = [f'{k} = {v}' for k, v in list(mapa.items())[:3]]
+        fail('asesor único', f'{len(mapa)} grafías duplicadas sin canonizar · ' + ' · '.join(ej))
+    else:
+        ok('asesor único', f'{len([n for n in freq if _a.es_persona(n)])} asesores, ninguno duplicado')
+
+
 def check_cache():
     """Si se cambia un criterio de cálculo sin subir la versión, los meses viejos
     se sirven con el criterio anterior y solo cambia el mes en curso."""
@@ -450,6 +473,7 @@ def main():
     check_cruce_ventas(d)
     check_breakdowns_conversion(d)
     check_modelos_normalizados(d)
+    check_asesor_unico(d)
     check_cache()
 
     print()

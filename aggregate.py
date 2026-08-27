@@ -2605,6 +2605,21 @@ def main():
         from presupuesto import build_mix
         out['presupuesto']['mix'] = build_mix(out['presupuesto'], out.get('ventas_mensual'))
 
+    # ► IDENTIDAD ÚNICA DEL ASESOR. Regla de Daniel: una persona = una fila, sin
+    # importar cómo esté escrito el nombre. En el origen conviven 98 grafías para
+    # 64 personas — Doménica en cuatro formas, Karen y Anthony en tres. Sin este
+    # pase cada grafía abría su propia fila con los números partidos.
+    # Va ANTES de marcar a los salidos, para que el badge caiga sobre el nombre
+    # canónico y no sobre un alias que ya no existe.
+    try:
+        import asesores as _ases
+        _pers, _alias, _celdas = _ases.canonizar(out)
+        if _alias:
+            print(f'[asesores] identidad única: {_pers} personas · '
+                  f'{_alias} grafías fusionadas · {_celdas} celdas reescritas')
+    except Exception as _e:
+        print('[asesores] WARN no se pudo canonizar:', _e)
+
     # ► Asesores que ya salieron de la red. Se resuelven CONTRA EL OUTPUT YA ARMADO
     # para cubrir todas las grafías que de verdad quedaron (Karen vive en 3, Ivana
     # en 3 incluida un typo). El panel solo hace lookup exacto: si mañana aparece
