@@ -28,14 +28,18 @@ EMBUDO_BASE = _EMBUDO_LOCAL if _EMBUDO_LOCAL.exists() else _EMBUDO_ONEDRIVE
 # "1013 VEHICULOS MANTA II" (confirmado por Daniel: Manta 2 = Portoviejo).
 # Antes 'PORTOVIEJO' no matcheaba nada → Portoviejo mostraba Cierre=0 los 5 meses
 # y sus 33 ventas se contaban en Manta (bug 29-jul).
+# ⚠ Cada agencia acepta VARIAS grafías porque las fuentes no la nombran igual:
+# el archivo viejo de ventas llamaba a Portoviejo "MANTA II" (bodega 1013) y la
+# Base de Ventas de Finanzas la llama "PORTOVIEJO". Con una sola keyword,
+# Portoviejo caía a CERO al cambiar de fuente sin que nada avisara.
 AGENCY_INV_KEYWORD = {
-    'CJA':       'CARLOS JULIO',
-    'Manta':     'MANTA',        # solo 1002; MANTA II se excluye abajo
-    'Orellana':  'ORELLANA',
-    'Portoviejo':'MANTA II',     # 1013 VEHICULOS MANTA II = Portoviejo
-    'La Y':      'LA Y',
-    'Tumbaco':   'TUMBACO',
-    'Machala':   'MACHALA',
+    'CJA':       ['CARLOS JULIO'],
+    'Manta':     ['MANTA'],                  # MANTA II se excluye abajo
+    'Orellana':  ['ORELLANA'],
+    'Portoviejo':['PORTOVIEJO', 'MANTA II'],
+    'La Y':      ['LA Y'],
+    'Tumbaco':   ['TUMBACO'],
+    'Machala':   ['MACHALA'],
 }
 # Agencias cuyo keyword es substring del de otra: hay que excluir explícitamente.
 AGENCY_INV_EXCLUDE = {
@@ -84,11 +88,36 @@ def _load_inventory_sales():
     descuenta Notas de Crédito (devoluciones), dando el cierre real.
 
     DataFrame con AGENCIA_FACTURACION, fac_dt, MODELO, VERSION, ASESOR_F."""
-    from ventas import load_ventas, DEFAULT_VENTAS_PATH
-    key = str(DEFAULT_VENTAS_PATH) if DEFAULT_VENTAS_PATH else 'NONE'
+    # ► La Base de Ventas de Finanzas es la fuente OFICIAL de ventas del panel.
+    # Antes esto leía "Base de ventas YTD Mayo 2026.xlsx", que corta en mayo: por eso
+    # el Cierre del Embudo daba 0 de junio en adelante en TODAS las agencias, aunque
+    # el CRM sí tuviera los meses. Y era una segunda fuente de ventas divergiendo del
+    # resto del panel. Fallback al archivo viejo si la base no está.
+    key = 'base_ventas'
     if key in _INV_CACHE:
         return _INV_CACHE[key]
-    df = load_ventas()
+    df = None
+    try:
+        import base_ventas as _bv
+        _b = _bv.cargar()
+        if _b is not None and len(_b):
+            _b = _b[_b['marca'] == 'FORD'].copy()
+            df = pd.DataFrame({
+                'AGENCIA_FACTURACION': _b['agencia_raw'].astype(str),
+                'fecha de facturacion': _b['fecha'],
+                'familia': _b['modelo'],          # descripción completa: la versión sale de aquí
+                'ASESOR_FACTURACION': _b['asesor'].astype(str),
+                'Cantidad': _b['cantidad'],
+                'marca': 'FORD',
+            })
+    except Exception as _e:
+        print('[embudo] WARN Base de Ventas no disponible, uso el archivo viejo:', _e)
+    if df is None:
+        from ventas import load_ventas, DEFAULT_VENTAS_PATH
+        key = str(DEFAULT_VENTAS_PATH) if DEFAULT_VENTAS_PATH else 'NONE'
+        if key in _INV_CACHE:
+            return _INV_CACHE[key]
+        df = load_ventas()
     if df is None or len(df) == 0:
         _INV_CACHE[key] = None
         return None
@@ -129,12 +158,18 @@ def _ventas_inventario(agencia_short, mes, asesores_canonicos=None, anio=2026):
     """Cuenta ventas facturadas del inventario para una agencia/mes.
     Devuelve (por_modelo, por_version, por_asesor, por_asesor_modelo, total)."""
     inv = _load_inventory_sales()
-    kw = AGENCY_INV_KEYWORD.get(agencia_short)
+    kws = AGENCY_INV_KEYWORD.get(agencia_short)
     mnum = MES_NUM.get(mes)
-    if inv is None or not kw or not mnum:
+    if inv is None or not kws or not mnum:
         return {}, {}, {}, {}, 0
+    if isinstance(kws, str):
+        kws = [kws]
     _agf = inv['AGENCIA_FACTURACION'].astype(str)
-    sub = inv[_agf.str.contains(kw, case=False, na=False)]
+    _hit = False
+    for _k in kws:
+        _hit = _hit | _agf.str.contains(_k, case=False, na=False) if _hit is not False \
+               else _agf.str.contains(_k, case=False, na=False)
+    sub = inv[_hit]
     for _excl in AGENCY_INV_EXCLUDE.get(agencia_short, []):
         sub = sub[~sub['AGENCIA_FACTURACION'].astype(str).str.contains(_excl, case=False, na=False)]
     sub = sub[(sub['fac_dt'].dt.year == anio) & (sub['fac_dt'].dt.month == mnum)]
