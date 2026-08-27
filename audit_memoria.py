@@ -10,6 +10,15 @@ Uso:
     python3 audit_memoria.py            # solo el resumen
     python3 audit_memoria.py --detalle  # con las cifras de cada archivo
 
+Sale con código 1 si alguna memoria guarda cifras sin situarlas en el tiempo, para
+poder encadenarlo en un chequeo.
+
+⚠ Dos cosas que le costaron falsos positivos y ya están cubiertas: el `modified:`
+del frontmatter NO es contenido, y una fecha vale escrita de muchas formas —
+`25-ago-2026`, `ago-2026`, `05-ago`, `ene–jul`, `Q3-2026`, `1 de septiembre de
+2026`. Si aparece una forma nueva, agregarla a FECHA antes de "arreglar" el
+archivo: puede que ya esté fechado.
+
 La regla está en la memoria `feedback_memoria_caduca`.
 """
 import re
@@ -19,12 +28,18 @@ from pathlib import Path
 MEM = Path.home() / '.claude/projects/-Users-danielyanezalbuja/memory'
 
 # Marcas de que el archivo sí sitúa sus números en el tiempo.
+_MES = r'(?:ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)'
+_MESL = (r'(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|'
+         r'octubre|noviembre|diciembre)')
 FECHA = re.compile(
-    r'\b\d{1,2}-(?:ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)-20\d\d\b'
-    r'|\b20\d\d-\d\d-\d\d\b'
-    r'|\bal?\s\d{1,2}\s?de\s?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|'
-    r'septiembre|octubre|noviembre|diciembre)\b'
-    r'|\b(?:ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)[–-]\w{3}\b'
+    rf'\b\d{{1,2}}-{_MES}\w*-20\d\d\b'          # 25-ago-2026
+    rf'|\b{_MES}\w*[-/ ]20\d\d\b'                 # ago-2026 · julio 2026
+    r'|\b20\d\d-\d\d-\d\d\b'                   # 2026-08-25
+    rf'|\bal?\s\d{{1,2}}\s?de\s?{_MESL}\b'       # al 25 de agosto
+    rf'|\b{_MES}[–-]{_MES}\b'                      # ene–jul
+    rf'|\b\d{{1,2}}-{_MES}\b'                       # 05-ago (día-mes, sin año)
+    rf'|\b\d{{1,2}}\s?de\s?{_MESL}\s?(?:de\s?)?20\d\d\b'   # 1 de septiembre de 2026
+    r'|\bQ[1-4][ -]?20\d\d\b'                   # Q3-2026
     r'|\bcorte\b', re.I)
 
 # Cifras "duras": plata, miles, porcentajes con decimal, unidades. Un "2" suelto no.
@@ -42,10 +57,14 @@ def auditar():
         if p.name == 'MEMORY.md':
             continue
         txt = p.read_text(encoding='utf-8')
-        cifras = CIFRA.findall(txt)
+        # El frontmatter no es contenido: su `modified: 2026-07-23T15:38:...` se
+        # contaba como cifra y marcaba archivos que no guardan ningún número.
+        partes = txt.split('---')
+        cuerpo = '---'.join(partes[2:]) if txt.lstrip().startswith('---') and len(partes) > 2 else txt
+        cifras = CIFRA.findall(cuerpo)
         if not cifras:
             continue
-        (con if FECHA.search(txt) else sin).append((p.stem, len(cifras), cifras))
+        (con if FECHA.search(cuerpo) else sin).append((p.stem, len(cifras), cifras))
     return con, sin
 
 
