@@ -1331,10 +1331,16 @@ def compute_conversion_metrics(bd_dir, sales_df_path=None, sales_df=None, marca_
             'ciclo': ciclo,
         },
         'clientes_flat': clientes_flat,
-        'por_canal':   canal_breakdown,
-        'por_modelo':  modelo_breakdown,
-        'por_agencia': agencia_breakdown,
-        'por_asesor':  asesor_breakdown,
+        # ⚠ DEPRECADOS. Los calcula la fórmula vieja sobre TODO 2026 incluido el mes
+        # en curso; el panel usa solo meses cerrados y los recalcula desde
+        # `master_facturas`. Ninguna pantalla los lee. Quedan por compatibilidad con
+        # scripts externos, con el prefijo `_DEPRECADO_` para que nadie los cite por
+        # error: la conversión de La Y salía 10,0% aquí contra 11,0% en pantalla, y ya
+        # mordió dos veces a quien leyó data.json a mano en vez de mirar el panel.
+        '_DEPRECADO_por_canal':   canal_breakdown,
+        '_DEPRECADO_por_modelo':  modelo_breakdown,
+        '_DEPRECADO_por_agencia': agencia_breakdown,
+        '_DEPRECADO_por_asesor':  asesor_breakdown,
         'jefes_por_agencia': jefes_por_agencia,
         'facturas_por_asesor_agencia': facturas_por_asesor_agencia,
         'asesor_home_agencia': asesor_home_agencia,
