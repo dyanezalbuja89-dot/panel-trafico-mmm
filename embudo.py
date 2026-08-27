@@ -448,7 +448,12 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
             else:
                 d = stage_dfs[lbl]
                 fila[lbl] = int(d[d['MODELO_N'] == mod]['id'].nunique())
-        if sum(fila.values()) > 0:
+        # ⚠ `sum(...) > 0` borraba las filas cuya única actividad es una NOTA DE
+        # CRÉDITO: Cierre −1 y todo lo demás en 0 suma −1 y no pasaba. El total sí
+        # la contaba, así que la tabla por modelo sumaba +1 más que su propio total
+        # (Machala febrero y marzo: un ESCAPE devuelto cada mes = el +2 de la red).
+        # Se descarta solo lo COMPLETAMENTE vacío.
+        if any(v != 0 for v in fila.values()):
             por_modelo[mod] = fila
             if mod in cierre_version:
                 por_version[mod] = dict(sorted(cierre_version[mod].items(),
