@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-08-28T02:38:53.337852+00:00",
+  "updated_at": "2026-08-28T03:42:16.628904+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -241,8 +241,8 @@
       "label": "ago-26",
       "year": 2026,
       "month": 8,
-      "leads": 838,
-      "cont": 638,
+      "leads": 837,
+      "cont": 637,
       "agen": 265,
       "efec": 84,
       "vent": 4,
@@ -395,8 +395,8 @@
     ]
   },
   "kpis": {
-    "period_leads": 6163,
-    "period_cont": 5219,
+    "period_leads": 6162,
+    "period_cont": 5218,
     "period_agen": 2333,
     "period_efec": 793,
     "period_vent": 23,
@@ -23934,6 +23934,16 @@
                   ]
                 ],
                 "cat_detalle": {
+                  "En gestión activa": [
+                    [
+                      "Seguimiento por Whatsapp",
+                      3
+                    ],
+                    [
+                      "Interesado a futuro",
+                      3
+                    ]
+                  ],
                   "Desperdicio": [
                     [
                       "Línea no existe/Suspendida/Fuera de servicio",
@@ -23945,47 +23955,9 @@
                       "Aceptaciones auditadas",
                       1
                     ]
-                  ],
-                  "En gestión activa": [
-                    [
-                      "Interesado a futuro",
-                      3
-                    ],
-                    [
-                      "Seguimiento por Whatsapp",
-                      3
-                    ]
                   ]
                 },
                 "cat_llamada": {
-                  "Desperdicio": [
-                    1,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0
-                  ],
-                  "Citó": [
-                    1,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0
-                  ],
                   "En gestión activa": [
                     0,
                     3,
@@ -23999,12 +23971,40 @@
                     0,
                     0,
                     0
+                  ],
+                  "Desperdicio": [
+                    1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "Citó": [
+                    1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
                   ]
                 },
                 "cat_notask": {
+                  "En gestión activa": 6,
                   "Desperdicio": 1,
-                  "Citó": 1,
-                  "En gestión activa": 6
+                  "Citó": 1
                 }
               },
               "no_show": {
