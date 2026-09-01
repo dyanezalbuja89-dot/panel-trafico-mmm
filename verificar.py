@@ -397,6 +397,36 @@ def check_asesor_unico(d):
         ok('asesor único', f'{len([n for n in freq if _a.es_persona(n)])} asesores, ninguno duplicado')
 
 
+def check_mix_versiones(d):
+    """El mix por versión tiene que cuadrar contra las ventas del año.
+
+    El 25-ago-2026 canonizar el modelo ('TERRITORY TITANIUM…' → 'TERRITORY') mató
+    el cruce contra el presupuesto: `version_key` ya no resolvía una versión y las
+    645 unidades cayeron enteras a "fuera de presupuesto". La tabla mostró seis días
+    a Territory —el modelo que más vende— con real 0 y "no rota" en rojo, y ningún
+    chequeo lo notó. Dos condiciones, porque cuadrar no basta: con todo en extras
+    también cuadraba.
+    """
+    mix = (d.get('presupuesto') or {}).get('mix')
+    if not mix:
+        warn('mix por versión', 'no hay nodo presupuesto.mix')
+        return
+    malos = []
+    for mk, f in mix.items():
+        sv = sum(v.get('real', 0) for v in (f.get('versiones') or []))
+        se = sum(e[1] for e in (f.get('extras') or []))
+        vm = sum(r.get('cantidad', 0) for r in ((d.get('ventas_mensual') or {}).get(mk) or {}).get('flat', [])
+                 if str(r.get('mes', '')).startswith('2026'))
+        if sv + se != vm:
+            malos.append(f'{mk}: versiones {sv} + extras {se} ≠ {int(vm)} ventas')
+        elif vm and not sv:
+            malos.append(f'{mk}: las {int(vm)} unidades cayeron TODAS a extras — el cruce por versión murió')
+    if malos:
+        fail('mix por versión', ' · '.join(malos))
+    else:
+        ok('mix por versión', f'{len(mix)} marcas cuadran contra sus ventas 2026')
+
+
 def check_cache():
     """Si se cambia un criterio de cálculo sin subir la versión, los meses viejos
     se sirven con el criterio anterior y solo cambia el mes en curso."""
@@ -474,6 +504,7 @@ def main():
     check_breakdowns_conversion(d)
     check_modelos_normalizados(d)
     check_asesor_unico(d)
+    check_mix_versiones(d)
     check_cache()
 
     print()

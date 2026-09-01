@@ -585,6 +585,13 @@ def _compute_ventas_mensual(sales_df):
                 # desempeño del equipo comercial, NO para cuadrar contra finanzas.
                 'agencia_equipo': str(r['agencia_equipo']),
                 'zona': str(r['zona']),
+                # ► La descripción COMPLETA, además del modelo canónico. El mix por
+                # versión la necesita: con solo 'TERRITORY' no se puede saber si fue
+                # Titanium o Trend, y el cruce contra el BP quedaba en cero.
+                'version_txt': (str(r['version_txt'])
+                                if r.get('version_txt') is not None
+                                and str(r.get('version_txt')).lower() not in ('nan', 'none', '')
+                                else None),
                 'cantidad': int(r['Cantidad']),
                 'revenue': round(float(r.get('rev_signed') or 0), 2),
             }

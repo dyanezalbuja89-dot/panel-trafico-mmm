@@ -237,12 +237,17 @@ def build_mix(bp, ventas_mensual):
                 continue
             q = r.get('cantidad', 0) or 0
             ag = r.get('agencia') or 'Sin agencia'
-            k = version_key(marca, r.get('modelo', ''))
+            # ⚠ La VERSIÓN, no el modelo. Hasta el 25-ago-2026 `modelo` traía la
+            # descripción completa y esto funcionaba; al canonizarlo a 'TERRITORY'
+            # el cruce murió y las 16 versiones Ford quedaron en real=0, con las
+            # 645 unidades cayendo enteras a "fuera de presupuesto".
+            _desc = r.get('version_txt') or r.get('modelo', '')
+            k = version_key(marca, _desc)
             if k in vers:
                 real[k] = real.get(k, 0) + q
                 real_ag.setdefault(k, {})[ag] = real_ag.get(k, {}).get(ag, 0) + q
             else:
-                nom = ' '.join(str(r.get('modelo', '')).split())
+                nom = ' '.join(str(_desc).split())
                 extras[nom] = extras.get(nom, 0) + q
                 extras_ag.setdefault(nom, {})[ag] = extras_ag.get(nom, {}).get(ag, 0) + q
         filas = []
