@@ -257,6 +257,7 @@ def build_mix(bp, ventas_mensual, inventario=None):
         real_ag = {}
         extras = {}
         extras_ag = {}
+        sin_version = set()
         for r in vm.get('flat', []):
             if not str(r.get('mes', '')).startswith('2026'):
                 continue
@@ -275,6 +276,14 @@ def build_mix(bp, ventas_mensual, inventario=None):
                 nom = ' '.join(str(_desc).split())
                 extras[nom] = extras.get(nom, 0) + q
                 extras_ag.setdefault(nom, {})[ag] = extras_ag.get(nom, {}).get(ag, 0) + q
+                # Hay dos motivos MUY distintos para caer aquí y la tabla los daba
+                # por iguales: que el BP2026 no contemple esa versión, o que la
+                # fuente no diga qué versión es. Lo segundo son los EXONERADOS: se
+                # facturan sin chasis y Finanzas los registra sin descripción de
+                # vehículo, solo con la familia. Decir "fuera de presupuesto" de un
+                # Everest es falso — el BP sí lo contempla; lo que falta es el dato.
+                if not r.get('version_txt'):
+                    sin_version.add(nom)
         filas = []
         for k, v in vers.items():
             # Si varias versiones del presupuesto caen en la misma llave (CX-90
@@ -306,7 +315,8 @@ def build_mix(bp, ventas_mensual, inventario=None):
         filas.sort(key=lambda x: -x['fin_fy'])
         out[marca] = {
             'versiones': filas,
-            'extras': sorted(([n, q, extras_ag.get(n, {})] for n, q in extras.items() if q != 0),
+            'extras': sorted(([n, q, extras_ag.get(n, {}), n in sin_version]
+                              for n, q in extras.items() if q != 0),
                              key=lambda x: -x[1]),
             'meses_ytd': n_ytd,
         }

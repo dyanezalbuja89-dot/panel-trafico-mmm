@@ -15314,13 +15314,13 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
           <td title="${_stk ? 'Reservadas ' + _stk.res + ' · cola sin chasis ' + _stk.cola_sin_vin : 'sin dato de inventario'}">${_dispo === null ? '—' : _dispo}</td>
           <td>${st}</td></tr>`);
       });
-      (MIX[mk].extras || []).forEach(([nom, qTot, agD]) => {
+      (MIX[mk].extras || []).forEach(([nom, qTot, agD, sinVer]) => {
         const q = vtstate.agencia ? ((agD || {})[vtstate.agencia] || 0) : qTot;
         if(!q) return;
         rows.push(`<tr style="background:rgba(4,112,239,.05)">${multi ? `<td style="text-align:left">${VT_MARCA_LBL[mk]}</td>` : ''}
-          <td style="text-align:left">⚠️ ${nom}</td><td>—</td><td>0</td>
+          <td style="text-align:left" title="${sinVer ? 'La fuente no trae la descripción del vehículo. Pasa con los EXONERADOS: se facturan sin chasis y Finanzas los registra solo con la familia. El BP2026 SÍ contempla este modelo — lo que falta es saber qué versión es.' : 'Versión facturada que el BP2026 no contempla'}">${sinVer ? '❓' : '⚠️'} ${nom}${sinVer ? ' <span style="font-weight:400;color:var(--c-muted);font-size:11px">· sin versión en la fuente</span>' : ''}</td><td>—</td><td>0</td>
           <td style="font-weight:700">${q}</td><td>+${q}</td><td>—</td><td>0</td><td>—</td>
-          <td><span style="color:#0470ef;font-weight:700">fuera de ppto.</span></td></tr>`);
+          <td><span style="color:${sinVer ? '#7c3aed' : '#0470ef'};font-weight:700">${sinVer ? 'sin versión' : 'fuera de ppto.'}</span></td></tr>`);
       });
     });
     document.querySelector('#vt-mix-tbl thead').innerHTML =
