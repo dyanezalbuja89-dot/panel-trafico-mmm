@@ -111,7 +111,17 @@ def load_ventas(path=None):
     df['familia'] = df['Linea Modelo Vehiculo'].astype(str).str.strip()
 
     # Mapeo de columnas inventario-style
-    df['AGENCIA_FACTURACION'] = df['Bodega Venta Vehiculo'].astype(str).str.strip()
+    # ⚠ Manda la columna AGENCIA de Finanzas, no la bodega. Son cosas distintas: por
+    # el efecto placa (el cliente de la costa quiere placa "P" de Pichincha) la unidad
+    # se factura desde otra vitrina, y la bodega no lo refleja. Con la bodega,
+    # Conversión movía 8 unidades fuera de Orellana y repartía otras entre Machala,
+    # Manta y Portoviejo, mientras Ventas —que ya usa AGENCIA— decía otra cosa.
+    # Además los EXONERADOS se facturan SIN bodega y caían en "Sin agencia": 12
+    # unidades Ford ene–jul que desaparecían del desglose.
+    _bod = df['Bodega Venta Vehiculo'].astype(str).str.strip()
+    _ag = df['AGENCIA'].astype(str).str.strip() if 'AGENCIA' in df.columns else _bod
+    _ag_vacia = _ag.isin(('', 'nan', 'None'))
+    df['AGENCIA_FACTURACION'] = _ag.where(~_ag_vacia, _bod)
     df['ASESOR_FACTURACION']  = df['Vendedor'].astype(str).str.strip().str.upper()
     df['IDENTIFICACION']      = df['Identificacion Cliente']
     df['CLIENTE_FACTURACION'] = df['Cliente']
@@ -292,11 +302,18 @@ def load_ventas_completo():
     d2['fecha de facturacion'] = d2['fecha_fact']
     d2['Cantidad'] = d2['Cantidad'].fillna(0).astype(int)
 
-    # Meses cubiertos por DATOS 2 — prevalecen sobre base
-    d2_meses = set(d2['fecha_fact'].dt.strftime('%Y-%m').unique())
-    if len(base):
-        base['_ym'] = base['fecha_fact'].dt.strftime('%Y-%m')
-        base = base[~base['_ym'].isin(d2_meses)].drop(columns=['_ym'], errors='ignore')
+    # ⚠ Manda la BASE DE VENTAS de Finanzas, no DATOS 2. Al revés, Conversión daba
+    # 727 unidades Ford donde Ventas daba 757: DATOS 2 solo ve las unidades CON
+    # chasis, así que se come los exonerados, y el panel terminaba con dos verdades
+    # según la pestaña. DATOS 2 queda para los meses que la base no cubre.
+    base_meses = set(base['fecha_fact'].dt.strftime('%Y-%m').dropna().unique()) if len(base) else set()
+    d2_meses = set(d2['fecha_fact'].dt.strftime('%Y-%m').unique()) - base_meses
+    if len(d2):
+        d2['_ym'] = d2['fecha_fact'].dt.strftime('%Y-%m')
+        d2 = d2[d2['_ym'].isin(d2_meses)].drop(columns=['_ym'], errors='ignore')
+    # (No se pierde nada al relegar DATOS 2: su CLIENTE_RESERVA es un placeholder
+    # que siempre vale None, y el resto de campos la base los trae completos —
+    # cédula, cliente y asesor en el 100% de las filas.)
 
     # Alinear columnas
     keep = ['fecha de facturacion','fecha_fact','marca','familia','AGENCIA_FACTURACION',

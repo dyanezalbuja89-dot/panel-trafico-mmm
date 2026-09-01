@@ -427,6 +427,39 @@ def check_mix_versiones(d):
         ok('mix por versión', f'{len(mix)} marcas cuadran contra sus ventas 2026')
 
 
+def check_ventas_vs_conversion(d):
+    """Ventas y Conversión tienen que dar lo MISMO por agencia.
+
+    Regla de Daniel: "todo el panel tiene que decir lo mismo, no puede variar la
+    información por pestaña". El 01-sep-2026 daban 757 y 727: Conversión pasaba por
+    DATOS 2, que solo ve unidades CON chasis y se comía los exonerados. Y aun tras
+    igualar el total, la atribución difería en 8 unidades porque una pestaña usaba
+    la columna AGENCIA y la otra la BODEGA — distintas por el efecto placa.
+    """
+    OK = {f'2026-{m:02d}' for m in range(1, 9)}
+    malos = []
+    for mk in (d.get('ventas_mensual') or {}):
+        C = ((d.get('conversion_data') or {}).get(mk) or {}).get('master_facturas')
+        if C is None:
+            continue
+        ba = (d['ventas_mensual'][mk].get('by_agencia') or {})
+        conv = {}
+        for m in C:
+            if str(m.get('fecha', ''))[:7] in OK:
+                conv[m.get('agencia') or 'Sin agencia'] = conv.get(m.get('agencia') or 'Sin agencia', 0) + m.get('qty', 0)
+        for ag in set(list(ba) + list(conv)):
+            if ag.startswith('_'):
+                continue
+            v = sum(x for k, x in ba.get(ag, {}).items() if k in OK)
+            c = int(conv.get(ag, 0))
+            if v != c:
+                malos.append(f'{mk}·{ag}: Ventas {v} vs Conversión {c}')
+    if malos:
+        fail('ventas = conversión', f'{len(malos)} descuadres · ' + ' · '.join(malos[:4]))
+    else:
+        ok('ventas = conversión', 'las dos pestañas dan lo mismo por agencia')
+
+
 def check_cache():
     """Si se cambia un criterio de cálculo sin subir la versión, los meses viejos
     se sirven con el criterio anterior y solo cambia el mes en curso."""
@@ -505,6 +538,7 @@ def main():
     check_modelos_normalizados(d)
     check_asesor_unico(d)
     check_mix_versiones(d)
+    check_ventas_vs_conversion(d)
     check_cache()
 
     print()
