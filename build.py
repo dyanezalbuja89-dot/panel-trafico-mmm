@@ -9706,6 +9706,18 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
         if(i >= 0) out.add('2026-' + String(i+1).padStart(2,'0'));
       });
     } catch(e){ /* si aún no está inicializado, no se filtra nada */ }
+    // ⚠ AN_MONTHS_2026 cierra por el corte del TRÁFICO, pero el numerador de la
+    // conversión son VEHÍCULOS. Si las ventas cortan antes, ese mes no está
+    // cerrado para esta pestaña: el 31-ago-2026 habría dividido un agosto
+    // completo de tráfico entre 24 días de facturas.
+    const cv = String(DATA.ventas_corte || '');
+    if(cv){
+      [...out].forEach(ym => {
+        const m = Number(ym.slice(5,7));
+        const ultimo = ym + '-' + String(new Date(2026, m, 0).getDate()).padStart(2,'0');
+        if(ultimo > cv) out.delete(ym);
+      });
+    }
     return out;
   }
 
@@ -15410,7 +15422,11 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
   //   ventas salen de la Base de Ventas de Finanzas (corte 24-ago, 57 unidades Ford
   //   en agosto), pero el cierre del mes lo sigue marcando el corte del inventario.
   function vtMesesCerrados2026(){
-    const corte = String((DATA.inventario || {}).fecha_corte || '');   // aaaa-mm-dd
+    // ⚠ El corte de VENTAS, no el del inventario. El 31-ago-2026 la BD de tráfico
+    // llegaba al 31 y la Base de Ventas al 24: con el corte del inventario, agosto
+    // quedaba "cerrado" y sus 57 unidades se comparaban contra la meta del mes
+    // completo con 7 días de facturas faltando.
+    const corte = String(DATA.ventas_corte || (DATA.inventario || {}).fecha_corte || '');
     if(!corte) return [];
     const out = [];
     for(let m = 1; m <= 12; m++){

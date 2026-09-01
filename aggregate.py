@@ -133,6 +133,10 @@ def _snap_date_agg(path):
         return pd.Timestamp.min
 
 
+# Corte real de la Base de Ventas ('aaaa-mm-dd'). Lo setea _compute_ventas_mensual.
+VENTAS_CORTE = None
+
+
 def _compute_ventas_mensual(sales_df):
     """Pivot mensual de ventas NETAS por marca/modelo/asesor/agencia.
     Devuelve {marca_key: {months, months_labels, by_modelo, by_asesor, by_agencia, totals}}.
@@ -189,6 +193,12 @@ def _compute_ventas_mensual(sales_df):
                     'canal_venta': r['canal'],
                 } for _, r in _bdf.iterrows()])
                 df = pd.concat([df, _fin_df], ignore_index=True, sort=False)
+                # ► Corte REAL de las ventas. No tiene por qué coincidir con el del
+                # tráfico ni con el del inventario: el 31-ago-2026 la BD de tráfico
+                # llegaba al 31 y la Base de Ventas al 24. Sin esto, agosto quedaba
+                # "cerrado" para las vistas de ventas y su cumplimiento se comparaba
+                # contra la meta del mes completo con 7 días de facturas faltando.
+                globals()['VENTAS_CORTE'] = str(_bdf['fecha'].max().date())
                 _exo = int(_bdf.loc[_bdf['exonerado'], 'cantidad'].sum())
                 print(f'[ventas_mensual] Base de Ventas ({_bdf["_archivo"].iloc[0]}): '
                       f'{len(_bdf)} filas · {sorted(_base_meses)[0]}–{sorted(_base_meses)[-1]} · '
@@ -1991,10 +2001,10 @@ MONTHS_CONFIG = [
      "brand_metas_file": str(JUL_BRAND_METAS_FILE)},
     # Primer corte de agosto: no hay corte previo del mes, así que prev = curr y el
     # delta arranca en 0 (mismo criterio que se usó en febrero).
-    {"key": "agosto_2026", "label": "Agosto 2026", "month": 8, "year": 2026, "cut_day": 25,
-     "curr_file": "../Agosto/BD_AGOSTO/BD_AGO_25_08_26.xlsx",
-     "prev_file": "../Agosto/BD_AGOSTO/BD_AGO_23_08_26.xlsx",
-     "prev_date": "23/08/2026",
+    {"key": "agosto_2026", "label": "Agosto 2026", "month": 8, "year": 2026, "cut_day": 31,
+     "curr_file": "../Agosto/BD_AGOSTO/BD_AGO_31_08_26.xlsx",
+     "prev_file": "../Agosto/BD_AGOSTO/BD_AGO_25_08_26.xlsx",
+     "prev_date": "25/08/2026",
      "ford_metas_file": str(AGO_FORD_METAS_FILE),
      "brand_metas_file": str(AGO_BRAND_METAS_FILE)},
 ]
@@ -2648,6 +2658,12 @@ def main():
     except Exception as _e:
         print('[asesores] WARN no se pudo marcar salidos:', _e)
         out['asesores_salidos'] = {}
+
+    # ► El corte de VENTAS viaja aparte del de tráfico e inventario: cada vista usa
+    # el de su propia fuente para decidir qué meses están cerrados.
+    if VENTAS_CORTE:
+        out['ventas_corte'] = VENTAS_CORTE
+        print(f'[ventas_mensual] corte de ventas: {VENTAS_CORTE}')
 
     outpath = Path(__file__).parent / "data.json"
     # ► Sanea NaN/Infinity antes de serializar. Python json.dump por default
