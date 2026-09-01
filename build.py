@@ -3685,10 +3685,15 @@ HTML = r"""<!doctype html>
     <div class="ford-section" id="vt-mix-section" style="display:none">
       <h3>🧩 Mix por versión vs presupuesto <span class="sub" id="vt-mix-sub"></span></h3>
       <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
-        Qué versiones sostienen el año y cuáles no rotan. Ford y Dongfeng bajan a versión;
-        Chery/Mazda/RAM comparan a nivel modelo. «Fuera de presupuesto» = se factura pero
-        el BP2026 no lo contempla. Respeta los filtros de marca y agencia. PVP con * =
-        precio vigente del PBD (el del BP Mix quedó viejo en esa versión).
+        Qué versiones sostienen el año y cuáles se quedan cortas. Ford y Dongfeng bajan a
+        versión; Chery/Mazda/RAM comparan a nivel modelo. «Fuera de presupuesto» = se
+        factura pero el BP2026 no lo contempla. Respeta los filtros de marca y agencia.
+        PVP con * = precio vigente del PBD (el del BP Mix quedó viejo en esa versión).<br>
+        <strong>Bajo el 70% se mira el piso antes de juzgar:</strong> «no rota» solo si el
+        stock alcanzaba para cubrir la brecha; «📦 stock corto» si no alcanzaba, y «⛔ sin
+        stock» si no queda ninguna unidad. <em>«En piso» es el disponible del último corte
+        de inventario, no la historia del año: una versión pudo estar agotada en mayo y
+        tener producto hoy.</em>
       </div>
       <div style="overflow-x:auto">
         <table class="analysis" id="vt-mix-tbl"><thead></thead><tbody></tbody></table>
@@ -15281,29 +15286,47 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
           : v0;
         if(!v.fin_fy && !v.real) return;   // versión muerta en ppto y en piso
         const cum = v.fin_ytd > 0 ? Math.round(100*v.real/v.fin_ytd) : null;
+        // ⚠ "No rota" es una CAUSA, no el dato. El dato es que vendió menos que su
+        // cuota; la causa puede ser que no haya demanda o que no hubiera qué vender.
+        // La F-150 Platinum salía "🟥 no rota" al 6% con CERO unidades en piso y 4
+        // clientes en cola: exactamente lo contrario de lo que la etiqueta decía.
+        // Solo se llama "no rota" cuando el stock de hoy alcanza para haber cubierto
+        // la brecha. Si no, se dice que falta producto y se deja el juicio afuera.
+        const _stk = v.stock || null;
+        const _brecha = Math.max(0, v.fin_ytd - v.real);
+        const _dispo = _stk ? (_stk.disp || 0) : null;
+        const _bajo = (() => {
+          if(_dispo === null) return '<span style="color:var(--neg);font-weight:700">🟥 no rota</span>';
+          if(_dispo === 0) return `<span style="color:#7c3aed;font-weight:700" title="Sin unidades en piso al corte del inventario${_stk.cola_sin_vin ? ' · ' + _stk.cola_sin_vin + ' cliente(s) esperando' : ''}">⛔ sin stock</span>`;
+          if(_dispo < _brecha) return `<span style="color:#b45309;font-weight:700" title="Quedan ${_dispo} en piso para una brecha de ${_brecha}: parte del incumplimiento es falta de producto">📦 stock corto</span>`;
+          return '<span style="color:var(--neg);font-weight:700">🟥 no rota</span>';
+        })();
         const st = v.fin_ytd === 0 && v.real > 0 ? '<span style="color:#0470ef;font-weight:600">sin cuota</span>'
           : cum == null ? '—'
-          : cum < 70 ? '<span style="color:var(--neg);font-weight:700">🟥 no rota</span>'
+          : cum < 70 ? _bajo
           : cum < 100 ? '<span style="color:#b45309;font-weight:600">bajo cuota</span>'
           : '<span style="color:var(--pos);font-weight:600">cumple</span>';
         rows.push(`<tr>${multi ? `<td style="text-align:left">${VT_MARCA_LBL[mk]}</td>` : ''}
           <td style="text-align:left">${v.nombre}</td>
           <td title="${v.pvp_pbd && v.pvp_pbd !== v.pvp ? 'BP Mix: $' + v.pvp.toLocaleString() + ' (desactualizado)' : ''}">$${((v.pvp_pbd || v.pvp)/1000).toFixed(1)}k${v.pvp_pbd && v.pvp_pbd !== v.pvp ? ' *' : ''}</td><td>${v.fin_ytd}</td><td style="font-weight:700">${v.real}</td>
           <td>${v.real - v.fin_ytd > 0 ? '+' : ''}${v.real - v.fin_ytd}</td>
-          <td>${cum == null ? '—' : cum + '%'}</td><td>${v.fin_fy}</td><td>${st}</td></tr>`);
+          <td>${cum == null ? '—' : cum + '%'}</td><td>${v.fin_fy}</td>
+          <td title="${_stk ? 'Reservadas ' + _stk.res + ' · cola sin chasis ' + _stk.cola_sin_vin : 'sin dato de inventario'}">${_dispo === null ? '—' : _dispo}</td>
+          <td>${st}</td></tr>`);
       });
       (MIX[mk].extras || []).forEach(([nom, qTot, agD]) => {
         const q = vtstate.agencia ? ((agD || {})[vtstate.agencia] || 0) : qTot;
         if(!q) return;
         rows.push(`<tr style="background:rgba(4,112,239,.05)">${multi ? `<td style="text-align:left">${VT_MARCA_LBL[mk]}</td>` : ''}
           <td style="text-align:left">⚠️ ${nom}</td><td>—</td><td>0</td>
-          <td style="font-weight:700">${q}</td><td>+${q}</td><td>—</td><td>0</td>
+          <td style="font-weight:700">${q}</td><td>+${q}</td><td>—</td><td>0</td><td>—</td>
           <td><span style="color:#0470ef;font-weight:700">fuera de ppto.</span></td></tr>`);
       });
     });
     document.querySelector('#vt-mix-tbl thead').innerHTML =
       `<tr>${multi ? '<th style="text-align:left">Marca</th>' : ''}<th style="text-align:left">Versión (nombre del BP2026)</th>
-       <th>PVP</th><th>Ppto. YTD</th><th>Real YTD</th><th>Δ</th><th>Cumpl.</th><th>Ppto. FY</th><th>Estado</th></tr>`;
+       <th>PVP</th><th>Ppto. YTD</th><th>Real YTD</th><th>Δ</th><th>Cumpl.</th><th>Ppto. FY</th>
+       <th title="Disponible en piso + tránsito al corte del inventario">En piso</th><th>Estado</th></tr>`;
     document.querySelector('#vt-mix-tbl tbody').innerHTML = rows.join('');
   }
 

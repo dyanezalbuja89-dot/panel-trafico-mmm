@@ -173,7 +173,31 @@ def version_key(marca, texto):
     return modelo   # Chery / Mazda / RAM: nivel modelo
 
 
-def build_mix(bp, ventas_mensual):
+def _stock_por_version(inventario, marca):
+    """{version_key: {disp, res, cola_sin_vin, limitado}} desde el inventario.
+
+    Sirve para no llamar "no rota" a una versión que simplemente no estaba en piso.
+    ⚠ Es el SNAPSHOT de hoy, no la historia del año: dice si HAY producto ahora, no
+    si lo hubo en enero.
+    """
+    out = {}
+    marca_inv = {'FORD': 'FORD', 'DONGFENG_ORGU': 'DONGFENG', 'CHERY_ORGU': 'CHERY',
+                 'MAZDA_ORGU': 'MAZDA', 'RAM_ORGU': 'RAM'}.get(marca, marca)
+    mods = (((inventario or {}).get('brands') or {}).get(marca_inv) or {}).get('modelos') or {}
+    for _mod, m in mods.items():
+        for ver, v in (m.get('versiones') or {}).items():
+            k = version_key(marca, ver)
+            if not k:
+                continue
+            a = out.setdefault(k, {'disp': 0, 'res': 0, 'cola_sin_vin': 0, 'limitado': False})
+            a['disp'] += int(v.get('disp_total') or 0) + int(v.get('disp_transito') or 0)
+            a['res'] += int(v.get('res_total') or 0)
+            a['cola_sin_vin'] += int(v.get('cola_sin_vin') or 0)
+            a['limitado'] = a['limitado'] or bool(v.get('venta_limitada_por_stock'))
+    return out
+
+
+def build_mix(bp, ventas_mensual, inventario=None):
     """Cruza presupuesto por versión contra ventas reales 2026.
 
     Devuelve {marca: {'versiones': [...], 'extras': [...], 'meses_ytd': N}}.
@@ -185,6 +209,7 @@ def build_mix(bp, ventas_mensual):
     _pbd = load_pbd_precios()
     out = {}
     for marca in _MODELOS:
+        _stk = _stock_por_version(inventario, marca)
         # ── presupuesto por versión (releyendo los archivos, ahora sin agregar) ──
         vers = {}
         for tipo, fname in BP_FILES.items():
@@ -267,7 +292,10 @@ def build_mix(bp, ventas_mensual):
                     'real': real_ag.get(k, {}).get(ag, 0),
                 }
             _pv = _pbd.get(k) if marca == 'FORD' else None
+            # Stock de hoy, para poder separar "no rota" de "no había qué vender".
+            _st = _stk.get(k)
             filas.append({
+                'stock': _st,
                 'nombre': _nom, 'pvp': round(v['pvp']),
                 'pvp_pbd': round(_pv['total']) if _pv else None,
                 'fin_ytd': sum(v['financiero'][:n_ytd]), 'com_ytd': sum(v['comercial'][:n_ytd]),

@@ -2620,7 +2620,8 @@ def main():
     # Mix por versión: cruza el presupuesto contra las ventas reales ya calculadas.
     if out.get('presupuesto'):
         from presupuesto import build_mix
-        out['presupuesto']['mix'] = build_mix(out['presupuesto'], out.get('ventas_mensual'))
+        out['presupuesto']['mix'] = build_mix(out['presupuesto'], out.get('ventas_mensual'),
+                                              out.get('inventario'))
 
     # ► IDENTIDAD ÚNICA DEL ASESOR. Regla de Daniel: una persona = una fila, sin
     # importar cómo esté escrito el nombre. En el origen conviven 98 grafías para
