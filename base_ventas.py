@@ -39,7 +39,10 @@ _DIRS = [
     Path.home() / 'Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Ventas',
     Path.home() / 'Library/CloudStorage/OneDrive-Maresa/Marketing/2026',
 ]
-_PATRON = 'Base de Ventas*.xls*'
+# ⚠ Sin distinguir mayúsculas: el 01-sep-2026 llegó "Base de ventas a Agosto
+# 2026.xlsx" (v minúscula) y el patrón con 'V' no lo veía. El panel habría seguido
+# con el archivo de la semana pasada sin decir una palabra.
+_PATRON = 'base de ventas*.xls*'
 
 # Los nombres que usa el panel
 AGENCIA = {
@@ -60,6 +63,9 @@ MARCA_KEY = {
 # Campos del caché que nos interesan → nombre de salida
 CAMPOS = {
     'Chasis': 'chasis', 'Marca Vehiculo': 'marca_raw', 'Descripcion Vehiculo': 'modelo',
+    # ► La versión de verdad. 'Descripcion Vehiculo' viene vacía en los EXONERADOS
+    # —se facturan sin chasis— y esta columna la trae en el 100% de las filas.
+    'Linea Modelo Vehiculo': 'version',
     'Fecha Factura': '_serial', 'Mes': 'mes_num', 'Cantidad': 'cantidad',
     'AGENCIA': 'agencia_raw', 'FAMILIA': 'familia_raw', 'CANAL': 'canal',
     'Vendedor': 'asesor', 'Tipo Documento': 'tipo_doc',
@@ -73,8 +79,10 @@ def archivo_base():
     cands = []
     for d in _DIRS:
         if d.exists():
-            cands += [Path(p) for p in glob.glob(str(d / _PATRON))
-                      if not Path(p).name.startswith('~$')]
+            cands += [q for q in d.iterdir()
+                      if q.is_file() and not q.name.startswith('~$')
+                      and q.suffix.lower().startswith('.xls')
+                      and q.name.lower().startswith('base de ventas')]
     if not cands:
         return None
     # El más reciente por fecha de modificación: Finanzas reemplaza el archivo cada mes.
@@ -113,6 +121,28 @@ def _leer_pivot_cache(path):
     return pd.DataFrame(filas) if filas else None
 
 
+def _leer_hoja_plana(path):
+    """Lee el formato nuevo: una hoja `BD` con las 73 columnas ya expuestas.
+
+    Desde el 01-sep-2026 Finanzas entrega la base así en vez de como tabla
+    dinámica. Es mejor en dos cosas: no hay que rescatar nada del pivotCache, y
+    trae `Linea Modelo Vehiculo`, que es la única columna con la versión de los
+    exonerados.
+    """
+    hojas = pd.ExcelFile(path).sheet_names
+    hoja = next((h for h in hojas if str(h).strip().upper() == 'BD'), None)
+    if hoja is None:
+        return None
+    df = pd.read_excel(path, sheet_name=hoja)
+    cols = {c: CAMPOS[c] for c in df.columns if c in CAMPOS}
+    if 'Fecha Factura' not in df.columns:
+        return None
+    out = df[list(cols)].rename(columns=cols)
+    # La fecha viene como serial de Excel, igual que en el pivotCache.
+    out['_serial'] = pd.to_numeric(df['Fecha Factura'], errors='coerce')
+    return out
+
+
 def _fam(v):
     u = re.sub(r'[^A-Z0-9-]', '', str(v or '').upper())
     return FAMILIA.get(u) or FAMILIA.get(u.replace('-', ''))
@@ -128,7 +158,12 @@ def cargar(path=None):
     p = Path(path) if path else archivo_base()
     if not p or not p.exists():
         return None
-    df = _leer_pivot_cache(p)
+    # Formato nuevo (hoja plana) primero; si no está, el pivotCache de siempre.
+    df = _leer_hoja_plana(p)
+    _fmt = 'hoja BD'
+    if df is None or df.empty:
+        df = _leer_pivot_cache(p)
+        _fmt = 'pivotCache'
     if df is None or df.empty:
         return None
 
@@ -147,7 +182,17 @@ def cargar(path=None):
     df['canal'] = df['canal'].astype(str).str.upper().str.strip()
     df['exonerado'] = df['canal'].eq('EXONERADO')
 
+    # ► `version` (Linea Modelo Vehiculo) manda sobre `modelo` (Descripcion
+    # Vehiculo): es la que existe también en los exonerados.
+    if 'version' in df.columns:
+        _v = df['version'].astype(str).str.strip()
+        _vacia = _v.isin(('', 'nan', 'None'))
+        df['version'] = df['version'].where(~_vacia, df.get('modelo'))
+    else:
+        df['version'] = df.get('modelo')
+
     df['_archivo'] = p.name
+    df['_formato'] = _fmt
     return df.drop(columns=[c for c in ('_serial',) if c in df.columns])
 
 

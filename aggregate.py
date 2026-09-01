@@ -183,7 +183,11 @@ def _compute_ventas_mensual(sales_df):
                     'familia': r['familia'] if pd.notna(r['familia']) else r['modelo'],
                     # la descripción COMPLETA se conserva: los accesorios del PBD
                     # se cotizan por versión ('ESCAPE TITANIUM AC 1.5…'), no por modelo.
-                    'version_txt': r['modelo'],
+                    # `version` (Linea Modelo Vehiculo) llega también en los
+                    # exonerados; `modelo` (Descripcion Vehiculo) no.
+                    'version_txt': (r.get('version') if r.get('version') is not None
+                                    and str(r.get('version')).strip().lower() not in ('', 'nan', 'none')
+                                    else r['modelo']),
                     # el nombre LARGO: fact_agency_norm() busca palabras clave
                     # ('CARLOS JULIO AROSEMENA'), no entiende la sigla 'CJA'.
                     'AGENCIA_FACTURACION': r['agencia_raw'],

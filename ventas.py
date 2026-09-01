@@ -87,7 +87,15 @@ def load_ventas(path=None):
         return _LOADED[1]
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        df = pd.read_excel(p, sheet_name='Hoja1')
+        # ⚠ La hoja cambió de nombre. Hasta ago-2026 el archivo traía 'Hoja1';
+        # desde el 01-sep-2026 Finanzas lo entrega con la hoja 'BD'. Se toma la
+        # que exista, en vez de reventar con "Worksheet named 'Hoja1' not found".
+        _hojas = pd.ExcelFile(p).sheet_names
+        _h = next((h for h in _hojas if str(h).strip().upper() in ('HOJA1', 'BD')),
+                  _hojas[0] if _hojas else None)
+        if _h is None:
+            return None
+        df = pd.read_excel(p, sheet_name=_h)
     df.columns = [str(c).strip() for c in df.columns]
 
     # Convertir Fecha Factura (serial Excel desde 1899-12-30) a datetime
