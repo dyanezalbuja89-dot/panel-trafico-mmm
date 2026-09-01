@@ -60,12 +60,13 @@ fi
 echo "→ Verificando integridad pre-build..."
 
 # 2a. build.py: tabs HTML
+# "tab-embudo" salió de esta lista el 01-sep-2026: Daniel retiró la pestaña.
+# El generador (embudo.py) y el nodo embudo_data siguen vivos por si vuelve.
 BUILD_PY_MARKERS=(
   "tab-digital"
   "TAB DIGITAL · HubSpot"
   "tab-inv"
   "tab-ford"
-  "tab-embudo"
   "tab-xiy"
 )
 # 2b. inventario.py: funciones de carga + normalización (si las borran, refresh_inv_only revienta)
