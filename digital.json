@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-09-01T23:49:19.354222+00:00",
+  "updated_at": "2026-09-02T01:08:58.737511+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -439,7 +439,762 @@
     "rate_lead_to_sale": 0.4
   },
   "cc_desperdicio": {
-    "available": false
+    "available": true,
+    "no_contactados": {
+      "total": 631,
+      "by_llamada": [
+        [
+          "12ª",
+          601
+        ],
+        [
+          "4ª",
+          7
+        ],
+        [
+          "1ª",
+          5
+        ],
+        [
+          "3ª",
+          5
+        ],
+        [
+          "2ª",
+          4
+        ],
+        [
+          "7ª",
+          4
+        ],
+        [
+          "5ª",
+          2
+        ],
+        [
+          "6ª",
+          1
+        ],
+        [
+          "9ª",
+          1
+        ],
+        [
+          "11ª",
+          1
+        ]
+      ]
+    },
+    "contactados": {
+      "total": 4078,
+      "by_estatus": [
+        [
+          "Contactado",
+          1781
+        ],
+        [
+          "Barreras técnicas/No contesta",
+          995
+        ],
+        [
+          "No interesado",
+          595
+        ],
+        [
+          "Sin recursos económicos",
+          348
+        ],
+        [
+          "Posponer contacto",
+          203
+        ],
+        [
+          "Errores operativos",
+          111
+        ]
+      ],
+      "by_llamada": [
+        [
+          "12ª",
+          863
+        ],
+        [
+          "1ª",
+          840
+        ],
+        [
+          "2ª",
+          688
+        ],
+        [
+          "3ª",
+          414
+        ],
+        [
+          "4ª",
+          328
+        ],
+        [
+          "5ª",
+          247
+        ],
+        [
+          "6ª",
+          192
+        ],
+        [
+          "7ª",
+          162
+        ],
+        [
+          "8ª",
+          114
+        ],
+        [
+          "9ª",
+          87
+        ],
+        [
+          "10ª",
+          77
+        ],
+        [
+          "11ª",
+          66
+        ]
+      ]
+    },
+    "no_show": {
+      "total": 1105,
+      "by_estatus": [
+        [
+          "Cita agendada (atascado)",
+          1032
+        ],
+        [
+          "Perdido",
+          66
+        ],
+        [
+          "Cita Efectiva (error)",
+          5
+        ],
+        [
+          "Reagendar",
+          2
+        ]
+      ]
+    },
+    "by_month": {
+      "ene·26": {
+        "no_contactados": {
+          "total": 85,
+          "by_llamada": [
+            [
+              "12ª",
+              79
+            ],
+            [
+              "4ª",
+              2
+            ],
+            [
+              "1ª",
+              1
+            ],
+            [
+              "5ª",
+              1
+            ],
+            [
+              "7ª",
+              1
+            ],
+            [
+              "11ª",
+              1
+            ]
+          ]
+        },
+        "contactados": {
+          "total": 605,
+          "by_estatus": [
+            [
+              "Contactado",
+              258
+            ],
+            [
+              "Barreras técnicas/No contesta",
+              161
+            ],
+            [
+              "No interesado",
+              86
+            ],
+            [
+              "Posponer contacto",
+              58
+            ],
+            [
+              "Errores operativos",
+              22
+            ],
+            [
+              "Sin recursos económicos",
+              20
+            ]
+          ]
+        },
+        "no_show": {
+          "total": 177,
+          "by_estatus": [
+            [
+              "Cita agendada (atascado)",
+              151
+            ],
+            [
+              "Perdido",
+              25
+            ],
+            [
+              "Reagendar",
+              1
+            ]
+          ]
+        }
+      },
+      "feb·26": {
+        "no_contactados": {
+          "total": 70,
+          "by_llamada": [
+            [
+              "12ª",
+              68
+            ],
+            [
+              "4ª",
+              2
+            ]
+          ]
+        },
+        "contactados": {
+          "total": 404,
+          "by_estatus": [
+            [
+              "Contactado",
+              239
+            ],
+            [
+              "Barreras técnicas/No contesta",
+              78
+            ],
+            [
+              "No interesado",
+              44
+            ],
+            [
+              "Sin recursos económicos",
+              18
+            ],
+            [
+              "Posponer contacto",
+              14
+            ],
+            [
+              "Errores operativos",
+              11
+            ]
+          ]
+        },
+        "no_show": {
+          "total": 94,
+          "by_estatus": [
+            [
+              "Cita agendada (atascado)",
+              89
+            ],
+            [
+              "Perdido",
+              4
+            ],
+            [
+              "Reagendar",
+              1
+            ]
+          ]
+        }
+      },
+      "mar·26": {
+        "no_contactados": {
+          "total": 76,
+          "by_llamada": [
+            [
+              "12ª",
+              70
+            ],
+            [
+              "1ª",
+              1
+            ],
+            [
+              "2ª",
+              1
+            ],
+            [
+              "4ª",
+              1
+            ],
+            [
+              "6ª",
+              1
+            ],
+            [
+              "7ª",
+              1
+            ],
+            [
+              "9ª",
+              1
+            ]
+          ]
+        },
+        "contactados": {
+          "total": 541,
+          "by_estatus": [
+            [
+              "Contactado",
+              260
+            ],
+            [
+              "Barreras técnicas/No contesta",
+              137
+            ],
+            [
+              "No interesado",
+              73
+            ],
+            [
+              "Sin recursos económicos",
+              32
+            ],
+            [
+              "Errores operativos",
+              16
+            ],
+            [
+              "Posponer contacto",
+              13
+            ]
+          ]
+        },
+        "no_show": {
+          "total": 208,
+          "by_estatus": [
+            [
+              "Cita agendada (atascado)",
+              197
+            ],
+            [
+              "Perdido",
+              11
+            ]
+          ]
+        }
+      },
+      "abr·26": {
+        "no_contactados": {
+          "total": 121,
+          "by_llamada": [
+            [
+              "12ª",
+              114
+            ],
+            [
+              "1ª",
+              2
+            ],
+            [
+              "3ª",
+              2
+            ],
+            [
+              "2ª",
+              1
+            ],
+            [
+              "4ª",
+              1
+            ],
+            [
+              "7ª",
+              1
+            ]
+          ]
+        },
+        "contactados": {
+          "total": 833,
+          "by_estatus": [
+            [
+              "Contactado",
+              351
+            ],
+            [
+              "Barreras técnicas/No contesta",
+              227
+            ],
+            [
+              "No interesado",
+              118
+            ],
+            [
+              "Sin recursos económicos",
+              75
+            ],
+            [
+              "Posponer contacto",
+              28
+            ],
+            [
+              "Errores operativos",
+              18
+            ]
+          ]
+        },
+        "no_show": {
+          "total": 195,
+          "by_estatus": [
+            [
+              "Cita agendada (atascado)",
+              181
+            ],
+            [
+              "Perdido",
+              13
+            ],
+            [
+              "Cita Efectiva (error)",
+              1
+            ]
+          ]
+        }
+      },
+      "may·26": {
+        "no_contactados": {
+          "total": 140,
+          "by_llamada": [
+            [
+              "12ª",
+              135
+            ],
+            [
+              "3ª",
+              2
+            ],
+            [
+              "1ª",
+              1
+            ],
+            [
+              "4ª",
+              1
+            ],
+            [
+              "7ª",
+              1
+            ]
+          ]
+        },
+        "contactados": {
+          "total": 841,
+          "by_estatus": [
+            [
+              "Contactado",
+              346
+            ],
+            [
+              "Barreras técnicas/No contesta",
+              175
+            ],
+            [
+              "No interesado",
+              136
+            ],
+            [
+              "Sin recursos económicos",
+              104
+            ],
+            [
+              "Posponer contacto",
+              38
+            ],
+            [
+              "Errores operativos",
+              23
+            ]
+          ]
+        },
+        "no_show": {
+          "total": 228,
+          "by_estatus": [
+            [
+              "Cita agendada (atascado)",
+              220
+            ],
+            [
+              "Perdido",
+              8
+            ]
+          ]
+        }
+      },
+      "jun·26": {
+        "no_contactados": {
+          "total": 139,
+          "by_llamada": [
+            [
+              "12ª",
+              135
+            ],
+            [
+              "2ª",
+              2
+            ],
+            [
+              "3ª",
+              1
+            ],
+            [
+              "5ª",
+              1
+            ]
+          ]
+        },
+        "contactados": {
+          "total": 854,
+          "by_estatus": [
+            [
+              "Contactado",
+              327
+            ],
+            [
+              "Barreras técnicas/No contesta",
+              217
+            ],
+            [
+              "No interesado",
+              138
+            ],
+            [
+              "Sin recursos económicos",
+              99
+            ],
+            [
+              "Posponer contacto",
+              52
+            ],
+            [
+              "Errores operativos",
+              21
+            ]
+          ]
+        },
+        "no_show": {
+          "total": 203,
+          "by_estatus": [
+            [
+              "Cita agendada (atascado)",
+              194
+            ],
+            [
+              "Perdido",
+              5
+            ],
+            [
+              "Cita Efectiva (error)",
+              4
+            ]
+          ]
+        }
+      },
+      "jul·26": {
+        "no_contactados": {
+          "total": 79,
+          "by_llamada": [
+            [
+              "12ª",
+              77
+            ],
+            [
+              "2ª",
+              1
+            ],
+            [
+              "5ª",
+              1
+            ]
+          ]
+        },
+        "contactados": {
+          "total": 492,
+          "by_estatus": [
+            [
+              "Contactado",
+              229
+            ],
+            [
+              "Barreras técnicas/No contesta",
+              115
+            ],
+            [
+              "No interesado",
+              55
+            ],
+            [
+              "Posponer contacto",
+              40
+            ],
+            [
+              "Sin recursos económicos",
+              32
+            ],
+            [
+              "Errores operativos",
+              16
+            ]
+          ]
+        },
+        "no_show": {
+          "total": 155,
+          "by_estatus": [
+            [
+              "Cita agendada (atascado)",
+              146
+            ],
+            [
+              "Cita Efectiva (error)",
+              5
+            ],
+            [
+              "Perdido",
+              3
+            ],
+            [
+              "Reagendar",
+              1
+            ]
+          ]
+        }
+      },
+      "ago·26": {
+        "no_contactados": {
+          "total": 187,
+          "by_llamada": [
+            [
+              "12ª",
+              168
+            ],
+            [
+              "9ª",
+              7
+            ],
+            [
+              "11ª",
+              6
+            ],
+            [
+              "1ª",
+              2
+            ],
+            [
+              "10ª",
+              2
+            ],
+            [
+              "7ª",
+              1
+            ],
+            [
+              "8ª",
+              1
+            ]
+          ]
+        },
+        "contactados": {
+          "total": 692,
+          "by_estatus": [
+            [
+              "Contactado",
+              278
+            ],
+            [
+              "Barreras técnicas/No contesta",
+              184
+            ],
+            [
+              "No interesado",
+              79
+            ],
+            [
+              "Posponer contacto",
+              65
+            ],
+            [
+              "Sin recursos económicos",
+              62
+            ],
+            [
+              "Errores operativos",
+              23
+            ]
+          ]
+        },
+        "no_show": {
+          "total": 154,
+          "by_estatus": [
+            [
+              "Cita agendada (atascado)",
+              152
+            ],
+            [
+              "Cita Efectiva (error)",
+              2
+            ]
+          ]
+        }
+      },
+      "sep·26": {
+        "no_contactados": {
+          "total": 2,
+          "by_llamada": [
+            [
+              "2ª",
+              1
+            ],
+            [
+              "6ª",
+              1
+            ]
+          ]
+        },
+        "contactados": {
+          "total": 2,
+          "by_estatus": [
+            [
+              "Contactado",
+              1
+            ],
+            [
+              "Posponer contacto",
+              1
+            ]
+          ]
+        },
+        "no_show": {
+          "total": 0,
+          "by_estatus": []
+        }
+      }
+    }
   },
   "live": {
     "ford": {
