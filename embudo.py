@@ -466,7 +466,9 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
     for lbl in labels:
         modelos.update(stage_dfs[lbl]['MODELO_N'].dropna().unique().tolist())
     modelos.update(cierre_modelo.keys())
-    modelos = sorted(modelos)
+    # El cierre de inventario puede traer un modelo NaN (float): sorted() mezcla
+    # float con str y revienta el mes entero (pasó con Enero y Abril de La Y).
+    modelos = sorted(m for m in modelos if isinstance(m, str) and m.strip())
 
     por_modelo = {}
     por_version = {}  # {modelo: {version: cierre_count}} — solo cierre tiene versión
