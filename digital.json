@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-09-03T04:56:42.409365+00:00",
+  "updated_at": "2026-09-03T06:00:34.103514+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -283,7 +283,7 @@
       "vent": 0,
       "tope": 1,
       "nos": 0,
-      "confirmadas": 3,
+      "confirmadas": 2,
       "conf": [
         [
           "Sin gestión",
@@ -291,7 +291,11 @@
         ],
         [
           "Confirma",
-          3
+          2
+        ],
+        [
+          "Desiste",
+          2
         ],
         [
           "No contesta",
@@ -300,10 +304,6 @@
         [
           "Reagenda",
           2
-        ],
-        [
-          "Desiste",
-          1
         ]
       ]
     }
@@ -1515,7 +1515,7 @@
           "conf_arr": 20,
           "efec_arr": 18,
           "agen_coh": 280,
-          "conf_coh": 161,
+          "conf_coh": 160,
           "efec_coh": 80,
           "nos_coh": 159
         },
@@ -1528,7 +1528,7 @@
           "tope": 1,
           "agen": 13,
           "agendadas": 13,
-          "confirmadas": 3,
+          "confirmadas": 2,
           "efec": 0,
           "nos": 0,
           "conf": [
@@ -1537,11 +1537,11 @@
               5
             ],
             [
-              "Confirma",
-              3
+              "No contesta",
+              2
             ],
             [
-              "No contesta",
+              "Desiste",
               2
             ],
             [
@@ -1549,12 +1549,12 @@
               2
             ],
             [
-              "Desiste",
-              1
+              "Confirma",
+              2
             ]
           ],
           "agen_arr": 11,
-          "conf_arr": 3,
+          "conf_arr": 2,
           "efec_arr": 0,
           "agen_coh": 2,
           "conf_coh": 0,
@@ -2145,7 +2145,7 @@
             "conf_arr": 9,
             "efec_arr": 8,
             "agen_coh": 84,
-            "conf_coh": 55,
+            "conf_coh": 54,
             "efec_coh": 31,
             "nos_coh": 49
           },
@@ -2155,17 +2155,21 @@
             "tope": 0,
             "agen": 2,
             "agendadas": 2,
-            "confirmadas": 2,
+            "confirmadas": 1,
             "efec": 0,
             "nos": 0,
             "conf": [
               [
+                "Desiste",
+                1
+              ],
+              [
                 "Confirma",
-                2
+                1
               ]
             ],
             "agen_arr": 2,
-            "conf_arr": 2,
+            "conf_arr": 1,
             "efec_arr": 0,
             "agen_coh": 0,
             "conf_coh": 0,
@@ -4277,7 +4281,7 @@
             "conf_arr": 1,
             "efec_arr": 2,
             "agen_coh": 105,
-            "conf_coh": 62,
+            "conf_coh": 61,
             "efec_coh": 27,
             "nos_coh": 63
           },
@@ -4287,7 +4291,7 @@
             "tope": 0,
             "agen": 5,
             "agendadas": 5,
-            "confirmadas": 2,
+            "confirmadas": 1,
             "efec": 0,
             "nos": 0,
             "conf": [
@@ -4296,8 +4300,12 @@
                 2
               ],
               [
+                "Desiste",
+                1
+              ],
+              [
                 "Confirma",
-                2
+                1
               ],
               [
                 "Sin gestión",
@@ -4305,7 +4313,7 @@
               ]
             ],
             "agen_arr": 5,
-            "conf_arr": 2,
+            "conf_arr": 1,
             "efec_arr": 0,
             "agen_coh": 0,
             "conf_coh": 0,
@@ -29286,7 +29294,7 @@
               "Desiste": [
                 1,
                 0,
-                0,
+                1,
                 0
               ],
               "Reagenda": [
@@ -29298,7 +29306,7 @@
               "Confirma": [
                 1,
                 0,
-                2,
+                1,
                 0
               ],
               "Sin gestión": [
@@ -29650,7 +29658,7 @@
           "label": "sep·26",
           "year": 2026,
           "month": 9,
-          "leads": 17,
+          "leads": 19,
           "cont": 3,
           "tope": 1,
           "agen": 6,
@@ -29980,7 +29988,7 @@
             "nos_coh": 23
           },
           "sep·26": {
-            "leads": 13,
+            "leads": 14,
             "cont": 3,
             "tope": 1,
             "agen": 3,
@@ -30285,7 +30293,7 @@
             "nos_coh": 2
           },
           "sep·26": {
-            "leads": 4,
+            "leads": 5,
             "cont": 0,
             "tope": 0,
             "agen": 3,
@@ -30845,7 +30853,7 @@
             "nos_coh": 0
           },
           "sep·26": {
-            "leads": 8,
+            "leads": 10,
             "cont": 1,
             "tope": 0,
             "agen": 1,
