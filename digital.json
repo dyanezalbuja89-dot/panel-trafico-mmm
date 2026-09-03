@@ -1,6 +1,6 @@
 {
   "available": true,
-  "updated_at": "2026-09-03T03:52:44.602922+00:00",
+  "updated_at": "2026-09-03T04:56:42.409365+00:00",
   "portal": "21339231",
   "pipeline": "Ventas-Ford",
   "months": [
@@ -29650,7 +29650,7 @@
           "label": "sep·26",
           "year": 2026,
           "month": 9,
-          "leads": 14,
+          "leads": 17,
           "cont": 3,
           "tope": 1,
           "agen": 6,
@@ -29980,7 +29980,7 @@
             "nos_coh": 23
           },
           "sep·26": {
-            "leads": 10,
+            "leads": 13,
             "cont": 3,
             "tope": 1,
             "agen": 3,
@@ -30800,8 +30800,8 @@
             "nos_coh": 12
           },
           "jun·26": {
-            "leads": 0,
-            "cont": 0,
+            "leads": 1,
+            "cont": 1,
             "tope": 0,
             "agen": 3,
             "agendadas": 3,
@@ -30845,7 +30845,7 @@
             "nos_coh": 0
           },
           "sep·26": {
-            "leads": 5,
+            "leads": 8,
             "cont": 1,
             "tope": 0,
             "agen": 1,
@@ -30924,8 +30924,8 @@
             "nos_coh": 0
           },
           "jun·26": {
-            "leads": 57,
-            "cont": 57,
+            "leads": 56,
+            "cont": 56,
             "tope": 2,
             "agen": 13,
             "agendadas": 13,
@@ -39652,12 +39652,46 @@
                 "by_llamada": []
               },
               "contactados": {
-                "total": 0,
-                "by_estatus": [],
-                "by_categoria": [],
-                "cat_detalle": {},
-                "cat_llamada": {},
-                "cat_notask": {}
+                "total": 1,
+                "by_estatus": [
+                  [
+                    "Contactado",
+                    1
+                  ]
+                ],
+                "by_categoria": [
+                  [
+                    "Citó",
+                    1
+                  ]
+                ],
+                "cat_detalle": {
+                  "Citó": [
+                    [
+                      "Aceptaciones auditadas",
+                      1
+                    ]
+                  ]
+                },
+                "cat_llamada": {
+                  "Citó": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ]
+                },
+                "cat_notask": {
+                  "Citó": 1
+                }
               },
               "no_show": {
                 "total": 0,
@@ -39937,11 +39971,11 @@
                 "by_llamada": []
               },
               "contactados": {
-                "total": 57,
+                "total": 56,
                 "by_estatus": [
                   [
                     "Contactado",
-                    26
+                    25
                   ],
                   [
                     "No interesado",
@@ -39963,7 +39997,7 @@
                 "by_categoria": [
                   [
                     "Citó",
-                    21
+                    20
                   ],
                   [
                     "En gestión activa",
@@ -39992,7 +40026,7 @@
                   "Citó": [
                     [
                       "Aceptaciones auditadas",
-                      21
+                      20
                     ]
                   ],
                   "Desperdicio": [
@@ -40050,7 +40084,7 @@
                     1,
                     0,
                     1,
-                    1,
+                    0,
                     0,
                     0,
                     0,
@@ -40088,7 +40122,7 @@
                 },
                 "cat_notask": {
                   "En gestión activa": 7,
-                  "Citó": 21,
+                  "Citó": 20,
                   "Desperdicio": 26,
                   "Salida legítima": 3
                 }
