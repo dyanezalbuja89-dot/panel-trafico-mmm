@@ -202,6 +202,21 @@ STAGES = [
 ]
 
 # Agencias a procesar. Mapea carpeta del filesystem → nombre corto del panel.
+# Sucursal del CRM → agencia del panel. Hasta jul-2026 cada carpeta traía SOLO su
+# agencia, así que bastaba con el nombre del directorio. Desde el corte de agosto
+# los archivos vienen con la red COMPLETA: sin filtrar, La Y pasaba de ~100
+# cotizaciones al mes a 892, contando las de las otras seis.
+# ⚠ Solo Ford: 'ORGU LA Y DONGFENG' y 'ORGU MACHALA CHERY' son otras marcas.
+SUCURSAL_AGENCIA = {
+    'AUTOSHARECORP CARLOS JULIO AROSEMENA': 'CJA',
+    'AUTOSHARECORP ORELLANA':               'Orellana',
+    'AUTOSHARECORP LA Y':                   'La Y',
+    'AUTOSHARECORP TUMBACO':                'Tumbaco',
+    'AUTOSHARECORP MANTA':                  'Manta',
+    'AUTOSHARECORP MACHALA':                'Machala',
+    'AUTOSHARECORP PORTOVIEJO':             'Portoviejo',
+}
+
 AGENCIES = {
     'CJA':        'CJA',
     'MANTA':      'Manta',
@@ -293,7 +308,7 @@ def _load_stage(path):
     explotando los registros multi-modelo (una fila por (id, modelo))."""
     df = pd.read_excel(path, sheet_name=0)
     if 'Modelo' not in df.columns or 'id' not in df.columns:
-        return pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL', 'TEMP', 'PAGO'])
+        return pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL', 'TEMP', 'PAGO', 'SUCURSAL'])
     rows = []
     for _, r in df.iterrows():
         if pd.isna(r['id']):
@@ -303,9 +318,13 @@ def _load_stage(path):
         temp = _norm_temp(r.get('Temperatura'))
         pago = _norm_pago(r.get('Pago'))
         for mod in _split_modelos(r['Modelo']):
-            rows.append({'id': r['id'], 'MODELO_N': mod, 'ASESOR': ase, 'CANAL': canal, 'TEMP': temp, 'PAGO': pago})
+            rows.append({'id': r['id'], 'MODELO_N': mod, 'ASESOR': ase, 'CANAL': canal,
+                         'TEMP': temp, 'PAGO': pago,
+                         # Desde el corte de agosto los archivos traen la red entera:
+                         # sin la sucursal no se puede separar qué fila es de quién.
+                         'SUCURSAL': str(r.get('Sucursal') or '').strip().upper()})
     if not rows:
-        return pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL', 'TEMP', 'PAGO'])
+        return pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL', 'TEMP', 'PAGO', 'SUCURSAL'])
     return pd.DataFrame(rows)
 
 
@@ -362,7 +381,18 @@ def compute_embudo_agencia(agencia_dir, mes, short_agencia):
         if p and p.exists():
             stage_dfs[label] = _load_stage(p)
         else:
-            stage_dfs[label] = pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL', 'TEMP', 'PAGO'])
+            stage_dfs[label] = pd.DataFrame(columns=['id', 'MODELO_N', 'ASESOR', 'CANAL', 'TEMP', 'PAGO', 'SUCURSAL'])
+
+    # ► Quedarse solo con las filas de ESTA agencia. Si el archivo trae una sola
+    # sucursal (como hasta julio) el filtro no quita nada; si trae la red entera
+    # (desde agosto) evita que una agencia se lleve las cotizaciones de las otras.
+    for lbl, df in list(stage_dfs.items()):
+        if df.empty or 'SUCURSAL' not in df.columns:
+            continue
+        _suc = df['SUCURSAL'].astype(str).str.strip().str.upper()
+        _mias = _suc.map(SUCURSAL_AGENCIA)
+        if _mias.notna().any():
+            stage_dfs[lbl] = df[_mias == short_agencia].copy()
 
     # ► Reasignación de asesores (home / Otros). Las filas se quedan en esta
     # agencia pero el nombre del asesor pasa a "Otros" si:
