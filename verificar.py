@@ -208,11 +208,18 @@ def check_metas(d):
 # ── 5 · Sin fechas futuras ni meses vacíos ───────────────────────────────────
 def check_meses(d):
     """Un mes en cero casi siempre es BD faltante, no ausencia de tráfico."""
-    vacios = [k for k, m in (d.get('ford_months') or {}).items() if not m.get('total_curr')]
+    fm = d.get('ford_months') or {}
+    # Un mes que ya tiene metas pero cuya BD de tráfico aún no llegó viene marcado
+    # `_pending_bd` por el backend. Es un estado esperado a principio de mes, no un
+    # error: se avisa, no se bloquea el deploy.
+    pendientes = [k for k, m in fm.items() if m.get('_pending_bd')]
+    vacios = [k for k, m in fm.items() if not m.get('total_curr') and not m.get('_pending_bd')]
     if vacios:
         fail('meses', f'meses con tráfico en cero (¿falta la BD?): {vacios}')
     else:
-        ok('meses', f'{len(d.get("ford_months") or {})} meses con tráfico > 0')
+        ok('meses', f'{len(fm) - len(pendientes)} meses con tráfico > 0')
+    if pendientes:
+        warn('meses', f'con metas pero sin BD de tráfico todavía: {pendientes}')
     hoy = pd.Timestamp.today().normalize()
     for k, m in (d.get('ford_months') or {}).items():
         cd = m.get('cut_date')

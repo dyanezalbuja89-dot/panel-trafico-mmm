@@ -681,6 +681,9 @@ JUL_FORD_METAS_FILE = JUL_BASE / "TRAFICO_DY/JULIO_NUEVO_AI_FORD.xlsx"
 AGO_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Agosto")
 AGO_BRAND_METAS_FILE = AGO_BASE / "METAS/AGOSTO_NUEVO_AI_MARCAS.xlsx"
 AGO_FORD_METAS_FILE  = AGO_BASE / "METAS/AGOSTO_NUEVO_AI_FORD.xlsx"
+SEP_BASE = Path("/Users/danielyanezalbuja/Library/CloudStorage/OneDrive-Maresa/Marketing/2026/Análisis de tráfico/2026/Septiembre")
+SEP_BRAND_METAS_FILE = SEP_BASE / "METAS/SEPTIEMBRE_NUEVO_AI_MARCAS.xlsx"
+SEP_FORD_METAS_FILE  = SEP_BASE / "METAS/SEPTIEMBRE_NUEVO_AI_FORD.xlsx"
 
 # ---------------- SHORT NAMES ----------------
 SUCURSAL_TO_SHORT = {
@@ -2018,6 +2021,13 @@ MONTHS_CONFIG = [
      "prev_date": "25/08/2026",
      "ford_metas_file": str(AGO_FORD_METAS_FILE),
      "brand_metas_file": str(AGO_BRAND_METAS_FILE)},
+    # Septiembre (07-sep-2026): metas cargadas, BD de tráfico todavía no. Sin
+    # curr_file el mes entra en modo _pending_bd — igual que julio en su día — y el
+    # panel sigue abriendo en agosto. Cuando llegue la primera BD_SEP_*_09_26:
+    # cut_day, curr_file y prev_file (= curr_file en el primer corte).
+    {"key": "septiembre_2026", "label": "Septiembre 2026", "month": 9, "year": 2026, "cut_day": 30,
+     "ford_metas_file": str(SEP_FORD_METAS_FILE),
+     "brand_metas_file": str(SEP_BRAND_METAS_FILE)},
 ]
 
 def _marca_group(marca):

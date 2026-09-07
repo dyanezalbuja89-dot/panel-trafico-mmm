@@ -5892,7 +5892,7 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
   function tabSubtitle(tab){
     if(tab === 'ford'){
       const c = MONTHS_CONFIG.find(x=>x.key===currentMonthFF);
-      return (c?c.label:'Mes') + ' · corte al ' + (FORD.cut_date || '—');
+      return (c?c.label:'Mes') + (FORD._pending_bd ? ' · metas cargadas, sin BD de tráfico aún' : ' · corte al ' + (FORD.cut_date || '—'));
     }
     if(tab === 'brand'){
       const c = MONTHS_CONFIG.find(x=>x.key===currentMonthBR);
@@ -6722,7 +6722,9 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
     const k = ffAggregate();
     // Hero stats
     document.getElementById('hs-total-v').textContent = fmt(k.curr);
-    document.getElementById('hs-total-d').textContent = 'Hasta '+FORD.cut_date+' · '+filterBadge();
+    document.getElementById('hs-total-d').textContent = FORD._pending_bd
+      ? 'Metas cargadas · la BD de tráfico de este mes todavía no llega'
+      : 'Hasta '+FORD.cut_date+' · '+filterBadge();
     const dSign = k.delta>0?'+':'';
     document.getElementById('hs-delta-v').textContent = dSign + k.delta;
     const hsDelta = document.getElementById('hs-delta');
@@ -7728,7 +7730,9 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
   function brRenderHero(){
     const B = brCurrent(); const k = brAggregate(); if(!B||!k) return;
     document.getElementById('br-hs-total').textContent = fmt(k.curr);
-    document.getElementById('br-hs-total-d').textContent = 'Hasta '+B.cut_date+' · '+brFilterBadge();
+    document.getElementById('br-hs-total-d').textContent = B._pending_bd
+      ? 'Metas cargadas · la BD de tráfico de este mes todavía no llega'
+      : 'Hasta '+B.cut_date+' · '+brFilterBadge();
     const dSign = k.delta>0?'+':''; document.getElementById('br-hs-delta-v').textContent = dSign+k.delta;
     const hs = document.getElementById('br-hs-delta'); hs.classList.remove('good','warn','bad');
     hs.classList.add(k.delta>0?'good':k.delta<0?'bad':'warn');

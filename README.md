@@ -27,6 +27,26 @@ La data corporativa se comparte con el equipo Ford y no se puede sacar de OneDri
 
 ---
 
+## Abrir un mes nuevo (metas primero, BD después)
+
+Las metas llegan antes que la primera BD de tráfico. El mes se abre en dos pasos:
+
+**1. Solo metas** — copiar `<MES>_NUEVO_AI_FORD.xlsx` y `_MARCAS.xlsx` a `~/dev/panel-datos/metas/`,
+definir las constantes `<MES>_BASE` / `<MES>_FORD_METAS_FILE` / `<MES>_BRAND_METAS_FILE` en
+`aggregate.py` y agregar la entrada a `MONTHS_CONFIG` **sin `curr_file` ni `prev_file`**. El mes
+entra en modo `_pending_bd`: metas cargadas, tráfico en 0, `cut_date` en `None`. El panel sigue
+abriendo en el último mes con BD (`default_month_key` salta los pendientes), el KPI dice
+"Metas cargadas · la BD de tráfico de este mes todavía no llega" y `verificar.py` lo reporta como
+aviso, no como fallo. Así entró julio (e347015) y septiembre (07-sep-2026).
+
+**2. Primera BD** — agregar `cut_day`, `curr_file` y `prev_file` (= `curr_file` en el primer corte,
+el delta arranca en 0). A partir de ahí es el flujo normal de abajo.
+
+⚠ La carpeta `BD_SEPTIEMBRE` de OneDrive llegó con 81 archivos de meses anteriores copiados; la BD
+del mes es solo la que sigue el patrón `BD_SEP_dd_09_26.xlsx`.
+
+---
+
 ## Actualizar el tráfico
 
 Cuando llega una BD nueva:
