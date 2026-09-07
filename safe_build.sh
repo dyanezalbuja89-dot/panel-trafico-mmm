@@ -151,6 +151,19 @@ ok "data.json íntegro"
 
 # 5. Deploy + commit (solo si --deploy)
 if [ "$deploy" = true ]; then
+  # Commit + push ANTES de publicar (regla 1 del README). El 07-sep-2026 este script
+  # publicó con aggregate.py y data.json sin commitear; el cron horario pasó en medio,
+  # hizo reset --hard y producción volvió al mes anterior. Publicar lo que no está en
+  # el remoto es publicarlo a plazo fijo. Mensaje: COMMIT_MSG="..." ./safe_build.sh --deploy
+  echo "→ commit + push antes de publicar..."
+  if [ -n "$(git status --porcelain)" ]; then
+    git add -A
+    git commit -q -m "${COMMIT_MSG:-deploy: $(date '+%Y-%m-%d %H:%M')}" || fail "commit falló — no se publica"
+  fi
+  git pull -q --rebase origin main || fail "rebase con conflictos — resolver y reintentar"
+  git push -q origin HEAD:main || fail "push rechazado — no se publica (el cron revertiría el panel)"
+  [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || fail "HEAD ≠ origin/main tras el push"
+  ok "remoto al día ($(git rev-parse --short HEAD)) — el cron ya no puede revertirlo"
   echo "→ Deploying a Vercel prod..."
   DEPLOY=$(npx vercel --prod --yes 2>&1 | grep -oE 'panel-trafico-[a-z0-9]+-daniels-projects-4cad0649\.vercel\.app' | head -1)
   if [ -z "$DEPLOY" ]; then
@@ -162,7 +175,9 @@ fi
 
 echo ""
 ok "safe_build.sh terminó OK"
-echo "  Siguientes pasos manuales:"
-echo "    git add -A"
-echo "    git commit -m '...'"
-echo "    git push"
+if [ "$deploy" != true ]; then
+  echo "  Siguientes pasos manuales (o ./safe_build.sh --deploy, que los hace solo):"
+  echo "    git add -A"
+  echo "    git commit -m '...'"
+  echo "    git push"
+fi

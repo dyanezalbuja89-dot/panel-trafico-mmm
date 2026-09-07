@@ -76,9 +76,12 @@ sirvió una versión cacheada, reintenta con `--force`.
 
 ## Reglas duras
 
-**1. Commitear antes de publicar.** `digital_hourly.sh` corre por launchd cada hora y hace
-`git reset --hard origin/main`. Todo cambio sin commitear se pierde. `deploy.sh` ya hace el
-push antes de publicar, pero si editás código fuera de ese flujo, commiteá primero.
+**1. Commitear antes de publicar.** `digital_hourly.sh` corre por launchd cada hora. Desde el
+07-sep-2026 ya no pisa nada: si encuentra CÓDIGO sin commitear o commits sin pushear, salta la
+hora y lo deja en `~/panel_digital_hourly.log`; solo descarta `data.json`/`index.html`/`digital.json`,
+que regenera. Y los dos caminos de publicación commitean y pushean ANTES del deploy: `deploy.sh`
+siempre lo hizo; `safe_build.sh --deploy` lo hace desde el 07-sep-2026 (mensaje con
+`COMMIT_MSG="..."`). Publicar algo que no está en el remoto es publicarlo a plazo fijo.
 
 **2. Nunca `python3 build.py` a secas** para publicar: usar `./safe_build.sh` o `deploy.sh`,
 que verifican la integridad de las pestañas.
@@ -707,3 +710,11 @@ python3 hubspot_pull.py && python3 _merge_digital.py && ./deploy.sh --skip-aggre
 - **Fechas futuras en la BD** producían días negativos; se descartan.
 - **Vercel sirviendo `data.json` viejo con `index.html` nuevo** → números fantasma. Por eso
   `deploy.sh` verifica el md5 en vivo.
+
+- **07-sep-2026 · el corte de septiembre "no salía actualizado".** Publiqué con
+  `safe_build.sh --deploy` (que entonces NO commiteaba) y verifiqué producción con 63. Cinco
+  minutos después el cron horario guardó `aggregate.py` y `data.json` sin commitear en un stash,
+  hizo `reset --hard`, reconstruyó desde el data.json anterior (septiembre sin BD) y volvió a
+  publicar: producción retrocedió al modo "pendiente" y mi `git add -A` posterior commiteó ese
+  archivo viejo. Se recuperó del stash. Lección: la verificación vale hasta el siguiente escritor;
+  el orden es commit → push → deploy, y ahora los scripts lo fuerzan (regla dura 1).

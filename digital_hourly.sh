@@ -40,10 +40,21 @@ log "═══ refresco digital horario ═══"
 #    Ahora esta carpeta es también donde se edita el panel, así que NO se puede hacer
 #    reset --hard a ciegas: si hay trabajo sin commitear se guarda en stash primero.
 git fetch origin main >> "$LOG" 2>&1 || log "WARN git fetch"
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  git stash push -u -m "digital_hourly autostash $(date '+%F %H:%M')" >> "$LOG" 2>&1 \
-    && log "⚠ trabajo sin commitear guardado en stash (recuperar: git stash list/pop)"
+# NUNCA pisar trabajo manual. El 07-sep-2026 el stash+reset de esta línea se llevó
+# aggregate.py y data.json de un deploy a medio commitear y producción volvió al mes
+# anterior. Si hay CÓDIGO sin commitear, o commits sin pushear, se salta la hora
+# (el panel avisa en rojo si el dato digital pasa de 6 h sin refrescar). Los tres
+# artefactos que este cron regenera se descartan sin stash: llegó a haber 295.
+OTROS=$(git status --porcelain | awk '{print $NF}' | grep -vE '^(data\.json|index\.html|digital\.json)$' || true)
+if [ -n "$OTROS" ]; then
+  log "⏭ trabajo manual sin commitear ($(echo $OTROS | tr '\n' ' ')); salto esta hora"
+  exit 0
 fi
+if [ "$(git rev-list --count origin/main..HEAD)" -gt 0 ]; then
+  log "⏭ hay commits locales sin pushear; salto esta hora (no hago reset --hard)"
+  exit 0
+fi
+git checkout -- data.json index.html digital.json >> "$LOG" 2>&1 || true
 git reset --hard origin/main >> "$LOG" 2>&1 || log "WARN git reset"
 
 # 2. Pull HubSpot → digital.json
