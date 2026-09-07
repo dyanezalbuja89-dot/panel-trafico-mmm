@@ -43,7 +43,7 @@ aviso, no como fallo. Así entró julio (e347015) y septiembre (07-sep-2026).
 el delta arranca en 0). A partir de ahí es el flujo normal de abajo.
 
 ⚠ La carpeta `BD_SEPTIEMBRE` de OneDrive llegó con 81 archivos de meses anteriores copiados; la BD
-del mes es solo la que sigue el patrón `BD_SEP_dd_09_26.xlsx`.
+del mes es solo la que sigue el patrón `BD_SEPT_dd_09_26.xlsx` (con T: así vino el primer corte, `BD_SEPT_06_09_26.xlsx`).
 
 ---
 
