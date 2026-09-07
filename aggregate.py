@@ -2025,7 +2025,12 @@ MONTHS_CONFIG = [
     # curr_file el mes entra en modo _pending_bd — igual que julio en su día — y el
     # panel sigue abriendo en agosto. Cuando llegue la primera BD_SEP_*_09_26:
     # cut_day, curr_file y prev_file (= curr_file en el primer corte).
-    {"key": "septiembre_2026", "label": "Septiembre 2026", "month": 9, "year": 2026, "cut_day": 30,
+    # Primer corte de septiembre (06/09): sin corte previo del mes, prev = curr y el
+    # delta arranca en 0 — mismo criterio que febrero y agosto.
+    {"key": "septiembre_2026", "label": "Septiembre 2026", "month": 9, "year": 2026, "cut_day": 6,
+     "curr_file": "../Septiembre/BD_SEPTIEMBRE/BD_SEPT_06_09_26.xlsx",
+     "prev_file": "../Septiembre/BD_SEPTIEMBRE/BD_SEPT_06_09_26.xlsx",
+     "prev_date": "06/09/2026",
      "ford_metas_file": str(SEP_FORD_METAS_FILE),
      "brand_metas_file": str(SEP_BRAND_METAS_FILE)},
 ]
