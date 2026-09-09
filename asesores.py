@@ -56,8 +56,16 @@ _UMBRAL_TYPO = 0.90     # similitud del nombre completo normalizado
 
 
 def norm(s):
-    """Mayúsculas, sin tildes, sin dobles espacios. La Ñ cae en N."""
+    """Mayúsculas, sin tildes, sin dobles espacios. La Ñ cae en N.
+
+    Las marcas diacríticas se QUITAN antes del regex. Hasta el 09-sep-2026 se
+    reemplazaban por espacio y partían el token: 'PEÑAFIEL' → 'PEN AFIEL',
+    'SELLÁN' → 'SELLA N'. Con eso ninguna grafía con tilde se fusionaba con su
+    par sin tilde (HILAÑO/HILANO, Freire Peñafiel/PENAFIEL) y la docstring
+    mentía al decir que se resolvían solas.
+    """
     s = unicodedata.normalize('NFD', str(s or '').upper())
+    s = ''.join(c for c in s if not unicodedata.combining(c))
     return ' '.join(re.sub(r'[^A-Z ]', ' ', s).split())
 
 
