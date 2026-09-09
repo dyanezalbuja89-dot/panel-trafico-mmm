@@ -702,6 +702,22 @@ Los cálculos de crédito, descuento, recompra y renovación los llena ANALISTA 
 sobre la firma documentada en el módulo; la pestaña `tab-recompra` y su marker en
 `safe_build.sh`/`deploy.sh` entran en el mismo commit.
 
+### Enchufar un módulo nuevo sin mover el panel (receta del 09-sep-2026)
+
+1. Escribe claves NUEVAS en `out`; no toques `ventas_mensual`, `conversion_data`,
+   `ford_months`, `brands_months`, `inventario`.
+2. Antes de publicar, prueba de no-cambio: hash de esas claves en el `data.json` viejo y
+   en el nuevo. El único cambio legítimo en `inventario` son los días de antigüedad de
+   la cola (`aging_days` y sus bandas), que dependen de la fecha de hoy.
+3. Si el módulo trae nombres de asesor, enchúfalo DESPUÉS de `asesores.canonizar` y
+   mapea sus grafías hacia las del panel (ver `facturado._canonizar_asesores`). Al revés,
+   una fuente con una línea por factura gana por frecuencia y renombra asesores en
+   producción sin mover un número: pasó con Carla Montoya y María Castrellón.
+4. Un check en `verificar.py` que cuadre el módulo contra el panel, aviso mientras sea
+   esqueleto y fallo cuando esté activo.
+5. Si abre pestaña, su marker en `safe_build.sh` y `deploy.sh` va en el mismo commit.
+6. Publicar con `./deploy.sh` o `./safe_build.sh --deploy`; nunca `build.py` a secas.
+
 ## Seguimiento Digital
 
 `digital.json` en la raíz lo escribe **solo** `digital_hourly.sh` (single-writer; nadie más
