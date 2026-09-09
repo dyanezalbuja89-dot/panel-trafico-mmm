@@ -783,3 +783,13 @@ python3 hubspot_pull.py && python3 _merge_digital.py && ./deploy.sh --skip-aggre
   publicar: producción retrocedió al modo "pendiente" y mi `git add -A` posterior commiteó ese
   archivo viejo. Se recuperó del stash. Lección: la verificación vale hasta el siguiente escritor;
   el orden es commit → push → deploy, y ahora los scripts lo fuerzan (regla dura 1).
+
+- **09-sep-2026 · `asesores.norm` partía los nombres con tilde.** Reemplazaba la marca
+  diacrítica por un espacio: "PEÑAFIEL" quedaba "PEN AFIEL", "SELLÁN" quedaba "SELLA N". Ninguna
+  grafía acentuada se fusionaba con su par sin tilde, y la docstring decía lo contrario. Ahora las
+  marcas se quitan antes del regex.
+- **09-sep-2026 · `checks_asesores.py` comparaba contra DATOS 2** cuando el panel ya salía de la
+  Base de Ventas: 41 falsas alarmas (exonerados y grafías distintas) que nadie vio porque
+  `deploy.sh` abortaba antes por el marker de Embudo desde el 01-sep. Ahora compara contra la Base
+  en los meses que cubre, DATOS 2 solo en el resto, y mapea las grafías del crudo al panel.
+
