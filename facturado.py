@@ -405,6 +405,29 @@ def renovacion(parque, veh):
     return {'_estado': 'esqueleto', '_todo': 'ANALISTA ORGU 3.0'}
 
 
+# ── Asesores: el panel manda ─────────────────────────────────────────────────
+
+def _canonizar_asesores(out):
+    """Mapea las grafías de asesor de FACTURADO a las que el panel YA muestra.
+
+    Nunca al revés. `asesores.canonizar(out)` elige la grafía más frecuente, y
+    FACTURADO trae una línea por factura: el 09-sep-2026 dos asesoras de Ford
+    cambiaron de nombre en el panel (Carla Montoya → Carla Melissa Montoya) sin
+    mover un número. Por eso este módulo se enchufa DESPUÉS de canonizar el resto
+    y aquí los canónicos del panel pesan más que cualquier grafía nueva.
+    """
+    import asesores
+    resto = {k: v for k, v in out.items() if k not in ('facturado', 'recompra', 'renovacion')}
+    canon = asesores.frecuencias(resto)
+    freq = {n: c + 10**6 for n, c in canon.items()}          # el panel gana siempre
+    nuevas = asesores.frecuencias(out.get('facturado') or {})
+    for n, c in nuevas.items():
+        freq.setdefault(n, c)
+    mapa = {a: c for a, c in asesores.construir_mapa(freq).items() if a in nuevas and a not in canon}
+    celdas = asesores.aplicar(out['facturado'], mapa)
+    return len(mapa), celdas
+
+
 # ── Enchufe en aggregate ────────────────────────────────────────────────────
 
 def build(out, base=None, corte=None):
@@ -461,9 +484,14 @@ def build(out, base=None, corte=None):
     out['recompra'] = recompra(veh, parque)
     out['renovacion'] = renovacion(parque, veh)
 
+    try:
+        _alias, _celdas = _canonizar_asesores(out)
+    except Exception as _e:
+        _alias, _celdas = 0, f'WARN {_e}'
+
     malos = [(mk, m, c['dif']) for mk, meses in cu.items() for m, c in meses.items() if not c['ok']]
     return (f"{len(veh)} líneas de vehículo · corte {out['facturado_corte']} · "
-            f"parque {'sí' if parque is not None else 'no'} · "
+            f"parque {'sí' if parque is not None else 'no'} · asesores→panel {_alias} grafías/{_celdas} celdas · "
             f"cuadre: {sum(len(v) for v in cu.values()) - len(malos)} meses ok, {len(malos)} con diferencia"
             + (' → ' + ', '.join(f'{mk} {m} {d:+d}' for mk, m, d in malos) if malos else ''))
 
