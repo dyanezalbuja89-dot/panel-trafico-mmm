@@ -2642,6 +2642,17 @@ def main():
         out['presupuesto']['mix'] = build_mix(out['presupuesto'], out.get('ventas_mensual'),
                                               out.get('inventario'))
 
+    # ► FACTURADO de Finanzas (09-sep-2026): fuente PARALELA con crédito, descuento,
+    # financiera, versión, cédula al 100 % e id de GUC. NO trae exonerados ni la agencia
+    # de placa, así que no toca ventas_mensual ni conversion_data: escribe claves
+    # nuevas (facturado, recompra, renovacion) y su cuadre contra el panel. Va ANTES
+    # de canonizar asesores para que su by_asesor se unifique con el resto.
+    try:
+        import facturado as _fac
+        print('[facturado]', _fac.build(out, corte=VENTAS_CORTE))
+    except Exception as _e:
+        print('[facturado] WARN no se pudo cargar:', _e)
+
     # ► IDENTIDAD ÚNICA DEL ASESOR. Regla de Daniel: una persona = una fila, sin
     # importar cómo esté escrito el nombre. En el origen conviven 98 grafías para
     # 64 personas — Doménica en cuatro formas, Karen y Anthony en tres. Sin este

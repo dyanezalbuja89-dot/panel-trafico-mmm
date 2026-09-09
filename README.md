@@ -669,6 +669,39 @@ de CJA caían calladas en 'Sin agencia' y el total seguía cuadrando.
 
 ---
 
+## FACTURADO de Finanzas: fuente paralela (09-sep-2026)
+
+`facturado.py` carga `FACTURADO MARZ 2024 A SEP 2026.xlsx` (una línea por factura o
+nota de crédito por VIN, desde feb-2024) y el parque de dueños 2012–2024
+(`ventas_vehiculos act.xlsx`). Trae lo que el panel no tenía: venta a crédito y con qué
+financiera, descuento por factura, versión (MSC), colores, cédula al 100 % e id de
+negocio de GUC. Vive en `~/dev/panel-datos/facturado/` (y en las carpetas de Finanzas);
+se toma el más reciente por fecha de modificación porque el archivo es acumulado.
+
+**No reemplaza a la Base de Ventas.** Medido el 09-sep-2026 contra `ventas_mensual`:
+- No trae los exonerados (cero líneas de vehículo sin MSC; la Base tiene 15 Ford 2026 sin
+  chasis). Ford ene–ago da 741 aquí y 757 en el panel; DF 116 vs 119.
+- No trae la AGENCIA de facturación (solo bodega): el efecto placa mueve 30 unidades Ford
+  y 6 DF en 2026. La agencia oficial se HEREDA de la Base por chasis, y la marca también
+  (una Territory de Manta venía como marca Chery).
+- Una Mage de Machala (mar-2026) está en la Base y no en FACTURADO en ningún mes.
+
+Por eso escribe claves NUEVAS (`facturado`, `recompra`, `renovacion`, `facturado_corte`)
+y no toca `ventas_mensual` ni `conversion_data`. Su cuadre (`facturado._cuadre`) exige
+facturado + exonerados + chasis solo-en-la-Base == panel, por marca y mes cerrado de
+ventas; `verificar.check_facturado_vs_panel` lo avisa mientras `_estado` sea
+`esqueleto` y lo corta cuando sea `activo`.
+
+**Regla de conteo (la que cuadra con Finanzas).** `Cantidad` ya viene signada (factura
++1, NC −1): unidad del mes = Σ Cantidad de las líneas con Tipo Documento de vehículos
+(fuera MPSI y seminuevos), sin filtro > 0. La regla "por VIN y mes > 0" pierde la NC que
+cae en otro mes y cuenta el VIN dos veces: 80 casos Ford en 2026. Todo lo derivado (%
+crédito, descuento) usa la misma unidad; acumulados = suma de meses.
+
+Los cálculos de crédito, descuento, recompra y renovación los llena ANALISTA ORGU 3.0
+sobre la firma documentada en el módulo; la pestaña `tab-recompra` y su marker en
+`safe_build.sh`/`deploy.sh` entran en el mismo commit.
+
 ## Seguimiento Digital
 
 `digital.json` en la raíz lo escribe **solo** `digital_hourly.sh` (single-writer; nadie más

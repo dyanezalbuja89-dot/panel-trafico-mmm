@@ -467,6 +467,25 @@ def check_ventas_vs_conversion(d):
         ok('ventas = conversión', 'las dos pestañas dan lo mismo por agencia')
 
 
+def check_facturado_vs_panel(d):
+    """FACTURADO (fuente paralela) tiene que decir lo mismo que ventas_mensual en
+    cada mes cerrado: facturado + exonerados declarados == panel. Mientras el
+    módulo esté en estado 'esqueleto' es aviso; en 'activo' es invariante duro
+    (Daniel: todas las pestañas dicen el mismo número)."""
+    fac = d.get('facturado')
+    if not fac:
+        warn('facturado vs panel', 'sin clave facturado en data.json (¿no hay archivo?)')
+        return
+    malos = [f"{mk} {m} {c['dif']:+d}" for mk, meses in (fac.get('_cuadre') or {}).items()
+             for m, c in meses.items() if not c.get('ok')]
+    n = sum(len(v) for v in (fac.get('_cuadre') or {}).values())
+    if malos:
+        (fail if fac.get('_estado') == 'activo' else warn)(
+            'facturado vs panel', f"{len(malos)} de {n} meses no cuadran: " + ', '.join(malos))
+    else:
+        ok('facturado vs panel', f"{n} meses cerrados cuadran · estado {fac.get('_estado')}")
+
+
 def check_cache():
     """Si se cambia un criterio de cálculo sin subir la versión, los meses viejos
     se sirven con el criterio anterior y solo cambia el mes en curso."""
@@ -546,6 +565,7 @@ def main():
     check_asesor_unico(d)
     check_mix_versiones(d)
     check_ventas_vs_conversion(d)
+    check_facturado_vs_panel(d)
     check_cache()
 
     print()

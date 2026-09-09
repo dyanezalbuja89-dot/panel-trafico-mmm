@@ -29,6 +29,7 @@ sed -i.bak "s/BUILD_HASH_PLACEHOLDER/$H/g" index.html && rm -f index.html.bak
 # check de safe_build.sh. Sin esto se puede publicar (y pushear) un index.html
 # al que se le cayó una pestaña entera.
 # tab-embudo salió de la lista el 01-sep-2026 (Daniel retiró la pestaña).
+# "tab-recompra" entra aquí y en safe_build.sh en el mismo commit que la pestaña.
 for marker in tab-digital tab-inv tab-ford tab-xiy "TAB DIGITAL · HubSpot"; do
   if ! grep -q "$marker" index.html; then
     echo "✗ FALLO: '$marker' no está en index.html post-build. No se despliega." >&2

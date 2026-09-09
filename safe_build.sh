@@ -62,6 +62,8 @@ echo "→ Verificando integridad pre-build..."
 # 2a. build.py: tabs HTML
 # "tab-embudo" salió de esta lista el 01-sep-2026: Daniel retiró la pestaña.
 # El generador (embudo.py) y el nodo embudo_data siguen vivos por si vuelve.
+# "tab-recompra" (FACTURADO/recompra, ANALISTA ORGU 3.0): agregar aquí y en deploy.sh
+# en el MISMO commit que cree la pestaña en build.py; antes, el gate abortaría.
 BUILD_PY_MARKERS=(
   "tab-digital"
   "TAB DIGITAL · HubSpot"
