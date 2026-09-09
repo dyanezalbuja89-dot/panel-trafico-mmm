@@ -12,7 +12,7 @@
 <!-- Cache-buster: force fresh reload cuando URL no tiene ?v= param. Deploy hash inline. -->
 <script>
 (function(){
-  var DEPLOY = '1788970736';
+  var DEPLOY = 'BUILD_HASH_PLACEHOLDER';
   var u = new URL(location.href);
   if (u.searchParams.get('v') !== DEPLOY) {
     u.searchParams.set('v', DEPLOY);
@@ -3756,8 +3756,8 @@
     <div class="ford-section" id="vt-fac-section" style="display:none">
       <h3>🏦 Crédito y descuento por factura <span class="sub" id="vt-fac-sub">FACTURADO de Finanzas · una marca a la vez</span></h3>
       <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
-        Unidad = Σ cantidad firmada (factura +1, NC −1), la misma de Ventas. <b>% crédito</b> = unidades con
-        "Crédito financiera" ÷ unidades del mes. <b>Descuento</b> = Σ valor descuento ÷ Σ (ventas netas + descuento),
+        <b>Ventas netas</b> = la cifra de Ventas Históricas (Base de Ventas). <b>Con factura</b> = unidades con documento en FACTURADO (sin exonerados). <b>% crédito</b> = unidades con
+        "Crédito financiera" ÷ unidades con factura. <b>Descuento</b> = Σ valor descuento ÷ Σ (ventas netas + descuento),
         solo documentos de vehículo. Agencia = la oficial de la Base de Ventas (efecto placa resuelto). No incluye
         exonerados. Meses cerrados de ventas.
       </div>
@@ -3795,7 +3795,7 @@
       <label>Año<select id="rc-anio"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select></label>
     </div>
     <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
-      <b>Previos</b> = unidades vendidas a una cédula con una compra anterior de OTRO vehículo en ORGU (parque 2012–24 o FACTURADO).
+      <b>Ventas netas</b> = la cifra de Ventas Históricas (Base de Ventas). <b>Con identidad</b> = unidades con factura y cédula de cliente en FACTURADO (los exonerados quedan fuera del cálculo). <b>Previos</b> = unidades vendidas a una cédula con una compra anterior de OTRO vehículo en ORGU (parque 2012–24 o FACTURADO); el % es sobre las unidades con identidad.
       <b>Renovadores</b> = la compra anterior fue hace 2 años o más (el resto son flotas y segundas unidades).
       Unidad = Σ cantidad firmada: la NC de un recomprador resta. Una marca a la vez; Ford y Dongfeng nunca se suman.
     </div>
@@ -15524,34 +15524,39 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
     const F = FAC[mk] || {}; const C = F.credito || {}; const D = F.descuento || {};
     const meses = facMesesOk(anio).filter(m => (C.totals || {})[m]);
     document.getElementById('vt-fac-sub').textContent = `${FAC_LBL[mk]} · ${anio} · ${meses.length} meses cerrados · corte ${DATA.facturado_corte || ''}`;
+    const VMF = (DATA.ventas_mensual || {})[mk] || {};
+    const panelDeF = (serie) => meses.reduce((t, m) => t + (((serie || {})[m]) || 0), 0);
+    const ventasPanelF = panelDeF(VMF.totals);
     const uds = facSum(C.totals, meses, 'de'), cred = facSum(C.totals, meses, 'n');
     let dv = 0, db = 0; meses.forEach(m => { const c = (D.totals || {})[m]; if(c){ dv += c.valor || 0; db += (c.pct ? (c.valor || 0) * 100 / c.pct : 0); } });
     const tope = (D.sobre_tope || []).filter(x => meses.includes(x.mes));
-    document.getElementById('fac-k-uds').textContent = facN(uds);
-    const exoF = meses.reduce((t, m) => t + ((((FAC._cuadre || {})[mk] || {})[m] || {}).exonerados || 0), 0);
-    document.getElementById('fac-k-uds-hint').textContent = 'Σ cantidad firmada' + (exoF ? ` · + ${exoF} exonerados sin factura (Ventas Históricas los incluye)` : ' · igual que Ventas');
+    document.getElementById('fac-k-uds').textContent = facN(ventasPanelF);
+    document.getElementById('fac-k-uds-hint').textContent = `igual que Ventas Históricas · ${facN(uds)} con factura en FACTURADO` + (ventasPanelF - uds ? ` · ${facN(ventasPanelF - uds)} exonerados sin factura fuera del cálculo` : '');
     document.getElementById('fac-k-cred').textContent = uds ? facP(100 * cred / uds) : '—';
-    document.getElementById('fac-k-cred-hint').textContent = `${facN(cred)} unidades a crédito`;
+    document.getElementById('fac-k-cred-hint').textContent = `${facN(cred)} de ${facN(uds)} facturadas`;
     document.getElementById('fac-k-desc').textContent = db ? facP(100 * dv / db) : '—';
-    document.getElementById('fac-k-desc-hint').textContent = `${facD(dv)} de descuento en el periodo`;
+    document.getElementById('fac-k-desc-hint').textContent = `${facD(dv)} de descuento en el periodo · solo documentos de vehículo`;
     document.getElementById('fac-k-tope').textContent = facN(tope.length);
     document.getElementById('fac-k-tope-hint').textContent = `> ${D.tope || 5}% · ${tope.filter(x => x.anulada).length} luego anuladas`;
-    const fila = (lbl, serieC, serieD) => {
+    const fila = (lbl, serieC, serieD, serieP) => {
+      const vp = serieP === undefined ? null : panelDeF(serieP);
       const de = facSum(serieC, meses, 'de'), n = facSum(serieC, meses, 'n');
       let v = 0, b = 0; meses.forEach(m => { const c = (serieD || {})[m]; if(c){ v += c.valor || 0; b += (c.pct ? (c.valor || 0) * 100 / c.pct : 0); } });
       const pc = de ? 100 * n / de : null, pd = b ? 100 * v / b : null;
-      return {lbl, de, n, pc, pd, v};
+      return {lbl, vp, de, n, pc, pd, v};
     };
-    const html = rows => rows.map(r => `<tr><td style="text-align:left">${r.lbl}</td><td>${facN(r.de)}</td><td>${facN(r.n)}</td>
+    const html = rows => rows.map(r => `<tr><td style="text-align:left">${r.lbl}</td><td>${r.vp == null ? '—' : facN(r.vp)}</td><td style="color:var(--c-muted)">${facN(r.de)}</td><td>${facN(r.n)}</td>
         <td style="font-weight:700">${facP(r.pc)}</td><td style="${r.pd != null && r.pd > (D.tope || 5) ? 'color:var(--neg);font-weight:700' : ''}">${facP(r.pd)}</td><td>${facD(r.v)}</td></tr>`).join('');
-    const head = `<tr><th style="text-align:left">&nbsp;</th><th>Unidades</th><th>A crédito</th><th>% crédito</th><th>Descuento</th><th>$ descuento</th></tr>`;
-    const ags = Object.keys(C.by_agencia || {}).map(a => fila(a, C.by_agencia[a], (D.by_agencia || {})[a])).filter(r => r.de).sort((a, b) => b.de - a.de);
+    const head = `<tr><th style="text-align:left">&nbsp;</th><th>Ventas netas</th><th>Con factura</th><th>A crédito</th><th>% crédito</th><th>Descuento</th><th>$ descuento</th></tr>`;
+    const VAF = VMF.by_agencia || {};
+    const ags = Array.from(new Set(Object.keys(C.by_agencia || {}).concat(Object.keys(VAF)))).map(a => fila(a, (C.by_agencia || {})[a], (D.by_agencia || {})[a], VAF[a])).filter(r => r.de || r.vp).sort((a, b) => (b.vp || 0) - (a.vp || 0));
     document.querySelector('#fac-tbl-agencia thead').innerHTML = head;
-    document.querySelector('#fac-tbl-agencia tbody').innerHTML = html(ags) + html([Object.assign(fila('TOTAL', C.totals, D.totals), {lbl:'<b>TOTAL</b>'})]);
-    const ms = meses.map(m => { const c = (C.totals || {})[m] || {}, d = (D.totals || {})[m] || {}; return {lbl:m, de:c.de || 0, n:c.n || 0, pc:c.pct, pd:d.pct, v:d.valor || 0}; });
+    document.querySelector('#fac-tbl-agencia tbody').innerHTML = html(ags) + html([Object.assign(fila('TOTAL', C.totals, D.totals, VMF.totals), {lbl:'<b>TOTAL</b>'})]);
+    const ms = meses.map(m => { const c = (C.totals || {})[m] || {}, d = (D.totals || {})[m] || {}; return {lbl:m, vp:((VMF.totals || {})[m]) || 0, de:c.de || 0, n:c.n || 0, pc:c.pct, pd:d.pct, v:d.valor || 0}; });
     document.querySelector('#fac-tbl-mes thead').innerHTML = head.replace('&nbsp;', 'Mes');
     document.querySelector('#fac-tbl-mes tbody').innerHTML = html(ms);
-    const ases = Object.keys(C.by_asesor || {}).map(a => fila(a, C.by_asesor[a], (D.by_asesor || {})[a])).filter(r => r.de > 0).sort((a, b) => b.de - a.de).slice(0, 15);
+    const VAS = VMF.by_asesor || {};
+    const ases = Object.keys(C.by_asesor || {}).map(a => fila(a, C.by_asesor[a], (D.by_asesor || {})[a], VAS[a])).filter(r => r.de > 0).sort((a, b) => b.de - a.de).slice(0, 15);
     document.querySelector('#fac-tbl-asesor thead').innerHTML = head.replace('&nbsp;', 'Asesor');
     document.querySelector('#fac-tbl-asesor tbody').innerHTML = html(ases);
     const fin = {}; meses.forEach(m => { Object.entries((C.financieras || {})[m] || {}).forEach(([f, n]) => { fin[f] = (fin[f] || 0) + n; }); });
@@ -15567,26 +15572,30 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
     const mk = document.getElementById('rc-marca')?.value || 'FORD';
     const anio = document.getElementById('rc-anio')?.value || '2026';
     const S = R[mk] || {}; const T = S.totals || {};
-    const meses = facMesesOk(anio).filter(m => T[m]);
-    const ventas = facSum(T, meses, 'ventas'), prev = facSum(T, meses, 'previos'), ren = facSum(T, meses, 'renovadores');
-    document.getElementById('rc-k-ventas').textContent = facN(ventas);
-    const exoR = meses.reduce((t, m) => t + ((((DATA.facturado || {})._cuadre || {})[mk] || {})[m] || {}).exonerados || 0, 0);
-    document.getElementById('rc-k-ventas-hint').textContent = `${FAC_LBL[mk]} · ${anio} · ${meses.length} meses cerrados` + (exoR ? ` · + ${exoR} exonerados sin factura (Ventas Históricas los incluye)` : '');
-    document.getElementById('rc-k-prev').textContent = ventas ? facP(100 * prev / ventas) : '—';
-    document.getElementById('rc-k-prev-hint').textContent = `${facN(prev)} unidades a clientes que ya compraron en ORGU`;
-    document.getElementById('rc-k-renov').textContent = ventas ? facP(100 * ren / ventas) : '—';
-    document.getElementById('rc-k-renov-hint').textContent = `${facN(ren)} unidades con compra anterior de 2 años o más`;
+    const VM = (DATA.ventas_mensual || {})[mk] || {};   // la cifra oficial del panel (Base de Ventas)
+    const meses = facMesesOk(anio).filter(m => T[m] || (VM.totals || {})[m]);
+    const panelDe = (serie) => meses.reduce((t, m) => t + (((serie || {})[m]) || 0), 0);
+    const ventasPanel = panelDe(VM.totals);
+    const clasif = facSum(T, meses, 'ventas'), prev = facSum(T, meses, 'previos'), ren = facSum(T, meses, 'renovadores');
+    const fuera = ventasPanel - clasif;
+    document.getElementById('rc-k-ventas').textContent = facN(ventasPanel);
+    document.getElementById('rc-k-ventas-hint').textContent = `${FAC_LBL[mk]} · ${anio} · ${meses.length} meses cerrados · igual que Ventas Históricas` + (fuera ? ` · ${facN(fuera)} sin cédula de cliente (exonerados) fuera del cálculo` : '');
+    document.getElementById('rc-k-prev').textContent = clasif ? facP(100 * prev / clasif) : '—';
+    document.getElementById('rc-k-prev-hint').textContent = `${facN(prev)} de ${facN(clasif)} con identidad de cliente`;
+    document.getElementById('rc-k-renov').textContent = clasif ? facP(100 * ren / clasif) : '—';
+    document.getElementById('rc-k-renov-hint').textContent = `${facN(ren)} de ${facN(clasif)} · compra anterior de 2 años o más`;
     document.getElementById('rc-k-anios').textContent = S.anios_mediana != null ? S.anios_mediana.toLocaleString('es-EC') : '—';
     document.getElementById('rc-k-anios-hint').textContent = S.anios_p25 != null ? `mediana · p25 ${S.anios_p25} · p75 ${S.anios_p75} (todo el histórico)` : '';
     document.getElementById('rc-mes-sub').textContent = `${FAC_LBL[mk]} · ${anio}`;
-    const head = `<tr><th style="text-align:left">&nbsp;</th><th>Ventas</th><th>Previos</th><th>% previos</th><th>Renovadores</th><th>% renovadores</th></tr>`;
-    const row = (lbl, v, p, r, bold) => `<tr><td style="text-align:left">${bold ? '<b>' + lbl + '</b>' : lbl}</td><td>${facN(v)}</td><td>${facN(p)}</td><td style="font-weight:700">${v ? facP(100 * p / v) : '—'}</td><td>${facN(r)}</td><td>${v ? facP(100 * r / v) : '—'}</td></tr>`;
+    const head = `<tr><th style="text-align:left">&nbsp;</th><th>Ventas netas</th><th>Con identidad</th><th>Previos</th><th>% previos</th><th>Renovadores</th><th>% renovadores</th></tr>`;
+    const row = (lbl, vp, c, p, r, bold) => `<tr><td style="text-align:left">${bold ? '<b>' + lbl + '</b>' : lbl}</td><td>${facN(vp)}</td><td style="color:var(--c-muted)">${facN(c)}</td><td>${facN(p)}</td><td style="font-weight:700">${c ? facP(100 * p / c) : '—'}</td><td>${facN(r)}</td><td>${c ? facP(100 * r / c) : '—'}</td></tr>`;
     document.querySelector('#rc-tbl-mes thead').innerHTML = head.replace('&nbsp;', 'Mes');
-    document.querySelector('#rc-tbl-mes tbody').innerHTML = meses.map(m => row(m, T[m].ventas, T[m].previos, T[m].renovadores)).join('') + row('TOTAL', ventas, prev, ren, true);
-    const A = S.by_agencia || {};
-    const ags = Object.keys(A).map(a => ({a, v: facSum(A[a], meses, 'ventas'), p: facSum(A[a], meses, 'previos'), r: facSum(A[a], meses, 'renovadores')})).filter(x => x.v).sort((x, y) => y.v - x.v);
+    document.querySelector('#rc-tbl-mes tbody').innerHTML = meses.map(m => { const t = T[m] || {}; return row(m, ((VM.totals || {})[m]) || 0, t.ventas || 0, t.previos || 0, t.renovadores || 0); }).join('') + row('TOTAL', ventasPanel, clasif, prev, ren, true);
+    const A = S.by_agencia || {}; const VA = VM.by_agencia || {};
+    const agNames = Array.from(new Set(Object.keys(A).concat(Object.keys(VA))));
+    const ags = agNames.map(a => ({a, vp: panelDe(VA[a]), c: facSum(A[a], meses, 'ventas'), p: facSum(A[a], meses, 'previos'), r: facSum(A[a], meses, 'renovadores')})).filter(x => x.vp || x.c).sort((x, y) => y.vp - x.vp);
     document.querySelector('#rc-tbl-agencia thead').innerHTML = head.replace('&nbsp;', 'Agencia');
-    document.querySelector('#rc-tbl-agencia tbody').innerHTML = ags.map(x => row(x.a, x.v, x.p, x.r)).join('') + row('TOTAL', ventas, prev, ren, true);
+    document.querySelector('#rc-tbl-agencia tbody').innerHTML = ags.map(x => row(x.a, x.vp, x.c, x.p, x.r)).join('') + row('TOTAL', ventasPanel, clasif, prev, ren, true);
     const M = S.migracion || {}; const mig = [];
     Object.keys(M).forEach(de => Object.keys(M[de]).forEach(a => mig.push({de, a, n: M[de][a]})));
     mig.sort((x, y) => y.n - x.n);
