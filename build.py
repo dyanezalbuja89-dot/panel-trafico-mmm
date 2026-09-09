@@ -2848,6 +2848,10 @@ HTML = r"""<!doctype html>
     <svg class="tab-icon" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     <span class="tab-label">Ventas Históricas</span>
   </button>
+  <button class="tab-btn" data-tab="recompra" title="Recompra y renovación · clientes que ya compraron en ORGU y pozo de renovación (FACTURADO + parque 2012-24)">
+    <svg class="tab-icon" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+    <span class="tab-label">Recompra</span>
+  </button>
 
   <div class="sidebar-section-label">Operación</div>
   <button class="tab-btn" data-tab="inv" title="Inventario Orgu">
@@ -3754,7 +3758,90 @@ HTML = r"""<!doctype html>
     </div>
 
     <div class="footer-note">NETOS = sum(Cantidad) con +1 FACTURA / −1 NC. Heatmap visual + Δ vs mes anterior + sparkline + ranking · filtros dinámicos.</div>
+  
+    <!-- CRÉDITO Y DESCUENTO · FACTURADO de Finanzas (fuente paralela, ANALISTA ORGU 3.0 · 09-sep-2026) -->
+    <div class="ford-section" id="vt-fac-section" style="display:none">
+      <h3>🏦 Crédito y descuento por factura <span class="sub" id="vt-fac-sub">FACTURADO de Finanzas · una marca a la vez</span></h3>
+      <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
+        Unidad = Σ cantidad firmada (factura +1, NC −1), la misma de Ventas. <b>% crédito</b> = unidades con
+        "Crédito financiera" ÷ unidades del mes. <b>Descuento</b> = Σ valor descuento ÷ Σ (ventas netas + descuento),
+        solo documentos de vehículo. Agencia = la oficial de la Base de Ventas (efecto placa resuelto). No incluye
+        exonerados. Meses cerrados de ventas.
+      </div>
+      <div class="filter-bar">
+        <label>Marca<select id="vt-fac-marca"></select></label>
+        <label>Año<select id="vt-fac-anio"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select></label>
+      </div>
+      <div class="stat-hero">
+        <div class="card-big"><div class="lbl">Unidades netas</div><div class="val" id="fac-k-uds">—</div><div class="hint" id="fac-k-uds-hint"></div></div>
+        <div class="card-big"><div class="lbl">% a crédito</div><div class="val" id="fac-k-cred">—</div><div class="hint" id="fac-k-cred-hint"></div></div>
+        <div class="card-big"><div class="lbl">Descuento medio</div><div class="val" id="fac-k-desc">—</div><div class="hint" id="fac-k-desc-hint"></div></div>
+        <div class="card-big"><div class="lbl">Facturas sobre tope</div><div class="val" id="fac-k-tope">—</div><div class="hint" id="fac-k-tope-hint"></div></div>
+      </div>
+      <h4 style="margin:14px 0 6px">Por agencia</h4>
+      <div style="overflow-x:auto"><table class="analysis" id="fac-tbl-agencia"><thead></thead><tbody></tbody></table></div>
+      <h4 style="margin:14px 0 6px">Por mes</h4>
+      <div style="overflow-x:auto"><table class="analysis" id="fac-tbl-mes"><thead></thead><tbody></tbody></table></div>
+      <h4 style="margin:14px 0 6px">Por asesor <span class="sub">top 15 por unidades</span></h4>
+      <div style="overflow-x:auto"><table class="analysis" id="fac-tbl-asesor"><thead></thead><tbody></tbody></table></div>
+      <h4 style="margin:14px 0 6px">Financieras</h4>
+      <div style="overflow-x:auto"><table class="analysis" id="fac-tbl-fin"><thead></thead><tbody></tbody></table></div>
+    </div>
+</section>
+
+  <!-- ======================= TAB RECOMPRA · FACTURADO + parque 2012-24 (ANALISTA ORGU 3.0 · 09-sep-2026) ======================= -->
+  <section id="tab-recompra" class="tab-panel">
+    <div class="otros-header">
+      <div>
+        <h2>🔁 Recompra y renovación</h2>
+        <div class="sub">Ventas a clientes que ya habían comprado en ORGU, y el pozo de dueños con vehículo de 4 a 8 años · FACTURADO de Finanzas + parque 2012–2024</div>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <label>Marca<select id="rc-marca"></select></label>
+      <label>Año<select id="rc-anio"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select></label>
+    </div>
+    <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
+      <b>Previos</b> = unidades vendidas a una cédula con una compra anterior de OTRO vehículo en ORGU (parque 2012–24 o FACTURADO).
+      <b>Renovadores</b> = la compra anterior fue hace 2 años o más (el resto son flotas y segundas unidades).
+      Unidad = Σ cantidad firmada: la NC de un recomprador resta. Una marca a la vez; Ford y Dongfeng nunca se suman.
+    </div>
+    <div class="stat-hero">
+      <div class="card-big"><div class="lbl">Ventas netas</div><div class="val" id="rc-k-ventas">—</div><div class="hint" id="rc-k-ventas-hint"></div></div>
+      <div class="card-big"><div class="lbl">A clientes previos</div><div class="val" id="rc-k-prev">—</div><div class="hint" id="rc-k-prev-hint"></div></div>
+      <div class="card-big"><div class="lbl">Renovadores (≥ 2 años)</div><div class="val" id="rc-k-renov">—</div><div class="hint" id="rc-k-renov-hint"></div></div>
+      <div class="card-big"><div class="lbl">Años desde la compra anterior</div><div class="val" id="rc-k-anios">—</div><div class="hint" id="rc-k-anios-hint"></div></div>
+    </div>
+    <div class="ford-section">
+      <h3>📅 Por mes <span class="sub" id="rc-mes-sub"></span></h3>
+      <div style="overflow-x:auto"><table class="analysis" id="rc-tbl-mes"><thead></thead><tbody></tbody></table></div>
+    </div>
+    <div class="ford-section">
+      <h3>🏬 Por agencia <span class="sub">acumulado del año · agencia oficial de facturación</span></h3>
+      <div style="overflow-x:auto"><table class="analysis" id="rc-tbl-agencia"><thead></thead><tbody></tbody></table></div>
+    </div>
+    <div class="ford-section">
+      <h3>↔️ Migración entre vitrinas <span class="sub">de dónde venía el cliente y dónde compró ahora · solo recompras</span></h3>
+      <div style="overflow-x:auto"><table class="analysis" id="rc-tbl-mig"><thead></thead><tbody></tbody></table></div>
+    </div>
+    <div class="ford-section" id="rc-renov-section">
+      <h3>🛠️ Pozo de renovación <span class="sub" id="rc-renov-sub">parque 2012–2024 · vehículos de 4 a 8 años · todas las marcas del parque</span></h3>
+      <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
+        Dueños con celular a los que se les puede ofrecer renovar. <b>Ya renovaron</b> = compraron otro vehículo en ORGU después de ese. Plaza = bodega que facturó en su momento.
+      </div>
+      <div class="stat-hero">
+        <div class="card-big"><div class="lbl">Vehículos en el pozo</div><div class="val" id="rn-k-veh">—</div><div class="hint" id="rn-k-veh-hint"></div></div>
+        <div class="card-big"><div class="lbl">Dueños</div><div class="val" id="rn-k-due">—</div><div class="hint" id="rn-k-due-hint"></div></div>
+        <div class="card-big"><div class="lbl">Con celular</div><div class="val" id="rn-k-cel">—</div><div class="hint" id="rn-k-cel-hint"></div></div>
+        <div class="card-big"><div class="lbl">Ya renovaron</div><div class="val" id="rn-k-ya">—</div><div class="hint" id="rn-k-ya-hint"></div></div>
+      </div>
+      <h4 style="margin:14px 0 6px">Por modelo</h4>
+      <div style="overflow-x:auto"><table class="analysis" id="rn-tbl-modelo"><thead></thead><tbody></tbody></table></div>
+      <h4 style="margin:14px 0 6px">Por plaza</h4>
+      <div style="overflow-x:auto"><table class="analysis" id="rn-tbl-plaza"><thead></thead><tbody></tbody></table></div>
+    </div>
   </section>
+
 
   <!-- ======================= TAB META DE VENTAS · Ford · MES EN CURSO ======================= -->
   <section id="tab-meta-ventas" class="tab-panel">
@@ -15349,6 +15436,7 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
     vtRenderTable();
     vtRenderAsesorDetail();
     vtRenderMetaVentas();
+    if(typeof vtRenderFacturado === "function") vtRenderFacturado();
     vtRenderNC();
   }
 
@@ -15408,6 +15496,123 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
     initVentas();
     vtRenderAll();
   });
+
+  // =========================================================
+  //   FACTURADO de Finanzas · crédito/descuento (tab-ventas) y RECOMPRA (tab-recompra)
+  //   ANALISTA ORGU 3.0 · 09-sep-2026. Lee DATA.facturado / DATA.recompra / DATA.renovacion.
+  //   Unidad = Σ cantidad firmada, la misma de ventas_mensual. Una marca a la vez.
+  // =========================================================
+  const FAC_LBL = {FORD:'Ford', DONGFENG_ORGU:'Dongfeng', CHERY_ORGU:'Chery', MAZDA_ORGU:'Mazda', RAM_ORGU:'RAM'};
+  const facN = v => (v == null || isNaN(v)) ? '—' : Math.round(v).toLocaleString('es-EC');
+  const facP = v => (v == null || isNaN(v)) ? '—' : (Math.round(v * 10) / 10).toLocaleString('es-EC') + '%';
+  const facD = v => (v == null || isNaN(v)) ? '—' : '$' + Math.round(v).toLocaleString('es-EC');
+  function facMesesOk(anio){
+    // meses cerrados de VENTAS del año elegido; para 2026 los mismos que Ventas Históricas
+    if(anio === '2026') return vtMesesCerrados2026();
+    return Array.from({length:12}, (_, i) => anio + '-' + String(i+1).padStart(2,'0'));
+  }
+  function facFillMarcas(selId, src){
+    const sel = document.getElementById(selId); if(!sel || sel.dataset._filled) return;
+    const keys = Object.keys(src || {}).filter(k => !k.startsWith('_') && FAC_LBL[k]);
+    sel.innerHTML = keys.map(k => `<option value="${k}">${FAC_LBL[k]}</option>`).join('');
+    sel.dataset._filled = '1';
+  }
+  function facSum(serie, meses, campo){
+    let t = 0; meses.forEach(m => { const c = (serie || {})[m]; if(c && c[campo] != null) t += c[campo]; }); return t;
+  }
+  function vtRenderFacturado(){
+    const sec = document.getElementById('vt-fac-section'); if(!sec) return;
+    const FAC = DATA.facturado || {};
+    if(!FAC._estado){ sec.style.display = 'none'; return; }
+    sec.style.display = '';
+    facFillMarcas('vt-fac-marca', FAC);
+    const mk = document.getElementById('vt-fac-marca').value || 'FORD';
+    const anio = document.getElementById('vt-fac-anio').value || '2026';
+    const F = FAC[mk] || {}; const C = F.credito || {}; const D = F.descuento || {};
+    const meses = facMesesOk(anio).filter(m => (C.totals || {})[m]);
+    document.getElementById('vt-fac-sub').textContent = `${FAC_LBL[mk]} · ${anio} · ${meses.length} meses cerrados · corte ${DATA.facturado_corte || ''}`;
+    const uds = facSum(C.totals, meses, 'de'), cred = facSum(C.totals, meses, 'n');
+    let dv = 0, db = 0; meses.forEach(m => { const c = (D.totals || {})[m]; if(c){ dv += c.valor || 0; db += (c.pct ? (c.valor || 0) * 100 / c.pct : 0); } });
+    const tope = (D.sobre_tope || []).filter(x => meses.includes(x.mes));
+    document.getElementById('fac-k-uds').textContent = facN(uds);
+    document.getElementById('fac-k-uds-hint').textContent = 'Σ cantidad firmada · igual que Ventas';
+    document.getElementById('fac-k-cred').textContent = uds ? facP(100 * cred / uds) : '—';
+    document.getElementById('fac-k-cred-hint').textContent = `${facN(cred)} unidades a crédito`;
+    document.getElementById('fac-k-desc').textContent = db ? facP(100 * dv / db) : '—';
+    document.getElementById('fac-k-desc-hint').textContent = `${facD(dv)} de descuento en el periodo`;
+    document.getElementById('fac-k-tope').textContent = facN(tope.length);
+    document.getElementById('fac-k-tope-hint').textContent = `> ${D.tope || 5}% · ${tope.filter(x => x.anulada).length} luego anuladas`;
+    const fila = (lbl, serieC, serieD) => {
+      const de = facSum(serieC, meses, 'de'), n = facSum(serieC, meses, 'n');
+      let v = 0, b = 0; meses.forEach(m => { const c = (serieD || {})[m]; if(c){ v += c.valor || 0; b += (c.pct ? (c.valor || 0) * 100 / c.pct : 0); } });
+      const pc = de ? 100 * n / de : null, pd = b ? 100 * v / b : null;
+      return {lbl, de, n, pc, pd, v};
+    };
+    const html = rows => rows.map(r => `<tr><td style="text-align:left">${r.lbl}</td><td>${facN(r.de)}</td><td>${facN(r.n)}</td>
+        <td style="font-weight:700">${facP(r.pc)}</td><td style="${r.pd != null && r.pd > (D.tope || 5) ? 'color:var(--neg);font-weight:700' : ''}">${facP(r.pd)}</td><td>${facD(r.v)}</td></tr>`).join('');
+    const head = `<tr><th style="text-align:left">&nbsp;</th><th>Unidades</th><th>A crédito</th><th>% crédito</th><th>Descuento</th><th>$ descuento</th></tr>`;
+    const ags = Object.keys(C.by_agencia || {}).map(a => fila(a, C.by_agencia[a], (D.by_agencia || {})[a])).filter(r => r.de).sort((a, b) => b.de - a.de);
+    document.querySelector('#fac-tbl-agencia thead').innerHTML = head;
+    document.querySelector('#fac-tbl-agencia tbody').innerHTML = html(ags) + html([Object.assign(fila('TOTAL', C.totals, D.totals), {lbl:'<b>TOTAL</b>'})]);
+    const ms = meses.map(m => { const c = (C.totals || {})[m] || {}, d = (D.totals || {})[m] || {}; return {lbl:m, de:c.de || 0, n:c.n || 0, pc:c.pct, pd:d.pct, v:d.valor || 0}; });
+    document.querySelector('#fac-tbl-mes thead').innerHTML = head.replace('&nbsp;', 'Mes');
+    document.querySelector('#fac-tbl-mes tbody').innerHTML = html(ms);
+    const ases = Object.keys(C.by_asesor || {}).map(a => fila(a, C.by_asesor[a], (D.by_asesor || {})[a])).filter(r => r.de > 0).sort((a, b) => b.de - a.de).slice(0, 15);
+    document.querySelector('#fac-tbl-asesor thead').innerHTML = head.replace('&nbsp;', 'Asesor');
+    document.querySelector('#fac-tbl-asesor tbody').innerHTML = html(ases);
+    const fin = {}; meses.forEach(m => { Object.entries((C.financieras || {})[m] || {}).forEach(([f, n]) => { fin[f] = (fin[f] || 0) + n; }); });
+    const finRows = Object.entries(fin).sort((a, b) => b[1] - a[1]);
+    document.querySelector('#fac-tbl-fin thead').innerHTML = `<tr><th style="text-align:left">Financiera</th><th>Unidades</th><th>% del crédito</th></tr>`;
+    document.querySelector('#fac-tbl-fin tbody').innerHTML = finRows.map(([f, n]) => `<tr><td style="text-align:left">${f}</td><td>${facN(n)}</td><td>${cred ? facP(100 * n / cred) : '—'}</td></tr>`).join('') || '<tr><td colspan="3">Sin crédito en el periodo</td></tr>';
+  }
+  ['vt-fac-marca', 'vt-fac-anio'].forEach(id => document.getElementById(id)?.addEventListener('change', vtRenderFacturado));
+
+  function renderRecompra(){
+    const R = DATA.recompra || {}, RN = DATA.renovacion || {};
+    facFillMarcas('rc-marca', R);
+    const mk = document.getElementById('rc-marca')?.value || 'FORD';
+    const anio = document.getElementById('rc-anio')?.value || '2026';
+    const S = R[mk] || {}; const T = S.totals || {};
+    const meses = facMesesOk(anio).filter(m => T[m]);
+    const ventas = facSum(T, meses, 'ventas'), prev = facSum(T, meses, 'previos'), ren = facSum(T, meses, 'renovadores');
+    document.getElementById('rc-k-ventas').textContent = facN(ventas);
+    document.getElementById('rc-k-ventas-hint').textContent = `${FAC_LBL[mk]} · ${anio} · ${meses.length} meses cerrados`;
+    document.getElementById('rc-k-prev').textContent = ventas ? facP(100 * prev / ventas) : '—';
+    document.getElementById('rc-k-prev-hint').textContent = `${facN(prev)} unidades a clientes que ya compraron en ORGU`;
+    document.getElementById('rc-k-renov').textContent = ventas ? facP(100 * ren / ventas) : '—';
+    document.getElementById('rc-k-renov-hint').textContent = `${facN(ren)} unidades con compra anterior de 2 años o más`;
+    document.getElementById('rc-k-anios').textContent = S.anios_mediana != null ? S.anios_mediana.toLocaleString('es-EC') : '—';
+    document.getElementById('rc-k-anios-hint').textContent = S.anios_p25 != null ? `mediana · p25 ${S.anios_p25} · p75 ${S.anios_p75} (todo el histórico)` : '';
+    document.getElementById('rc-mes-sub').textContent = `${FAC_LBL[mk]} · ${anio}`;
+    const head = `<tr><th style="text-align:left">&nbsp;</th><th>Ventas</th><th>Previos</th><th>% previos</th><th>Renovadores</th><th>% renovadores</th></tr>`;
+    const row = (lbl, v, p, r, bold) => `<tr><td style="text-align:left">${bold ? '<b>' + lbl + '</b>' : lbl}</td><td>${facN(v)}</td><td>${facN(p)}</td><td style="font-weight:700">${v ? facP(100 * p / v) : '—'}</td><td>${facN(r)}</td><td>${v ? facP(100 * r / v) : '—'}</td></tr>`;
+    document.querySelector('#rc-tbl-mes thead').innerHTML = head.replace('&nbsp;', 'Mes');
+    document.querySelector('#rc-tbl-mes tbody').innerHTML = meses.map(m => row(m, T[m].ventas, T[m].previos, T[m].renovadores)).join('') + row('TOTAL', ventas, prev, ren, true);
+    const A = S.by_agencia || {};
+    const ags = Object.keys(A).map(a => ({a, v: facSum(A[a], meses, 'ventas'), p: facSum(A[a], meses, 'previos'), r: facSum(A[a], meses, 'renovadores')})).filter(x => x.v).sort((x, y) => y.v - x.v);
+    document.querySelector('#rc-tbl-agencia thead').innerHTML = head.replace('&nbsp;', 'Agencia');
+    document.querySelector('#rc-tbl-agencia tbody').innerHTML = ags.map(x => row(x.a, x.v, x.p, x.r)).join('') + row('TOTAL', ventas, prev, ren, true);
+    const M = S.migracion || {}; const mig = [];
+    Object.keys(M).forEach(de => Object.keys(M[de]).forEach(a => mig.push({de, a, n: M[de][a]})));
+    mig.sort((x, y) => y.n - x.n);
+    document.querySelector('#rc-tbl-mig thead').innerHTML = `<tr><th style="text-align:left">Compró antes en</th><th style="text-align:left">Compró ahora en</th><th>Unidades</th><th>&nbsp;</th></tr>`;
+    document.querySelector('#rc-tbl-mig tbody').innerHTML = mig.slice(0, 15).map(x => `<tr><td style="text-align:left">${x.de}</td><td style="text-align:left">${x.a}</td><td>${facN(x.n)}</td><td>${x.de === x.a ? 'misma vitrina' : '<b>cambió</b>'}</td></tr>`).join('') || '<tr><td colspan="4">Sin datos</td></tr>';
+    const t = RN.total || {};
+    document.getElementById('rc-renov-sub').textContent = RN.corte ? `parque 2012–2024 · vehículos de ${(RN.anios || [4, 8])[0]} a ${(RN.anios || [4, 8])[1]} años al ${RN.corte}` : 'sin parque cargado';
+    document.getElementById('rn-k-veh').textContent = facN(t.vehiculos); document.getElementById('rn-k-due').textContent = facN(t.duenos);
+    document.getElementById('rn-k-cel').textContent = facN(t.con_celular); document.getElementById('rn-k-cel-hint').textContent = t.vehiculos ? facP(100 * t.con_celular / t.vehiculos) + ' del pozo' : '';
+    document.getElementById('rn-k-ya').textContent = facN(t.ya_renovaron); document.getElementById('rn-k-ya-hint').textContent = t.duenos ? facP(100 * t.ya_renovaron / t.duenos) + ' de los dueños' : '';
+    const rh = `<tr><th style="text-align:left">&nbsp;</th><th>Vehículos</th><th>Dueños</th><th>Con celular</th><th>Ya renovaron</th><th>% renovó</th></tr>`;
+    const rr = (lbl, x) => `<tr><td style="text-align:left">${lbl}</td><td>${facN(x.vehiculos)}</td><td>${facN(x.duenos)}</td><td>${facN(x.con_celular)}</td><td>${facN(x.ya_renovaron)}</td><td>${x.duenos ? facP(100 * x.ya_renovaron / x.duenos) : '—'}</td></tr>`;
+    const pm = Object.entries(RN.por_modelo || {}).sort((a, b) => b[1].vehiculos - a[1].vehiculos).slice(0, 12);
+    document.querySelector('#rn-tbl-modelo thead').innerHTML = rh.replace('&nbsp;', 'Modelo');
+    document.querySelector('#rn-tbl-modelo tbody').innerHTML = pm.map(([m, x]) => rr(m, x)).join('') || '<tr><td colspan="6">Sin parque</td></tr>';
+    const pp = Object.entries(RN.por_plaza || {}).sort((a, b) => b[1].vehiculos - a[1].vehiculos);
+    document.querySelector('#rn-tbl-plaza thead').innerHTML = rh.replace('&nbsp;', 'Plaza');
+    document.querySelector('#rn-tbl-plaza tbody').innerHTML = pp.map(([m, x]) => rr(m, x)).join('') || '<tr><td colspan="6">Sin parque</td></tr>';
+  }
+  ['rc-marca', 'rc-anio'].forEach(id => document.getElementById(id)?.addEventListener('change', renderRecompra));
+  document.querySelector('.tab-btn[data-tab="recompra"]')?.addEventListener('click', () => setTimeout(renderRecompra, 0));
 
   // =========================================================
   //   TAB META VENTAS · Ford · pivots modelo×mes y agencia×mes

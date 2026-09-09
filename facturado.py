@@ -142,7 +142,7 @@ def _bodega(b):
 
 def _modelo(desc, marca):
     """Modelo canónico del panel: el mismo `normalize_familia` que usa aggregate."""
-    corta = (marca or '').replace('_ORGU', '')
+    corta = (marca if isinstance(marca, str) else '').replace('_ORGU', '')
     return normalize_familia(str(desc or ''), corta) or str(desc or '').strip().upper()
 
 
@@ -203,6 +203,15 @@ def cargar(path=None):
     return df
 
 
+_RX_PARQUE = re.compile(r'^\s*(?:FORD|MAZDA|CHERY|DONGFENG|RAM)\s*-\s*(.*?)\s*-\s*[A-Z0-9]{2,5}\s*-\s*\d{4}\s*$', re.I)
+
+
+def _desc_parque(d):
+    """'FORD - RANGER XL AC 2.2 CD 4X2 TM DIESEL - R24 - 2019' → 'RANGER XL AC 2.2 CD 4X2 TM DIESEL'."""
+    m = _RX_PARQUE.match(str(d or ''))
+    return m.group(1) if m else str(d or '')
+
+
 def cargar_parque(path=None):
     """Parque de dueños 2012–feb-2024 normalizado, o None. Se carga una vez.
 
@@ -224,18 +233,18 @@ def cargar_parque(path=None):
         return pd.Series([None] * len(raw))
 
     df = pd.DataFrame()
-    df['vin'] = col('vin', 'chasis').astype(str).str.strip().str.upper()
-    df['cedula'] = col('cedula', 'identificacion', 'nit', 'ruc').map(_cedula)
-    df['nombre'] = col('nombre', 'nombres', 'cliente').astype(str).str.strip()
+    df['vin'] = col('vin', 'vin_vehiculo', 'chasis').astype(str).str.strip().str.upper()
+    df['cedula'] = col('cedula', 'cedula_cliente', 'identificacion', 'nit', 'ruc').map(_cedula)
+    df['nombre'] = col('nombre', 'nombres', 'nombres_cliente', 'cliente').astype(str).str.strip()
     df['celular'] = col('celular', 'telefono', 'contacto').astype(str).str.strip()
     df['email'] = col('email', 'correo', 'mail').astype(str).str.strip()
     df['modelo_raw'] = col('descripcion', 'descripcion_vehiculo', 'modelo', 'vehiculo').astype(str).str.strip()
-    df['modelo'] = [_modelo(d, 'FORD') for d in df['modelo_raw']]
+    df['modelo'] = [_modelo(_desc_parque(d), 'FORD') for d in df['modelo_raw']]
     df['anio'] = pd.to_numeric(col('anio', 'año', 'ano', 'anio_modelo', 'año modelo'), errors='coerce')
-    df['fecha_factura'] = pd.to_datetime(col('fecha_factura', 'fecha factura', 'fecha'), errors='coerce')
-    df['fecha_entrega'] = pd.to_datetime(col('fecha_entrega', 'fecha entrega'), errors='coerce')
-    df['vendedor'] = col('vendedor', 'asesor', 'usuario_vende').astype(str).str.strip().str.upper()
-    df['bodega_raw'] = col('bodega', 'agencia', 'descripcion_bodega').astype(str).str.strip()
+    df['fecha_factura'] = pd.to_datetime(col('fecha_factura', 'fecha_facturacion', 'fecha factura', 'fecha'), errors='coerce')
+    df['fecha_entrega'] = pd.to_datetime(col('fecha_entrega', 'fecha_entrga', 'fecha entrega'), errors='coerce')
+    df['vendedor'] = col('vendedor', 'nombres_vendedor', 'asesor', 'usuario_vende').astype(str).str.strip().str.upper()
+    df['bodega_raw'] = col('descripcion_bodega', 'descripcion bodega', 'agencia', 'bodega').astype(str).str.strip()
     df['_archivo'] = p.name
     df['_columnas_origen'] = ', '.join(raw.columns)
     return df
@@ -367,42 +376,209 @@ def _flat(s):
     return f.to_dict('records')
 
 
-# ── Bloques que llena ANALISTA ORGU 3.0 ─────────────────────────────────────
+# ── Bloques que llena ANALISTA ORGU 3.0 (09-sep-2026) ──────────────────────
+TOPE_DESC = 5.0          # % de descuento sobre el que una factura se lista como "sobre tope"
+RENOV_MIN, RENOV_MAX = 4, 8   # años de antigüedad del pozo de renovación
+_ORDEN = ['TRAFICO', 'COTIZACIONES']  # (sin uso; documenta que aquí no se cruza con el CRM)
+
+
+def _pct(n, de):
+    return round(100.0 * n / de, 1) if de else None
+
+
+def _tabla_credito(s, col=None):
+    """{clave: {mes: {'n', 'de', 'pct'}}} (o {mes: {...}} si col es None). Σ cantidad signada."""
+    out = {}
+    keys = [col, 'mes'] if col else ['mes']
+    g = s.groupby(keys)['cantidad']
+    tot = g.sum(); cre = s[s['credito']].groupby(keys)['cantidad'].sum()
+    for k, de in tot.items():
+        n = int(cre.get(k, 0))
+        cel = {'n': n, 'de': int(de), 'pct': _pct(n, de)}
+        if col:
+            kk, mes = k
+            kk = 'Sin dato' if kk is None or (isinstance(kk, float) and pd.isna(kk)) else str(kk)
+            out.setdefault(kk, {})[mes] = cel
+        else:
+            out[k] = cel
+    return out
+
 
 def credito(s):
-    """% crédito y mix de financieras, por mes × agencia × asesor × modelo.
+    """% crédito y mix de financieras. Unidad = Σ cantidad signada (una NC de venta a
+    crédito resta en numerador y denominador). Acumulados = suma de meses."""
+    if s is None or s.empty:
+        return {'_estado': 'sin datos'}
+    fin = {}
+    c = s[s['credito']]
+    for (mes, f), n in c.groupby(['mes', 'financiera'])['cantidad'].sum().items():
+        if n:
+            fin.setdefault(mes, {})[str(f) if f else 'Sin financiera'] = int(n)
+    return {
+        'unidad': 'Σ cantidad signada; % = uds a crédito ÷ uds del mes',
+        'totals': _tabla_credito(s),
+        'by_agencia': _tabla_credito(s, 'agencia'),
+        'by_asesor': _tabla_credito(s, 'asesor'),
+        'by_modelo': _tabla_credito(s, 'modelo'),
+        'financieras': fin,
+    }
 
-    Unidad: Σ cantidad signada (ver docstring del módulo). Firma sugerida:
-      {'totals': {mes: {'n': uds_credito, 'de': uds_total, 'pct': %}},
-       'by_agencia': {ag: {mes: {...}}}, 'by_asesor': {...}, 'by_modelo': {...},
-       'financieras': {mes: {financiera: uds}}}
-    """
-    return {'_todo': 'ANALISTA ORGU 3.0'}
+
+def _tabla_desc(s, col=None):
+    """{clave: {mes: {'pct', 'valor'}}}: pct = Σ val_desc ÷ Σ (ventas_netas + val_desc), signados."""
+    out = {}
+    keys = [col, 'mes'] if col else ['mes']
+    g = s.groupby(keys)
+    for k, d in g:
+        base = float(d['ventas_netas'].sum() + d['val_desc'].sum()); val = float(d['val_desc'].sum())
+        cel = {'pct': round(100.0 * val / base, 2) if base else None, 'valor': round(val, 2)}
+        if col:
+            kk, mes = k
+            kk = 'Sin dato' if kk is None or (isinstance(kk, float) and pd.isna(kk)) else str(kk)
+            out.setdefault(kk, {})[mes] = cel
+        else:
+            out[k[0] if isinstance(k, tuple) else k] = cel
+    return out
 
 
 def descuento(s):
-    """Descuento medio (Σ val_desc ÷ Σ (ventas_netas + val_desc), signados) y las
-    facturas sobre tope. Firma sugerida:
-      {'totals': {mes: {'pct': %, 'valor': $}}, 'by_agencia', 'by_modelo', 'by_asesor',
-       'sobre_tope': [{vin, fecha, agencia, asesor, modelo, pct, valor, anulada}]}
-    """
-    return {'_todo': 'ANALISTA ORGU 3.0'}
+    """Descuento medio ponderado por valor y facturas sobre tope (eventos: facturas +1 con
+    pct > TOPE_DESC; `anulada` si el VIN tiene una NC posterior)."""
+    if s is None or s.empty:
+        return {'_estado': 'sin datos'}
+    nc_vin = s[s['es_nc']].groupby('vin')['fecha'].max()
+    f = s[(s['cantidad'] > 0) & (s['pct_desc'] > TOPE_DESC)].sort_values('fecha')
+    sobre = []
+    for _, r in f.iterrows():
+        anul = bool(r['vin'] in nc_vin.index and pd.notna(nc_vin[r['vin']]) and nc_vin[r['vin']] >= r['fecha'])
+        sobre.append({'vin': r['vin'], 'fecha': r['fecha'].strftime('%Y-%m-%d'), 'mes': r['mes'], 'agencia': r['agencia'],
+                      'asesor': r['asesor'], 'modelo': r['modelo'], 'version': r['version'], 'pct': round(float(r['pct_desc']), 2),
+                      'valor': round(float(r['val_desc']), 2), 'anulada': anul})
+    fp = s[s['cantidad'] > 0]
+    lineas = {m: round(float(d['pct_desc'].mean()), 2) for m, d in fp.groupby('mes')}
+    return {
+        'unidad': 'pct = Σ valor descuento ÷ Σ (ventas netas + descuento), ambos signados; pct_lineas = media simple del % por factura (+1)',
+        'tope': TOPE_DESC,
+        'pct_lineas': lineas,
+        'totals': _tabla_desc(s),
+        'by_agencia': _tabla_desc(s, 'agencia'),
+        'by_modelo': _tabla_desc(s, 'modelo'),
+        'by_asesor': _tabla_desc(s, 'asesor'),
+        'sobre_tope': sobre,
+    }
+
+
+def _historial_cliente(veh, parque):
+    """{cedula: [(fecha, agencia, vin), ...]}: una compra = un VIN por cliente.
+    Parque 2012–24 tal cual; de FACTURADO solo los VIN netos (Σ cantidad > 0 para
+    esa cédula) con su PRIMERA factura, para que la refactura tras una NC no se
+    cuente como "compra anterior" del mismo vehículo."""
+    h = {}
+    if parque is not None and len(parque):
+        pq = parque[parque['cedula'].notna() & (parque['cedula'] != '') & parque['fecha_factura'].notna()]
+        for c, f, b, vin in zip(pq['cedula'], pq['fecha_factura'], pq['bodega_raw'].map(_bodega), pq['vin']):
+            h.setdefault(c, []).append((f, b, vin))
+    v = veh[veh['cedula'].notna() & (veh['cedula'] != '') & veh['fecha'].notna() & veh['vin'].notna()]
+    neto = v.groupby(['cedula', 'vin'])['cantidad'].sum()
+    prim = v[v['cantidad'] > 0].sort_values('fecha').groupby(['cedula', 'vin']).first()
+    for (c, vin), n in neto.items():
+        if n > 0 and (c, vin) in prim.index:
+            r = prim.loc[(c, vin)]
+            h.setdefault(c, []).append((r['fecha'], r['agencia'], vin))
+    for c in h:
+        h[c].sort(key=lambda t: t[0])
+    return h
 
 
 def recompra(veh, parque):
-    """Ventas del mes a clientes que ya compraron en ORGU (llave = `cedula` base).
-    Firma sugerida por marca: {'months', 'totals': {mes: {'ventas', 'previos', 'pct'}},
-    'by_agencia': {...}, 'anios_mediana', 'migracion': {agencia_anterior: {agencia: n}}}
-    """
-    return {'_estado': 'esqueleto', '_todo': 'ANALISTA ORGU 3.0'}
+    """Ventas del mes a clientes que YA habían comprado en ORGU antes de esa factura
+    (parque 2012–24 + facturas anteriores del propio FACTURADO), llave `cedula` base.
+    Unidad = Σ cantidad signada: la NC de un recomprador resta. Por marca."""
+    if veh is None or veh.empty:
+        return {'_estado': 'sin datos'}
+    hist = _historial_cliente(veh, parque)
+    def previa(c, f, vin):
+        """(fecha, agencia) de la compra anterior a `f` de OTRO vehículo, o None."""
+        prev = None
+        for fd, ag, v0 in hist.get(c, []):
+            if v0 == vin:
+                continue
+            if fd < f:
+                prev = (fd, ag)
+            else:
+                break
+        return prev
+    v = veh.copy()
+    v['prev'] = [previa(c, f, vin) if isinstance(c, str) and c else None for c, f, vin in zip(v['cedula'], v['fecha'], v['vin'])]
+    v['recompra'] = v['prev'].notna()
+    RENOV_ANIOS = 2.0
+    v['anios'] = [((f - p[0]).days / 365.25) if p else None for f, p in zip(v['fecha'], v['prev'])]
+    v['ag_prev'] = [p[1] if p else None for p in v['prev']]
+    v['renov'] = v['anios'].map(lambda a: a is not None and a >= RENOV_ANIOS)
+    out = {'_estado': 'activo', 'unidad': 'Σ cantidad signada; previos = uds a clientes con compra anterior de OTRO vehículo en ORGU (parque 2012–24 + FACTURADO); renovadores = compra anterior hace ≥ 2 años',
+           'parque': None if parque is None else int(len(parque))}
+    for mk in MARCAS:
+        s = v[v['marca'] == mk]
+        if s.empty:
+            continue
+        def tabla(d, col=None):
+            res = {}
+            keys = [col, 'mes'] if col else ['mes']
+            tot = d.groupby(keys)['cantidad'].sum(); pre = d[d['recompra']].groupby(keys)['cantidad'].sum(); ren = d[d['renov']].groupby(keys)['cantidad'].sum()
+            for k, n in tot.items():
+                p = int(pre.get(k, 0)); rn = int(ren.get(k, 0))
+                cel = {'ventas': int(n), 'previos': p, 'pct': _pct(p, n), 'renovadores': rn, 'pct_renov': _pct(rn, n)}
+                if col:
+                    kk, mes = k; res.setdefault(str(kk), {})[mes] = cel
+                else:
+                    res[k] = cel
+            return res
+        rp = s[s['recompra'] & (s['cantidad'] > 0)]
+        mig = {}
+        for (a0, a1), n in rp.groupby(['ag_prev', 'agencia'])['cantidad'].sum().items():
+            mig.setdefault(str(a0), {})[str(a1)] = int(n)
+        out[mk] = {
+            'months': sorted(s['mes'].unique()),
+            'totals': tabla(s),
+            'by_agencia': tabla(s, 'agencia'),
+            'by_modelo': tabla(s, 'modelo'),
+            'anios_mediana': round(float(rp['anios'].median()), 1) if len(rp) else None,
+            'anios_p25': round(float(rp['anios'].quantile(.25)), 1) if len(rp) else None,
+            'anios_p75': round(float(rp['anios'].quantile(.75)), 1) if len(rp) else None,
+            'migracion': mig,
+        }
+    return out
 
 
-def renovacion(parque, veh):
-    """Pozo 4–8 años por modelo y plaza, y cuántos ya renovaron.
-    Firma sugerida: {'corte', 'por_modelo': {modelo: {'vehiculos', 'duenos', 'con_celular',
-    'ya_renovaron'}}, 'por_plaza': {...}}
-    """
-    return {'_estado': 'esqueleto', '_todo': 'ANALISTA ORGU 3.0'}
+def renovacion(parque, veh, corte=None):
+    """Pozo de renovación: vehículos del parque con RENOV_MIN–RENOV_MAX años desde su
+    factura, por modelo y plaza; `ya_renovaron` = dueños con una compra posterior en
+    FACTURADO (cualquier marca)."""
+    if parque is None or not len(parque):
+        return {'_estado': 'sin parque'}
+    hoy = pd.Timestamp(corte) if corte else pd.Timestamp.today().normalize()
+    pq = parque[parque['fecha_factura'].notna()].copy()
+    pq['anios'] = (hoy - pq['fecha_factura']).dt.days / 365.25
+    pozo = pq[(pq['anios'] >= RENOV_MIN) & (pq['anios'] <= RENOV_MAX)].copy()
+    pozo['plaza'] = pozo['bodega_raw'].map(_bodega)
+    pozo['con_cel'] = pozo['celular'].astype(str).str.replace(r'\D', '', regex=True).str.len() >= 9
+    ya = set()
+    if veh is not None and len(veh):
+        ult = veh[(veh['cantidad'] > 0) & veh['cedula'].notna()].groupby('cedula')['fecha'].max()
+        ya = {c for c, f in zip(pozo['cedula'], pozo['fecha_factura']) if c in ult.index and ult[c] > f}
+    pozo['ya'] = pozo['cedula'].isin(ya)
+    def tabla(col):
+        res = {}
+        for k, d in pozo.groupby(col):
+            res[str(k)] = {'vehiculos': int(len(d)), 'duenos': int(d['cedula'].nunique()), 'con_celular': int(d['con_cel'].sum()),
+                           'ya_renovaron': int(d[d['ya']]['cedula'].nunique())}
+        return res
+    return {'_estado': 'activo', 'corte': str(hoy.date()), 'anios': [RENOV_MIN, RENOV_MAX],
+            'total': {'vehiculos': int(len(pozo)), 'duenos': int(pozo['cedula'].nunique()), 'con_celular': int(pozo['con_cel'].sum()),
+                      'ya_renovaron': int(pozo[pozo['ya']]['cedula'].nunique())},
+            'por_modelo': tabla('modelo'), 'por_plaza': tabla('plaza'),
+            'por_modelo_plaza': {f'{m}|{p}': {'vehiculos': int(len(d)), 'con_celular': int(d['con_cel'].sum())}
+                                 for (m, p), d in pozo.groupby(['modelo', 'plaza'])}}
 
 
 # ── Asesores: el panel manda ─────────────────────────────────────────────────
@@ -446,7 +622,7 @@ def build(out, base=None, corte=None):
 
     cu = cuadre(veh, base, out.get('ventas_mensual'), corte or out.get('ventas_corte'))
     fac = {
-        '_estado': 'esqueleto',
+        '_estado': 'activo',
         '_doc': {
             'fuente': df['_archivo'].iloc[0],
             'regla': 'Σ Cantidad signada por mes, líneas con Tipo Documento de vehículos; '
@@ -482,7 +658,7 @@ def build(out, base=None, corte=None):
     out['facturado'] = fac
     out['facturado_corte'] = str(df['fecha'].max().date())
     out['recompra'] = recompra(veh, parque)
-    out['renovacion'] = renovacion(parque, veh)
+    out['renovacion'] = renovacion(parque, veh, out.get('facturado_corte'))
 
     try:
         _alias, _celdas = _canonizar_asesores(out)

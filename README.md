@@ -698,9 +698,18 @@ ventas; `verificar.check_facturado_vs_panel` lo avisa mientras `_estado` sea
 cae en otro mes y cuenta el VIN dos veces: 80 casos Ford en 2026. Todo lo derivado (%
 crédito, descuento) usa la misma unidad; acumulados = suma de meses.
 
-Los cálculos de crédito, descuento, recompra y renovación los llena ANALISTA ORGU 3.0
-sobre la firma documentada en el módulo; la pestaña `tab-recompra` y su marker en
-`safe_build.sh`/`deploy.sh` entran en el mismo commit.
+Cálculos (ANALISTA ORGU 3.0, 09-sep-2026), sobre la firma del módulo y con la unidad
+firmada: `credito` (% = uds a crédito ÷ uds del mes; mix de financieras), `descuento`
+(Σ valor ÷ Σ (ventas netas + descuento); `sobre_tope` = facturas +1 con % > `TOPE_DESC`
+= 5, marcadas `anulada` si el VIN tiene NC posterior), `recompra` (previos = uds a una
+cédula con compra anterior de OTRO vehículo en el parque o en FACTURADO; renovadores = esa
+compra fue hace ≥ 2 años; el historial usa un VIN por cliente para que la refactura tras
+una NC no cuente como recompra) y `renovacion` (parque con 4–8 años al corte, por modelo y
+plaza; `ya_renovaron` = dueños con compra posterior en FACTURADO). El parque trae
+`Cedula_Cliente`, `Fecha_Facturacion`, `fecha_entrga` (sic) y `Descripcion_Bodega`; la
+descripción viene `FORD - RANGER XL ... - R24 - 2019` y se recorta antes de
+`normalize_familia`. Se pintan en `tab-ventas` (bloque «Crédito y descuento por factura»)
+y en la pestaña `tab-recompra`; su marker está en `safe_build.sh` y `deploy.sh`.
 
 ### Enchufar un módulo nuevo sin mover el panel (receta del 09-sep-2026)
 

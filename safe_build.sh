@@ -66,6 +66,7 @@ echo "→ Verificando integridad pre-build..."
 # en el MISMO commit que cree la pestaña en build.py; antes, el gate abortaría.
 BUILD_PY_MARKERS=(
   "tab-digital"
+  "tab-recompra"
   "TAB DIGITAL · HubSpot"
   "tab-inv"
   "tab-ford"
