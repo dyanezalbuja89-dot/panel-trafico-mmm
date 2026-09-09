@@ -83,6 +83,13 @@ que regenera. Y los dos caminos de publicación commitean y pushean ANTES del de
 siempre lo hizo; `safe_build.sh --deploy` lo hace desde el 07-sep-2026 (mensaje con
 `COMMIT_MSG="..."`). Publicar algo que no está en el remoto es publicarlo a plazo fijo.
 
+**1b. Una sesión por árbol de trabajo.** `safe_build.sh --deploy` y `deploy.sh` hacen `git add -A`:
+commitean y publican TODO lo que haya en el árbol, incluido lo que otra sesión esté editando a
+medias. El 09-sep-2026 un commit de esta sesión se llevó 248 líneas de `facturado.py` y 205 de
+`build.py` de ANALISTA ORGU 3.0 y publicó una pestaña sin revisar. Si dos sesiones trabajan el
+panel a la vez, la segunda usa un worktree (`git worktree add ../panel-trafico-<nombre> main`)
+y avisa antes de publicar; el cron horario solo mira `~/dev/panel-trafico`.
+
 **2. Nunca `python3 build.py` a secas** para publicar: usar `./safe_build.sh` o `deploy.sh`,
 que verifican la integridad de las pestañas.
 
