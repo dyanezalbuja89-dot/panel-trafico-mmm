@@ -10,7 +10,9 @@ como salidos), `conversion.JEFES_VENTA_RAW` (jefes de venta: venden pero no son
 asesores) y FACTURADO (cédula del vendedor, la identidad dura).
 
 Por asesor: nombre canónico del panel · cedula_vendedor · marcas · agencia_hogar ·
-primer_mes / ultimo_mes con venta (2025–26) · ventas_2026 · salido (label o null) ·
+primer_mes / ultimo_mes con venta (2025–26; o 2024→ si solo está en FACTURADO) ·
+ventas_2026 · salido (label o null) · fuente ('panel' | 'facturado': salidos históricos
+sin ventas 2025–26, pedidos por Renovación para cerrar identidad hacia atrás) ·
 jefe_venta (bool) · activo_por_ventas (vendió en alguno de los dos últimos meses
 cerrados de ventas y no salió). "Activo" aquí es POR VENTAS, no por nómina:
 quien no facturó en dos meses puede seguir en la red. Eso lo confirma Daniel.
@@ -59,21 +61,34 @@ def construir(d, fac_df=None):
         col = fac_df['asesor'].map(lambda a: mapa.get(a, a))
         for a, c in fac_df.groupby(col)['cedula_vendedor'].agg(lambda s: Counter(s.dropna()).most_common(1)[0][0] if s.notna().any() else None).items():
             ced[a] = c
+    # Salidos históricos: asesores que solo existen en FACTURADO (2024→) y no vendieron
+    # en 2025–26. Renovación los necesita con su cédula para cerrar identidad hacia atrás.
+    hist = {}
+    if fac_df is not None and len(fac_df):
+        fac_df = fac_df.assign(_asec=col)
+        for a, g in fac_df.groupby('_asec'):
+            if a in pad or not a or a == 'Sin asesor':
+                continue
+            meses = sorted(m for m in g['mes'].dropna().unique())
+            hist[a] = {'asesor': a, 'marcas': {m.replace('_ORGU', '') for m in g['marca'].dropna().unique()},
+                       'meses': {m: int(n) for m, n in g.groupby('mes')['cantidad'].sum().items()},
+                       'hogar': Counter(g['bodega'].dropna()).most_common(1)[0][0] if g['bodega'].notna().any() else None}
     filas = []
-    for a, p in pad.items():
+    for a, p in list(pad.items()) + list(hist.items()):
         con = sorted(m for m, n in p['meses'].items() if n != 0)
         sal = quien_es(a)
         filas.append({
             'asesor': a,
             'cedula_vendedor': ced.get(a),
             'marcas': ' · '.join(sorted(p['marcas'])),
-            'agencia_hogar': hogar.get(a),
+            'agencia_hogar': hogar.get(a) or p.get('hogar'),
             'primer_mes': con[0] if con else None,
             'ultimo_mes': con[-1] if con else None,
             'ventas_2026': int(sum(n for m, n in p['meses'].items() if m.startswith('2026'))),
             'salido': sal['label'] if sal else None,
             'jefe_venta': bool(is_jefe_venta(a)),
-            'activo_por_ventas': (not sal) and any(p['meses'].get(m, 0) > 0 for m in ultimos),
+            'activo_por_ventas': (not sal) and a in pad and any(p['meses'].get(m, 0) > 0 for m in ultimos),
+            'fuente': 'panel' if a in pad else 'facturado',
         })
     filas.sort(key=lambda r: (str(r['agencia_hogar']), r['asesor']))
     return {'_doc': __doc__.strip().split('\n')[0], 'ventas_corte': d.get('ventas_corte'),
