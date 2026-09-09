@@ -3763,7 +3763,7 @@ HTML = r"""<!doctype html>
     <div class="ford-section" id="vt-fac-section" style="display:none">
       <h3>🏦 Crédito y descuento por factura <span class="sub" id="vt-fac-sub">FACTURADO de Finanzas · una marca a la vez</span></h3>
       <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
-        <b>Ventas</b> = la cifra de Ventas Históricas. <b>A crédito</b> = unidades facturadas con "Crédito financiera"; el porcentaje va sobre las ventas del periodo. Los exonerados no tienen factura en FACTURADO, no se sabe cómo pagaron y cuentan como "no crédito": el porcentaje es un piso. <b>Descuento</b> = Σ valor descuento ÷ Σ (ventas netas + descuento), solo documentos de vehículo. Agencia = la oficial de la Base de Ventas (efecto placa resuelto). Meses cerrados de ventas.
+        <b>Ventas</b> = la cifra de Ventas Históricas. <b>A crédito</b> = unidades facturadas con "Crédito financiera"; el porcentaje va sobre las ventas del periodo. Las ventas exoneradas no tienen factura en FACTURADO y no se sabe cómo pagaron: el % a crédito real puede ser algo mayor. <b>Descuento</b> = Σ valor descuento ÷ Σ (ventas netas + descuento), solo sobre el documento del vehículo: el descuento que Ford lleva a accesorios no está aquí. Agencia = la oficial de la Base de Ventas (efecto placa resuelto). Meses cerrados de ventas.
       </div>
       <div class="filter-bar">
         <label>Marca<select id="vt-fac-marca"></select></label>
@@ -3799,7 +3799,7 @@ HTML = r"""<!doctype html>
       <label>Año<select id="rc-anio"><option value="2026">2026</option><option value="2025">2025</option><option value="2024">2024</option></select></label>
     </div>
     <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px">
-      <b>Ventas</b> = la cifra de Ventas Históricas. <b>Ya eran clientes de ORGU</b> = la cédula que compró ya había comprado OTRO vehículo en ORGU antes (parque 2012–2024 o facturación 2024–2026). <b>De ellos, con auto de 2 años o más</b> = su compra anterior fue hace dos años o más: son los que renovaron; el resto son flotas y segundas unidades. Los porcentajes van siempre sobre las ventas del periodo. Los exonerados no traen cédula de cliente, no se pueden clasificar y cuentan como "no eran clientes": los porcentajes son un piso, no un techo. Una marca a la vez; Ford y Dongfeng nunca se suman.
+      <b>Ventas</b> = la cifra de Ventas Históricas. <b>Ya eran clientes de ORGU</b> = la cédula que compró ya había comprado OTRO vehículo en ORGU antes (parque 2012–2024 o facturación 2024–2026). <b>De ellos, con auto de 2 años o más</b> = su compra anterior fue hace dos años o más: son los que renovaron; el resto son flotas y segundas unidades. Los porcentajes van siempre sobre las ventas del periodo. Las ventas exoneradas no traen cédula de cliente y no se pueden clasificar: el % real puede ser algo mayor. Una marca a la vez; Ford y Dongfeng nunca se suman.
     </div>
     <div class="stat-hero">
       <div class="card-big"><div class="lbl">Ventas netas</div><div class="val" id="rc-k-ventas">—</div><div class="hint" id="rc-k-ventas-hint"></div></div>
@@ -3815,7 +3815,6 @@ HTML = r"""<!doctype html>
     <div class="ford-section">
       <h3>🏬 Por agencia <span class="sub">acumulado del año · agencia oficial de facturación</span></h3>
       <div style="overflow-x:auto"><table class="analysis" id="rc-tbl-agencia"><thead></thead><tbody></tbody></table></div>
-      <div class="sub" id="rc-ag-nota" style="margin-top:6px"></div>
     </div>
     <div class="ford-section">
       <h3>↔️ Migración entre vitrinas <span class="sub">de dónde venía el cliente y dónde compró ahora · solo recompras</span></h3>
@@ -15539,7 +15538,7 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
     document.getElementById('fac-k-cred').textContent = ventasPanelF ? facP(100 * cred / ventasPanelF) : '—';
     document.getElementById('fac-k-cred-hint').textContent = `${facN(cred)} de ${facN(ventasPanelF)} ventas`;
     document.getElementById('fac-k-desc').textContent = db ? facP(100 * dv / db) : '—';
-    document.getElementById('fac-k-desc-hint').textContent = `${facD(dv)} de descuento en el periodo · solo documentos de vehículo`;
+    document.getElementById('fac-k-desc-hint').textContent = `${facD(dv)} de descuento en el periodo · solo sobre el vehículo; el que Ford lleva a accesorios no está aquí`;
     document.getElementById('fac-k-tope').textContent = facN(tope.length);
     document.getElementById('fac-k-tope-hint').textContent = `> ${D.tope || 5}% · ${tope.filter(x => x.anulada).length} luego anuladas`;
     const fila = (lbl, serieC, serieD, serieP) => {
@@ -15584,8 +15583,8 @@ const CUMPL_VERDE = 90, CUMPL_AMARILLO = 75;
     const fuera = ventasPanel - clasif;
     document.getElementById('rc-k-ventas').textContent = facN(ventasPanel);
     document.getElementById('rc-k-ventas-hint').textContent = `${FAC_LBL[mk]} · ${anio} · ${meses.length} meses cerrados · igual que Ventas Históricas`;
-    const nota = fuera ? `${facN(clasif)} de las ${facN(ventasPanel)} ventas traen cédula de cliente; las ${facN(fuera)} restantes son exonerados sin cédula, no se pueden clasificar y cuentan como "no eran clientes" (los porcentajes son un piso).` : `Las ${facN(ventasPanel)} ventas traen cédula de cliente.`;
-    ['rc-mes-nota', 'rc-ag-nota'].forEach(id => { const e = document.getElementById(id); if(e) e.textContent = nota; });
+    const nota = fuera ? `${facN(fuera)} ventas exoneradas sin cédula de cliente: no se pueden clasificar, así que el % real puede ser algo mayor.` : '';
+    { const e = document.getElementById('rc-mes-nota'); if(e) e.textContent = nota; }
     document.getElementById('rc-k-prev').textContent = ventasPanel ? facP(100 * prev / ventasPanel) : '—';
     document.getElementById('rc-k-prev-hint').textContent = `${facN(prev)} de ${facN(ventasPanel)} ventas ya habían comprado en ORGU`;
     document.getElementById('rc-k-renov').textContent = ventasPanel ? facP(100 * ren / ventasPanel) : '—';
