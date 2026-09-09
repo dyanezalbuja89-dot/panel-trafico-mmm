@@ -49,7 +49,15 @@ def construir(d, fac_df=None):
             hogar.setdefault(a, ag)
     ced = {}
     if fac_df is not None and len(fac_df):
-        for a, c in fac_df.groupby('asesor')['cedula_vendedor'].agg(lambda s: Counter(s.dropna()).most_common(1)[0][0] if s.notna().any() else None).items():
+        # La grafía de FACTURADO (una por factura, casi siempre la larga) se mapea a la
+        # del panel ANTES de cruzar; si no, la cédula queda huérfana en la grafía larga.
+        import asesores
+        freq = {n: 10**6 for n in pad}
+        for n, c in Counter(fac_df['asesor'].dropna()).items():
+            freq.setdefault(n, c)
+        mapa = {a: c for a, c in asesores.construir_mapa(freq).items() if a not in pad}
+        col = fac_df['asesor'].map(lambda a: mapa.get(a, a))
+        for a, c in fac_df.groupby(col)['cedula_vendedor'].agg(lambda s: Counter(s.dropna()).most_common(1)[0][0] if s.notna().any() else None).items():
             ced[a] = c
     filas = []
     for a, p in pad.items():
