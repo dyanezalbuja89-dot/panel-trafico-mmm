@@ -10,8 +10,11 @@ solo. deploy.sh lo corre después del aggregate y aborta el deploy si falla.
 Compara, para cada marca, las ventas netas 2026 (hasta `ventas_corte`) por asesor:
   - CRUDO: la **Base de Ventas de Finanzas** (campo Vendedor) en los meses que
     cubre — es la fuente que manda en el panel desde agosto-2026 — y DATOS 2
-    ('Usuario Vende', snapshot más reciente por mes) solo para los meses de 2026
-    que la Base todavía no trae. Hasta el 09-sep-2026 comparaba SOLO contra
+    ('Usuario Vende', snapshot más reciente por mes) para los meses de 2026 que la
+    Base todavía no trae, **incluido el mes en curso**: `master_por_asesor` cuenta
+    todo 2026, no se detiene en `ventas_corte`. Cortar el crudo en el corte de
+    ventas marcaba como discrepancia cada venta del mes en curso que el inventario
+    ya registra (7 el 10-sep-2026, todas legítimas). Hasta el 09-sep-2026 comparaba SOLO contra
     DATOS 2, que no ve exonerados ni la grafía de la Base: 41 falsas alarmas, y
     nadie las vio porque deploy.sh abortaba antes por otra cosa desde el 01-sep.
   - PANEL: conversion_data[marca].master_por_asesor de data.json.
@@ -55,19 +58,19 @@ def _limpio(a):
     return '' if a in ('NAN', 'NONE', '') else a
 
 
-def cargar_base(corte):
+def cargar_base():
     """{mes} cubiertos y DataFrame (mk, mes, ase, cantidad) desde la Base de Ventas."""
     b = base_ventas.cargar()
     if b is None or not len(b):
         return set(), None
     b = b[b['marca'].notna() & b['mes'].notna()]
-    b = b[(b['mes'] >= '2026-01') & (b['mes'] <= corte)]
+    b = b[b['mes'] >= '2026-01']
     d = pd.DataFrame({'mk': b['marca'], 'mes': b['mes'],
                       'ase': b['asesor'].map(_limpio), 'cantidad': b['cantidad']})
     return set(d['mes'].unique()), d
 
 
-def cargar_datos2(meses_excluir, corte):
+def cargar_datos2(meses_excluir):
     """DATOS 2 con el snapshot más reciente mandando por mes, solo meses no cubiertos.
 
     Mismo criterio que ventas.load_ventas_completo(): el snapshot es una foto y una
@@ -103,7 +106,7 @@ def cargar_datos2(meses_excluir, corte):
     d = d[d['_snap'] == d.groupby(mp)['_snap'].transform('max')].copy()
     d = d.drop_duplicates(subset=['Vin', 'Fecha', 'Cantidad'], keep='first')
     d['mes'] = d['f'].dt.strftime('%Y-%m')
-    d = d[(d['mes'] >= '2026-01') & (d['mes'] <= corte) & ~d['mes'].isin(meses_excluir)]
+    d = d[(d['mes'] >= '2026-01') & ~d['mes'].isin(meses_excluir)]
     if d.empty:
         return None
     return pd.DataFrame({'mk': d['Marca'].map(_marca), 'mes': d['mes'],
@@ -112,9 +115,8 @@ def cargar_datos2(meses_excluir, corte):
 
 def main():
     D = json.load(open(Path(__file__).parent / 'data.json'))
-    corte = str(D.get('ventas_corte') or '2026-12-31')[:7]
-    meses_base, base = cargar_base(corte)
-    d2 = cargar_datos2(meses_base, corte)
+    meses_base, base = cargar_base()
+    d2 = cargar_datos2(meses_base)
     partes = [x for x in (base, d2) if x is not None and len(x)]
     if not partes:
         print('[checks_asesores] WARN sin Base de Ventas ni inventarios — check omitido')
