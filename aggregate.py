@@ -1148,6 +1148,12 @@ def _extract_traffic_meta_marcas(path):
         return None
     out = {}
     current_brand = None
+    # ► Corrección de asignación (Daniel, 10-sep-2026): en el archivo de metas de
+    # septiembre la meta de tráfico de RAM quedó cargada en La Y, pero ese tráfico lo
+    # gestiona Machala ("es de Machala, fue un error mío"). Se corrige aquí y no en el
+    # Excel para que el panel diga la verdad aunque vuelvan a subir el archivo original.
+    # Es idempotente: si el archivo llega corregido, en La Y no hay nada que mover.
+    REASIGNAR = {'RAM_ORGU': {'La Y': 'Machala'}}
     for i in range(h+2, min(h+50, len(df))):
         label = df.iloc[i, 0]
         if pd.isna(label): continue
@@ -1174,6 +1180,22 @@ def _extract_traffic_meta_marcas(path):
                     out[current_brand]['per_agencia'][ag] += iv
                     out[current_brand]['meta_total'] += iv
                 except (ValueError, TypeError): pass
+    for bk, mapa in REASIGNAR.items():
+        b = out.get(bk)
+        if not b:
+            continue
+        for desde, hacia in mapa.items():
+            n = b['per_agencia'].get(desde, 0)
+            if not n:
+                continue
+            b['per_agencia'][desde] = 0
+            b['per_agencia'][hacia] = b['per_agencia'].get(hacia, 0) + n
+            for fila in b['matrix_meta'].values():
+                if fila.get(desde):
+                    fila[hacia] = fila.get(hacia, 0) + fila[desde]
+                    fila[desde] = 0
+            print(f'[metas] {bk}: {n} uds de meta de tráfico movidas de {desde} a {hacia} '
+                  f'(corrección Daniel 10-sep-2026)')
     return out
 
 _FORD_MKTG_SECTION = 'PRESUPUESTO DE TRÁFICO POR CONCESIONARIO MARKETING'
