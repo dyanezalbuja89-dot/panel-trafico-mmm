@@ -1148,12 +1148,6 @@ def _extract_traffic_meta_marcas(path):
         return None
     out = {}
     current_brand = None
-    # ► Corrección de asignación (Daniel, 10-sep-2026): en el archivo de metas de
-    # septiembre la meta de tráfico de RAM quedó cargada en La Y, pero ese tráfico lo
-    # gestiona Machala ("es de Machala, fue un error mío"). Se corrige aquí y no en el
-    # Excel para que el panel diga la verdad aunque vuelvan a subir el archivo original.
-    # Es idempotente: si el archivo llega corregido, en La Y no hay nada que mover.
-    REASIGNAR = {'RAM_ORGU': {'La Y': 'Machala'}}
     for i in range(h+2, min(h+50, len(df))):
         label = df.iloc[i, 0]
         if pd.isna(label): continue
@@ -1180,7 +1174,7 @@ def _extract_traffic_meta_marcas(path):
                     out[current_brand]['per_agencia'][ag] += iv
                     out[current_brand]['meta_total'] += iv
                 except (ValueError, TypeError): pass
-    for bk, mapa in REASIGNAR.items():
+    for bk, mapa in META_TRAFICO_REASIGNAR.items():
         b = out.get(bk)
         if not b:
             continue
@@ -1588,6 +1582,14 @@ BRAND_DISPLAY = {
     'MAZDA_ORGU':    'Mazda',
     'RAM_ORGU':      'RAM',
 }
+# ► Corrección de asignación de metas de tráfico (Daniel, 10-sep-2026): en el archivo de
+# septiembre la meta de RAM quedó cargada en La Y, pero ese tráfico lo gestiona Machala
+# ("ese de RAM de La Y es de Machala, fue un error mío"). Se corrige aquí y no en el Excel
+# para que el panel diga la verdad aunque vuelvan a subir el archivo original; es idempotente
+# (si el archivo llega corregido, en La Y no hay nada que mover). La aplican los DOS parsers
+# de metas de marcas: load_brand_metas (mes con BD) y _extract_traffic_meta_marcas (mes sin BD).
+META_TRAFICO_REASIGNAR = {'RAM_ORGU': {'La Y': 'Machala'}}
+
 BRAND_DEALERS = {
     'DONGFENG_ORGU': ['La Y', 'Machala'],
     'CHERY_ORGU':    ['Machala'],
@@ -1753,6 +1755,20 @@ def load_brand_metas(path):
                 base[d] += 1
             for d in metas[b]:
                 metas[b][d][ag] = base[d]
+    for b, mapa in META_TRAFICO_REASIGNAR.items():
+        if b not in metas:
+            continue
+        for desde, hacia in mapa.items():
+            movido = 0
+            for disp, fila in metas[b].items():
+                n = fila.get(desde, 0)
+                if n:
+                    fila[hacia] = fila.get(hacia, 0) + n
+                    fila[desde] = 0
+                    movido += n
+            if movido:
+                print(f'[metas] {b}: {movido} uds de meta de tráfico movidas de {desde} '
+                      f'a {hacia} (corrección Daniel 10-sep-2026)')
     return metas
 
 def process_bd_brand(df, brand, channels=None):
@@ -2346,7 +2362,7 @@ def main():
                 _f = cfg.get(_k)
                 _mt.append(str(Path(_resolve_local(_f)).stat().st_mtime_ns) if _f else '-')
             _cache_key = (f"{Path(_cp).stat().st_mtime_ns}|{Path(_pp).stat().st_mtime_ns}"
-                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v7-familias-orgu")
+                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v8-meta-ram-machala")
         except Exception:
             _cache_key = None
         _cached_entry = _cache.get(cfg['key']) if _cache_key else None
