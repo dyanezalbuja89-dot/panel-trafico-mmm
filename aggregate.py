@@ -1241,11 +1241,26 @@ def _load_ford_metas_marketing(path):
         for j, ag in enumerate(_FORD_AG_ORDER):
             v = df.iloc[i, cols[ag]]
             if pd.notna(v):
-                # Se redondea CADA versión antes de sumar, igual que el cuadro verde,
-                # que muestra celdas ya redondeadas (10.67 → 11). Sumar los decimales
-                # y redondear al final daba 1-2 unidades menos por modelo.
-                try: out[m][j] += round(float(v))
+                # Se acumula el DECIMAL y se redondea al final (abajo). El presupuesto
+                # reparte fracciones por versión (7,3 · 5,3) y redondear celda a celda
+                # perdía unidades: septiembre daba La Y 92 cuando su presupuesto y su
+                # propia hoja dicen 95, y Tumbaco 51 contra 53. Ford total 418 vs 423.
+                try: out[m][j] += float(v)
                 except (ValueError, TypeError): pass
+    # Redondeo que PRESERVA EL TOTAL de cada agencia (mayor residuo), el mismo método
+    # que load_brand_metas usa para las marcas desde el 29-jul-2026. Decisión de Daniel
+    # (11-sep-2026): "todo debe quedar como está en los presupuestos establecidos desde
+    # un inicio" — la meta del panel es la del presupuesto, no la que salga de redondear
+    # celda por celda. Aplica a todos los meses, incluidos los ya cerrados.
+    for j in range(7):
+        vals = {m: out[m][j] for m in out}
+        total_exacto = int(round(sum(vals.values())))
+        base = {m: int(v // 1) for m, v in vals.items()}
+        faltan = total_exacto - sum(base.values())
+        for m in sorted(vals, key=lambda x: vals[x] - base[x], reverse=True)[:max(0, faltan)]:
+            base[m] += 1
+        for m in out:
+            out[m][j] = base[m]
     return {m: [int(x) for x in v] for m, v in out.items()}
 
 def load_ford_metas(path):
@@ -2362,7 +2377,7 @@ def main():
                 _f = cfg.get(_k)
                 _mt.append(str(Path(_resolve_local(_f)).stat().st_mtime_ns) if _f else '-')
             _cache_key = (f"{Path(_cp).stat().st_mtime_ns}|{Path(_pp).stat().st_mtime_ns}"
-                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v8-meta-ram-machala")
+                          f"|{cfg['cut_day']}|{'|'.join(_mt)}|v9-metas-presupuesto")
         except Exception:
             _cache_key = None
         _cached_entry = _cache.get(cfg['key']) if _cache_key else None
